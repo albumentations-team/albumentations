@@ -72,60 +72,63 @@ class DataProcessor(ABC):
         pass
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
-        rows, cols = get_shape(data["image"])
+        image_shape = get_shape(data["image"])
 
         for data_name in self.data_fields:
             if data_name in data:
-                data[data_name] = self.filter(data[data_name], rows, cols)
-                data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
+                data[data_name] = self.filter(data[data_name], image_shape)
+                data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="from")
 
         return self.remove_label_fields_from_data(data)
 
     def preprocess(self, data: dict[str, Any]) -> None:
         data = self.add_label_fields_to_data(data)
 
-        rows, cols = data["image"].shape[:2]
+        image_shape = get_shape(data["image"])
+
         for data_name in self.data_fields:
             if data_name in data:
-                data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
+                data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="to")
 
     def check_and_convert(
         self,
         data: list[BoxOrKeypointType],
-        rows: int,
-        cols: int,
+        image_shape: Sequence[int],
         direction: Literal["to", "from"] = "to",
     ) -> list[BoxOrKeypointType]:
         if self.params.format == "albumentations":
-            self.check(data, rows, cols)
+            self.check(data, image_shape)
             return data
 
         if direction == "to":
-            return self.convert_to_albumentations(data, rows, cols)
+            return self.convert_to_albumentations(data, image_shape)
 
         if direction == "from":
-            return self.convert_from_albumentations(data, rows, cols)
+            return self.convert_from_albumentations(data, image_shape)
 
         raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence[BoxOrKeypointType], rows: int, cols: int) -> Sequence[BoxOrKeypointType]:
+    def filter(self, data: Sequence[BoxOrKeypointType], image_shape: Sequence[int]) -> Sequence[BoxOrKeypointType]:
         pass
 
     @abstractmethod
-    def check(self, data: list[BoxOrKeypointType], rows: int, cols: int) -> None:
+    def check(self, data: list[BoxOrKeypointType], image_shape: Sequence[int]) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: list[BoxOrKeypointType], rows: int, cols: int) -> list[BoxOrKeypointType]:
+    def convert_to_albumentations(
+        self,
+        data: list[BoxOrKeypointType],
+        image_shape: Sequence[int],
+    ) -> list[BoxOrKeypointType]:
         pass
 
     @abstractmethod
     def convert_from_albumentations(
         self,
         data: list[BoxOrKeypointType],
-        rows: int,
-        cols: int,
+        image_shape: Sequence[int],
     ) -> list[BoxOrKeypointType]:
         pass
 

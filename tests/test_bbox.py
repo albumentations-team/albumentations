@@ -36,7 +36,7 @@ from .utils import set_seed
     ],
 )
 def test_normalize_bbox(bbox: BoxType, expected: BoxType) -> None:
-    normalized_bbox = normalize_bbox(bbox, 200, 400)
+    normalized_bbox = normalize_bbox(bbox, (200, 400))
     assert normalized_bbox == expected
 
 
@@ -48,14 +48,14 @@ def test_normalize_bbox(bbox: BoxType, expected: BoxType) -> None:
     ],
 )
 def test_denormalize_bbox(bbox: BoxType, expected: BoxType) -> None:
-    denormalized_bbox = denormalize_bbox(bbox, 200, 400)
+    denormalized_bbox = denormalize_bbox(bbox, (200, 400))
     assert denormalized_bbox == expected
 
 
 @pytest.mark.parametrize("bbox", [(15, 25, 100, 200), (15, 25, 100, 200, 99)])
 def test_normalize_denormalize_bbox(bbox: BoxType) -> None:
-    normalized_bbox = normalize_bbox(bbox, 200, 400)
-    denormalized_bbox = denormalize_bbox(normalized_bbox, 200, 400)
+    normalized_bbox = normalize_bbox(bbox, (200, 400))
+    denormalized_bbox = denormalize_bbox(normalized_bbox, (200, 400))
     assert denormalized_bbox == bbox
 
 
@@ -63,45 +63,45 @@ def test_normalize_denormalize_bbox(bbox: BoxType) -> None:
     "bbox", [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
 )
 def test_denormalize_normalize_bbox(bbox: BoxType) -> None:
-    denormalized_bbox = denormalize_bbox(bbox, 200, 400)
-    normalized_bbox = normalize_bbox(denormalized_bbox, 200, 400)
+    denormalized_bbox = denormalize_bbox(bbox, (200, 400))
+    normalized_bbox = normalize_bbox(denormalized_bbox, (200, 400))
     assert normalized_bbox == bbox
 
 
 def test_normalize_bboxes():
     # Test with list input
     bboxes_list = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
-    normalized_list = normalize_bboxes(bboxes_list, 200, 400)
+    normalized_list = normalize_bboxes(bboxes_list, (200, 400))
     expected_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
     assert normalized_list == expected_list
 
     # Test with numpy array input
     bboxes_array = np.array([[15, 25, 100, 200], [15, 25, 100, 200]])
-    normalized_array = normalize_bboxes(bboxes_array, 200, 400)
+    normalized_array = normalize_bboxes(bboxes_array, (200, 400))
     expected_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
     np.testing.assert_array_almost_equal(normalized_array, expected_array)
 
     # Test individual bbox normalization
     for bbox, expected in zip(bboxes_list, expected_list):
-        normalized = normalize_bbox(bbox, 200, 400)
+        normalized = normalize_bbox(bbox, (200, 400))
         assert normalized == expected
 
 def test_denormalize_bboxes():
     # Test with list input
     bboxes_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
-    denormalized_list = denormalize_bboxes(bboxes_list, 200, 400)
+    denormalized_list = denormalize_bboxes(bboxes_list, (200, 400))
     expected_list = [(15.0, 25.0, 100.0, 200.0), (15.0, 25.0, 100.0, 200.0, 99)]
     assert denormalized_list == expected_list
 
     # Test with numpy array input
     bboxes_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
-    denormalized_array = denormalize_bboxes(bboxes_array, 200, 400)
+    denormalized_array = denormalize_bboxes(bboxes_array, (200, 400))
     expected_array = np.array([[15.0, 25.0, 100.0, 200.0], [15.0, 25.0, 100.0, 200.0]])
     np.testing.assert_array_almost_equal(denormalized_array, expected_array)
 
     # Test individual bbox denormalization
     for bbox, expected in zip(bboxes_list, expected_list):
-        denormalized = denormalize_bbox(bbox, 200, 400)
+        denormalized = denormalize_bbox(bbox, (200, 400))
         assert denormalized == expected
 
 
@@ -113,7 +113,7 @@ def test_denormalize_bboxes():
 def test_calculate_bbox_area(
     bbox: BoxType, rows: int, cols: int, expected: int
 ) -> None:
-    area = calculate_bbox_area(bbox, rows, cols)
+    area = calculate_bbox_area(bbox, (rows, cols))
     assert area == expected
 
 
@@ -145,7 +145,7 @@ def test_convert_bbox_to_albumentations(
     image = np.ones((100, 100, 3))
 
     converted_bbox = convert_bbox_to_albumentations(
-        bbox, rows=image.shape[0], cols=image.shape[1], source_format=source_format
+        bbox, source_format=source_format, image_shape=image.shape
     )
     assert np.all(np.isclose(converted_bbox, expected))
 
@@ -166,7 +166,7 @@ def test_convert_bbox_from_albumentations(
 ) -> None:
     image = np.ones((100, 100, 3))
     converted_bbox = convert_bbox_from_albumentations(
-        bbox, rows=image.shape[0], cols=image.shape[1], target_format=target_format
+        bbox, target_format=target_format, image_shape=image.shape
     )
     assert np.all(np.isclose(converted_bbox, expected))
 
@@ -196,13 +196,12 @@ def test_convert_bbox_to_albumentations_and_back(
 ) -> None:
     image = np.ones((100, 100, 3))
     converted_bbox = convert_bbox_to_albumentations(
-        bbox, rows=image.shape[0], cols=image.shape[1], source_format=bbox_format
+        bbox, source_format=bbox_format, image_shape=image.shape
     )
     converted_back_bbox = convert_bbox_from_albumentations(
         converted_bbox,
-        rows=image.shape[0],
-        cols=image.shape[1],
         target_format=bbox_format,
+        image_shape=image.shape,
     )
     assert np.all(np.isclose(converted_back_bbox, bbox))
 
@@ -211,13 +210,13 @@ def test_convert_bboxes_to_albumentations() -> None:
     bboxes = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
     image = np.ones((100, 100, 3))
     converted_bboxes = convert_bboxes_to_albumentations(
-        bboxes, rows=image.shape[0], cols=image.shape[1], source_format="coco"
+        bboxes, source_format="coco", image_shape=image.shape
     )
     converted_bbox_1 = convert_bbox_to_albumentations(
-        bboxes[0], rows=image.shape[0], cols=image.shape[1], source_format="coco"
+        bboxes[0], source_format="coco", image_shape=image.shape
     )
     converted_bbox_2 = convert_bbox_to_albumentations(
-        bboxes[1], rows=image.shape[0], cols=image.shape[1], source_format="coco"
+        bboxes[1], source_format="coco", image_shape=image.shape
     )
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
 
@@ -226,13 +225,13 @@ def test_convert_bboxes_from_albumentations() -> None:
     bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     image = np.ones((100, 100, 3))
     converted_bboxes = convert_bboxes_to_albumentations(
-        bboxes, rows=image.shape[0], cols=image.shape[1], source_format="coco"
+        bboxes, source_format="coco", image_shape=image.shape
     )
     converted_bbox_1 = convert_bbox_to_albumentations(
-        bboxes[0], rows=image.shape[0], cols=image.shape[1], source_format="coco"
+        bboxes[0], source_format="coco", image_shape=image.shape
     )
     converted_bbox_2 = convert_bbox_to_albumentations(
-        bboxes[1], rows=image.shape[0], cols=image.shape[1], source_format="coco"
+        bboxes[1], source_format="coco", image_shape=image.shape
     )
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
 
@@ -484,7 +483,7 @@ def test_filter_bboxes(
     bboxes: list[BoxType], min_area: float, min_visibility: float, target: list[BoxType]
 ) -> None:
     filtered_bboxes = filter_bboxes(
-        bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100
+        bboxes, min_area=min_area, min_visibility=min_visibility, image_shape=(100, 100),
     )
     assert filtered_bboxes == target
 
@@ -543,8 +542,7 @@ def test_filter_bboxes_by_min_width_height(
 ) -> None:
     filtered_bboxes = filter_bboxes(
         bboxes,
-        cols=img_width,
-        rows=img_height,
+        image_shape=(img_height, img_width),
         min_width=min_width,
         min_height=min_height,
     )

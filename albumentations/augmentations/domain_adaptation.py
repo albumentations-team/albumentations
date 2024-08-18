@@ -205,7 +205,7 @@ class FDA(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         target_img = self.read_fn(random.choice(self.reference_images))
-        target_img = cv2.resize(target_img, dsize=(params["shape"][1], params["shape"][0]))
+        target_img = cv2.resize(target_img, dsize=(params["cols"], params["rows"]))
 
         return {"target_image": target_img}
 

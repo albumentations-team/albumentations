@@ -92,52 +92,41 @@ class KeypointsProcessor(DataProcessor):
             msg = "Your 'label_fields' are not valid - them must have same names as params in 'keypoint_params' dict"
             raise ValueError(msg)
 
-    def filter(self, data: Sequence[KeypointType], rows: int, cols: int) -> Sequence[KeypointType]:
-        """The function filters a sequence of data based on the number of rows and columns, and returns a
-        sequence of keypoints.
-
-        :param data: The `data` parameter is a sequence of sequences. Each inner sequence represents a
-        set of keypoints
-        :type data: Sequence[Sequence]
-        :param rows: The `rows` parameter represents the number of rows in the data matrix. It specifies
-        the number of rows that will be used for filtering the keypoints
-        :type rows: int
-        :param cols: The parameter "cols" represents the number of columns in the grid that the
-        keypoints will be filtered on
-        :type cols: int
-        :return: a sequence of KeypointType objects.
-        """
+    def filter(self, data: Sequence[KeypointType], image_shape: Sequence[int]) -> Sequence[KeypointType]:
         self.params: KeypointParams
-        return filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
+        return filter_keypoints(data, image_shape, remove_invisible=self.params.remove_invisible)
 
-    def check(self, data: Sequence[KeypointType], rows: int, cols: int) -> None:
-        check_keypoints(data, rows, cols)
+    def check(self, data: Sequence[KeypointType], image_shape: Sequence[int]) -> None:
+        check_keypoints(data, image_shape)
 
-    def convert_from_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> list[KeypointType]:
+    def convert_from_albumentations(
+        self,
+        data: Sequence[KeypointType],
+        image_shape: Sequence[int],
+    ) -> list[KeypointType]:
         params = self.params
         return convert_keypoints_from_albumentations(
             data,
             params.format,
-            rows,
-            cols,
+            image_shape,
             check_validity=params.remove_invisible,
             angle_in_degrees=params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> list[KeypointType]:
+    def convert_to_albumentations(self, data: Sequence[KeypointType], image_shape: Sequence[int]) -> list[KeypointType]:
         params = self.params
         return convert_keypoints_to_albumentations(
             data,
             params.format,
-            rows,
-            cols,
+            image_shape,
             check_validity=params.remove_invisible,
             angle_in_degrees=params.angle_in_degrees,
         )
 
 
-def check_keypoint(kp: KeypointType, rows: int, cols: int) -> None:
+def check_keypoint(kp: KeypointType, image_shape: Sequence[int]) -> None:
     """Check if keypoint coordinates are less than image shapes"""
+    rows, cols = image_shape[:2]
     for name, value, size in zip(["x", "y"], kp[:2], [cols, rows]):
         if not 0 <= value < size:
             raise ValueError(f"Expected {name} for keypoint {kp} to be in the range [0.0, {size}], got {value}.")
@@ -147,20 +136,21 @@ def check_keypoint(kp: KeypointType, rows: int, cols: int) -> None:
         raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {angle}")
 
 
-def check_keypoints(keypoints: Sequence[KeypointType], rows: int, cols: int) -> None:
+def check_keypoints(keypoints: Sequence[KeypointType], image_shape: Sequence[int]) -> None:
     """Check if keypoints boundaries are less than image shapes"""
     for kp in keypoints:
-        check_keypoint(kp, rows, cols)
+        check_keypoint(kp, image_shape)
 
 
 def filter_keypoints(
     keypoints: Sequence[KeypointType],
-    rows: int,
-    cols: int,
+    image_shape: Sequence[int],
     remove_invisible: bool,
 ) -> Sequence[KeypointType]:
     if not remove_invisible:
         return keypoints
+
+    rows, cols = image_shape[:2]
 
     resulting_keypoints = []
     for kp in keypoints:
@@ -176,8 +166,7 @@ def filter_keypoints(
 def convert_keypoint_to_albumentations(
     keypoint: KeypointType,
     source_format: str,
-    rows: int,
-    cols: int,
+    image_shape: Sequence[int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> KeypointType:
@@ -210,15 +199,14 @@ def convert_keypoint_to_albumentations(
     # https://github.com/albumentations-team/albumentations/issues/1819
     keypoint = (int(x), int(y), angle_to_2pi_range(a), s, *tail)
     if check_validity:
-        check_keypoint(keypoint, rows, cols)
+        check_keypoint(keypoint, image_shape)
     return keypoint
 
 
 def convert_keypoint_from_albumentations(
     keypoint: KeypointType,
     target_format: str,
-    rows: int,
-    cols: int,
+    image_shape: Sequence[int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> KeypointType:
@@ -228,7 +216,7 @@ def convert_keypoint_from_albumentations(
     (x, y, angle, scale), tail = keypoint[:4], tuple(keypoint[4:])
     angle = angle_to_2pi_range(angle)
     if check_validity:
-        check_keypoint((x, y, angle, scale), rows, cols)
+        check_keypoint((x, y, angle, scale), image_shape)
     if angle_in_degrees:
         angle = math.degrees(angle)
 
@@ -251,13 +239,12 @@ def convert_keypoint_from_albumentations(
 def convert_keypoints_to_albumentations(
     keypoints: Sequence[KeypointType],
     source_format: str,
-    rows: int,
-    cols: int,
+    image_shape: Sequence[int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> list[KeypointType]:
     return [
-        convert_keypoint_to_albumentations(kp, source_format, rows, cols, check_validity, angle_in_degrees)
+        convert_keypoint_to_albumentations(kp, source_format, image_shape, check_validity, angle_in_degrees)
         for kp in keypoints
     ]
 
@@ -265,12 +252,11 @@ def convert_keypoints_to_albumentations(
 def convert_keypoints_from_albumentations(
     keypoints: Sequence[KeypointType],
     target_format: str,
-    rows: int,
-    cols: int,
+    image_shape: Sequence[int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> list[KeypointType]:
     return [
-        convert_keypoint_from_albumentations(kp, target_format, rows, cols, check_validity, angle_in_degrees)
+        convert_keypoint_from_albumentations(kp, target_format, image_shape, check_validity, angle_in_degrees)
         for kp in keypoints
     ]

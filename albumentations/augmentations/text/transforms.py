@@ -154,10 +154,8 @@ class TextImage(ImageOnlyTransform):
         return result_sentence if result_sentence != text else ""
 
     def preprocess_metadata(self, image: np.ndarray, bbox: BoxType, text: str, bbox_index: int) -> dict[str, Any]:
-        image_height, image_width = image.shape[:2]
-
         check_bbox(bbox)
-        denormalized_bbox = denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)
+        denormalized_bbox = denormalize_bbox(bbox[:4], image.shape[:2])
 
         x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
         bbox_height = y_max - y_min
