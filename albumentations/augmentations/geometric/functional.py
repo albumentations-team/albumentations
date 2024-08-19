@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Literal, Sequence, cast
+from typing import Any, Callable, Literal, Sequence, TypedDict, cast
 
 import cv2
 import numpy as np
@@ -549,7 +549,85 @@ def keypoint_affine(
     return x, y, a, s
 
 
-def _bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+def calculate_affine_transform_padding(
+    matrix: skimage.transform.ProjectiveTransform,
+    image_shape: tuple[int, int],
+) -> tuple[int, int, int, int]:
+    """Calculate the necessary padding for an affine transformation to avoid cropping.
+
+    This function determines the minimum amount of padding needed on each side of an image
+    to ensure that no part of the image is lost after applying an affine transformation.
+
+    Args:
+        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix to be applied.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        tuple[int, int, int, int]: A tuple containing the padding values in the order:
+                                   (pad_left, pad_right, pad_top, pad_bottom).
+                                   These values represent the number of pixels to pad on each side.
+
+    Note:
+        - The padding values are calculated based on the transformation of the image corners.
+        - The padding values are always non-negative integers.
+        - The returned padding can be used with numpy's pad function or similar padding operations
+          to prepare an image for affine transformation without loss of information.
+    """
+    height, width = image_shape
+
+    # Define the corners of the image
+    corners = np.array([[0, 0], [width, 0], [width, height], [0, height]])
+
+    # Transform the corners
+    transformed_corners = matrix(corners)
+
+    # Calculate the bounding box of the transformed corners
+    min_x, min_y = np.floor(transformed_corners.min(axis=0)).astype(int)
+    max_x, max_y = np.ceil(transformed_corners.max(axis=0)).astype(int)
+
+    # Calculate padding
+    pad_left = max(0, -min_x)
+    pad_right = max(0, max_x - width)
+    pad_top = max(0, -min_y)
+    pad_bottom = max(0, max_y - height)
+
+    return (pad_left, pad_right, pad_top, pad_bottom)
+
+
+def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+    """Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
+
+    This function transforms each corner of every bounding box using the given affine transformation
+    matrix, then computes the new bounding boxes that fully enclose the transformed corners.
+
+    Args:
+        bboxes (np.ndarray): An array of bounding boxes with shape (N, 4+) where N is the number of
+                             bounding boxes. Each row should contain [x_min, y_min, x_max, y_max]
+                             followed by any additional attributes (e.g., class labels).
+        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix to apply.
+
+    Returns:
+        np.ndarray: An array of transformed bounding boxes with the same shape as the input.
+                    Each row contains [new_x_min, new_y_min, new_x_max, new_y_max] followed by
+                    any additional attributes from the input bounding boxes.
+
+    Note:
+        - This function assumes that the input bounding boxes are in the format [x_min, y_min, x_max, y_max].
+        - The resulting bounding boxes are the smallest axis-aligned boxes that completely
+          enclose the transformed original boxes. They may be larger than the minimal possible
+          bounding box if the original box becomes rotated.
+        - Any additional attributes beyond the first 4 coordinates are preserved unchanged.
+        - This method is called "largest box" because it returns the largest axis-aligned box
+          that encloses all corners of the transformed bounding box.
+
+    Example:
+        >>> bboxes = np.array([[10, 10, 20, 20, 1], [30, 30, 40, 40, 2]])  # Two boxes with class labels
+        >>> matrix = skimage.transform.AffineTransform(scale=(2, 2), translation=(5, 5))
+        >>> transformed_bboxes = _bboxes_affine_largest_box(bboxes, matrix)
+        >>> print(transformed_bboxes)
+        [[ 25.  25.  45.  45.   1.]
+         [ 65.  65.  85.  85.   2.]]
+    """
     # Extract corners of all bboxes
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     corners = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(
@@ -571,7 +649,41 @@ def _bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Pro
     return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
 
 
-def _bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+    """Apply an affine transformation to bounding boxes using an ellipse approximation method.
+
+    This function transforms bounding boxes by approximating each box with an ellipse,
+    transforming points along the ellipse's circumference, and then computing the
+    new bounding box that encloses the transformed ellipse.
+
+    Args:
+        bboxes (np.ndarray): An array of bounding boxes with shape (N, 4+) where N is the number of
+                             bounding boxes. Each row should contain [x_min, y_min, x_max, y_max]
+                             followed by any additional attributes (e.g., class labels).
+        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix to apply.
+
+    Returns:
+        np.ndarray: An array of transformed bounding boxes with the same shape as the input.
+                    Each row contains [new_x_min, new_y_min, new_x_max, new_y_max] followed by
+                    any additional attributes from the input bounding boxes.
+
+    Note:
+        - This function assumes that the input bounding boxes are in the format [x_min, y_min, x_max, y_max].
+        - The ellipse approximation method can provide a tighter bounding box compared to the
+          largest box method, especially for rotations.
+        - 360 points are used to approximate each ellipse, which provides a good balance between
+          accuracy and computational efficiency.
+        - Any additional attributes beyond the first 4 coordinates are preserved unchanged.
+        - This method may be more suitable for objects that are roughly elliptical in shape.
+
+    Example:
+        >>> bboxes = np.array([[10, 10, 30, 20, 1], [40, 40, 60, 60, 2]])  # Two boxes with class labels
+        >>> matrix = skimage.transform.AffineTransform(rotation=np.pi/4)  # 45-degree rotation
+        >>> transformed_bboxes = _bboxes_affine_ellipse(bboxes, matrix)
+        >>> print(transformed_bboxes)
+        [[ 5.86  5.86 34.14 24.14  1.  ]
+         [30.   30.   70.   70.    2.  ]]
+    """
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     bbox_width = (x_max - x_min) / 2
     bbox_height = (y_max - y_min) / 2
@@ -613,9 +725,9 @@ def bboxes_affine(
     bboxes = denormalize_bboxes(bboxes, image_shape)
 
     if rotate_method == "largest_box":
-        transformed_bboxes = _bboxes_affine_largest_box(bboxes, matrix)
+        transformed_bboxes = bboxes_affine_largest_box(bboxes, matrix)
     elif rotate_method == "ellipse":
-        transformed_bboxes = _bboxes_affine_ellipse(bboxes, matrix)
+        transformed_bboxes = bboxes_affine_ellipse(bboxes, matrix)
     else:
         raise ValueError(f"Method {rotate_method} is not a valid rotation method.")
 
@@ -1969,3 +2081,80 @@ def flip_keypoints(
         flipped_keypoints[:, 1] = rows - flipped_keypoints[:, 1]
         flipped_keypoints[:, 2] = -flipped_keypoints[:, 2]  # Flip angle
     return flipped_keypoints
+
+
+class TranslateDict(TypedDict):
+    x: float
+    y: float
+
+
+class ShearDict(TypedDict):
+    x: float
+    y: float
+
+
+class ScaleDict(TypedDict):
+    x: float
+    y: float
+
+
+def create_affine_transformation_matrix(
+    translate: TranslateDict,
+    shear: ShearDict,
+    scale: ScaleDict,
+    rotate: float,
+    shift: tuple[float, float],
+) -> skimage.transform.ProjectiveTransform:
+    """Create an affine transformation matrix combining translation, shear, scale, and rotation.
+
+    This function creates a complex affine transformation by combining multiple transformations
+    in a specific order. The transformations are applied as follows:
+    1. Shift to top-left: Moves the center of transformation to (0, 0)
+    2. Apply main transformations: scale, rotation, shear, and translation
+    3. Shift back to center: Moves the center of transformation back to its original position
+
+    The order of these transformations is crucial as matrix multiplications are not commutative.
+
+    Args:
+        translate (TranslateDict): Translation in x and y directions.
+                                   Keys: 'x', 'y'. Values: translation amounts in pixels.
+        shear (ShearDict): Shear in x and y directions.
+                           Keys: 'x', 'y'. Values: shear angles in degrees.
+        scale (ScaleDict): Scale factors for x and y directions.
+                           Keys: 'x', 'y'. Values: scale factors (1.0 means no scaling).
+        rotate (float): Rotation angle in degrees. Positive values rotate counter-clockwise.
+        shift (tuple[float, float]): Shift to apply before and after transformations.
+                                     Typically the image center (width/2, height/2).
+
+    Returns:
+        skimage.transform.ProjectiveTransform: The resulting affine transformation matrix.
+
+    Note:
+        - All angle inputs (rotate, shear) are in degrees and are converted to radians internally.
+        - The order of transformations in the AffineTransform is: scale, rotation, shear, translation.
+        - The resulting transformation can be applied to coordinates using the __call__ method.
+    """
+    # Step 1: Create matrix to shift to top-left
+    # This moves the center of transformation to (0, 0)
+    matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[shift[0], shift[1]])
+
+    # Step 2: Create matrix for main transformations
+    # This includes scaling, translation, rotation, and x-shear
+    matrix_transforms = skimage.transform.AffineTransform(
+        scale=(scale["x"], scale["y"]),
+        rotation=np.deg2rad(rotate),
+        shear=(np.deg2rad(shear["x"]), np.deg2rad(shear["y"])),  # Both x and y shear
+        translation=(translate["x"], translate["y"]),
+    )
+
+    # Step 3: Create matrix to shift back to center
+    # This is the inverse of the top-left shift
+    matrix_to_center = matrix_to_topleft.inverse
+
+    # Combine all transformations
+    # The order is important: transformations are applied from right to left
+    return (
+        matrix_to_center  # 3. Shift back to original center
+        + matrix_transforms  # 2. Apply main transformations
+        + matrix_to_topleft  # 1. Shift to top-left
+    )

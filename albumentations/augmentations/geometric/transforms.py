@@ -759,7 +759,11 @@ class Affine(DualTransform):
         return fgeometric.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @staticmethod
-    def get_scale(scale: dict[str, tuple[float, float]], keep_ratio: bool, balanced_scale: bool) -> dict[str, float]:
+    def get_scale(
+        scale: dict[str, tuple[float, float]],
+        keep_ratio: bool,
+        balanced_scale: bool,
+    ) -> fgeometric.ScaleDict:
         result_scale = {}
         if balanced_scale:
             for key, value in scale.items():
@@ -782,7 +786,7 @@ class Affine(DualTransform):
         if keep_ratio:
             result_scale["y"] = result_scale["x"]
 
-        return result_scale
+        return cast(fgeometric.ScaleDict, result_scale)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
@@ -795,8 +799,8 @@ class Affine(DualTransform):
         image_shift = center(image_shape)
         bbox_shift = center_bbox(image_shape)
 
-        matrix = self._create_transformation_matrix(translate, shear, scale, rotate, image_shift)
-        bbox_matrix = self._create_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
+        matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, image_shift)
+        bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
 
         if self.fit_output:
             matrix, output_shape = self._compute_affine_warp_output_shape(matrix, image_shape)
@@ -812,46 +816,20 @@ class Affine(DualTransform):
             "output_shape": output_shape,
         }
 
-    def _get_translate_params(self, image_shape: tuple[int, int]) -> dict[str, float]:
+    def _get_translate_params(self, image_shape: tuple[int, int]) -> fgeometric.TranslateDict:
         height, width = image_shape[:2]
         if self.translate_px is not None:
-            return {key: random.randint(*value) for key, value in self.translate_px.items()}
+            return cast(
+                fgeometric.TranslateDict,
+                {key: random.randint(*value) for key, value in self.translate_px.items()},
+            )
         if self.translate_percent is not None:
             translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
-            return {"x": translate["x"] * width, "y": translate["y"] * height}
-        return {"x": 0, "y": 0}
+            return cast(fgeometric.TranslateDict, {"x": translate["x"] * width, "y": translate["y"] * height})
+        return cast(fgeometric.TranslateDict, {"x": 0, "y": 0})
 
-    def _get_shear_params(self) -> dict[str, float]:
-        return {key: -random.uniform(*value) for key, value in self.shear.items()}
-
-    @staticmethod
-    def _create_transformation_matrix(
-        translate: dict[str, float],
-        shear: dict[str, float],
-        scale: dict[str, float],
-        rotate: float,
-        shift: tuple[float, float],
-    ) -> skimage.transform.ProjectiveTransform:
-        matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift[0], -shift[1]])
-        matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)
-        matrix_shear_y = skimage.transform.AffineTransform(shear=np.deg2rad(shear["y"]))
-        matrix_shear_y_rot_inv = skimage.transform.AffineTransform(rotation=np.pi / 2)
-        matrix_transforms = skimage.transform.AffineTransform(
-            scale=(scale["x"], scale["y"]),
-            translation=(translate["x"], translate["y"]),
-            rotation=np.deg2rad(rotate),
-            shear=np.deg2rad(shear["x"]),
-        )
-        matrix_to_center = skimage.transform.SimilarityTransform(translation=shift)
-
-        return (
-            matrix_to_topleft
-            + matrix_shear_y_rot
-            + matrix_shear_y
-            + matrix_shear_y_rot_inv
-            + matrix_transforms
-            + matrix_to_center
-        )
+    def _get_shear_params(self) -> fgeometric.ShearDict:
+        return cast(fgeometric.ShearDict, {key: -random.uniform(*value) for key, value in self.shear.items()})
 
     @staticmethod
     def _compute_affine_warp_output_shape(

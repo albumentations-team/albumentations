@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import skimage
 from albumentations.augmentations.geometric import functional as fgeometric
 
 import numpy as np
