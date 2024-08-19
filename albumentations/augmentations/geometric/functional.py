@@ -19,6 +19,7 @@ from albumentations.core.types import (
     D4Type,
     KeypointInternalType,
     ScalarType,
+    SizeType,
 )
 
 __all__ = [
@@ -574,16 +575,9 @@ def calculate_affine_transform_padding(
           to prepare an image for affine transformation without loss of information.
     """
     height, width = image_shape
-
-    # Define the corners of the image
-    corners = np.array([[0, 0], [width, 0], [width, height], [0, height]])
-
-    # Transform the corners
-    transformed_corners = matrix(corners)
-
-    # Calculate the bounding box of the transformed corners
-    min_x, min_y = np.floor(transformed_corners.min(axis=0)).astype(int)
-    max_x, max_y = np.ceil(transformed_corners.max(axis=0)).astype(int)
+    min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
+    min_x, min_y = min_coords
+    max_x, max_y = max_coords
 
     # Calculate padding
     pad_left = max(0, -min_x)
@@ -2158,3 +2152,62 @@ def create_affine_transformation_matrix(
         + matrix_transforms  # 2. Apply main transformations
         + matrix_to_topleft  # 1. Shift to top-left
     )
+
+
+def compute_transformed_image_bounds(
+    matrix: skimage.transform.ProjectiveTransform,
+    image_shape: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute the bounds of an image after applying an affine transformation.
+
+    Args:
+        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - min_coords: An array with the minimum x and y coordinates.
+            - max_coords: An array with the maximum x and y coordinates.
+    """
+    height, width = image_shape[:2]
+
+    # Define the corners of the image
+    corners = np.array([[0, 0], [width, 0], [width, height], [0, height]])
+
+    # Transform the corners
+    transformed_corners = matrix(corners)
+
+    # Calculate the bounding box of the transformed corners
+    min_coords = np.floor(transformed_corners.min(axis=0)).astype(int)
+    max_coords = np.ceil(transformed_corners.max(axis=0)).astype(int)
+
+    return min_coords, max_coords
+
+
+def compute_affine_warp_output_shape(
+    matrix: skimage.transform.ProjectiveTransform,
+    input_shape: SizeType,
+) -> tuple[skimage.transform.ProjectiveTransform, SizeType]:
+    height, width = input_shape[:2]
+
+    if height == 0 or width == 0:
+        return matrix, input_shape
+
+    min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
+    minc, minr = min_coords
+    maxc, maxr = max_coords
+
+    out_height = maxr - minr + 1
+    out_width = maxc - minc + 1
+
+    if len(input_shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
+        output_shape = np.ceil((out_height, out_width, input_shape[2]))
+    else:
+        output_shape = np.ceil((out_height, out_width))
+
+    output_shape_tuple = tuple(int(v) for v in output_shape.tolist())
+    # fit output image in new shape
+    translation = -minc, -minr
+    matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
+    matrix += matrix_to_fit
+    return matrix, output_shape_tuple

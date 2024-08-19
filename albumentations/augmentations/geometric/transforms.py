@@ -28,7 +28,6 @@ from albumentations.core.pydantic import (
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BIG_INTEGER,
-    NUM_MULTI_CHANNEL_DIMENSIONS,
     TWO,
     BoxInternalType,
     BoxType,
@@ -803,8 +802,8 @@ class Affine(DualTransform):
         bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
 
         if self.fit_output:
-            matrix, output_shape = self._compute_affine_warp_output_shape(matrix, image_shape)
-            bbox_matrix, _ = self._compute_affine_warp_output_shape(bbox_matrix, image_shape)
+            matrix, output_shape = fgeometric.compute_affine_warp_output_shape(matrix, image_shape)
+            bbox_matrix, _ = fgeometric.compute_affine_warp_output_shape(bbox_matrix, image_shape)
         else:
             output_shape = image_shape
 
@@ -830,40 +829,6 @@ class Affine(DualTransform):
 
     def _get_shear_params(self) -> fgeometric.ShearDict:
         return cast(fgeometric.ShearDict, {key: -random.uniform(*value) for key, value in self.shear.items()})
-
-    @staticmethod
-    def _compute_affine_warp_output_shape(
-        matrix: skimage.transform.ProjectiveTransform,
-        input_shape: SizeType,
-    ) -> tuple[skimage.transform.ProjectiveTransform, SizeType]:
-        height, width = input_shape[:2]
-
-        if height == 0 or width == 0:
-            return matrix, input_shape
-
-        # determine shape of output image
-        corners = np.array([[0, 0], [0, height - 1], [width - 1, height - 1], [width - 1, 0]])
-        corners = matrix(corners)
-
-        minc = corners[:, 0].min()
-        minr = corners[:, 1].min()
-        maxc = corners[:, 0].max()
-        maxr = corners[:, 1].max()
-
-        out_height = maxr - minr + 1
-        out_width = maxc - minc + 1
-
-        if len(input_shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
-            output_shape = np.ceil((out_height, out_width, input_shape[2]))
-        else:
-            output_shape = np.ceil((out_height, out_width))
-
-        output_shape_tuple = tuple(int(v) for v in output_shape.tolist())
-        # fit output image in new shape
-        translation = -minc, -minr
-        matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
-        matrix += matrix_to_fit
-        return matrix, output_shape_tuple
 
 
 class ShiftScaleRotate(Affine):
