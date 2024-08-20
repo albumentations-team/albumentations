@@ -745,7 +745,14 @@ class Affine(DualTransform):
         **params: Any,
     ) -> list[BoxType]:
         bboxes_np = np.array(bboxes)
-        result = fgeometric.bboxes_affine(bboxes_np, bbox_matrix, self.rotate_method, params["shape"][:2], output_shape)
+        result = fgeometric.bboxes_affine(
+            bboxes_np,
+            bbox_matrix,
+            self.rotate_method,
+            params["shape"][:2],
+            self.mode,
+            output_shape,
+        )
         return result.tolist()
 
     def apply_to_keypoint(

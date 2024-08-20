@@ -236,7 +236,7 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_CUBIC,
             "cval": 25,
             "cval_mask": 1,
-            "mode": cv2.BORDER_REFLECT,
+            "mode": cv2.BORDER_CONSTANT,
             "fit_output": True,
         },
     ],

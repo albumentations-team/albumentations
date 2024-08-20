@@ -45,7 +45,7 @@ __all__ = [
     "perspective_bbox",
     "rotation2d_matrix_to_euler_angles",
     "perspective_keypoint",
-    "_is_identity_matrix",
+    "is_identity_matrix",
     "warp_affine",
     "keypoint_affine",
     "safe_rotate",
@@ -485,7 +485,7 @@ def perspective_keypoint(
     return x, y, angle, scale
 
 
-def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
+def is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
     return np.allclose(matrix.params, np.eye(3, dtype=np.float32))
 
 
@@ -519,7 +519,7 @@ def warp_affine(
     mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
-    if _is_identity_matrix(matrix):
+    if is_identity_matrix(matrix):
         return image
 
     dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
@@ -540,7 +540,7 @@ def keypoint_affine(
     matrix: skimage.transform.ProjectiveTransform,
     scale: dict[str, Any],
 ) -> KeypointInternalType:
-    if _is_identity_matrix(matrix):
+    if is_identity_matrix(matrix):
         return keypoint
 
     x, y, a, s = keypoint[:4]
@@ -552,38 +552,37 @@ def keypoint_affine(
 
 def calculate_affine_transform_padding(
     matrix: skimage.transform.ProjectiveTransform,
-    image_shape: tuple[int, int],
+    image_shape: Sequence[int],
 ) -> tuple[int, int, int, int]:
-    """Calculate the necessary padding for an affine transformation to avoid cropping.
+    """Calculate the necessary padding for an affine transformation to avoid empty spaces."""
+    height, width = image_shape[:2]
 
-    This function determines the minimum amount of padding needed on each side of an image
-    to ensure that no part of the image is lost after applying an affine transformation.
+    # Check for identity transform
+    if is_identity_matrix(matrix):
+        return (0, 0, 0, 0)
 
-    Args:
-        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix to be applied.
-        image_shape (tuple[int, int]): The shape of the image as (height, width).
+    # Original corners
+    corners = np.array([[0, 0], [width, 0], [width, height], [0, height]])
 
-    Returns:
-        tuple[int, int, int, int]: A tuple containing the padding values in the order:
-                                   (pad_left, pad_right, pad_top, pad_bottom).
-                                   These values represent the number of pixels to pad on each side.
+    # Transform corners
+    transformed_corners = matrix(corners)
 
-    Note:
-        - The padding values are calculated based on the transformation of the image corners.
-        - The padding values are always non-negative integers.
-        - The returned padding can be used with numpy's pad function or similar padding operations
-          to prepare an image for affine transformation without loss of information.
-    """
-    height, width = image_shape
-    min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
-    min_x, min_y = min_coords
-    max_x, max_y = max_coords
+    # Find box that includes both original and transformed corners
+    all_corners = np.vstack((corners, transformed_corners))
+    min_x, min_y = all_corners.min(axis=0)
+    max_x, max_y = all_corners.max(axis=0)
+    # Compute the inverse transform
+    inverse_matrix = matrix.inverse
+
+    # Apply inverse transform to all corners of the bounding box
+    bbox_corners = np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
+    inverse_corners = inverse_matrix(bbox_corners)
 
     # Calculate padding
-    pad_left = max(0, -min_x)
-    pad_right = max(0, max_x - width)
-    pad_top = max(0, -min_y)
-    pad_bottom = max(0, max_y - height)
+    pad_left = max(0, math.ceil(-inverse_corners[:, 0].min()))
+    pad_right = max(0, math.ceil(inverse_corners[:, 0].max() - width))
+    pad_top = max(0, math.ceil(-inverse_corners[:, 1].min()))
+    pad_bottom = max(0, math.ceil(inverse_corners[:, 1].max() - height))
 
     return (pad_left, pad_right, pad_top, pad_bottom)
 
@@ -710,14 +709,53 @@ def bboxes_affine(
     bboxes: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
     rotate_method: Literal["largest_box", "ellipse"],
-    image_shape: Sequence[int],
+    image_shape: tuple[int, int],
+    border_mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
-    if _is_identity_matrix(matrix):
+    """Apply an affine transformation to bounding boxes.
+
+    For reflection border modes (cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT), this function:
+    1. Calculates necessary padding to avoid information loss
+    2. Applies padding to the bounding boxes
+    3. Adjusts the transformation matrix to account for padding
+    4. Applies the affine transformation
+    5. Validates the transformed bounding boxes
+
+    For other border modes, it directly applies the affine transformation without padding.
+
+    Args:
+        bboxes (np.ndarray): Input bounding boxes
+        matrix (skimage.transform.ProjectiveTransform): Affine transformation matrix
+        rotate_method (str): Method for rotating bounding boxes ('largest_box' or 'ellipse')
+        image_shape (Sequence[int]): Shape of the input image
+        border_mode (int): OpenCV border mode
+        output_shape (Sequence[int]): Shape of the output image
+
+    Returns:
+        np.ndarray: Transformed and normalized bounding boxes
+    """
+    if is_identity_matrix(matrix):
         return bboxes
 
     bboxes = denormalize_bboxes(bboxes, image_shape)
 
+    if border_mode in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT}:
+        # Step 1: Compute affine transform padding
+        pad_left, pad_right, pad_top, pad_bottom = calculate_affine_transform_padding(matrix, image_shape)
+
+        padded_bboxes = pad_bboxes(bboxes, pad_top, pad_bottom, pad_left, pad_right, border_mode, image_shape)
+
+        shift_vector = np.array([-pad_left, -pad_top, -pad_left, -pad_top])
+        padded_bboxes = shift_bboxes(bboxes, shift_vector)
+
+        # Adjust the matrix to account for padding
+        pad_matrix = skimage.transform.SimilarityTransform(translation=(pad_left, pad_top))
+        matrix = matrix + pad_matrix
+
+        bboxes = padded_bboxes
+
+    # Apply affine transform
     if rotate_method == "largest_box":
         transformed_bboxes = bboxes_affine_largest_box(bboxes, matrix)
     elif rotate_method == "ellipse":
@@ -725,7 +763,10 @@ def bboxes_affine(
     else:
         raise ValueError(f"Method {rotate_method} is not a valid rotation method.")
 
-    return normalize_bboxes(transformed_bboxes, output_shape)
+    # Validate and normalize bboxes
+    validated_bboxes = validate_bboxes(transformed_bboxes, output_shape)
+
+    return normalize_bboxes(validated_bboxes, output_shape)
 
 
 @preserve_channel_dim
@@ -1567,21 +1608,21 @@ def pad_bboxes(
     # Calculate the number of grid cells added on each side
     original_row, original_col = grid_dimensions["original_position"]
 
-    rows, cols = image_shape[:2]
+    image_height, image_width = image_shape[:2]
 
     # Subtract the offset based on the number of added grid cells
-    bboxes[:, 0] -= original_col * cols - pad_left  # x_min
-    bboxes[:, 2] -= original_col * cols - pad_left  # x_max
-    bboxes[:, 1] -= original_row * rows - pad_top  # y_min
-    bboxes[:, 3] -= original_row * rows - pad_top  # y_max
+    bboxes[:, 0] -= original_col * image_width - pad_left  # x_min
+    bboxes[:, 2] -= original_col * image_width - pad_left  # x_max
+    bboxes[:, 1] -= original_row * image_height - pad_top  # y_min
+    bboxes[:, 3] -= original_row * image_height - pad_top  # y_max
 
-    new_height = pad_top + pad_bottom + rows
-    new_width = pad_left + pad_right + cols
+    new_height = pad_top + pad_bottom + image_height
+    new_width = pad_left + pad_right + image_width
 
     return validate_bboxes(bboxes, (new_height, new_width))
 
 
-def validate_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+def validate_bboxes(bboxes: np.ndarray, image_shape: Sequence[int]) -> np.ndarray:
     """Validate bounding boxes and remove invalid ones.
 
     Args:
@@ -1597,7 +1638,7 @@ def validate_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndar
         >>> print(valid_bboxes)
         [[10 20 30 40]]
     """
-    rows, cols = image_shape
+    rows, cols = image_shape[:2]
 
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
 
