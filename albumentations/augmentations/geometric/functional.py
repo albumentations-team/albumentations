@@ -542,7 +542,39 @@ def keypoints_affine(
     scale: dict[str, Any],
     mode: int,
 ) -> np.ndarray:
+    """Apply an affine transformation to keypoints.
+
+    This function transforms keypoints using the given affine transformation matrix.
+    It handles reflection padding if necessary, updates coordinates, angles, and scales.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, 4+) where N is the number of keypoints.
+                                Each keypoint is represented as [x, y, angle, scale, ...].
+        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix.
+        image_shape (tuple[int, int]): Shape of the image (height, width).
+        scale (dict[str, Any]): Dictionary containing scale factors for x and y directions.
+                                Expected keys are 'x' and 'y'.
+        mode (int): Border mode for handling keypoints near image edges.
+                    Use cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT, etc.
+
+    Returns:
+        np.ndarray: Transformed keypoints array with the same shape as input.
+
+    Notes:
+        - The function applies reflection padding if the mode is in REFLECT_BORDER_MODES.
+        - Coordinates (x, y) are transformed using the affine matrix.
+        - Angles are adjusted based on the rotation component of the affine transformation.
+        - Scales are multiplied by the maximum of x and y scale factors.
+        - The @angle_2pi_range decorator ensures angles remain in the [0, 2π] range.
+
+    Example:
+        >>> keypoints = np.array([[100, 100, 0, 1]])
+        >>> matrix = skimage.transform.ProjectiveTransform(...)
+        >>> scale = {'x': 1.5, 'y': 1.2}
+        >>> transformed_keypoints = keypoints_affine(keypoints, matrix, (480, 640), scale, cv2.BORDER_REFLECT_101)
+    """
     keypoints = keypoints.copy().astype(np.float32)
+
     if is_identity_matrix(matrix):
         return keypoints
 

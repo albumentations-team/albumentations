@@ -305,8 +305,6 @@ def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
 
     transform = skimage.transform.ProjectiveTransform(matrix=centered_transform.params)
 
-    print(transform)
-
     keypoints = np.array([keypoint])
 
     actual = fgeometric.keypoints_affine(keypoints, transform, (height, width), {"x": scale, "y": scale}, cv2.BORDER_CONSTANT)
