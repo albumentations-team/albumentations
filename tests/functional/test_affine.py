@@ -296,7 +296,7 @@ def test_inverse_shear(image_shape, translate, shape):
 
 @pytest.mark.parametrize(
     ["keypoint", "expected", "angle", "scale", "dx", "dy"],
-    [[[50, 50, 0, 5], [118, -40, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
+    [[[50, 50, 0, 5], [118.5, -39.5, 3 * math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
     height, width = 100, 200
@@ -305,10 +305,12 @@ def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
 
     transform = skimage.transform.ProjectiveTransform(matrix=centered_transform.params)
 
+    print(transform)
+
     keypoints = np.array([keypoint])
 
-    actual = fgeometric.keypoints_affine(keypoints, transform, (height, width), {"x": keypoint[2], "y": keypoint[3]}, cv2.BORDER_CONSTANT)
-    np.testing.assert_allclose(actual[0, :2], expected[:2], rtol=1e-4), f"Expected: {expected}, Actual: {actual}"
+    actual = fgeometric.keypoints_affine(keypoints, transform, (height, width), {"x": scale, "y": scale}, cv2.BORDER_CONSTANT)
+    np.testing.assert_allclose(actual[0], expected, rtol=1e-4), f"Expected: {expected}, Actual: {actual}"
 
 
 

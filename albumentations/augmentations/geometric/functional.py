@@ -542,6 +542,7 @@ def keypoints_affine(
     scale: dict[str, Any],
     mode: int,
 ) -> np.ndarray:
+    keypoints = keypoints.copy().astype(np.float32)
     if is_identity_matrix(matrix):
         return keypoints
 
@@ -564,7 +565,8 @@ def keypoints_affine(
     keypoints[:, 2] = keypoints[:, 2] + angle_adjustment
 
     # Update scales
-    max_scale = np.max([scale["x"], scale["y"]])
+    max_scale = max(scale["x"], scale["y"])
+
     keypoints[:, 3] *= max_scale
 
     # Update x, y coordinates
