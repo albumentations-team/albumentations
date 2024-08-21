@@ -576,15 +576,18 @@ def calculate_affine_transform_padding(
 
     # Apply inverse transform to all corners of the bounding box
     bbox_corners = np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
+
     inverse_corners = inverse_matrix(bbox_corners)
 
-    # Calculate padding
-    pad_left = max(0, math.ceil(-inverse_corners[:, 0].min()))
-    pad_right = max(0, math.ceil(inverse_corners[:, 0].max() - width))
-    pad_top = max(0, math.ceil(-inverse_corners[:, 1].min()))
-    pad_bottom = max(0, math.ceil(inverse_corners[:, 1].max() - height))
+    min_x, min_y = inverse_corners.min(axis=0)
+    max_x, max_y = inverse_corners.max(axis=0)
 
-    return (pad_left, pad_right, pad_top, pad_bottom)
+    pad_left = max(0, math.ceil(0 - min_x))
+    pad_right = max(0, math.ceil(max_x - width))
+    pad_top = max(0, math.ceil(0 - min_y))
+    pad_bottom = max(0, math.ceil(max_y - height))
+
+    return pad_left, pad_right, pad_top, pad_bottom
 
 
 def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
@@ -672,7 +675,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
     Example:
         >>> bboxes = np.array([[10, 10, 30, 20, 1], [40, 40, 60, 60, 2]])  # Two boxes with class labels
         >>> matrix = skimage.transform.AffineTransform(rotation=np.pi/4)  # 45-degree rotation
-        >>> transformed_bboxes = _bboxes_affine_ellipse(bboxes, matrix)
+        >>> transformed_bboxes = bboxes_affine_ellipse(bboxes, matrix)
         >>> print(transformed_bboxes)
         [[ 5.86  5.86 34.14 24.14  1.  ]
          [30.   30.   70.   70.    2.  ]]
@@ -743,17 +746,8 @@ def bboxes_affine(
     if border_mode in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT}:
         # Step 1: Compute affine transform padding
         pad_left, pad_right, pad_top, pad_bottom = calculate_affine_transform_padding(matrix, image_shape)
-
-        padded_bboxes = pad_bboxes(bboxes, pad_top, pad_bottom, pad_left, pad_right, border_mode, image_shape)
-
-        shift_vector = np.array([-pad_left, -pad_top, -pad_left, -pad_top])
-        padded_bboxes = shift_bboxes(bboxes, shift_vector)
-
-        # Adjust the matrix to account for padding
-        pad_matrix = skimage.transform.SimilarityTransform(translation=(pad_left, pad_top))
-        matrix = matrix + pad_matrix
-
-        bboxes = padded_bboxes
+        grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
+        bboxes = generate_reflected_bboxes(bboxes, grid_dimensions, image_shape, center_in_origin=True)
 
     # Apply affine transform
     if rotate_method == "largest_box":
@@ -1611,10 +1605,12 @@ def pad_bboxes(
     image_height, image_width = image_shape[:2]
 
     # Subtract the offset based on the number of added grid cells
-    bboxes[:, 0] -= original_col * image_width - pad_left  # x_min
-    bboxes[:, 2] -= original_col * image_width - pad_left  # x_max
-    bboxes[:, 1] -= original_row * image_height - pad_top  # y_min
-    bboxes[:, 3] -= original_row * image_height - pad_top  # y_max
+    left_shift = original_col * image_width - pad_left
+    top_shift = original_row * image_height - pad_top
+
+    shift_vector = np.array([-left_shift, -top_shift, -left_shift, -top_shift])
+
+    bboxes = shift_bboxes(bboxes, shift_vector)
 
     new_height = pad_top + pad_bottom + image_height
     new_width = pad_left + pad_right + image_width
@@ -1707,6 +1703,7 @@ def generate_reflected_bboxes(
     bboxes: np.ndarray,
     grid_dims: dict[str, tuple[int, int]],
     image_shape: tuple[int, int],
+    center_in_origin: bool = False,
 ) -> np.ndarray:
     """Generate reflected bounding boxes for the entire reflection grid.
 
@@ -1714,6 +1711,7 @@ def generate_reflected_bboxes(
         bboxes (np.ndarray): Original bounding boxes.
         grid_dims (dict[str, tuple[int, int]]): Grid dimensions and original position.
         image_shape (tuple[int, int]): Shape of the original image as (height, width).
+        center_in_origin (bool): If True, center the grid at the origin. Default is True.
 
     Returns:
         np.ndarray: Array of reflected and shifted bounding boxes for the entire grid.
@@ -1761,7 +1759,9 @@ def generate_reflected_bboxes(
 
             new_bboxes.append(shifted_bboxes)
 
-    return np.vstack(new_bboxes)
+    result = np.vstack(new_bboxes)
+
+    return shift_bboxes(result, -shift_vector) if center_in_origin else result
 
 
 def flip_bboxes(

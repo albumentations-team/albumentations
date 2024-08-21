@@ -458,6 +458,8 @@ def test_center_remains_stationary(image_shape, transform_params):
         # Test case 14: Non-square image scaled down by 0.5x with rotation
         ((150, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 45}, (127, 127, 102, 102)),
 
+        ((150, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 0}, (50, 50, 75, 75)),
+
         # Test case 15: Complex transformation with scale down
         ((100, 100), {"translate": {"x": 10, "y": -10}, "shear": {"x": 15, "y": 5}, "scale": {"x": 0.5, "y": 0.7}, "rotate": 60}, (65, 101, 44, 73)),
     ]
