@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import skimage.transform
 import cv2
+from albumentations.augmentations.functional import center_bbox
 import albumentations.augmentations.geometric.functional as fgeometric
 import albumentations as A
 
@@ -306,3 +307,182 @@ def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
 
     actual = fgeometric.keypoint_affine(keypoint, transform, {"x": keypoint[2], "y": keypoint[3]})
     np.testing.assert_allclose(actual[:2], expected[:2], rtol=1e-4)
+
+
+
+def assert_matrices_close(matrix1, matrix2, atol=1e-6):
+    np.testing.assert_allclose(matrix1.params, matrix2.params, atol=atol)
+
+@pytest.mark.parametrize("params, expected_matrix", [
+    # Identity transformation
+    (
+        {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0, "shift": (0, 0)},
+        np.eye(3)
+    ),
+    # Translation
+    (
+        {"translate": {"x": 10, "y": 20}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0, "shift": (0, 0)},
+        np.array([[1, 0, 10], [0, 1, 20], [0, 0, 1]])
+    ),
+    # Scaling
+    (
+        {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 2, "y": 3}, "rotate": 0, "shift": (0, 0)},
+        np.array([[2, 0, 0], [0, 3, 0], [0, 0, 1]])
+    ),
+    # Rotation (45 degrees)
+    (
+        {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 45, "shift": (0, 0)},
+        np.array([[np.cos(np.pi/4), -np.sin(np.pi/4), 0], [np.sin(np.pi/4), np.cos(np.pi/4), 0], [0, 0, 1]])
+    ),
+    # Shear in x-direction
+    (
+        {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0, "shift": (0, 0)},
+        np.array([[1, -np.tan(np.pi/6), 0], [0, 1, 0], [0, 0, 1]])
+    ),
+    # Shear in y-direction
+    (
+        {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 30}, "scale": {"x": 1, "y": 1}, "rotate": 0, "shift": (0, 0)},
+        np.array([[1, 0, 0], [-np.tan(np.pi/6), 1, 0], [0, 0, 1]])
+    ),
+    # Complex transformation
+    (
+        {"translate": {"x": 10, "y": 20}, "shear": {"x": 15, "y": 10}, "scale": {"x": 2, "y": 3}, "rotate": 30, "shift": (100, 100)},
+        None  # We'll compute this separately due to its complexity
+    ),
+])
+def test_create_affine_transformation_matrix(params, expected_matrix):
+    result = fgeometric.create_affine_transformation_matrix(**params)
+
+    if expected_matrix is not None:
+        expected = skimage.transform.ProjectiveTransform(matrix=expected_matrix)
+        assert_matrices_close(result, expected)
+    else:
+        # For complex transformation, we'll check properties instead of the exact matrix
+        assert isinstance(result, skimage.transform.ProjectiveTransform)
+        assert result.params.shape == (3, 3)
+
+
+def test_create_affine_transformation_matrix_extreme_values():
+    # Test with extreme values
+    params = {"translate": {"x": 1e6, "y": 1e6}, "shear": {"x": 89, "y": 89}, "scale": {"x": 1e-6, "y": 1e6}, "rotate": 360, "shift": (1e6, 1e6)}
+    result = fgeometric.create_affine_transformation_matrix(**params)
+    assert isinstance(result, skimage.transform.ProjectiveTransform)
+    assert not np.any(np.isnan(result.params))
+    assert not np.any(np.isinf(result.params))
+
+
+@pytest.mark.parametrize("image_shape", [(100, 100), (200, 150)])
+@pytest.mark.parametrize("transform_params", [
+    # No transformation
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0},
+    # Only rotation
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 45},
+    # Only scaling
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1.5, "y": 1.2}, "rotate": 0},
+    # # Only shearing
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 20}, "scale": {"x": 1, "y": 1}, "rotate": 0},
+    # # Only translation (should move the center)
+    {"translate": {"x": 10, "y": -10}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0},
+    # # Rotation and scaling
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1.5, "y": 1.2}, "rotate": 45},
+    # # Rotation and shearing
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 20}, "scale": {"x": 1, "y": 1}, "rotate": 45},
+    # # Scaling and shearing
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 20}, "scale": {"x": 1.5, "y": 1.2}, "rotate": 0},
+    # # All transformations combined
+    {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 20}, "scale": {"x": 1.5, "y": 1.2}, "rotate": 45},
+])
+def test_center_remains_stationary(image_shape, transform_params):
+    center = center_bbox(image_shape)
+
+    transform = fgeometric.create_affine_transformation_matrix(**transform_params, shift=center)
+
+    # Apply the transformation to the center point
+    transformed_center = transform(np.array([center]))
+
+    if transform_params["translate"]["x"] == 0 and transform_params["translate"]["y"] == 0:
+        # For non-translation transformations, the center should remain stationary
+        np.testing.assert_allclose(transformed_center[0], center, atol=1e-6)
+    else:
+        # For translations, check if the center has moved by the expected amount
+        expected_center = (
+            center[0] + transform_params["translate"]["x"],
+            center[1] + transform_params["translate"]["y"]
+        )
+        np.testing.assert_allclose(transformed_center[0], expected_center, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    ["image_shape", "transform_params", "expected_padding"],
+    [
+        # Test case 1: No transformation (identity matrix)
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0}, (0, 0, 0, 0)),
+
+        # Test case 2: 45-degree rotation
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 45}, (51, 51, 51, 51)),
+
+        # Test case 3: Scale up by 2x
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 2, "y": 2}, "rotate": 0}, (0, 0, 0, 0)),
+
+        # Test case 4: Translation
+        ((100, 100), {"translate": {"x": 20, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0}, (20, 0, 0, 0)),
+        ((100, 100), {"translate": {"x": 0, "y": 30}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0}, (0, 0, 30, 0)),
+        ((100, 100), {"translate": {"x": 20, "y": 30}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0}, (20, 0, 30, 0)),
+
+        # Test case 5: Rotation and scale
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1.5, "y": 1.5}, "rotate": 30}, (44, 44, 44, 44)),
+
+        # Test case 6: Rotation, scale, and translation
+        ((100, 100), {"translate": {"x": 10, "y": -10}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1.2, "y": 1.2}, "rotate": 60},  (44, 44, 44, 44)),
+
+        # Test case 7: Non-square image
+        ((150, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 45}, (76, 76, 51, 51)),
+
+        # Test case 8: Shear transformation
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 0}, "scale": {"x": 1, "y": 1}, "rotate": 0}, (58, 58, 0, 0)),
+
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 0}, (50, 50, 50, 50)),
+
+        # Test case 10: Scale down by 0.5x with 45-degree rotation
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 45}, (92, 92, 92, 92)),
+
+        # Test case 11: Scale down by 0.5x with translation
+        ((100, 100), {"translate": {"x": 10, "y": 15}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 0}, (70, 30, 80, 20)),
+
+        # Test case 12: Scale down by 0.5x with shear
+        ((100, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 0}, (108, 108, 50, 50)),
+
+        # Test case 13: Scale down by 0.5x with rotation and translation
+        ((100, 100), {"translate": {"x": 5, "y": -5}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 30}, (91, 83, 73, 101)),
+
+        # Test case 14: Non-square image scaled down by 0.5x with rotation
+        ((150, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 45}, (127, 127, 102, 102)),
+
+        ((150, 100), {"translate": {"x": 0, "y": 0}, "shear": {"x": 0, "y": 0}, "scale": {"x": 0.5, "y": 0.5}, "rotate": 0}, (50, 50, 75, 75)),
+
+        # Test case 15: Complex transformation with scale down
+        ((100, 100), {"translate": {"x": 10, "y": -10}, "shear": {"x": 15, "y": 5}, "scale": {"x": 0.5, "y": 0.7}, "rotate": 60}, (65, 101, 44, 73)),
+    ]
+)
+def test_calculate_affine_transform_padding(image_shape, transform_params, expected_padding):
+    bbox_shift = center_bbox(image_shape)
+
+    print(transform_params, bbox_shift)
+
+    transform = fgeometric.create_affine_transformation_matrix(**transform_params, shift=(bbox_shift[0], bbox_shift[1]))
+
+    padding = fgeometric.calculate_affine_transform_padding(transform, image_shape)
+
+    np.testing.assert_allclose(padding, expected_padding, atol=1)
+
+# def test_calculate_affine_transform_padding_properties():
+#     # Test that padding is always non-negative
+#     image_shape = (100, 100)
+#     transform = skimage.transform.AffineTransform(rotation=np.pi/3, scale=(1.5, 1.5), translation=(-50, -50))
+#     padding = fgeometric.calculate_affine_transform_padding(transform, image_shape)
+#     assert all(p >= 0 for p in padding), "Padding values should be non-negative"
+
+#     # Test that padding is zero for identity transformation
+#     identity_transform = skimage.transform.AffineTransform()
+#     identity_padding = fgeometric.calculate_affine_transform_padding(identity_transform, image_shape)
+#     assert identity_padding == (0, 0, 0, 0), "Identity transform should require no padding"

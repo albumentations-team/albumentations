@@ -28,7 +28,6 @@ from albumentations.core.pydantic import (
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BIG_INTEGER,
-    NUM_MULTI_CHANNEL_DIMENSIONS,
     TWO,
     BoxInternalType,
     BoxType,
@@ -738,14 +737,23 @@ class Affine(DualTransform):
             output_shape=output_shape,
         )
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: Sequence[BoxType],
         bbox_matrix: skimage.transform.ProjectiveTransform,
         output_shape: SizeType,
         **params: Any,
-    ) -> BoxInternalType:
-        return fgeometric.bbox_affine(bbox, bbox_matrix, self.rotate_method, params["shape"][:2], output_shape)
+    ) -> list[BoxType]:
+        bboxes_np = np.array(bboxes)
+        result = fgeometric.bboxes_affine(
+            bboxes_np,
+            bbox_matrix,
+            self.rotate_method,
+            params["shape"][:2],
+            self.mode,
+            output_shape,
+        )
+        return result.tolist()
 
     def apply_to_keypoint(
         self,
@@ -754,17 +762,14 @@ class Affine(DualTransform):
         scale: dict[str, Any],
         **params: Any,
     ) -> KeypointInternalType:
-        if scale is None:
-            msg = "Expected scale to be provided, but got None."
-            raise ValueError(msg)
-        if matrix is None:
-            msg = "Expected matrix to be provided, but got None."
-            raise ValueError(msg)
-
         return fgeometric.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @staticmethod
-    def get_scale(scale: dict[str, tuple[float, float]], keep_ratio: bool, balanced_scale: bool) -> dict[str, float]:
+    def get_scale(
+        scale: dict[str, tuple[float, float]],
+        keep_ratio: bool,
+        balanced_scale: bool,
+    ) -> fgeometric.ScaleDict:
         result_scale = {}
         if balanced_scale:
             for key, value in scale.items():
@@ -787,7 +792,7 @@ class Affine(DualTransform):
         if keep_ratio:
             result_scale["y"] = result_scale["x"]
 
-        return result_scale
+        return cast(fgeometric.ScaleDict, result_scale)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
@@ -800,12 +805,12 @@ class Affine(DualTransform):
         image_shift = center(image_shape)
         bbox_shift = center_bbox(image_shape)
 
-        matrix = self._create_transformation_matrix(translate, shear, scale, rotate, image_shift)
-        bbox_matrix = self._create_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
+        matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, image_shift)
+        bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
 
         if self.fit_output:
-            matrix, output_shape = self._compute_affine_warp_output_shape(matrix, image_shape)
-            bbox_matrix, _ = self._compute_affine_warp_output_shape(bbox_matrix, image_shape)
+            matrix, output_shape = fgeometric.compute_affine_warp_output_shape(matrix, image_shape)
+            bbox_matrix, _ = fgeometric.compute_affine_warp_output_shape(bbox_matrix, image_shape)
         else:
             output_shape = image_shape
 
@@ -817,80 +822,20 @@ class Affine(DualTransform):
             "output_shape": output_shape,
         }
 
-    def _get_translate_params(self, image_shape: tuple[int, int]) -> dict[str, float]:
+    def _get_translate_params(self, image_shape: tuple[int, int]) -> fgeometric.TranslateDict:
         height, width = image_shape[:2]
         if self.translate_px is not None:
-            return {key: random.randint(*value) for key, value in self.translate_px.items()}
+            return cast(
+                fgeometric.TranslateDict,
+                {key: random.randint(*value) for key, value in self.translate_px.items()},
+            )
         if self.translate_percent is not None:
             translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
-            return {"x": translate["x"] * width, "y": translate["y"] * height}
-        return {"x": 0, "y": 0}
+            return cast(fgeometric.TranslateDict, {"x": translate["x"] * width, "y": translate["y"] * height})
+        return cast(fgeometric.TranslateDict, {"x": 0, "y": 0})
 
-    def _get_shear_params(self) -> dict[str, float]:
-        return {key: -random.uniform(*value) for key, value in self.shear.items()}
-
-    @staticmethod
-    def _create_transformation_matrix(
-        translate: dict[str, float],
-        shear: dict[str, float],
-        scale: dict[str, float],
-        rotate: float,
-        shift: tuple[float, float],
-    ) -> skimage.transform.ProjectiveTransform:
-        matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift[0], -shift[1]])
-        matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)
-        matrix_shear_y = skimage.transform.AffineTransform(shear=np.deg2rad(shear["y"]))
-        matrix_shear_y_rot_inv = skimage.transform.AffineTransform(rotation=np.pi / 2)
-        matrix_transforms = skimage.transform.AffineTransform(
-            scale=(scale["x"], scale["y"]),
-            translation=(translate["x"], translate["y"]),
-            rotation=np.deg2rad(rotate),
-            shear=np.deg2rad(shear["x"]),
-        )
-        matrix_to_center = skimage.transform.SimilarityTransform(translation=shift)
-
-        return (
-            matrix_to_topleft
-            + matrix_shear_y_rot
-            + matrix_shear_y
-            + matrix_shear_y_rot_inv
-            + matrix_transforms
-            + matrix_to_center
-        )
-
-    @staticmethod
-    def _compute_affine_warp_output_shape(
-        matrix: skimage.transform.ProjectiveTransform,
-        input_shape: SizeType,
-    ) -> tuple[skimage.transform.ProjectiveTransform, SizeType]:
-        height, width = input_shape[:2]
-
-        if height == 0 or width == 0:
-            return matrix, input_shape
-
-        # determine shape of output image
-        corners = np.array([[0, 0], [0, height - 1], [width - 1, height - 1], [width - 1, 0]])
-        corners = matrix(corners)
-
-        minc = corners[:, 0].min()
-        minr = corners[:, 1].min()
-        maxc = corners[:, 0].max()
-        maxr = corners[:, 1].max()
-
-        out_height = maxr - minr + 1
-        out_width = maxc - minc + 1
-
-        if len(input_shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
-            output_shape = np.ceil((out_height, out_width, input_shape[2]))
-        else:
-            output_shape = np.ceil((out_height, out_width))
-
-        output_shape_tuple = tuple(int(v) for v in output_shape.tolist())
-        # fit output image in new shape
-        translation = -minc, -minr
-        matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
-        matrix += matrix_to_fit
-        return matrix, output_shape_tuple
+    def _get_shear_params(self) -> fgeometric.ShearDict:
+        return cast(fgeometric.ShearDict, {key: -random.uniform(*value) for key, value in self.shear.items()})
 
 
 class ShiftScaleRotate(Affine):
