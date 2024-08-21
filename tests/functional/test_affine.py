@@ -296,7 +296,7 @@ def test_inverse_shear(image_shape, translate, shape):
 
 @pytest.mark.parametrize(
     ["keypoint", "expected", "angle", "scale", "dx", "dy"],
-    [[[50, 50, 0, 5], [118, -40, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
+    [[[50, 50, 0, 5], [118.5, -39.5, 3 * math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
     height, width = 100, 200
@@ -305,8 +305,10 @@ def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
 
     transform = skimage.transform.ProjectiveTransform(matrix=centered_transform.params)
 
-    actual = fgeometric.keypoint_affine(keypoint, transform, {"x": keypoint[2], "y": keypoint[3]})
-    np.testing.assert_allclose(actual[:2], expected[:2], rtol=1e-4)
+    keypoints = np.array([keypoint])
+
+    actual = fgeometric.keypoints_affine(keypoints, transform, (height, width), {"x": scale, "y": scale}, cv2.BORDER_CONSTANT)
+    np.testing.assert_allclose(actual[0], expected, rtol=1e-4), f"Expected: {expected}, Actual: {actual}"
 
 
 
@@ -467,22 +469,20 @@ def test_center_remains_stationary(image_shape, transform_params):
 def test_calculate_affine_transform_padding(image_shape, transform_params, expected_padding):
     bbox_shift = center_bbox(image_shape)
 
-    print(transform_params, bbox_shift)
-
     transform = fgeometric.create_affine_transformation_matrix(**transform_params, shift=(bbox_shift[0], bbox_shift[1]))
 
     padding = fgeometric.calculate_affine_transform_padding(transform, image_shape)
 
     np.testing.assert_allclose(padding, expected_padding, atol=1)
 
-# def test_calculate_affine_transform_padding_properties():
-#     # Test that padding is always non-negative
-#     image_shape = (100, 100)
-#     transform = skimage.transform.AffineTransform(rotation=np.pi/3, scale=(1.5, 1.5), translation=(-50, -50))
-#     padding = fgeometric.calculate_affine_transform_padding(transform, image_shape)
-#     assert all(p >= 0 for p in padding), "Padding values should be non-negative"
+def test_calculate_affine_transform_padding_properties():
+    # Test that padding is always non-negative
+    image_shape = (100, 100)
+    transform = skimage.transform.AffineTransform(rotation=np.pi/3, scale=(1.5, 1.5), translation=(-50, -50))
+    padding = fgeometric.calculate_affine_transform_padding(transform, image_shape)
+    assert all(p >= 0 for p in padding), "Padding values should be non-negative"
 
-#     # Test that padding is zero for identity transformation
-#     identity_transform = skimage.transform.AffineTransform()
-#     identity_padding = fgeometric.calculate_affine_transform_padding(identity_transform, image_shape)
-#     assert identity_padding == (0, 0, 0, 0), "Identity transform should require no padding"
+    # Test that padding is zero for identity transformation
+    identity_transform = skimage.transform.AffineTransform()
+    identity_padding = fgeometric.calculate_affine_transform_padding(identity_transform, image_shape)
+    assert identity_padding == (0, 0, 0, 0), "Identity transform should require no padding"

@@ -1,6 +1,7 @@
 from enum import Enum, IntEnum
 from typing import Any, List, Literal, Sequence, Tuple, TypeVar, Union
 
+import cv2
 import numpy as np
 from albucore.utils import MAX_VALUES_BY_DTYPE
 from typing_extensions import NotRequired, TypedDict
@@ -112,3 +113,10 @@ PxType = Union[
         Union[int, Tuple[int, int], List[int]],
     ],
 ]
+
+
+REFLECT_BORDER_MODES = {
+    cv2.BORDER_REFLECT101,
+    cv2.BORDER_REFLECT_101,
+    cv2.BORDER_REFLECT,
+}
