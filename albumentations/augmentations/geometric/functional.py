@@ -14,6 +14,7 @@ from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.bbox_utils import denormalize_bbox, denormalize_bboxes, normalize_bbox, normalize_bboxes
 from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    REFLECT_BORDER_MODES,
     BoxInternalType,
     ColorType,
     D4Type,
@@ -47,7 +48,6 @@ __all__ = [
     "perspective_keypoint",
     "is_identity_matrix",
     "warp_affine",
-    "keypoint_affine",
     "safe_rotate",
     "bbox_safe_rotate",
     "keypoint_safe_rotate",
@@ -535,19 +535,42 @@ def warp_affine(
 
 
 @angle_2pi_range
-def keypoint_affine(
-    keypoint: KeypointInternalType,
+def keypoints_affine(
+    keypoints: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
+    image_shape: tuple[int, int],
     scale: dict[str, Any],
-) -> KeypointInternalType:
+    mode: int,
+) -> np.ndarray:
     if is_identity_matrix(matrix):
-        return keypoint
+        return keypoints
 
-    x, y, a, s = keypoint[:4]
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-    a += rotation2d_matrix_to_euler_angles(matrix.params[:2], y_up=False)
-    s *= np.max([scale["x"], scale["y"]])
-    return x, y, a, s
+    if mode in REFLECT_BORDER_MODES:
+        # Step 1: Compute affine transform padding
+        pad_left, pad_right, pad_top, pad_bottom = calculate_affine_transform_padding(matrix, image_shape)
+        grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
+        keypoints = generate_reflected_keypoints(keypoints, grid_dimensions, image_shape, center_in_origin=True)
+
+    # Extract x, y coordinates
+    xy = keypoints[:, :2]
+
+    # Transform x, y coordinates
+    xy_transformed = cv2.transform(xy.reshape(-1, 1, 2), matrix.params[:2]).squeeze()
+
+    # Calculate angle adjustment
+    angle_adjustment = rotation2d_matrix_to_euler_angles(matrix.params[:2], y_up=False)
+
+    # Update angles
+    keypoints[:, 2] = keypoints[:, 2] + angle_adjustment
+
+    # Update scales
+    max_scale = np.max([scale["x"], scale["y"]])
+    keypoints[:, 3] *= max_scale
+
+    # Update x, y coordinates
+    keypoints[:, :2] = xy_transformed
+
+    return keypoints
 
 
 def calculate_affine_transform_padding(
@@ -619,7 +642,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
     Example:
         >>> bboxes = np.array([[10, 10, 20, 20, 1], [30, 30, 40, 40, 2]])  # Two boxes with class labels
         >>> matrix = skimage.transform.AffineTransform(scale=(2, 2), translation=(5, 5))
-        >>> transformed_bboxes = _bboxes_affine_largest_box(bboxes, matrix)
+        >>> transformed_bboxes = bboxes_affine_largest_box(bboxes, matrix)
         >>> print(transformed_bboxes)
         [[ 25.  25.  45.  45.   1.]
          [ 65.  65.  85.  85.   2.]]
@@ -743,7 +766,7 @@ def bboxes_affine(
 
     bboxes = denormalize_bboxes(bboxes, image_shape)
 
-    if border_mode in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT}:
+    if border_mode in REFLECT_BORDER_MODES:
         # Step 1: Compute affine transform padding
         pad_left, pad_right, pad_top, pad_bottom = calculate_affine_transform_padding(matrix, image_shape)
         grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
@@ -1591,7 +1614,7 @@ def pad_bboxes(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
+    if border_mode not in REFLECT_BORDER_MODES:
         shift_vector = np.array([pad_left, pad_top, pad_left, pad_top])
         return shift_bboxes(bboxes, shift_vector)
 
@@ -1711,7 +1734,7 @@ def generate_reflected_bboxes(
         bboxes (np.ndarray): Original bounding boxes.
         grid_dims (dict[str, tuple[int, int]]): Grid dimensions and original position.
         image_shape (tuple[int, int]): Shape of the original image as (height, width).
-        center_in_origin (bool): If True, center the grid at the origin. Default is True.
+        center_in_origin (bool): If True, center the grid at the origin. Default is False.
 
     Returns:
         np.ndarray: Array of reflected and shifted bounding boxes for the entire grid.
@@ -1727,10 +1750,10 @@ def generate_reflected_bboxes(
 
     # Shift all versions to the original position
     shift_vector = np.array([original_col * cols, original_row * rows, original_col * cols, original_row * rows])
-    bboxes_shifted = shift_bboxes(bboxes, shift_vector)
-    bboxes_hflipped_shifted = shift_bboxes(bboxes_hflipped, shift_vector)
-    bboxes_vflipped_shifted = shift_bboxes(bboxes_vflipped, shift_vector)
-    bboxes_hvflipped_shifted = shift_bboxes(bboxes_hvflipped, shift_vector)
+    bboxes = shift_bboxes(bboxes, shift_vector)
+    bboxes_hflipped = shift_bboxes(bboxes_hflipped, shift_vector)
+    bboxes_vflipped = shift_bboxes(bboxes_vflipped, shift_vector)
+    bboxes_hvflipped = shift_bboxes(bboxes_hvflipped, shift_vector)
 
     new_bboxes = []
 
@@ -1738,13 +1761,13 @@ def generate_reflected_bboxes(
         for grid_col in range(grid_cols):
             # Determine which version of bboxes to use based on grid position
             if (grid_row - original_row) % 2 == 0 and (grid_col - original_col) % 2 == 0:
-                current_bboxes = bboxes_shifted
+                current_bboxes = bboxes
             elif (grid_row - original_row) % 2 == 0:
-                current_bboxes = bboxes_hflipped_shifted
+                current_bboxes = bboxes_hflipped
             elif (grid_col - original_col) % 2 == 0:
-                current_bboxes = bboxes_vflipped_shifted
+                current_bboxes = bboxes_vflipped
             else:
-                current_bboxes = bboxes_hvflipped_shifted
+                current_bboxes = bboxes_hvflipped
 
             # Shift to the current grid cell
             cell_shift = np.array(
@@ -2060,7 +2083,32 @@ def generate_reflected_keypoints(
     keypoints: np.ndarray,
     grid_dims: dict[str, tuple[int, int]],
     image_shape: tuple[int, int],
+    center_in_origin: bool = False,
 ) -> np.ndarray:
+    """Generate reflected keypoints for the entire reflection grid.
+
+    This function creates a grid of keypoints by reflecting and shifting the original keypoints.
+    It handles both centered and non-centered grids based on the `center_in_origin` parameter.
+
+    Args:
+        keypoints (np.ndarray): Original keypoints array of shape (N, 4+), where N is the number of keypoints,
+                                and each keypoint is represented by at least 4 values (x, y, angle, scale, ...).
+        grid_dims (dict[str, tuple[int, int]]): A dictionary containing grid dimensions and original position.
+            It should have the following keys:
+            - "grid_shape": tuple[int, int] representing (grid_rows, grid_cols)
+            - "original_position": tuple[int, int] representing (original_row, original_col)
+        image_shape (tuple[int, int]): Shape of the original image as (height, width).
+        center_in_origin (bool, optional): If True, center the grid at the origin. Default is False.
+
+    Returns:
+        np.ndarray: Array of reflected and shifted keypoints for the entire grid. The shape is
+                    (N * grid_rows * grid_cols, 4+), where N is the number of original keypoints.
+
+    Note:
+        - The function handles keypoint flipping and shifting to create a grid of reflected keypoints.
+        - It preserves the angle and scale information of the keypoints during transformations.
+        - The resulting grid can be either centered at the origin or positioned based on the original grid.
+    """
     grid_rows, grid_cols = grid_dims["grid_shape"]
     original_row, original_col = grid_dims["original_position"]
 
@@ -2073,10 +2121,10 @@ def generate_reflected_keypoints(
 
     # Shift all versions to the original position
     shift_vector = np.array([original_col * cols, original_row * rows, 0, 0])  # Only shift x and y
-    keypoints_shifted = shift_keypoints(keypoints, shift_vector)
-    keypoints_hflipped_shifted = shift_keypoints(keypoints_hflipped, shift_vector)
-    keypoints_vflipped_shifted = shift_keypoints(keypoints_vflipped, shift_vector)
-    keypoints_hvflipped_shifted = shift_keypoints(keypoints_hvflipped, shift_vector)
+    keypoints = shift_keypoints(keypoints, shift_vector)
+    keypoints_hflipped = shift_keypoints(keypoints_hflipped, shift_vector)
+    keypoints_vflipped = shift_keypoints(keypoints_vflipped, shift_vector)
+    keypoints_hvflipped = shift_keypoints(keypoints_hvflipped, shift_vector)
 
     new_keypoints = []
 
@@ -2084,13 +2132,13 @@ def generate_reflected_keypoints(
         for grid_col in range(grid_cols):
             # Determine which version of keypoints to use based on grid position
             if (grid_row - original_row) % 2 == 0 and (grid_col - original_col) % 2 == 0:
-                current_keypoints = keypoints_shifted
+                current_keypoints = keypoints
             elif (grid_row - original_row) % 2 == 0:
-                current_keypoints = keypoints_hflipped_shifted
+                current_keypoints = keypoints_hflipped
             elif (grid_col - original_col) % 2 == 0:
-                current_keypoints = keypoints_vflipped_shifted
+                current_keypoints = keypoints_vflipped
             else:
-                current_keypoints = keypoints_hvflipped_shifted
+                current_keypoints = keypoints_hvflipped
 
             # Shift to the current grid cell
             cell_shift = np.array([(grid_col - original_col) * cols, (grid_row - original_row) * rows, 0, 0])
@@ -2098,7 +2146,9 @@ def generate_reflected_keypoints(
 
             new_keypoints.append(shifted_keypoints)
 
-    return np.vstack(new_keypoints)
+    result = np.vstack(new_keypoints)
+
+    return shift_keypoints(result, -shift_vector) if center_in_origin else result
 
 
 def flip_keypoints(

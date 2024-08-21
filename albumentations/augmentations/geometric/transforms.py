@@ -740,7 +740,7 @@ class Affine(DualTransform):
     def apply_to_bboxes(
         self,
         bboxes: Sequence[BoxType],
-        bbox_matrix: skimage.transform.ProjectiveTransform,
+        bbox_matrix: skimage.transform.AffineTransform,
         output_shape: SizeType,
         **params: Any,
     ) -> list[BoxType]:
@@ -755,14 +755,20 @@ class Affine(DualTransform):
         )
         return result.tolist()
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
-        matrix: skimage.transform.ProjectiveTransform,
+        keypoints: Sequence[KeypointType],
+        matrix: skimage.transform.AffineTransform,
         scale: dict[str, Any],
         **params: Any,
-    ) -> KeypointInternalType:
-        return fgeometric.keypoint_affine(keypoint, matrix=matrix, scale=scale)
+    ) -> list[KeypointType]:
+        # Convert keypoints to numpy array, including all attributes
+        keypoints_array = np.array([list(kp) for kp in keypoints], dtype=np.float32)
+
+        padded_keypoints = fgeometric.keypoints_affine(keypoints_array, matrix, params["shape"][:2], scale, self.mode)
+
+        # Convert back to list of tuples
+        return [tuple(kp) for kp in padded_keypoints]
 
     @staticmethod
     def get_scale(
