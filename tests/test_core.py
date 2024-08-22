@@ -797,7 +797,7 @@ def test_contiguous_output_imageonly(augmentation_cls, params):
     # check preconditions
     assert not image.flags["C_CONTIGUOUS"]
 
-    transform = A.Compose([augmentation_cls(p=1, **params)])
+    transform = augmentation_cls(p=1, **params)
 
     # pipeline always outputs contiguous results
     data = transform(image=image)
