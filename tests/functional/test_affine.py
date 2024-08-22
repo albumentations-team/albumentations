@@ -497,9 +497,10 @@ def test_calculate_affine_transform_padding_properties():
     [
         (A.Affine, {"rotate": (90, 90)}),
         (A.Rotate, {"limit": (90, 90)}),
+        (A.RandomRotate90, {}),
     ]
 )
-def test_rotate_by_90_bboxes(transform_class, transform_params, format, bbox):
+def test_rotate_by_90_bboxes_symmetric_bbox(transform_class, transform_params, format, bbox):
 
     bbox_params = A.BboxParams(format=format, label_fields=['cl'])
 
