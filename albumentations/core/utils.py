@@ -7,13 +7,13 @@ import numpy as np
 from typing_extensions import Literal
 
 from .serialization import Serializable
-from .types import PAIR, BoxOrKeypointType, ScalarType, ScaleType, SizeType
+from .types import PAIR, BoxOrKeypointType, ScalarType, ScaleType
 
 if TYPE_CHECKING:
     import torch
 
 
-def get_shape(img: np.ndarray | torch.Tensor) -> SizeType:
+def get_shape(img: np.ndarray | torch.Tensor) -> tuple[int, int]:
     if isinstance(img, np.ndarray):
         return img.shape[:2]
 
@@ -39,7 +39,7 @@ def format_args(args_dict: dict[str, Any]) -> str:
 
 
 class Params(Serializable, ABC):
-    def __init__(self, format: str, label_fields: Sequence[str] | None = None):  # noqa: A002
+    def __init__(self, format: Any, label_fields: Sequence[str] | None = None):  # noqa: A002
         self.format = format
         self.label_fields = label_fields
 
@@ -93,7 +93,7 @@ class DataProcessor(ABC):
     def check_and_convert(
         self,
         data: list[BoxOrKeypointType],
-        image_shape: Sequence[int],
+        image_shape: tuple[int, int],
         direction: Literal["to", "from"] = "to",
     ) -> list[BoxOrKeypointType]:
         if self.params.format == "albumentations":
@@ -109,18 +109,18 @@ class DataProcessor(ABC):
         raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence[BoxOrKeypointType], image_shape: Sequence[int]) -> Sequence[BoxOrKeypointType]:
+    def filter(self, data: Sequence[BoxOrKeypointType], image_shape: tuple[int, int]) -> Sequence[BoxOrKeypointType]:
         pass
 
     @abstractmethod
-    def check(self, data: list[BoxOrKeypointType], image_shape: Sequence[int]) -> None:
+    def check(self, data: list[BoxOrKeypointType], image_shape: tuple[int, int]) -> None:
         pass
 
     @abstractmethod
     def convert_to_albumentations(
         self,
         data: list[BoxOrKeypointType],
-        image_shape: Sequence[int],
+        image_shape: tuple[int, int],
     ) -> list[BoxOrKeypointType]:
         pass
 
@@ -128,7 +128,7 @@ class DataProcessor(ABC):
     def convert_from_albumentations(
         self,
         data: list[BoxOrKeypointType],
-        image_shape: Sequence[int],
+        image_shape: tuple[int, int],
     ) -> list[BoxOrKeypointType]:
         pass
 

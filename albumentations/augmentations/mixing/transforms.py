@@ -13,9 +13,9 @@ from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations.augmentations.mixing import functional as fmixing
-from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
+from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
-from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
+from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta
 
 __all__ = ["MixUp", "OverlayElements"]
@@ -281,15 +281,15 @@ class OverlayElements(ReferenceBasedTransform):
         return [self.metadata_key]
 
     @staticmethod
-    def preprocess_metadata(metadata: dict[str, Any], img_shape: SizeType) -> dict[str, Any]:
+    def preprocess_metadata(metadata: dict[str, Any], img_shape: tuple[int, int]) -> dict[str, Any]:
         overlay_image = metadata["image"]
         overlay_height, overlay_width = overlay_image.shape[:2]
         image_height, image_width = img_shape[:2]
 
         if "bbox" in metadata:
             bbox = metadata["bbox"]
-            check_bbox(bbox)
-            denormalized_bbox = denormalize_bbox(bbox[:4], img_shape[:2])
+            check_bboxes(np.array([bbox]))
+            denormalized_bbox = denormalize_bboxes(bbox[:4], img_shape[:2])
 
             x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
 

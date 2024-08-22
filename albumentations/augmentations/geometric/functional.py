@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Literal, Sequence, TypedDict, cast
+from typing import Any, Callable, Literal, Sequence, Tuple, TypedDict, cast
 
 import cv2
 import numpy as np
@@ -11,7 +11,7 @@ from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, p
 from albumentations import random_utils
 from albumentations.augmentations.functional import center
 from albumentations.augmentations.utils import angle_2pi_range
-from albumentations.core.bbox_utils import denormalize_bbox, denormalize_bboxes, normalize_bbox, normalize_bboxes
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
@@ -20,7 +20,6 @@ from albumentations.core.types import (
     D4Type,
     KeypointInternalType,
     ScalarType,
-    SizeType,
 )
 
 __all__ = [
@@ -67,8 +66,6 @@ __all__ = [
     "keypoint_hflip",
     "keypoint_transpose",
     "keypoint_vflip",
-    "normalize_bbox",
-    "denormalize_bbox",
     "vflip",
     "d4",
     "bbox_d4",
@@ -424,24 +421,27 @@ def perspective_bbox(
     max_height: int,
     keep_size: bool,
 ) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, image_shape)[:4]
+    x_min, y_min, x_max, y_max = denormalize_bboxes(bbox, image_shape)[:4]
 
-    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
+    points = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]], dtype=np.float32)
 
-    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
+    x_min, y_min, x_max, y_max = float("inf"), float("inf"), 0, 0
     for pt in points:
         point = perspective_keypoint((*pt.tolist(), 0, 0), image_shape, matrix, max_width, max_height, keep_size)
         x, y = point[:2]
-        x1 = min(x1, x)
-        x2 = max(x2, x)
-        y1 = min(y1, y)
-        y2 = max(y2, y)
+        x_min = min(x_min, x)
+        x_max = max(x_max, x)
+        y_min = min(y_min, y)
+        y_max = max(y_max, y)
 
     height, width = image_shape[:2]
 
     return cast(
         BoxInternalType,
-        normalize_bbox((x1, y1, x2, y2), (height if keep_size else max_height, width if keep_size else max_width)),
+        normalize_bboxes(
+            (x_min, y_min, x_max, y_max),
+            (height if keep_size else max_height, width if keep_size else max_width),
+        ),
     )
 
 
@@ -771,7 +771,7 @@ def bboxes_affine(
     rotate_method: Literal["largest_box", "ellipse"],
     image_shape: tuple[int, int],
     border_mode: int,
-    output_shape: Sequence[int],
+    output_shape: tuple[int, int],
 ) -> np.ndarray:
     """Apply an affine transformation to bounding boxes.
 
@@ -840,8 +840,8 @@ def safe_rotate(
     return warp_fn(img)
 
 
-def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, image_shape: Sequence[int]) -> BoxInternalType:
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
+def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, image_shape: tuple[int, int]) -> BoxInternalType:
+    x_min, y_min, x_max, y_max = denormalize_bboxes(bbox, image_shape)[:4]
     points = np.array(
         [
             [x_min, y_min, 1],
@@ -869,7 +869,7 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, image_shape: Seq
     x_min, x_max = fix_point(x_min, x_max, cols)
     y_min, y_max = fix_point(y_min, y_max, rows)
 
-    return cast(KeypointInternalType, normalize_bbox((x_min, y_min, x_max, y_max), image_shape))
+    return cast(KeypointInternalType, normalize_bboxes((x_min, y_min, x_max, y_max), image_shape))
 
 
 def keypoint_safe_rotate(
@@ -1050,7 +1050,7 @@ def bbox_piecewise_affine(
     if matrix is None:
         return bbox
 
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
+    x_min, y_min, x_max, y_max = denormalize_bboxes(bbox, image_shape)[:4]
     keypoints = [
         (x_min, y_min),
         (x_max, y_min),
@@ -1068,7 +1068,7 @@ def bbox_piecewise_affine(
     y_min = keypoints_arr[:, 1].min()
     x_max = keypoints_arr[:, 0].max()
     y_max = keypoints_arr[:, 1].max()
-    return cast(BoxInternalType, normalize_bbox((x_min, y_min, x_max, y_max), image_shape))
+    return cast(BoxInternalType, normalize_bboxes((x_min, y_min, x_max, y_max), image_shape))
 
 
 def vflip(img: np.ndarray) -> np.ndarray:
@@ -2311,12 +2311,12 @@ def compute_transformed_image_bounds(
 
 def compute_affine_warp_output_shape(
     matrix: skimage.transform.ProjectiveTransform,
-    input_shape: SizeType,
-) -> tuple[skimage.transform.ProjectiveTransform, SizeType]:
+    input_shape: tuple[int, ...],
+) -> tuple[skimage.transform.ProjectiveTransform, tuple[int, int]]:
     height, width = input_shape[:2]
 
     if height == 0 or width == 0:
-        return matrix, input_shape
+        return matrix, cast(Tuple[int, int], input_shape[:2])
 
     min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
     minc, minr = min_coords
@@ -2335,4 +2335,4 @@ def compute_affine_warp_output_shape(
     translation = -minc, -minr
     matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
     matrix += matrix_to_fit
-    return matrix, output_shape_tuple
+    return matrix, cast(Tuple[int, int], output_shape_tuple)

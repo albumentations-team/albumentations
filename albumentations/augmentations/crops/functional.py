@@ -7,7 +7,7 @@ import numpy as np
 from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as fgeometric
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType
 
 __all__ = [
@@ -48,7 +48,7 @@ def crop_bbox_by_coords(
     crop_coords: tuple[int, int, int, int],
     image_shape: tuple[int, int],
 ) -> BoxInternalType:
-    denormalized_bbox = denormalize_bbox(bbox, image_shape)
+    denormalized_bbox = denormalize_bboxes(bbox, image_shape)
 
     x_min, y_min, x_max, y_max = denormalized_bbox[:4]
     x1, y1 = crop_coords[:2]
@@ -58,7 +58,7 @@ def crop_bbox_by_coords(
 
     crop_shape = (crop_height, crop_width)
 
-    return cast(BoxInternalType, normalize_bbox(cropped_bbox, crop_shape))
+    return cast(BoxInternalType, normalize_bboxes(cropped_bbox, crop_shape))
 
 
 def crop_keypoint_by_coords(
@@ -149,7 +149,7 @@ def crop_and_pad_bbox(
     image_shape: tuple[int, int],
     result_shape: tuple[int, int],
 ) -> BoxInternalType:
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
+    x_min, y_min, x_max, y_max = denormalize_bboxes(bbox, image_shape)[:4]
 
     if crop_params is not None:
         crop_x, crop_y = crop_params[:2]
@@ -168,7 +168,7 @@ def crop_and_pad_bbox(
         x_max += left
         y_max += top
 
-    return cast(BoxInternalType, normalize_bbox((x_min, y_min, x_max, y_max), result_shape))
+    return cast(BoxInternalType, normalize_bboxes((x_min, y_min, x_max, y_max), result_shape))
 
 
 def crop_and_pad_keypoint(

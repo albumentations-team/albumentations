@@ -92,17 +92,17 @@ class KeypointsProcessor(DataProcessor):
             msg = "Your 'label_fields' are not valid - them must have same names as params in 'keypoint_params' dict"
             raise ValueError(msg)
 
-    def filter(self, data: Sequence[KeypointType], image_shape: Sequence[int]) -> Sequence[KeypointType]:
+    def filter(self, data: Sequence[KeypointType], image_shape: tuple[int, int]) -> Sequence[KeypointType]:
         self.params: KeypointParams
         return filter_keypoints(data, image_shape, remove_invisible=self.params.remove_invisible)
 
-    def check(self, data: Sequence[KeypointType], image_shape: Sequence[int]) -> None:
+    def check(self, data: Sequence[KeypointType], image_shape: tuple[int, int]) -> None:
         check_keypoints(data, image_shape)
 
     def convert_from_albumentations(
         self,
         data: Sequence[KeypointType],
-        image_shape: Sequence[int],
+        image_shape: tuple[int, int],
     ) -> list[KeypointType]:
         params = self.params
         return convert_keypoints_from_albumentations(
@@ -113,7 +113,11 @@ class KeypointsProcessor(DataProcessor):
             angle_in_degrees=params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: Sequence[KeypointType], image_shape: Sequence[int]) -> list[KeypointType]:
+    def convert_to_albumentations(
+        self,
+        data: Sequence[KeypointType],
+        image_shape: tuple[int, int],
+    ) -> list[KeypointType]:
         params = self.params
         return convert_keypoints_to_albumentations(
             data,
@@ -124,7 +128,7 @@ class KeypointsProcessor(DataProcessor):
         )
 
 
-def check_keypoint(kp: KeypointType, image_shape: Sequence[int]) -> None:
+def check_keypoint(kp: KeypointType, image_shape: tuple[int, int]) -> None:
     """Check if keypoint coordinates are less than image shapes"""
     rows, cols = image_shape[:2]
     for name, value, size in zip(["x", "y"], kp[:2], [cols, rows]):
@@ -136,7 +140,7 @@ def check_keypoint(kp: KeypointType, image_shape: Sequence[int]) -> None:
         raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {angle}")
 
 
-def check_keypoints(keypoints: Sequence[KeypointType], image_shape: Sequence[int]) -> None:
+def check_keypoints(keypoints: Sequence[KeypointType], image_shape: tuple[int, int]) -> None:
     """Check if keypoints boundaries are less than image shapes"""
     for kp in keypoints:
         check_keypoint(kp, image_shape)
@@ -144,7 +148,7 @@ def check_keypoints(keypoints: Sequence[KeypointType], image_shape: Sequence[int
 
 def filter_keypoints(
     keypoints: Sequence[KeypointType],
-    image_shape: Sequence[int],
+    image_shape: tuple[int, int],
     remove_invisible: bool,
 ) -> Sequence[KeypointType]:
     if not remove_invisible:
@@ -166,7 +170,7 @@ def filter_keypoints(
 def convert_keypoint_to_albumentations(
     keypoint: KeypointType,
     source_format: str,
-    image_shape: Sequence[int],
+    image_shape: tuple[int, int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> KeypointType:
@@ -206,7 +210,7 @@ def convert_keypoint_to_albumentations(
 def convert_keypoint_from_albumentations(
     keypoint: KeypointType,
     target_format: str,
-    image_shape: Sequence[int],
+    image_shape: tuple[int, int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> KeypointType:
@@ -239,7 +243,7 @@ def convert_keypoint_from_albumentations(
 def convert_keypoints_to_albumentations(
     keypoints: Sequence[KeypointType],
     source_format: str,
-    image_shape: Sequence[int],
+    image_shape: tuple[int, int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> list[KeypointType]:
@@ -252,7 +256,7 @@ def convert_keypoints_to_albumentations(
 def convert_keypoints_from_albumentations(
     keypoints: Sequence[KeypointType],
     target_format: str,
-    image_shape: Sequence[int],
+    image_shape: tuple[int, int],
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> list[KeypointType]:

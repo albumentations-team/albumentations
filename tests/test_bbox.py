@@ -485,6 +485,8 @@ def test_filter_bboxes(
     filtered_bboxes = filter_bboxes(
         bboxes, min_area=min_area, min_visibility=min_visibility, image_shape=(100, 100),
     )
+
+
     assert filtered_bboxes == target
 
 

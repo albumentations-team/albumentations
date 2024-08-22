@@ -1365,8 +1365,8 @@ class RandomToneCurve(ImageOnlyTransform):
 
         if self.per_channel and num_channels != 1:
             return {
-                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=[num_channels]), 0, 1),
-                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=[num_channels]), 0, 1),
+                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=(num_channels,)), 0, 1),
+                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=(num_channels,)), 0, 1),
             }
         # Same values for all channels
         low_y = np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1)

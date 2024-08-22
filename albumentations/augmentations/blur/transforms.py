@@ -461,7 +461,7 @@ class AdvancedBlur(ImageOnlyTransform):
             random.uniform(self.beta_limit[0], 1) if random.random() < HALF else random.uniform(1, self.beta_limit[1])
         )
 
-        noise_matrix = random_utils.uniform(self.noise_limit[0], self.noise_limit[1], size=[ksize, ksize])
+        noise_matrix = random_utils.uniform(*self.noise_limit, size=(ksize, ksize))
 
         # Generate mesh grid centered at zero.
         ax = np.arange(-ksize // 2 + 1.0, ksize // 2 + 1.0)

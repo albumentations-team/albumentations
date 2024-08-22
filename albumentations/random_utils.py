@@ -8,7 +8,7 @@ import numpy as np
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 
-    from .core.types import FloatNumType, IntNumType, NumType, SizeType
+    from .core.types import FloatNumType, IntNumType, NumType
 
 
 def get_random_seed() -> int:
@@ -22,7 +22,7 @@ def get_random_state() -> np.random.RandomState:
 def uniform(
     low: NumType = 0.0,
     high: NumType = 1.0,
-    size: SizeType | int | None = None,
+    size: tuple[int, ...] | int | None = None,
     random_state: np.random.RandomState | None = None,
 ) -> FloatNumType:
     if random_state is None:
@@ -67,7 +67,7 @@ def randn(
 def normal(
     loc: NumType = 0.0,
     scale: NumType = 1.0,
-    size: SizeType | None = None,
+    size: tuple[int, ...] | int | None = None,
     random_state: np.random.RandomState | None = None,
 ) -> FloatNumType:
     if random_state is None:
@@ -77,7 +77,7 @@ def normal(
 
 def poisson(
     lam: NumType = 1.0,
-    size: SizeType | None = None,
+    size: tuple[int, ...] | int | None = None,
     random_state: np.random.RandomState | None = None,
 ) -> IntNumType:
     if random_state is None:
@@ -97,7 +97,7 @@ def permutation(
 def randint(
     low: IntNumType,
     high: IntNumType | None = None,
-    size: SizeType | int | None = None,
+    size: tuple[int, ...] | int | None = None,
     dtype: DTypeLike = np.int32,
     random_state: np.random.RandomState | None = None,
 ) -> IntNumType:
@@ -114,7 +114,7 @@ def random(size: NumType | None = None, random_state: np.random.RandomState | No
 
 def choice(
     a: NumType,
-    size: SizeType | int | None = None,
+    size: tuple[int, int] | int | None = None,
     replace: bool = True,
     p: Sequence[float] | np.ndarray | None = None,
     random_state: np.random.RandomState | None = None,

@@ -8,7 +8,6 @@ from typing_extensions import NotRequired, TypedDict
 
 ScalarType = Union[int, float]
 ColorType = Union[float, Sequence[float]]
-SizeType = Sequence[int]
 
 BoxInternalType = Tuple[float, float, float, float]
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any], Tuple[float, float, float, float]]

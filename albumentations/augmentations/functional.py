@@ -32,7 +32,6 @@ from albumentations.core.types import (
     ColorType,
     ImageMode,
     PlanckianJitterMode,
-    SizeType,
     SpatterMode,
 )
 
@@ -1755,7 +1754,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
 
 
 def generate_approx_gaussian_noise(
-    shape: SizeType,
+    shape: tuple[int, ...],
     mean: float = 0,
     sigma: float = 1,
     scale: float = 0.25,

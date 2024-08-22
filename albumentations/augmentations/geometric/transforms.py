@@ -38,7 +38,6 @@ from albumentations.core.types import (
     ScalarType,
     ScaleFloatType,
     ScaleIntType,
-    SizeType,
     Targets,
     d4_group_elements,
 )
@@ -187,7 +186,7 @@ class ElasticTransform(DualTransform):
         image_shape = params["shape"][:2]
 
         mask = np.zeros(image_shape, dtype=np.uint8)
-        bbox_denorm = fgeometric.denormalize_bbox(bbox, image_shape)
+        bbox_denorm = denormalize_bboxes(bbox, image_shape)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
@@ -202,7 +201,7 @@ class ElasticTransform(DualTransform):
             self.approximate,
         )
         bbox_returned = bbox_from_mask(mask)
-        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, image_shape))
+        return cast(BoxInternalType, normalize_bboxes(bbox_returned, image_shape))
 
     def get_params(self) -> dict[str, int]:
         return {"random_seed": random_utils.get_random_seed()}
@@ -354,7 +353,7 @@ class Perspective(DualTransform):
         height, width = params["shape"][:2]
 
         scale = random.uniform(*self.scale)
-        points = random_utils.normal(0, scale, [4, 2])
+        points = random_utils.normal(0, scale, (4, 2))
         points = np.mod(np.abs(points), 0.32)
 
         # top left -- no changes needed, just use jitter
@@ -424,7 +423,7 @@ class Perspective(DualTransform):
         return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
 
     @classmethod
-    def _expand_transform(cls, matrix: np.ndarray, shape: SizeType) -> tuple[np.ndarray, int, int]:
+    def _expand_transform(cls, matrix: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, int, int]:
         height, width = shape[:2]
         # do not use width-1 or height-1 here, as for e.g. width=3, height=2, max_height
         # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
@@ -709,7 +708,7 @@ class Affine(DualTransform):
         self,
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform,
-        output_shape: SizeType,
+        output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.warp_affine(
@@ -725,7 +724,7 @@ class Affine(DualTransform):
         self,
         mask: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform,
-        output_shape: SizeType,
+        output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.warp_affine(
@@ -741,7 +740,7 @@ class Affine(DualTransform):
         self,
         bboxes: Sequence[BoxType],
         bbox_matrix: skimage.transform.AffineTransform,
-        output_shape: SizeType,
+        output_shape: tuple[int, int],
         **params: Any,
     ) -> list[BoxType]:
         bboxes_np = np.array(bboxes)
@@ -1719,13 +1718,13 @@ class OpticalDistortion(DualTransform):
     ) -> BoxInternalType:
         image_shape = params["shape"]
         mask = np.zeros(image_shape[:2], dtype=np.uint8)
-        bbox_denorm = fgeometric.denormalize_bbox(bbox, image_shape)
+        bbox_denorm = denormalize_bboxes(bbox, image_shape)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
         mask = fgeometric.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
         bbox_returned = bbox_from_mask(mask)
-        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, image_shape))
+        return cast(BoxInternalType, normalize_bboxes(bbox_returned, image_shape))
 
     def get_params(self) -> dict[str, Any]:
         return {
@@ -1882,7 +1881,7 @@ class GridDistortion(DualTransform):
     ) -> BoxInternalType:
         image_shape = params["shape"][:2]
         mask = np.zeros(image_shape, dtype=np.uint8)
-        bbox_denorm = fgeometric.denormalize_bbox(bbox, image_shape)
+        bbox_denorm = denormalize_bboxes(bbox, image_shape)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
@@ -1896,7 +1895,7 @@ class GridDistortion(DualTransform):
             self.mask_value,
         )
         bbox_returned = bbox_from_mask(mask)
-        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, image_shape))
+        return cast(BoxInternalType, normalize_bboxes(bbox_returned, image_shape))
 
     def _normalize(self, h: int, w: int, xsteps: list[float], ysteps: list[float]) -> dict[str, Any]:
         # compensate for smaller last steps in source image.

@@ -74,7 +74,7 @@ def test_crop_bbox_by_coords():
 
 
 @pytest.mark.parametrize(
-    ["transforms", "bboxes", "result_bboxes", "min_area", "min_visibility"],
+    ["transforms", "bboxes", "expected_bboxes", "min_area", "min_visibility"],
     [
         [[A.Crop(10, 10, 20, 20)], [[0, 0, 10, 10, 0]], [], 0, 0],
         [
@@ -95,8 +95,8 @@ def test_crop_bbox_by_coords():
 )
 def test_bbox_params_edges(
     transforms,
-    bboxes,
-    result_bboxes,
+        bboxes,
+    expected_bboxes,
     min_area: float,
     min_visibility: float,
 ) -> None:
@@ -109,4 +109,6 @@ def test_bbox_params_edges(
     )
     res = aug(image=image, bboxes=bboxes)["bboxes"]
 
-    assert np.array_equal(res, result_bboxes)
+    print("Result bboxes: ", res)
+
+    np.testing.assert_array_equal(res, expected_bboxes)
