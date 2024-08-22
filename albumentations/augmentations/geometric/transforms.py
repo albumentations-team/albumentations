@@ -1572,20 +1572,17 @@ class HorizontalFlip(DualTransform):
 
 
 class Flip(DualTransform):
-    """Flip the input either horizontally, vertically or both horizontally and vertically.
-
-    Args:
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-
-    """
+    """Deprecated. Consider using HorizontalFlip, VerticalFlip, RandomRotate90 or D4."""
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def __init__(self, always_apply: bool | None = None, p: float = 0.5):
+        super().__init__(p=p, always_apply=always_apply)
+        warn(
+            "Flip is deprecated. Consider using HorizontalFlip, VerticalFlip, RandomRotate90 or D4.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def apply(self, img: np.ndarray, d: int, **params: Any) -> np.ndarray:
         """Args:
