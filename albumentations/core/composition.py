@@ -382,7 +382,7 @@ class Compose(BaseCompose, HubMixin):
                     raise TypeError(f"{data_name} must be numpy array type")
                 shapes.append(data.shape[:2])
             if internal_data_name in CHECKED_MULTI and data is not None and len(data):
-                if not isinstance(data[0], np.ndarray):
+                if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
                     raise TypeError(f"{data_name} must be list of numpy arrays")
                 shapes.append(data[0].shape[:2])
             if internal_data_name in CHECK_BBOX_PARAM and self.processors.get("bboxes") is None:

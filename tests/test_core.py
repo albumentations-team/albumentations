@@ -3,23 +3,12 @@ from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
 
 import albumentations as A
+from albumentations.pytorch.transforms import ToTensorV2
 
 import cv2
 import numpy as np
 import pytest
 
-from albumentations import (
-    BasicTransform,
-    Blur,
-    ChannelShuffle,
-    Crop,
-    HorizontalFlip,
-    MedianBlur,
-    Normalize,
-    PadIfNeeded,
-    Resize,
-    Rotate,
-)
 from albumentations.core.bbox_utils import check_bboxes
 from albumentations.core.composition import (
     BaseCompose,
@@ -65,7 +54,7 @@ def test_compose():
 
 
 def oneof_always_apply_crash():
-    aug = Compose([HorizontalFlip(p=1), Rotate(p=1), OneOf([Blur(p=1), MedianBlur(p=1)], p=1)], p=1)
+    aug = Compose([A.HorizontalFlip(p=1), A.Rotate(p=1), A.OneOf([A.Blur(p=1), A.MedianBlur(p=1)], p=1)], p=1)
     image = np.ones((8, 8))
     data = aug(image=image)
     assert data
@@ -132,7 +121,7 @@ def test_image_only_transform(image):
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_compose_doesnt_pass_force_apply(image: np.ndarray) -> None:
-    transforms = [HorizontalFlip(p=0)]
+    transforms = [A.HorizontalFlip(p=0)]
     augmentation = Compose(transforms, p=1, return_params=True)
     result = augmentation(force_apply=True, image=image)
     assert np.array_equal(result["image"], image)
@@ -204,9 +193,9 @@ def test_check_bboxes_with_end_greater_that_start():
     ["transforms", "len_expected"],
     [
         ([], 0),
-        ([HorizontalFlip(), Blur()], 2),
-        ([OneOf([HorizontalFlip(), Blur()]), SomeOf([HorizontalFlip(), Blur()], n=2)], 4),
-        ([HorizontalFlip(), Sequential([NoOp(), NoOp()])], 3),
+        ([A.HorizontalFlip(p=1), A.Blur(p=1)], 2),
+        ([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)]), SomeOf([A.HorizontalFlip(p=1), A.Blur(p=1)], n=2)], 4),
+        ([A.HorizontalFlip(p=1), Sequential([A.NoOp(), A.NoOp()])], 3),
     ],
 )
 def test_get_transforms_dict(transforms: TransformsSeqType, len_expected: int) -> None:
@@ -228,7 +217,7 @@ def test_comose_run_with_params_exception() -> None:
 
 
 def test_deterministic_oneof() -> None:
-    aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
+    aug = ReplayCompose([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
@@ -239,7 +228,7 @@ def test_deterministic_oneof() -> None:
 
 
 def test_return_params_oneof() -> None:
-    aug = Compose([OneOf([HorizontalFlip(), Blur()])], p=1, return_params=True)
+    aug = Compose([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1, return_params=True)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
@@ -250,7 +239,7 @@ def test_return_params_oneof() -> None:
 
 
 def test_deterministic_one_or_other() -> None:
-    aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
+    aug = ReplayCompose([OneOrOther(A.HorizontalFlip(p=1), A.Blur(p=1))], p=1)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
@@ -261,7 +250,7 @@ def test_deterministic_one_or_other() -> None:
 
 
 def test_return_params_one_or_other() -> None:
-    aug = Compose([OneOrOther(HorizontalFlip(), Blur())], p=1, return_params=True)
+    aug = Compose([OneOrOther(A.HorizontalFlip(p=1), A.Blur(p=1))], p=1, return_params=True)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
@@ -272,7 +261,7 @@ def test_return_params_one_or_other() -> None:
 
 
 def test_deterministic_sequential() -> None:
-    aug = ReplayCompose([Sequential([HorizontalFlip(), Blur()])], p=1)
+    aug = ReplayCompose([Sequential([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
@@ -283,7 +272,7 @@ def test_deterministic_sequential() -> None:
 
 
 def test_return_params_sequential() -> None:
-    aug = Compose([Sequential([HorizontalFlip(), Blur()])], p=1, return_params=True)
+    aug = Compose([Sequential([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1, return_params=True)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
@@ -295,7 +284,7 @@ def test_return_params_sequential() -> None:
 
 def test_named_args():
     image = np.empty([100, 100, 3], dtype=np.uint8)
-    aug = HorizontalFlip(p=1)
+    aug = A.HorizontalFlip(p=1)
 
     with pytest.raises(KeyError) as exc_info:
         aug(image)
@@ -412,7 +401,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
 def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
     image = np.empty([100, 100], dtype=np.uint8)
     augs = Compose(
-        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], bbox_params=bbox_params, keypoint_params=keypoint_params
+        [A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], bbox_params=bbox_params, keypoint_params=keypoint_params
     )
     res = augs(image=image, **targets)
 
@@ -499,7 +488,7 @@ def test_check_each_transform_compose(targets, bbox_params, keypoint_params, exp
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Compose([Crop(0, 0, 50, 50), PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)])],
+        [Compose([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)])],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -588,7 +577,7 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Sequential([Crop(0, 0, 50, 50), PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], p=1.0)],
+        [Sequential([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], p=1.0)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -678,8 +667,8 @@ def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expe
 
     augs = Compose(
         [
-            SomeOf([Crop(0, 0, 50, 50)], n=1, replace=False, p=1.0),
-            SomeOf([PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], n=1, replace=False, p=1.0),
+            SomeOf([A.Crop(0, 0, 50, 50)], n=1, replace=False, p=1.0),
+            SomeOf([A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], n=1, replace=False, p=1.0),
         ],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
@@ -703,12 +692,12 @@ def test_bbox_params_is_not_set(image, bboxes):
 )
 @pytest.mark.parametrize(
     "inner_transform",
-    [(Normalize, {}), (Resize, {"height": 100, "width": 100})]
+    [(A.Normalize, {}), (A.Resize, {"height": 100, "width": 100})]
     + get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}}),  # type: ignore
 )
 def test_single_transform_compose(
     compose_transform: typing.Tuple[typing.Type[BaseCompose], dict],
-    inner_transform: typing.Tuple[typing.Union[typing.Type[BaseCompose], typing.Type[BasicTransform]], dict],
+    inner_transform: typing.Tuple[typing.Union[typing.Type[BaseCompose], typing.Type[A.BasicTransform]], dict],
 ):
     compose_cls, compose_kwargs = compose_transform
     cls, kwargs = inner_transform
@@ -767,7 +756,7 @@ def test_single_transform_compose(
 def test_contiguous_output_dual(augmentation_cls, params):
     set_seed(42)
     image = np.ones([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
-    mask = np.ones([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
+    mask = np.ones([2, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
     # check preconditions
     assert not image.flags["C_CONTIGUOUS"]
@@ -779,8 +768,9 @@ def test_contiguous_output_dual(augmentation_cls, params):
     data = transform(image=image, mask=mask)
 
     # confirm output contiguous
-    assert data["image"].flags["C_CONTIGUOUS"]
+    # assert data["image"].flags["C_CONTIGUOUS"]
     assert data["mask"].flags["C_CONTIGUOUS"]
+    assert data["image"].flags["C_CONTIGUOUS"]
 
 
 @pytest.mark.parametrize(
@@ -856,8 +846,8 @@ def test_additional_targets_overwrite():
 def test_sequential_with_horizontal_flip_prob_1(image):
     mask = image.copy()
     # Setup transformations
-    transform = Sequential([HorizontalFlip(p=1)], p=1)
-    expected_transform = Compose([HorizontalFlip(p=1)])
+    transform = Sequential([A.HorizontalFlip(p=1)], p=1)
+    expected_transform = Compose([A.HorizontalFlip(p=1)])
 
     with patch('random.random', return_value=0.1):  # Mocking probability less than 1
         result = transform(image=image, mask=mask)
@@ -871,7 +861,7 @@ def test_sequential_with_horizontal_flip_prob_1(image):
 @pytest.mark.parametrize("image", IMAGES)
 def test_sequential_with_horizontal_flip_prob_0(image):
     mask = image.copy()
-    transform = Sequential([HorizontalFlip(p=1)], p=0)
+    transform = Sequential([A.HorizontalFlip(p=1)], p=0)
 
     with patch('random.random', return_value=0.99):  # Mocking probability greater than 0
         result = transform(image=image, mask=mask)
@@ -1196,18 +1186,18 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
     if augmentation_cls == A.RandomCropNearBBox:
         # requires "cropping_bbox" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])
-        aug(image=image, mask=mask, cropping_bbox=bboxes[0])
+        transformed =aug(image=image, mask=mask, cropping_bbox=bboxes[0])
     elif augmentation_cls in [A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop]:
         # requires "bboxes" arg
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
-        aug(image=image, mask=mask, bboxes=bboxes)
+        transformed = aug(image=image, mask=mask, bboxes=bboxes)
     elif augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
-        aug(image=image, mask=mask, bboxes=bboxes, textimage_metadata=[])
+        transformed = aug(image=image, mask=mask, bboxes=bboxes, textimage_metadata=[])
     elif augmentation_cls == A.OverlayElements:
         # requires "metadata" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])
-        aug(image=image, overlay_metadata=[], mask=mask)
+        transformed = aug(image=image, overlay_metadata=[], mask=mask)
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:
@@ -1219,4 +1209,11 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             mask = mask[:, :, 0]
 
         aug = augmentation_cls(p=1, **params)
-        aug(image=image, mask=mask)
+        transformed = aug(image=image, mask=mask)
+
+
+    assert transformed["image"].flags["C_CONTIGUOUS"]
+
+    # Check if the augmentation is not an ImageOnlyTransform and mask is in the output
+    if not issubclass(augmentation_cls, ImageOnlyTransform) and "mask" in transformed:
+        assert transformed["mask"].flags["C_CONTIGUOUS"], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS mask"
