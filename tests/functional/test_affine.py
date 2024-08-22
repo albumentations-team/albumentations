@@ -486,3 +486,30 @@ def test_calculate_affine_transform_padding_properties():
     identity_transform = skimage.transform.AffineTransform()
     identity_padding = fgeometric.calculate_affine_transform_padding(identity_transform, image_shape)
     assert identity_padding == (0, 0, 0, 0), "Identity transform should require no padding"
+
+
+@pytest.mark.parametrize(["format", "bbox"],
+                         [("pascal_voc", (40, 40, 60, 60)),
+                          ("albumentations", (0.4, 0.4, 0.6, 0.6))]
+                         )
+@pytest.mark.parametrize(
+    ["transform_class", "transform_params"],
+    [
+        (A.Affine, {"rotate": (90, 90)}),
+        (A.Rotate, {"limit": (90, 90)}),
+    ]
+)
+def test_rotate_by_90_bboxes(transform_class, transform_params, format, bbox):
+
+    bbox_params = A.BboxParams(format=format, label_fields=['cl'])
+
+    transform = A.Compose(
+        [transform_class(p=1, **transform_params)],
+        bbox_params=bbox_params
+    )
+
+    img = np.ones((100, 100, 3)) * 255
+
+    bbox_out1 = transform(image=img, bboxes=[bbox], cl=[0])['bboxes'][0]
+
+    np.testing.assert_allclose(bbox_out1, bbox, atol=1e-6)
