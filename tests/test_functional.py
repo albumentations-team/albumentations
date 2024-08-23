@@ -900,19 +900,6 @@ def test_d4_output_shape_with_factor(image, factor):
         assert result.shape == image.shape, "Output shape should match input shape"
 
 
-@pytest.mark.parametrize("bbox, group_member, expected", [
-    ((0.05, 0.1, 0.55, 0.6), 'e', (0.05, 0.1, 0.55, 0.6)),  # Identity
-    ((0.05, 0.1, 0.55, 0.6), 'r90', (0.1, 0.45, 0.6, 0.95)),  # Rotate 90 degrees CCW
-    ((0.05, 0.1, 0.55, 0.6), 'r180', (0.45, 0.4, 0.95, 0.9)),  # Rotate 180 degrees
-    ((0.05, 0.1, 0.55, 0.6), 'r270', (0.4, 0.05, 0.9, 0.55)),  # Rotate 270 degrees CCW
-    ((0.05, 0.1, 0.55, 0.6), 'v', (0.05, 0.4, 0.55, 0.9)),  # Vertical flip
-    ((0.05, 0.1, 0.55, 0.6), 't', (0.1, 0.05, 0.6, 0.55)),  # Transpose around main diagonal
-    ((0.05, 0.1, 0.55, 0.6), 'h', (0.45, 0.1, 0.95, 0.6)),  # Horizontal flip
-    ((0.05, 0.1, 0.55, 0.6), 'hvt', (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)),  # Transpose around second diagonal
-])
-def test_bbox_d4(bbox, group_member, expected):
-    result = fgeometric.bbox_d4(bbox, group_member)
-    assert result == pytest.approx(expected, rel=1e-5), f"Failed for transformation {group_member} with bbox {bbox}"
 
 
 base_matrix = np.array([[1, 2, 3],

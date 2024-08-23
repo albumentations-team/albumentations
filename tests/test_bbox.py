@@ -1182,3 +1182,18 @@ def test_bboxes_transpose():
     rot90 = fgeometric.bboxes_rot90(bboxes, 2)
     reflected_anti_diagonal = fgeometric.bboxes_transpose(rot90)
     assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
+
+@pytest.mark.parametrize("bbox, group_member, expected", [
+    ((0.05, 0.1, 0.55, 0.6), 'e', (0.05, 0.1, 0.55, 0.6)),  # Identity
+    ((0.05, 0.1, 0.55, 0.6), 'r90', (0.1, 0.45, 0.6, 0.95)),  # Rotate 90 degrees CCW
+    ((0.05, 0.1, 0.55, 0.6), 'r180', (0.45, 0.4, 0.95, 0.9)),  # Rotate 180 degrees
+    ((0.05, 0.1, 0.55, 0.6), 'r270', (0.4, 0.05, 0.9, 0.55)),  # Rotate 270 degrees CCW
+    ((0.05, 0.1, 0.55, 0.6), 'v', (0.05, 0.4, 0.55, 0.9)),  # Vertical flip
+    ((0.05, 0.1, 0.55, 0.6), 't', (0.1, 0.05, 0.6, 0.55)),  # Transpose around main diagonal
+    ((0.05, 0.1, 0.55, 0.6), 'h', (0.45, 0.1, 0.95, 0.6)),  # Horizontal flip
+    ((0.05, 0.1, 0.55, 0.6), 'hvt', (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)),  # Transpose around second diagonal
+])
+def test_bbox_d4(bbox, group_member, expected):
+    bboxes = np.array([bbox])
+    result = fgeometric.bboxes_d4(bboxes, group_member)[0]
+    np.testing.assert_array_almost_equal(result, expected)
