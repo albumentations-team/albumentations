@@ -65,7 +65,7 @@ class LabelEncoder:
 
 
 class Params(Serializable, ABC):
-    def __init__(self, format: Any, label_fields: Sequence[str]):  # noqa: A002
+    def __init__(self, format: Any, label_fields: Sequence[str] | None):  # noqa: A002
         self.format = format
         self.label_fields = label_fields
 
@@ -166,7 +166,7 @@ class DataProcessor(ABC):
         pass
 
     def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        if self.params.label_fields is None:
+        if not self.params.label_fields:
             return data
 
         for data_name in set(self.data_fields) & set(data.keys()):
@@ -191,6 +191,9 @@ class DataProcessor(ABC):
         return data
 
     def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        if not self.params.label_fields:
+            return data
+
         for data_name in set(self.data_fields) & set(data.keys()):
             data_array = data[data_name]
             num_label_fields = len(self.params.label_fields)

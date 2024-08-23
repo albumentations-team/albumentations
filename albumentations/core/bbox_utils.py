@@ -57,7 +57,7 @@ class BboxParams(Params):
     def __init__(
         self,
         format: Literal["coco", "pascal_voc", "albumentations", "yolo"],  # noqa: A002
-        label_fields: Sequence[Any],
+        label_fields: Sequence[Any] | None = None,
         min_area: float = 0.0,
         min_visibility: float = 0.0,
         min_width: float = 0.0,

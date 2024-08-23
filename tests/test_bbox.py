@@ -659,42 +659,42 @@ def test_bbox_processor_roundtrip_multiple_labels(bbox_format, bboxes, labels1, 
     assert processed_data["labels2"] == labels2
 
 
-# @pytest.mark.parametrize(
-#     ["bboxes", "bbox_format", "labels"],
-#     [
-#         ([(20, 30, 40, 50)], "coco", [1]),
-#         ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "coco", None),
-#         ([(20, 30, 60, 80)], "pascal_voc", [2]),
-#         ([(20, 30, 60, 80, 99)], "pascal_voc", None),
-#         ([(0.1, 0.2, 0.1, 0.2)], "yolo", [2]),
-#         ([(0.1, 0.2, 0.1, 0.2, 99)], "yolo", None),
-#     ],
-# )
-# def test_compose_with_bbox_noop(
-#     bboxes: BoxType, bbox_format: str, labels: list[int] | None
-# ) -> None:
-#     image = np.ones((100, 100, 3))
-#     if labels is not None:
-#         aug = Compose(
-#             [NoOp(p=1.0)],
-#             bbox_params={"format": bbox_format, "label_fields": ["labels"]},
-#         )
-#         transformed = aug(image=image, bboxes=bboxes, labels=labels)
-#     else:
-#         aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
-#         transformed = aug(image=image, bboxes=bboxes)
-#     assert np.array_equal(transformed["image"], image)
-#     assert np.all(np.isclose(transformed["bboxes"], bboxes))
+@pytest.mark.parametrize(
+    ["bboxes", "bbox_format", "labels"],
+    [
+        ([(20, 30, 40, 50)], "coco", [1]),
+        ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "coco", None),
+        ([(20, 30, 60, 80)], "pascal_voc", [2]),
+        ([(20, 30, 60, 80, 99)], "pascal_voc", None),
+        ([(0.1, 0.2, 0.1, 0.2)], "yolo", [2]),
+        ([(0.1, 0.2, 0.1, 0.2, 99)], "yolo", None),
+    ],
+)
+def test_compose_with_bbox_noop(
+    bboxes, bbox_format: str, labels: list[int] | None
+) -> None:
+    image = np.ones((100, 100, 3))
+    if labels is not None:
+        aug = Compose(
+            [NoOp(p=1.0)],
+            bbox_params={"format": bbox_format, "label_fields": ["labels"]},
+        )
+        transformed = aug(image=image, bboxes=bboxes, labels=labels)
+    else:
+        aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
+        transformed = aug(image=image, bboxes=bboxes)
+    assert np.array_equal(transformed["image"], image)
+    assert np.all(np.isclose(transformed["bboxes"], bboxes))
 
 
-# @pytest.mark.parametrize(["bboxes", "bbox_format"], [[[[20, 30, 40, 50]], "coco"]])
-# def test_compose_with_bbox_noop_error_label_fields(
-#     bboxes: BoxType, bbox_format: str
-# ) -> None:
-#     image = np.ones((100, 100, 3))
-#     aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
-#     with pytest.raises(Exception):
-#         aug(image=image, bboxes=bboxes)
+@pytest.mark.parametrize(["bboxes", "bbox_format"], [[[[20, 30, 40, 50]], "coco"]])
+def test_compose_with_bbox_noop_error_label_fields(
+    bboxes, bbox_format: str
+) -> None:
+    image = np.ones((100, 100, 3))
+    aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
+    with pytest.raises(Exception):
+        aug(image=image, bboxes=bboxes)
 
 
 # @pytest.mark.parametrize(
