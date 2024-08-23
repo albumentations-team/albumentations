@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 import numpy as np
@@ -64,7 +65,7 @@ class LabelEncoder:
 
 
 class Params(Serializable, ABC):
-    def __init__(self, format: Any, label_fields: Sequence[str] | None = None):  # noqa: A002
+    def __init__(self, format: Any, label_fields: Sequence[str]):  # noqa: A002
         self.format = format
         self.label_fields = label_fields
 
@@ -76,6 +77,9 @@ class DataProcessor(ABC):
     def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
         self.params = params
         self.data_fields = [self.default_data_name]
+        self.label_encoders: dict[str, dict[str, LabelEncoder]] = defaultdict(dict)
+        self.is_list_input: dict[str, bool] = {}
+
         if additional_targets is not None:
             self.add_targets(additional_targets)
 
@@ -97,52 +101,31 @@ class DataProcessor(ABC):
         pass
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Postprocess the data after applying transformations.
-
-        This method performs the following steps:
-        1. Gets the shape of the image from the data.
-        2. For each data field:
-           - Filters the data based on the image shape.
-           - Converts the data from the Albumentations format to the original format.
-        3. Removes label fields from the data.
-
-        Args:
-            data (dict[str, Any]): A dictionary containing the transformed data.
-
-        Returns:
-            dict[str, Any]: The postprocessed data.
-        """
         image_shape = get_shape(data["image"])
+        data = self.remove_label_fields_from_data(data)
 
-        for data_name in self.data_fields:
-            if data_name in data:
-                data[data_name] = self.filter(data[data_name], image_shape)
-                data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="from")
-
-        return self.remove_label_fields_from_data(data)
+        for data_name in set(self.data_fields) & set(data.keys()):
+            data[data_name] = self.filter(data[data_name], image_shape)
+            data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="from")
+            # Convert back to list of lists if original input was a list
+            if self.is_list_input.get(data_name, False):
+                data[data_name] = data[data_name].tolist()
+        return data
 
     def preprocess(self, data: dict[str, Any]) -> None:
-        """Preprocess the data before applying transformations.
-
-        This method performs the following steps:
-        1. Adds label fields to the data.
-        2. Gets the shape of the image from the data.
-        3. For each data field:
-           - Converts the data from the original format to the Albumentations format.
-
-        Args:
-            data (dict[str, Any]): A dictionary containing the data to be preprocessed.
-
-        Note:
-            This method modifies the input data dictionary in-place.
-        """
-        data = self.add_label_fields_to_data(data)
-
         image_shape = get_shape(data["image"])
 
-        for data_name in self.data_fields:
-            if data_name in data:
-                data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="to")
+        for data_name in set(self.data_fields) & set(data.keys()):  # Convert list of lists to numpy array if necessary
+            if isinstance(data[data_name], list):
+                self.is_list_input[data_name] = True
+                data[data_name] = np.array(data[data_name], dtype=np.float32)
+            else:
+                self.is_list_input[data_name] = False
+
+        data = self.add_label_fields_to_data(data)
+
+        for data_name in set(self.data_fields) & set(data.keys()):
+            data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="to")
 
     def check_and_convert(
         self,
@@ -150,37 +133,13 @@ class DataProcessor(ABC):
         image_shape: tuple[int, int],
         direction: Literal["to", "from"] = "to",
     ) -> np.ndarray:
-        """Check the validity of the data and convert it between formats if necessary.
-
-        Args:
-            data (np.ndarray): The data to be checked and potentially converted.
-            image_shape (tuple[int, int]): The shape of the image (height, width).
-            direction (Literal["to", "from"]): The direction of conversion.
-                "to" converts from the original format to Albumentations format.
-                "from" converts from Albumentations format to the original format.
-                Defaults to "to".
-
-        Returns:
-            np.ndarray: The checked and potentially converted data.
-
-        Raises:
-            ValueError: If an invalid direction is provided.
-
-        Note:
-            If the data is already in Albumentations format (self.params.format == "albumentations"),
-            this method only performs a check without conversion.
-        """
         if self.params.format == "albumentations":
             self.check(data, image_shape)
             return data
 
-        if direction == "to":
-            return self.convert_to_albumentations(data, image_shape)
+        process_func = self.convert_to_albumentations if direction == "to" else self.convert_from_albumentations
 
-        if direction == "from":
-            return self.convert_from_albumentations(data, image_shape)
-
-        raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
+        return process_func(data, image_shape)
 
     @abstractmethod
     def filter(self, data: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
@@ -209,30 +168,45 @@ class DataProcessor(ABC):
     def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.params.label_fields is None:
             return data
-        for data_name in self.data_fields:
-            if data_name in data:
-                for field in self.params.label_fields:
-                    if not len(data[data_name]) == len(data[field]):
-                        raise ValueError(
-                            f"The lengths of bboxes and labels do not match. Got {len(data[data_name])} "
-                            f"and {len(data[field])} respectively.",
-                        )
 
-                    data_with_added_field = []
-                    for d, field_value in zip(data[data_name], data[field]):
-                        data_with_added_field.append([*list(d), field_value])
-                    data[data_name] = data_with_added_field
+        for data_name in set(self.data_fields) & set(data.keys()):
+            data_array = data[data_name]
+            for label_field in self.params.label_fields:
+                if len(data[data_name]) != len(data[label_field]):
+                    raise ValueError(
+                        f"The lengths of {data_name} and {label_field} do not match. Got {len(data[data_name])} "
+                        f"and {len(data[label_field])} respectively.",
+                    )
+
+                # Encode labels
+                encoder = LabelEncoder()
+                encoded_labels = encoder.fit_transform(data[label_field])
+                self.label_encoders[data_name][label_field] = encoder
+
+                # Attach encoded labels as extra columns
+                encoded_labels = encoded_labels.reshape(-1, 1)
+                data_array = np.hstack((data_array, encoded_labels))
+
+            data[data_name] = data_array
         return data
 
     def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        if not self.params.label_fields:
-            return data
-        label_fields_len = len(self.params.label_fields)
-        for data_name in self.data_fields:
-            if data_name in data:
-                for idx, field in enumerate(self.params.label_fields):
-                    data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
-                data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
+        for data_name in set(self.data_fields) & set(data.keys()):
+            data_array = data[data_name]
+            num_label_fields = len(self.params.label_fields)
+            non_label_columns = data_array.shape[1] - num_label_fields
+
+            for idx, label_field in enumerate(self.params.label_fields):
+                encoded_labels = data_array[:, non_label_columns + idx]
+                encoder = self.label_encoders.get(data_name, {}).get(label_field)
+                if encoder:
+                    decoded_labels = encoder.inverse_transform(encoded_labels.astype(int))
+                    data[label_field] = decoded_labels.tolist()
+                else:
+                    raise ValueError(f"Label encoder for {label_field} not found")
+
+            # Remove label columns from data
+            data[data_name] = data_array[:, :non_label_columns]
         return data
 
 
