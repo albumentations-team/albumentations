@@ -933,191 +933,191 @@ def test_bbox_clipping_perspective() -> None:
     assert len(res) == 0
 
 
-# @pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, image_shape, expected", [
-#     # Symmetric padding
-#     (100, 100, 100, 100, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),  # Exact multiple
-#     (150, 150, 150, 150, (100, 100), {'grid_shape': (5, 5), 'original_position': (2, 2)}),  # Rounded up
-#     (50, 50, 50, 50, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),      # Less than image size
+@pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, image_shape, expected", [
+    # Symmetric padding
+    (100, 100, 100, 100, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),  # Exact multiple
+    (150, 150, 150, 150, (100, 100), {'grid_shape': (5, 5), 'original_position': (2, 2)}),  # Rounded up
+    (50, 50, 50, 50, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),      # Less than image size
 
-#     # Asymmetric padding
-#     (100, 0, 100, 0, (100, 100), {'grid_shape': (2, 2), 'original_position': (1, 1)}),
-#     (0, 100, 0, 100, (100, 100), {'grid_shape': (2, 2), 'original_position': (0, 0)}),
-#     (100, 50, 75, 25, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+    # Asymmetric padding
+    (100, 0, 100, 0, (100, 100), {'grid_shape': (2, 2), 'original_position': (1, 1)}),
+    (0, 100, 0, 100, (100, 100), {'grid_shape': (2, 2), 'original_position': (0, 0)}),
+    (100, 50, 75, 25, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
 
-#     # Edge cases
-#     (0, 0, 0, 0, (100, 100), {'grid_shape': (1, 1), 'original_position': (0, 0)}),          # No padding
-#     (1, 1, 1, 1, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),          # Minimal padding
+    # Edge cases
+    (0, 0, 0, 0, (100, 100), {'grid_shape': (1, 1), 'original_position': (0, 0)}),          # No padding
+    (1, 1, 1, 1, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),          # Minimal padding
 
-#     # Different image dimensions
-#     (100, 100, 50, 50, (50, 100), {'grid_shape': (5, 3), 'original_position': (2, 1)}),
+    # Different image dimensions
+    (100, 100, 50, 50, (50, 100), {'grid_shape': (5, 3), 'original_position': (2, 1)}),
 
-#     # Large padding
-#     (500, 500, 500, 500, (100, 100), {'grid_shape': (11, 11), 'original_position': (5, 5)}),
+    # Large padding
+    (500, 500, 500, 500, (100, 100), {'grid_shape': (11, 11), 'original_position': (5, 5)}),
 
-#     # Asymmetric image dimensions
-#     (100, 100, 100, 100, (200, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+    # Asymmetric image dimensions
+    (100, 100, 100, 100, (200, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
 
-#     # Very small image dimensions
-#     (10, 10, 10, 10, (5, 5), {'grid_shape': (5, 5), 'original_position': (2, 2)}),
+    # Very small image dimensions
+    (10, 10, 10, 10, (5, 5), {'grid_shape': (5, 5), 'original_position': (2, 2)}),
 
-#     # Very large image dimensions
-#     (1000, 1000, 1000, 1000, (10000, 10000), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+    # Very large image dimensions
+    (1000, 1000, 1000, 1000, (10000, 10000), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
 
-#     # Zero padding on some sides
-#     (100, 0, 0, 100, (100, 100), {'grid_shape': (2, 2), 'original_position': (1, 0)}),
+    # Zero padding on some sides
+    (100, 0, 0, 100, (100, 100), {'grid_shape': (2, 2), 'original_position': (1, 0)}),
 
-#     # Padding smaller than image on some sides, larger on others
-#     (50, 150, 25, 175, (100, 100), {'grid_shape': (4, 4), 'original_position': (1, 1)}),
-# ])
-# def test_get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape, expected):
-#     result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
-#     assert result == expected, f"Expected {expected}, but got {result}"
+    # Padding smaller than image on some sides, larger on others
+    (50, 150, 25, 175, (100, 100), {'grid_shape': (4, 4), 'original_position': (1, 1)}),
+])
+def test_get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape, expected):
+    result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
+    assert result == expected, f"Expected {expected}, but got {result}"
 
-# def test_get_pad_grid_dimensions_float_values():
-#     result = fgeometric.get_pad_grid_dimensions(10.5, 10.5, 10.5, 10.5, (100, 100))
-#     assert result == {'grid_shape': (3, 3), 'original_position': (1, 1)}, "Function should handle float inputs by implicit conversion to int"
-
-
-# @pytest.mark.parametrize("image_shape, bboxes, pad_params, expected_bboxes", [
-#     (
-#         (128, 96, 3),
-#         np.array([[5, 60, 40, 110, 0]]),  # input bboxes (scaled down)
-#         (128, 128, 96, 96),  # (pad_top, pad_bottom, pad_left, pad_right)
-#         np.array(
-#                 [(56.0, 18.0, 91.0, 68.0, 0.0),
-#                 (101.0, 18.0, 136.0, 68.0, 0.0),
-#                 (248.0, 18.0, 283.0, 68.0, 0.0),
-#                 (56.0, 188.0, 91.0, 238.0, 0.0),
-#                 (101.0, 188.0, 136.0, 238.0, 0.0),
-#                 (248.0, 188.0, 283.0, 238.0, 0.0),
-#                 (56.0, 274.0, 91.0, 324.0, 0.0),
-#                 (101.0, 274.0, 136.0, 324.0, 0.0),
-#                 (248.0, 274.0, 283.0, 324.0, 0.0)]
-#     )
-#     ),
-#     # Add more test cases here
-# ])
-# def test_pad_bboxes_with_reflection(image_shape, bboxes, pad_params, expected_bboxes):
-#     pad_top, pad_bottom, pad_left, pad_right = pad_params
-#     image_shape[:2]
-
-#     result = fgeometric.pad_bboxes(
-#         bboxes,
-#         pad_top, pad_bottom, pad_left, pad_right,
-#         border_mode=cv2.BORDER_REFLECT_101,
-#         image_shape=image_shape[:2]
-#     )
-
-#     np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
+def test_get_pad_grid_dimensions_float_values():
+    result = fgeometric.get_pad_grid_dimensions(10.5, 10.5, 10.5, 10.5, (100, 100))
+    assert result == {'grid_shape': (3, 3), 'original_position': (1, 1)}, "Function should handle float inputs by implicit conversion to int"
 
 
-# # Test case for non-reflect border mode
-# @pytest.mark.parametrize("image_shape, bboxes, pad_params, expected_bboxes", [
-#     (
-#         (100, 100, 3),  # image shape
-#         np.array([[20, 20, 80, 80, 0]]),  # input bboxes
-#         (10, 10, 10, 10),  # (pad_top, pad_bottom, pad_left, pad_right)
-#         np.array([[30, 30, 90, 90, 0]])
-#     ),
-# ])
-# def test_pad_bboxes_constant_border(image_shape, bboxes, pad_params, expected_bboxes):
-#     pad_top, pad_bottom, pad_left, pad_right = pad_params
+@pytest.mark.parametrize("image_shape, bboxes, pad_params, expected_bboxes", [
+    (
+        (128, 96, 3),
+        np.array([[5, 60, 40, 110, 0]]),  # input bboxes (scaled down)
+        (128, 128, 96, 96),  # (pad_top, pad_bottom, pad_left, pad_right)
+        np.array(
+                [(56.0, 18.0, 91.0, 68.0, 0.0),
+                (101.0, 18.0, 136.0, 68.0, 0.0),
+                (248.0, 18.0, 283.0, 68.0, 0.0),
+                (56.0, 188.0, 91.0, 238.0, 0.0),
+                (101.0, 188.0, 136.0, 238.0, 0.0),
+                (248.0, 188.0, 283.0, 238.0, 0.0),
+                (56.0, 274.0, 91.0, 324.0, 0.0),
+                (101.0, 274.0, 136.0, 324.0, 0.0),
+                (248.0, 274.0, 283.0, 324.0, 0.0)]
+    )
+    ),
+    # Add more test cases here
+])
+def test_pad_bboxes_with_reflection(image_shape, bboxes, pad_params, expected_bboxes):
+    pad_top, pad_bottom, pad_left, pad_right = pad_params
+    image_shape[:2]
 
-#     result = fgeometric.pad_bboxes(
-#         bboxes,
-#         pad_top, pad_bottom, pad_left, pad_right,
-#         border_mode=cv2.BORDER_CONSTANT,
-#         image_shape=image_shape[:2]
-#     )
+    result = fgeometric.pad_bboxes(
+        bboxes,
+        pad_top, pad_bottom, pad_left, pad_right,
+        border_mode=cv2.BORDER_REFLECT_101,
+        image_shape=image_shape[:2]
+    )
 
-#     np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
-
-
-# @pytest.mark.parametrize("bboxes, expected", [
-#     (
-#         np.array([[0.1, 0.2, 0.3, 0.4]]),
-#         np.array([[0.1, 0.6, 0.3, 0.8]])
-#     ),
-#     (
-#         np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
-#         np.array([[0.1, 0.6, 0.3, 0.8], [0.5, 0.2, 0.7, 0.4]])
-#     ),
-#     (
-#         np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.6, 0.7, 0.8, 0.9]]),
-#         np.array([[0.1, 0.6, 0.3, 0.8, 0.5], [0.5, 0.2, 0.7, 0.4, 0.9]])
-#     ),
-#     (
-#         np.array([[0, 0, 1, 1]]),
-#         np.array([[0, 0, 1, 1]])
-#     ),
-#     (
-#         np.array([]),
-#         np.array([])
-#     ),
-# ])
-# def test_bboxes_vflip(bboxes, expected):
-#     flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
-#     np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
-
-# def test_bboxes_vflip_preserves_shape():
-#     bboxes = np.random.rand(10, 6)  # 10 bboxes with 2 extra columns
-#     flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
-#     assert flipped_bboxes.shape == bboxes.shape
-
-# def test_bboxes_vflip_inplace():
-#     bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
-#     original_bboxes = bboxes.copy()
-#     flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
-#     assert not np.array_equal(flipped_bboxes, original_bboxes)
-#     assert np.array_equal(bboxes, original_bboxes)
+    np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
 
 
-# @pytest.mark.parametrize("bboxes, expected", [
-#     (
-#         np.array([[0.1, 0.2, 0.3, 0.4]]),
-#         np.array([[0.7, 0.2, 0.9, 0.4]])
-#     ),
-#     (
-#         np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
-#         np.array([[0.7, 0.2, 0.9, 0.4], [0.3, 0.6, 0.5, 0.8]])
-#     ),
-#     (
-#         np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.6, 0.7, 0.8, 0.9]]),
-#         np.array([[0.7, 0.2, 0.9, 0.4, 0.5], [0.3, 0.6, 0.5, 0.8, 0.9]])
-#     ),
-#     (
-#         np.array([[0, 0, 1, 1]]),
-#         np.array([[0, 0, 1, 1]])
-#     ),
-#     (
-#         np.array([]),
-#         np.array([])
-#     ),
-# ])
-# def test_bboxes_hflip(bboxes, expected):
-#     flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
-#     np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+# Test case for non-reflect border mode
+@pytest.mark.parametrize("image_shape, bboxes, pad_params, expected_bboxes", [
+    (
+        (100, 100, 3),  # image shape
+        np.array([[20, 20, 80, 80, 0]]),  # input bboxes
+        (10, 10, 10, 10),  # (pad_top, pad_bottom, pad_left, pad_right)
+        np.array([[30, 30, 90, 90, 0]])
+    ),
+])
+def test_pad_bboxes_constant_border(image_shape, bboxes, pad_params, expected_bboxes):
+    pad_top, pad_bottom, pad_left, pad_right = pad_params
 
-# def test_bboxes_hflip_preserves_shape():
-#     bboxes = np.random.rand(10, 6)  # 10 bboxes with 2 extra columns
-#     flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
-#     assert flipped_bboxes.shape == bboxes.shape
+    result = fgeometric.pad_bboxes(
+        bboxes,
+        pad_top, pad_bottom, pad_left, pad_right,
+        border_mode=cv2.BORDER_CONSTANT,
+        image_shape=image_shape[:2]
+    )
 
-# def test_bboxes_hflip_inplace():
-#     bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
-#     original_bboxes = bboxes.copy()
-#     flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
-#     assert not np.array_equal(flipped_bboxes, original_bboxes)
-#     assert np.array_equal(bboxes, original_bboxes)  # Original array should not be modified
+    np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
 
-# def test_bboxes_hflip_symmetry():
-#     bboxes = np.random.rand(5, 4)
-#     flipped_once = fgeometric.bboxes_hflip(bboxes)
-#     flipped_twice = fgeometric.bboxes_hflip(flipped_once)
-#     np.testing.assert_allclose(bboxes, flipped_twice, rtol=1e-5)
 
-# def test_bboxes_hflip_extreme_values():
-#     bboxes = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
-#     expected = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
-#     flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
-#     np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+@pytest.mark.parametrize("bboxes, expected", [
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4]]),
+        np.array([[0.1, 0.6, 0.3, 0.8]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
+        np.array([[0.1, 0.6, 0.3, 0.8], [0.5, 0.2, 0.7, 0.4]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.6, 0.7, 0.8, 0.9]]),
+        np.array([[0.1, 0.6, 0.3, 0.8, 0.5], [0.5, 0.2, 0.7, 0.4, 0.9]])
+    ),
+    (
+        np.array([[0, 0, 1, 1]]),
+        np.array([[0, 0, 1, 1]])
+    ),
+    (
+        np.array([]),
+        np.array([])
+    ),
+])
+def test_bboxes_vflip(bboxes, expected):
+    flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
+    np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+
+def test_bboxes_vflip_preserves_shape():
+    bboxes = np.random.rand(10, 6)  # 10 bboxes with 2 extra columns
+    flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
+    assert flipped_bboxes.shape == bboxes.shape
+
+def test_bboxes_vflip_inplace():
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    original_bboxes = bboxes.copy()
+    flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
+    assert not np.array_equal(flipped_bboxes, original_bboxes)
+    assert np.array_equal(bboxes, original_bboxes)
+
+
+@pytest.mark.parametrize("bboxes, expected", [
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4]]),
+        np.array([[0.7, 0.2, 0.9, 0.4]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
+        np.array([[0.7, 0.2, 0.9, 0.4], [0.3, 0.6, 0.5, 0.8]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.6, 0.7, 0.8, 0.9]]),
+        np.array([[0.7, 0.2, 0.9, 0.4, 0.5], [0.3, 0.6, 0.5, 0.8, 0.9]])
+    ),
+    (
+        np.array([[0, 0, 1, 1]]),
+        np.array([[0, 0, 1, 1]])
+    ),
+    (
+        np.array([]),
+        np.array([])
+    ),
+])
+def test_bboxes_hflip(bboxes, expected):
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+
+def test_bboxes_hflip_preserves_shape():
+    bboxes = np.random.rand(10, 6)  # 10 bboxes with 2 extra columns
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    assert flipped_bboxes.shape == bboxes.shape
+
+def test_bboxes_hflip_inplace():
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    original_bboxes = bboxes.copy()
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    assert not np.array_equal(flipped_bboxes, original_bboxes)
+    assert np.array_equal(bboxes, original_bboxes)  # Original array should not be modified
+
+def test_bboxes_hflip_symmetry():
+    bboxes = np.random.rand(5, 4)
+    flipped_once = fgeometric.bboxes_hflip(bboxes)
+    flipped_twice = fgeometric.bboxes_hflip(flipped_once)
+    np.testing.assert_allclose(bboxes, flipped_twice, rtol=1e-5)
+
+def test_bboxes_hflip_extreme_values():
+    bboxes = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
+    expected = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)

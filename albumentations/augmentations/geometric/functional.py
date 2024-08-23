@@ -1418,6 +1418,9 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of vertically flipped bounding boxes with the same shape as input.
     """
+    if bboxes.size == 0:
+        return bboxes
+
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 1] = 1 - bboxes[:, 3]  # new y_min = 1 - y_max
     flipped_bboxes[:, 3] = 1 - bboxes[:, 1]  # new y_max = 1 - y_min
@@ -1435,6 +1438,9 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of horizontally flipped bounding boxes with the same shape as input.
     """
+    if bboxes.size == 0:
+        return bboxes
+
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 0] = 1 - bboxes[:, 2]  # new x_min = 1 - x_max
     flipped_bboxes[:, 2] = 1 - bboxes[:, 0]  # new x_max = 1 - x_min
