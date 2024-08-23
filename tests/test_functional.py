@@ -451,16 +451,16 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
     img = np.zeros((rows, cols), dtype=int)
     # Placing the keypoint away from the center and edge: (150, 100)
     keypoints = np.array([[150, 100, 0, 1]])
-    img[keypoints[1], keypoints[0]] = 1
+    img[keypoints[0][1], keypoints[0][0]] = 1
 
     # Rotate the image
     rotated_img = fgeometric.rot90(img, factor)
 
     # Rotate the keypoint
-    rotated_keypoints = fgeometric.keypoints_rot90(keypoints, factor, img.shape)
+    rotated_keypoints = fgeometric.keypoints_rot90(keypoints, factor, img.shape)[0]
 
     # Assert that the rotated keypoint lands where expected
-    assert rotated_img[rotated_keypoints[1], rotated_keypoints[0]] == 1, \
+    assert rotated_img[int(rotated_keypoints[1]), int(rotated_keypoints[0])] == 1, \
         f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, "\
         f"but at {rotated_keypoints}"
 
@@ -898,8 +898,6 @@ def test_d4_output_shape_with_factor(image, factor):
         assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
     else:
         assert result.shape == image.shape, "Output shape should match input shape"
-
-
 
 
 base_matrix = np.array([[1, 2, 3],
