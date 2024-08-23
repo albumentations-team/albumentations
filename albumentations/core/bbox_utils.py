@@ -142,7 +142,7 @@ class BboxProcessor(DataProcessor):
             data_np = convert_bboxes_to_albumentations(data, self.params.format, image_shape, check_validity=False)
             data_np = filter_bboxes(data_np, image_shape, min_area=0, min_visibility=0, min_width=0, min_height=0)
             check_bboxes(data_np)
-            return data_np.tolist()
+            return data_np
 
         return convert_bboxes_to_albumentations(data, self.params.format, image_shape, check_validity=True)
 
@@ -259,6 +259,9 @@ def convert_bboxes_to_albumentations(
             f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
 
+    if not bboxes.size:
+        return bboxes
+
     bboxes = bboxes.copy().astype(np.float32)
     converted_bboxes = np.zeros_like(bboxes)
     converted_bboxes[:, 4:] = bboxes[:, 4:]  # Preserve additional columns
@@ -315,6 +318,9 @@ def convert_bboxes_from_albumentations(
             f"Unknown target_format {target_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
 
+    if not bboxes.size:
+        return bboxes
+
     if check_validity:
         check_bboxes(bboxes)
 
@@ -348,6 +354,9 @@ def check_bboxes(bboxes: np.ndarray) -> None:
     Raises:
         ValueError: If any bbox is invalid.
     """
+    if not bboxes.size:
+        return
+
     # Check if all values are in range [0, 1]
     in_range = (bboxes[:, :4] >= 0) & (bboxes[:, :4] <= 1)
     close_to_zero = np.isclose(bboxes[:, :4], 0)

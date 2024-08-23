@@ -171,6 +171,8 @@ class DataProcessor(ABC):
 
         for data_name in set(self.data_fields) & set(data.keys()):
             data_array = data[data_name]
+            if not data_array.size:
+                continue
             for label_field in self.params.label_fields:
                 if len(data[data_name]) != len(data[label_field]):
                     raise ValueError(
@@ -185,6 +187,7 @@ class DataProcessor(ABC):
 
                 # Attach encoded labels as extra columns
                 encoded_labels = encoded_labels.reshape(-1, 1)
+
                 data_array = np.hstack((data_array, encoded_labels))
 
             data[data_name] = data_array
@@ -196,6 +199,9 @@ class DataProcessor(ABC):
 
         for data_name in set(self.data_fields) & set(data.keys()):
             data_array = data[data_name]
+            if not data_array.size:
+                continue
+
             num_label_fields = len(self.params.label_fields)
             non_label_columns = data_array.shape[1] - num_label_fields
 

@@ -697,40 +697,40 @@ def test_compose_with_bbox_noop_error_label_fields(
         aug(image=image, bboxes=bboxes)
 
 
-# @pytest.mark.parametrize(
-#     ["bboxes", "bbox_format", "labels"],
-#     [
-#         [[(20, 30, 60, 80)], "pascal_voc", {"label": [1]}],
-#         [[], "pascal_voc", {}],
-#         [[], "pascal_voc", {"label": []}],
-#         [[(20, 30, 60, 80)], "pascal_voc", {"id": [3]}],
-#         [[(20, 30, 60, 80), (30, 40, 40, 50)], "pascal_voc", {"id": [3, 1]}],
-#         [
-#             [(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 22)],
-#             "pascal_voc",
-#             {"id": [3, 1]},
-#         ],
-#         [[(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 22)], "pascal_voc", {}],
-#         [
-#             [(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 21)],
-#             "pascal_voc",
-#             {"id": [31, 32], "subclass": [311, 321]},
-#         ],
-#     ],
-# )
-# def test_compose_with_bbox_noop_label_outside(
-#     bboxes: BoxType, bbox_format: str, labels: dict[str, list[int]]
-# ) -> None:
-#     image = np.ones((100, 100, 3))
-#     aug = Compose(
-#         [NoOp(p=1.0)],
-#         bbox_params={"format": bbox_format, "label_fields": list(labels.keys())},
-#     )
-#     transformed = aug(image=image, bboxes=bboxes, **labels)
-#     assert np.array_equal(transformed["image"], image)
-#     assert transformed["bboxes"] == bboxes
-#     for k, v in labels.items():
-#         assert transformed[k] == v
+@pytest.mark.parametrize(
+    ["bboxes", "bbox_format", "labels"],
+    [
+        [[(20, 30, 60, 80)], "pascal_voc", {"label": [1]}],
+        [[], "pascal_voc", {}],
+        [[], "pascal_voc", {"label": []}],
+        [[(20, 30, 60, 80)], "pascal_voc", {"id": [3]}],
+        [[(20, 30, 60, 80), (30, 40, 40, 50)], "pascal_voc", {"id": [3, 1]}],
+        [
+            [(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 22)],
+            "pascal_voc",
+            {"id": [3, 1]},
+        ],
+        [[(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 22)], "pascal_voc", {}],
+        [
+            [(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 21)],
+            "pascal_voc",
+            {"id": [31, 32], "subclass": [311, 321]},
+        ],
+    ],
+)
+def test_compose_with_bbox_noop_label_outside(
+    bboxes, bbox_format: str, labels: dict[str, list[int]]
+) -> None:
+    image = np.ones((100, 100, 3))
+    aug = Compose(
+        [NoOp(p=1.0)],
+        bbox_params={"format": bbox_format, "label_fields": list(labels.keys())},
+    )
+    transformed = aug(image=image, bboxes=bboxes, **labels)
+    assert np.array_equal(transformed["image"], image)
+    assert np.allclose(transformed["bboxes"], bboxes)
+    for k, v in labels.items():
+        assert transformed[k] == v
 
 
 # def test_random_sized_crop_size() -> None:
