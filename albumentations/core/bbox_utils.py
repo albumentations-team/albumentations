@@ -57,7 +57,7 @@ class BboxParams(Params):
     def __init__(
         self,
         format: Literal["coco", "pascal_voc", "albumentations", "yolo"],  # noqa: A002
-        label_fields: Sequence[Any] | None = None,
+        label_fields: Sequence[Any],
         min_area: float = 0.0,
         min_visibility: float = 0.0,
         min_width: float = 0.0,
@@ -270,7 +270,7 @@ def convert_bboxes_to_albumentations(
         converted_bboxes[:, 3] = bboxes[:, 1] + bboxes[:, 3]  # y_max
     elif source_format == "yolo":
         if check_validity and np.any((bboxes[:, :4] <= 0) | (bboxes[:, :4] > 1)):
-            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
+            raise ValueError(f"In YOLO format all coordinates must be float and in range (0, 1], got {bboxes}")
 
         w_half, h_half = bboxes[:, 2] / 2, bboxes[:, 3] / 2
         converted_bboxes[:, 0] = bboxes[:, 0] - w_half  # x_min

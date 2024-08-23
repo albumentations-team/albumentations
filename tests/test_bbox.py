@@ -606,9 +606,9 @@ def test_union_of_bboxes_precision():
 
 @pytest.mark.parametrize("bbox_format, bboxes, labels", [
     ("coco", [[15, 12, 30, 40], [50, 50, 15, 40]], ["cat", "dog"]),
-    ("pascal_voc", [[87, 12, 97, 76], [50, 50, 99, 100]], [1, 2]),
+    ("pascal_voc", [[15, 12, 30, 40], [50, 50, 55, 60]], [1, 2]),
     ("albumentations", [[0.2, 0.3, 0.4, 0.5], [0.1, 0.1, 0.3, 0.3]], ["label1", "label2"]),
-    ("yolo", [[0.3, 0.2, 0.3, 0.4], [0.5, 0.5, 0.2, 0.2]], [0, "elephant"]),
+    ("yolo", [[0.15, 0.22, 0.3, 0.4], [0.5, 0.5, 0.15, 0.4]], [0, 3]),
 ])
 def test_bbox_processor_roundtrip(bbox_format, bboxes, labels):
     params = BboxParams(format=bbox_format, label_fields=["labels"])
@@ -630,33 +630,33 @@ def test_bbox_processor_roundtrip(bbox_format, bboxes, labels):
     assert np.allclose(processed_data["bboxes"], bboxes, atol=1e-6)
     assert processed_data["labels"] == labels
 
-# @pytest.mark.parametrize("bbox_format, bboxes, labels1, labels2", [
-#     ("coco", [[97, 12, 150, 200], [50, 50, 100, 100]], ["cat", "dog"], [1, 2]),
-#     ("pascal_voc", [[97, 12, 247, 212], [50, 50, 150, 150]], [1, 2], ["label1", "label2"]),
-#     ("albumentations", [[0.2, 0.3, 0.4, 0.5], [0.1, 0.1, 0.3, 0.3]], ["label1", "label2"], [0, 1]),
-#     ("yolo", [[0.1, 0.2, 0.3, 0.4], [0.5, 0.5, 0.2, 0.2]], [0, 1], ["type1", "type2"]),
-# ])
-# def test_bbox_processor_roundtrip_multiple_labels(bbox_format, bboxes, labels1, labels2):
-#     params = BboxParams(format=bbox_format, label_fields=["labels1", "labels2"])
-#     processor = BboxProcessor(params)
+@pytest.mark.parametrize("bbox_format, bboxes, labels1, labels2", [
+    ("coco", [[15, 12, 30, 40], [50, 50, 15, 40]], ["cat", "dog"], [1, 2]),
+    ("pascal_voc", [[15, 12, 30, 40], [50, 50, 55, 60]], [1, 2], ["label1", "label2"]),
+    ("albumentations", [[0.2, 0.3, 0.4, 0.5], [0.1, 0.1, 0.3, 0.3]], ["label1", "label2"], [0, 1]),
+    ("yolo",  [[0.15, 0.22, 0.3, 0.4], [0.5, 0.5, 0.15, 0.4]], [0, 1], ["type1", "type2"]),
+])
+def test_bbox_processor_roundtrip_multiple_labels(bbox_format, bboxes, labels1, labels2):
+    params = BboxParams(format=bbox_format, label_fields=["labels1", "labels2"])
+    processor = BboxProcessor(params)
 
-#     data = {
-#         "image": np.zeros((100, 100, 3)),
-#         "bboxes": bboxes,
-#         "labels1": labels1,
-#         "labels2": labels2,
-#     }
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": bboxes,
+        "labels1": labels1,
+        "labels2": labels2,
+    }
 
-#     # Preprocess
-#     processor.preprocess(data)
+    # Preprocess
+    processor.preprocess(data)
 
-#     # Postprocess
-#     processed_data = processor.postprocess(data)
+    # Postprocess
+    processed_data = processor.postprocess(data)
 
-#     # Check that the original bboxes and labels are recovered
-#     assert np.allclose(processed_data["bboxes"], bboxes, atol=1e-6)
-#     assert processed_data["labels1"] == labels1
-#     assert processed_data["labels2"] == labels2
+    # Check that the original bboxes and labels are recovered
+    assert np.allclose(processed_data["bboxes"], bboxes, atol=1e-6)
+    assert processed_data["labels1"] == labels1
+    assert processed_data["labels2"] == labels2
 
 
 # @pytest.mark.parametrize(
