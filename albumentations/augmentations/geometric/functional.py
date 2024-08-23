@@ -475,33 +475,74 @@ def perspective_bboxes(
     max_height: int,
     keep_size: bool,
 ) -> np.ndarray:
+    """Applies perspective transformation to bounding boxes.
+
+    This function transforms bounding boxes using the given perspective transformation matrix.
+    It handles bounding boxes with additional attributes beyond the standard coordinates.
+
+    Args:
+        bboxes (np.ndarray): An array of bounding boxes with shape (num_bboxes, 4+).
+                             Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+                             Additional columns beyond the first 4 are preserved unchanged.
+        image_shape (tuple[int, int]): The shape of the image (height, width).
+        matrix (np.ndarray): The perspective transformation matrix.
+        max_width (int): The maximum width of the output image.
+        max_height (int): The maximum height of the output image.
+        keep_size (bool): If True, maintains the original image size after transformation.
+
+    Returns:
+        np.ndarray: An array of transformed bounding boxes with the same shape as input.
+                    The first 4 columns contain the transformed coordinates, and any
+                    additional columns are preserved from the input.
+
+    Note:
+        - This function modifies only the coordinate columns (first 4) of the input bounding boxes.
+        - Any additional attributes (columns beyond the first 4) are kept unchanged.
+        - The function handles denormalization and renormalization of coordinates internally.
+
+    Example:
+        >>> bboxes = np.array([[0.1, 0.1, 0.3, 0.3, 1], [0.5, 0.5, 0.8, 0.8, 2]])
+        >>> image_shape = (100, 100)
+        >>> matrix = np.array([[1.5, 0.2, -20], [-0.1, 1.3, -10], [0.002, 0.001, 1]])
+        >>> transformed_bboxes = perspective_bboxes(bboxes, image_shape, matrix, 150, 150, False)
+    """
     height, width = image_shape[:2]
 
+    # Create a copy of the input bboxes to avoid modifying the original array
+    transformed_bboxes = bboxes.copy()
+
     # Denormalize bboxes
-    denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
+    denormalized_coords = denormalize_bboxes(bboxes[:, :4], image_shape)
 
     # Create points for each bbox
-    x_min, y_min, x_max, y_max = denormalized_bboxes.T
+    x_min, y_min, x_max, y_max = denormalized_coords.T
     points = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(2, 0, 1)
     # Shape is: (num_bboxes, 4, 2)
 
     # Reshape points to (num_bboxes * 4, 2)
     points_reshaped = points.reshape(-1, 2)
 
+    # Pad points_reshaped with two columns of zeros
+    points_padded = np.pad(points_reshaped, ((0, 0), (0, 2)), mode="constant")
+
     # Apply perspective transformation to all points at once
-    transformed_points = perspective_keypoints(points_reshaped, image_shape, matrix, max_width, max_height, keep_size)
+    transformed_points = perspective_keypoints(points_padded, image_shape, matrix, max_width, max_height, keep_size)
 
     # Reshape back to (num_bboxes, 4, 2)
-    transformed_points = transformed_points.reshape(-1, 4, 2)
-
+    transformed_points = transformed_points[:, :2].reshape(-1, 4, 2)
     # Get new bounding boxes
-    new_bboxes = np.array(
+    new_coords = np.array(
         [[np.min(box[:, 0]), np.min(box[:, 1]), np.max(box[:, 0]), np.max(box[:, 1])] for box in transformed_points],
     )
 
     # Normalize the new bounding boxes
     output_shape = (height if keep_size else max_height, width if keep_size else max_width)
-    return normalize_bboxes(new_bboxes, output_shape)
+    normalized_coords = normalize_bboxes(new_coords, output_shape)
+
+    # Update only the first 4 columns of the bboxes array
+    transformed_bboxes[:, :4] = normalized_coords
+
+    return transformed_bboxes
 
 
 def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
