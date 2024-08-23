@@ -106,6 +106,8 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         image_shape: tuple[int, int],
     ) -> np.ndarray:
+        if not data.size:
+            return data
         params = self.params
         return convert_keypoints_from_albumentations(
             data,
@@ -120,6 +122,8 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         image_shape: tuple[int, int],
     ) -> np.ndarray:
+        if not data.size:
+            return data
         params = self.params
         return convert_keypoints_to_albumentations(
             data,
@@ -204,11 +208,14 @@ def filter_keypoints(
     if not remove_invisible:
         return keypoints
 
-    rows, cols = image_shape[:2]
+    if not keypoints.size:
+        return keypoints
+
+    height, width = image_shape[:2]
 
     # Create boolean mask for visible keypoints
     x, y = keypoints[:, 0], keypoints[:, 1]
-    visible = (x >= 0) & (x < cols) & (y >= 0) & (y < rows)
+    visible = (x >= 0) & (x < width) & (y >= 0) & (y < height)
 
     # Apply the mask to filter keypoints
     return keypoints[visible]

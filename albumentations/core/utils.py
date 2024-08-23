@@ -78,7 +78,7 @@ class DataProcessor(ABC):
         self.params = params
         self.data_fields = [self.default_data_name]
         self.label_encoders: dict[str, dict[str, LabelEncoder]] = defaultdict(dict)
-        self.is_list_input: dict[str, bool] = {}
+        self.is_sequence_input: dict[str, bool] = {}
 
         if additional_targets is not None:
             self.add_targets(additional_targets)
@@ -108,7 +108,7 @@ class DataProcessor(ABC):
             data[data_name] = self.filter(data[data_name], image_shape)
             data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="from")
             # Convert back to list of lists if original input was a list
-            if self.is_list_input.get(data_name, False):
+            if self.is_sequence_input.get(data_name, False):
                 data[data_name] = data[data_name].tolist()
         return data
 
@@ -116,11 +116,11 @@ class DataProcessor(ABC):
         image_shape = get_shape(data["image"])
 
         for data_name in set(self.data_fields) & set(data.keys()):  # Convert list of lists to numpy array if necessary
-            if isinstance(data[data_name], list):
-                self.is_list_input[data_name] = True
+            if isinstance(data[data_name], Sequence):
+                self.is_sequence_input[data_name] = True
                 data[data_name] = np.array(data[data_name], dtype=np.float32)
             else:
-                self.is_list_input[data_name] = False
+                self.is_sequence_input[data_name] = False
 
         data = self.add_label_fields_to_data(data)
 

@@ -346,24 +346,20 @@ def keypoints_rotate(
     image_center = center(image_shape)
     matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
 
+    # Create a copy of the input keypoints to avoid modifying the original array
+    rotated_keypoints = keypoints.copy().astype(np.float32)
+
     # Extract x and y coordinates
-    xy = keypoints[:, :2]
+    xy = rotated_keypoints[:, :2]
 
     # Rotate x and y coordinates
     xy_rotated = cv2.transform(xy.reshape(-1, 1, 2), matrix).squeeze()
 
+    # Update x and y coordinates
+    rotated_keypoints[:, :2] = xy_rotated
+
     # Update angles
-    keypoint_angles = keypoints[:, 2] + np.radians(angle)
-
-    # Ensure angles are in the range [0, 2π)
-    keypoint_angles = keypoint_angles % (2 * np.pi)
-
-    # Create the output array
-    rotated_keypoints = np.column_stack([xy_rotated, keypoint_angles, keypoints[:, 3]])
-
-    # If there are additional columns, preserve them
-    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        return np.column_stack([rotated_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]])
+    rotated_keypoints[:, 2] += np.radians(angle)
 
     return rotated_keypoints
 
