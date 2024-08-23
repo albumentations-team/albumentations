@@ -1969,6 +1969,9 @@ def test_rot90(bboxes, angle, keypoints):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
 
+    bboxes = np.array(bboxes)
+    keypoints = np.array(keypoints)
+
     image_shape = image.shape[:2]
     normalized_bboxes = normalize_bboxes(bboxes, image_shape)
 
@@ -1982,19 +1985,15 @@ def test_rot90(bboxes, angle, keypoints):
 
     image_rotated = fgeometric.rot90(image, factor)
     mask_rotated = fgeometric.rot90(image, factor)
-    bboxes_rotated = [fgeometric.bbox_rot90(bbox, factor) for bbox in normalized_bboxes]
+    bboxes_rotated = fgeometric.bboxes_rot90(normalized_bboxes, factor)
     bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_shape)
-    keypoints_rotated = [fgeometric.keypoint_rot90(keypoint[:4], factor, image_shape) for keypoint in keypoints]
+    keypoints_rotated = fgeometric.keypoints_rot90(keypoints, factor, image_shape)
 
-    assert np.array_equal(transformed["image"], image_rotated)
-    assert np.array_equal(transformed["mask"], mask_rotated)
+    np.testing.assert_array_equal(transformed["image"], image_rotated)
+    np.testing.assert_array_equal(transformed["mask"], mask_rotated)
 
-    # Assert bounding boxes
-    for transformed_bbox, expected_bbox in zip(transformed["bboxes"], bboxes_rotated):
-        assert np.allclose(transformed_bbox[:4], expected_bbox, atol=1e-7), f"Bounding boxes do not match: {transformed_bbox} != {expected_bbox}"
-
-    for transformed_keypoint, expected_keypoint in zip(transformed["keypoints"], keypoints_rotated):
-        assert np.allclose(transformed_keypoint[:2], expected_keypoint[:2], atol=1e-7), f"Keypoints do not match: {transformed_keypoint} != {expected_keypoint}"
+    np.testing.assert_array_equal(transformed["bboxes"], bboxes_rotated)
+    np.testing.assert_array_equal(transformed["keypoints"], keypoints_rotated)
 
 
 @pytest.mark.parametrize(

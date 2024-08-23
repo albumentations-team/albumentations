@@ -223,5 +223,5 @@ def test_post_data_check():
 
     res = transform(image=img, keypoints=keypoints, bboxes=bboxes)
     assert len(res["keypoints"]) != 0 and len(res["bboxes"]) != 0
-    assert res["keypoints"] == [(45, 45), (25, 25)]
-    assert res["bboxes"] == [(0, 0, 45, 45, 0)]
+    np.testing.assert_array_equal(res["keypoints"], [(45, 45), (25, 25)])
+    np.testing.assert_array_equal(res["bboxes"], [(0, 0, 45, 45, 0)])
