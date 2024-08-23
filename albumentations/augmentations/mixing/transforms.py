@@ -288,8 +288,9 @@ class OverlayElements(ReferenceBasedTransform):
 
         if "bbox" in metadata:
             bbox = metadata["bbox"]
-            check_bboxes(np.array([bbox]))
-            denormalized_bbox = denormalize_bboxes(bbox[:4], img_shape[:2])
+            bbox_np = np.array([bbox])
+            check_bboxes(bbox_np)
+            denormalized_bbox = denormalize_bboxes(bbox_np, img_shape[:2])
 
             x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
 
