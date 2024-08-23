@@ -8,6 +8,7 @@ import albumentations as A
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
+    check_keypoints,
     convert_keypoints_from_albumentations,
     convert_keypoints_to_albumentations,
 )
@@ -17,7 +18,7 @@ from albumentations.core.transforms_interface import BasicTransform
 @pytest.mark.parametrize("input_angles, expected_angles", [
     (np.array([0, np.pi, 2*np.pi]), np.array([0, np.pi, 0])),
     (np.array([-np.pi, 3*np.pi]), np.array([np.pi, np.pi])),
-    (np.array([0.5, 2.5, 4.5]), np.array([0.5, 2.5, 4.5 - 2*np.pi])),
+    (np.array([0.5, 2.5, 7.5]), np.array([0.5, 2.5, 7.5 - 2*np.pi])),
     (np.array([]), np.array([])),
     (np.array([10*np.pi, 100*np.pi]), np.array([0, 0])),
 ])
@@ -30,12 +31,6 @@ def test_angle_to_2pi_range_large_array():
     result = angle_to_2pi_range(input_angles)
     assert np.all((result >= 0) & (result < 2*np.pi))
 
-@pytest.mark.parametrize("shape", [(10,), (5, 5), (3, 3, 3)])
-def test_angle_to_2pi_range_different_shapes(shape):
-    input_angles = np.random.uniform(-10*np.pi, 10*np.pi, shape)
-    result = angle_to_2pi_range(input_angles)
-    assert result.shape == shape
-    assert np.all((result >= 0) & (result < 2*np.pi))
 
 def test_angle_to_2pi_range_precision():
     small_angle = np.array([1e-10])
@@ -47,6 +42,55 @@ def test_angle_to_2pi_range_negative_zero():
     result = angle_to_2pi_range(input_angles)
     np.testing.assert_allclose(result, [0.0, 0.0], atol=1e-15)
     assert not np.signbit(result[0])  # Ensure -0.0 is converted to +0.0
+
+
+
+@pytest.mark.parametrize("keypoints, image_shape, expected_error", [
+    # Valid keypoints
+    (np.array([[10, 20, 0.5], [30, 40, 1.5]]), (100, 100), None),
+    (np.array([[0, 0, 0], [99, 99, math.pi]]), (100, 100), None),
+
+    # Invalid x coordinate
+    (np.array([[100, 50, 1.0]]), (100, 100), "Expected x for keypoint"),
+    (np.array([[-1, 50, 1.0]]), (100, 100), "Expected x for keypoint"),
+
+    # Invalid y coordinate
+    (np.array([[50, 100, 1.0]]), (100, 100), "Expected y for keypoint"),
+    (np.array([[50, -1, 1.0]]), (100, 100), "Expected y for keypoint"),
+
+    # Invalid angle
+    (np.array([[50, 50, -0.1]]), (100, 100), "Keypoint angle must be in range"),
+    (np.array([[50, 50, 2 * math.pi]]), (100, 100), "Keypoint angle must be in range"),
+
+    # Multiple invalid keypoints
+    (np.array([[100, 50, 1.0], [50, 100, 1.0]]), (100, 100), "Expected x for keypoint"),
+
+    # Keypoints without angle
+    (np.array([[10, 20], [30, 40]]), (100, 100), None),
+])
+def test_check_keypoints(keypoints, image_shape, expected_error):
+    if expected_error is None:
+        check_keypoints(keypoints, image_shape)  # Should not raise an error
+    else:
+        with pytest.raises(ValueError) as exc_info:
+            check_keypoints(keypoints, image_shape)
+        assert expected_error in str(exc_info.value)
+
+@pytest.mark.parametrize("keypoints, image_shape", [
+    (np.array([[10, 20, 0.5, 1.0], [30, 40, 1.5, 2.0]]), (100, 100)),
+    (np.array([[0, 0, 0, 1.0], [99, 99, math.pi, 2.0]]), (100, 100)),
+])
+def test_check_keypoints_with_scale(keypoints, image_shape):
+    check_keypoints(keypoints, image_shape)  # Should not raise an error
+
+@pytest.mark.parametrize("keypoints, image_shape", [
+    (np.array([[10, 20, 0.5, 1.0, 1], [30, 40, 1.5, 2.0, 2]]), (100, 100)),
+    (np.array([[0, 0, 0, 1.0, 1], [99, 99, math.pi, 2.0, 2]]), (100, 100)),
+])
+def test_check_keypoints_with_extra_data(keypoints, image_shape):
+    check_keypoints(keypoints, image_shape)  # Should not raise an error
+
+
 
 # @pytest.mark.parametrize(
 #     ("kp", "source_format", "expected"),

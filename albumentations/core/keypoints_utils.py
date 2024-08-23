@@ -131,20 +131,43 @@ class KeypointsProcessor(DataProcessor):
 
 
 def check_keypoints(keypoints: np.ndarray, image_shape: tuple[int, int]) -> None:
-    """Check if keypoint coordinates are less than image shapes for multiple keypoints"""
-    rows, cols = image_shape[:2]
+    """Check if keypoint coordinates are within valid ranges for the given image shape.
+
+    This function validates that:
+    1. All x-coordinates are within [0, width)
+    2. All y-coordinates are within [0, height)
+    3. If angles are present (i.e., keypoints have more than 2 columns),
+       they are within the range [0, 2π)
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, 2+), where N is the number of keypoints.
+                                Each row represents a keypoint with at least (x, y) coordinates.
+                                If present, the third column is assumed to be the angle.
+        image_shape (Tuple[int, int]): The shape of the image (height, width).
+
+    Raises:
+        ValueError: If any keypoint coordinate is outside the valid range, or if any angle is invalid.
+                    The error message will detail which keypoints are invalid and why.
+
+    Note:
+        - The function assumes that keypoint coordinates are in absolute pixel values, not normalized.
+        - Angles, if present, are assumed to be in radians.
+        - The constant PAIR should be defined elsewhere in the module, typically as 2.
+    """
+    height, width = image_shape[:2]
 
     # Check x and y coordinates
     x, y = keypoints[:, 0], keypoints[:, 1]
-    if np.any((x < 0) | (x >= cols)) or np.any((y < 0) | (y >= rows)):
-        invalid_x = np.where((x < 0) | (x >= cols))[0]
-        invalid_y = np.where((y < 0) | (y >= rows))[0]
+    if np.any((x < 0) | (x >= width)) or np.any((y < 0) | (y >= height)):
+        invalid_x = np.where((x < 0) | (x >= width))[0]
+        invalid_y = np.where((y < 0) | (y >= height))[0]
 
         error_messages = []
 
         error_messages = [
             f"Expected {'x' if idx in invalid_x else 'y'} for keypoint {keypoints[idx]} to be "
-            f"in the range [0.0, {cols if idx in invalid_x else rows}], got {x[idx] if idx in invalid_x else y[idx]}."
+            f"in the range [0.0, {width if idx in invalid_x else height}], "
+            f"got {x[idx] if idx in invalid_x else y[idx]}."
             for idx in sorted(set(invalid_x) | set(invalid_y))
         ]
 
