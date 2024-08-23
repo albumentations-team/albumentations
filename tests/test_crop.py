@@ -69,8 +69,8 @@ def test_crop_near_bbox(image, bboxes, keypoints):
 
 
 def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), (100, 100))
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
+    cropped_bbox = A.crop_bboxes_by_coords(np.array([[0.5, 0.2, 0.9, 0.7]]), (18, 18, 82, 82), (100, 100))
+    np.testing.assert_array_equal(cropped_bbox, np.array([[0.5, 0.03125, 1.125, 0.8125]]))
 
 
 @pytest.mark.parametrize(
@@ -108,7 +108,5 @@ def test_bbox_params_edges(
         ),
     )
     res = aug(image=image, bboxes=bboxes)["bboxes"]
-
-    print("Result bboxes: ", res)
 
     np.testing.assert_array_equal(res, expected_bboxes)

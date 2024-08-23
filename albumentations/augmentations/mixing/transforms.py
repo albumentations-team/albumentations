@@ -290,7 +290,7 @@ class OverlayElements(ReferenceBasedTransform):
             bbox = metadata["bbox"]
             bbox_np = np.array([bbox])
             check_bboxes(bbox_np)
-            denormalized_bbox = denormalize_bboxes(bbox_np, img_shape[:2])
+            denormalized_bbox = denormalize_bboxes(bbox_np, img_shape[:2])[0]
 
             x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
 

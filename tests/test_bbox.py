@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from albumentations import RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
+from albumentations.augmentations.crops.functional import crop_bboxes_by_coords
 from albumentations.core.bbox_utils import (
     BboxProcessor,
     calculate_bbox_areas,
@@ -1121,3 +1122,46 @@ def test_bboxes_hflip_extreme_values():
     expected = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
     flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
     np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "bboxes, crop_coords, image_shape, expected_bboxes",
+    [
+        # Test case 1: Single bbox, partial crop
+        (
+            np.array([[0.1, 0.1, 0.6, 0.6]]),
+            (50, 50, 150, 150),
+            (200, 200),
+            np.array([[-0.3, -0.3,  0.7,  0.7]])
+        ),
+        # Test case 2: Multiple bboxes, some outside crop
+        (
+            np.array([
+                [0.1, 0.1, 0.3, 0.3],
+                [0.4, 0.4, 0.8, 0.8],
+                [0.7, 0.7, 0.9, 0.9]
+            ]),
+            (100, 100, 180, 180),
+            (200, 200),
+            np.array(
+                [[-1.  , -1.  , -0.5 , -0.5 ],
+                  [-0.25, -0.25,  0.75,  0.75],
+                  [ 0.5 ,  0.5 ,  1.  ,  1.  ]]
+            )
+        ),
+        # Test case 3: Bbox with additional columns
+        (
+            np.array([[0.2, 0.2, 0.7, 0.7, 1, 2, 3]]),
+            (40, 40, 160, 160),
+            (200, 200),
+            np.array([[4.967054e-09, 4.967054e-09, 8.333333e-01, 8.333333e-01, 1.000000e+00, 2.000000e+00, 3.000000e+00]])
+        ),
+    ]
+)
+def test_crop_bboxes_by_coords(bboxes, crop_coords, image_shape, expected_bboxes):
+    result = crop_bboxes_by_coords(bboxes, crop_coords, image_shape)
+    np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=6)
+
+def test_crop_bboxes_by_coords_empty_input():
+    result = crop_bboxes_by_coords(np.array([]), (50, 50, 150, 150), (200, 200))
+    assert result.size == 0

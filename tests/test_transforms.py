@@ -375,14 +375,14 @@ def test_lambda_transform():
         return np.eye(num_channels, dtype=np.uint8)[mask]
 
 
-    def vflip_bbox(bbox, **kwargs):
-        return fgeometric.bbox_vflip(bbox)
+    def vflip_bbox(bboxes, **kwargs):
+        return fgeometric.bboxes_vflip(bboxes)
 
-    def vflip_keypoint(keypoint, **kwargs):
-        return fgeometric.keypoint_vflip(keypoint, kwargs["rows"])
+    def vflip_keypoint(keypoints, **kwargs):
+        return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
 
     aug = A.Lambda(
-        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
+        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bboxes=vflip_bbox, keypoints=vflip_keypoint, p=1
     )
 
     output = aug(
@@ -393,8 +393,8 @@ def test_lambda_transform():
     )
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [fgeometric.bbox_vflip((10, 15, 25, 35))]
-    assert output["keypoints"] == [fgeometric.keypoint_vflip((20, 30, 40, 50), 10)]
+    assert output["bboxes"] == [fgeometric.bboxes_vflip((10, 15, 25, 35))]
+    assert output["keypoints"] == [fgeometric.keypointes_vflip((20, 30, 40, 50), 10)]
 
 
 def test_channel_droput():

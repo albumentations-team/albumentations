@@ -12,6 +12,9 @@ from albumentations.core.types import ColorType
 
 __all__ = [
     "get_crop_coords",
+    "crop_bboxes_by_coords",
+    "crop_keypoints_by_coords",
+    "get_center_crop_coords",
     "crop",
     "crop_and_pad",
 ]
@@ -44,12 +47,33 @@ def crop_bboxes_by_coords(
     crop_coords: tuple[int, int, int, int],
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
+    """Crop bounding boxes based on given crop coordinates.
+
+    This function adjusts bounding boxes to fit within a cropped image.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes with shape (N, 4+) where each row is
+                             [x_min, y_min, x_max, y_max, ...]. The bounding box coordinates
+                             should be normalized (in the range [0, 1]).
+        crop_coords (tuple[int, int, int, int]): Crop coordinates (x_min, y_min, x_max, y_max)
+                                                 in absolute pixel values.
+        image_shape (tuple[int, int]): Original image shape (height, width).
+
+    Returns:
+        np.ndarray: Array of cropped bounding boxes, normalized to the new crop size.
+
+    Note:
+        Bounding boxes that fall completely outside the crop area will be removed.
+        Bounding boxes that partially overlap with the crop area will be adjusted to fit within it.
+    """
+    if not bboxes.size:
+        return bboxes
+
+    cropped_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), image_shape)
 
     x_min, y_min = crop_coords[:2]
 
     # Subtract crop coordinates
-    cropped_bboxes = denormalized_bboxes.copy()
     cropped_bboxes[:, [0, 2]] -= x_min
     cropped_bboxes[:, [1, 3]] -= y_min
 

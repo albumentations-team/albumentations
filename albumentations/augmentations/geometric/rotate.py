@@ -49,7 +49,7 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bbox(self, bboxes: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+    def apply_to_bboxes(self, bboxes: np.ndarray, factor: int, **params: Any) -> np.ndarray:
         return fgeometric.bboxes_rot90(bboxes, factor)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, factor: int, **params: Any) -> np.ndarray:
