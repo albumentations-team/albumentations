@@ -396,7 +396,7 @@ def clip_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
         np.ndarray: The clipped bounding boxes, normalized to the image dimensions.
 
     """
-    rows, cols = image_shape[:2]
+    height, width = image_shape[:2]
 
     # Denormalize bboxes
     denorm_bboxes = denormalize_bboxes(bboxes, image_shape)
@@ -418,8 +418,8 @@ def clip_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     # but it should be completely removed.
 
     # Clip coordinates
-    denorm_bboxes[:, [0, 2]] = np.clip(denorm_bboxes[:, [0, 2]], 0, cols)
-    denorm_bboxes[:, [1, 3]] = np.clip(denorm_bboxes[:, [1, 3]], 0, rows)
+    denorm_bboxes[:, [0, 2]] = np.clip(denorm_bboxes[:, [0, 2]], 0, width)
+    denorm_bboxes[:, [1, 3]] = np.clip(denorm_bboxes[:, [1, 3]], 0, height)
 
     # Normalize clipped bboxes
     return normalize_bboxes(denorm_bboxes, image_shape)

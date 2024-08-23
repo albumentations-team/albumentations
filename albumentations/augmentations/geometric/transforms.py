@@ -315,7 +315,7 @@ class Perspective(DualTransform):
             self.keep_size,
         )
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
         matrix: np.ndarray,

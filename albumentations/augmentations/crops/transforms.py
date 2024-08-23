@@ -11,7 +11,7 @@ from pydantic import AfterValidator, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations.augmentations.geometric import functional as fgeometric
-from albumentations.core.bbox_utils import clip_bboxes, union_of_bboxes
+from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
@@ -89,6 +89,17 @@ class _BaseCrop(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
+
+    @staticmethod
+    def _clip_bbox(bbox: tuple[int, int, int, int], image_shape: tuple[int, int]) -> tuple[int, int, int, int]:
+        height, width = image_shape[:2]
+        x_min, y_min, x_max, y_max = bbox
+        x_min = np.clip(x_min, 0, width)
+        y_min = np.clip(y_min, 0, height)
+
+        x_max = np.clip(x_max, x_min, width)
+        y_max = np.clip(y_max, y_min, height)
+        return x_min, y_min, x_max, y_max
 
 
 class RandomCrop(_BaseCrop):
@@ -694,7 +705,7 @@ class RandomCropNearBBox(_BaseCrop):
 
         image_shape = params["shape"][:2]
 
-        bbox = clip_bboxes(np.array([bbox]), image_shape)[0]
+        bbox = self._clip_bbox(bbox, image_shape)
 
         h_max_shift = round((bbox[3] - bbox[1]) * self.max_part_shift[0])
         w_max_shift = round((bbox[2] - bbox[0]) * self.max_part_shift[1])
@@ -705,7 +716,7 @@ class RandomCropNearBBox(_BaseCrop):
         y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
         y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
 
-        crop_coords = clip_bboxes(np.array([(x_min, y_min, x_max, y_max)]), image_shape)[0]
+        crop_coords = self._clip_bbox((x_min, y_min, x_max, y_max), image_shape)
 
         if crop_coords[0] == crop_coords[2] or crop_coords[1] == crop_coords[3]:
             crop_shape = (bbox[3] - bbox[1], bbox[2] - bbox[0])
