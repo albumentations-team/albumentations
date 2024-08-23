@@ -450,33 +450,20 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
     rows, cols = 300, 400  # Non-square dimensions
     img = np.zeros((rows, cols), dtype=int)
     # Placing the keypoint away from the center and edge: (150, 100)
-    keypoint = (150, 100, 0, 1)
-    img[keypoint[1], keypoint[0]] = 1
+    keypoints = np.array([[150, 100, 0, 1]])
+    img[keypoints[1], keypoints[0]] = 1
 
     # Rotate the image
     rotated_img = fgeometric.rot90(img, factor)
 
     # Rotate the keypoint
-    rotated_keypoint = fgeometric.keypoint_rot90(keypoint, factor, img.shape)
+    rotated_keypoints = fgeometric.keypoints_rot90(keypoints, factor, img.shape)
 
     # Assert that the rotated keypoint lands where expected
-    assert rotated_img[rotated_keypoint[1], rotated_keypoint[0]] == 1, \
+    assert rotated_img[rotated_keypoints[1], rotated_keypoints[0]] == 1, \
         f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, "\
-        f"but at {rotated_keypoint}"
+        f"but at {rotated_keypoints}"
 
-
-def test_bbox_rot90():
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0) == (0.1, 0.2, 0.3, 0.4)
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1) == (0.2, 0.7, 0.4, 0.9)
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2) == (0.7, 0.6, 0.9, 0.8)
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3) == (0.6, 0.1, 0.8, 0.3)
-
-
-def test_bbox_transpose():
-    assert np.allclose(fgeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4)), (0.1, 0.7, 0.4, 0.8))
-    rot90 = fgeometric.bbox_rot90((0.7, 0.1, 0.8, 0.4), 2)
-    reflected_anti_diagonal = fgeometric.bbox_transpose(rot90)
-    assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
 
 
 def test_fun_max_size():

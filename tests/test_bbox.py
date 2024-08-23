@@ -1165,3 +1165,20 @@ def test_crop_bboxes_by_coords(bboxes, crop_coords, image_shape, expected_bboxes
 def test_crop_bboxes_by_coords_empty_input():
     result = crop_bboxes_by_coords(np.array([]), (50, 50, 150, 150), (200, 200))
     assert result.size == 0
+
+
+def test_bboxes_rot90():
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+
+    np.testing.assert_array_almost_equal(fgeometric.bboxes_rot90(bboxes, 0)[0], (0.1, 0.2, 0.3, 0.4))
+    np.testing.assert_array_almost_equal(fgeometric.bboxes_rot90(bboxes, 1)[0], (0.2, 0.7, 0.4, 0.9))
+    np.testing.assert_array_almost_equal(fgeometric.bboxes_rot90(bboxes, 2)[0], (0.7, 0.6, 0.9, 0.8))
+    np.testing.assert_array_almost_equal(fgeometric.bboxes_rot90(bboxes, 3)[0], (0.6, 0.1, 0.8, 0.3))
+
+
+def test_bboxes_transpose():
+    bboxes = np.array([[0.7, 0.1, 0.8, 0.4]])
+    assert np.allclose(fgeometric.bboxes_transpose(bboxes), (0.1, 0.7, 0.4, 0.8))
+    rot90 = fgeometric.bboxes_rot90(bboxes, 2)
+    reflected_anti_diagonal = fgeometric.bboxes_transpose(rot90)
+    assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
