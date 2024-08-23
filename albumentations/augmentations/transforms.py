@@ -2407,11 +2407,11 @@ class Lambda(NoOp):
         return fn(mask, **params)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        fn = self.custom_apply_fns["bbox"]
+        fn = self.custom_apply_fns["bboxes"]
         return fn(bboxes, **params)
 
     def apply_to_keypoint(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        fn = self.custom_apply_fns["keypoint"]
+        fn = self.custom_apply_fns["keypoints"]
         return fn(keypoints, **params)
 
     def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:

@@ -188,7 +188,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        keypoints_out = fgeometric.keypoints_rotate(keypoints, angle, params["shape"][:2], **params)
+        keypoints_out = fgeometric.keypoints_rotate(keypoints, angle, params["shape"][:2])
         if self.crop_border:
             return fcrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
         return keypoints_out

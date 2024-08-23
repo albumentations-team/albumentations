@@ -148,7 +148,6 @@ def keypoints_rot90(
     keypoints: np.ndarray,
     factor: int,
     image_shape: tuple[int, int],
-    **params: Any,
 ) -> np.ndarray:
     """Rotate keypoints by 90 degrees counter-clockwise (CCW) a specified number of times.
 
@@ -156,7 +155,6 @@ def keypoints_rot90(
         keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
         factor (int): The number of 90 degree CCW rotations to apply. Must be in the range [0, 3].
         image_shape (tuple[int, int]): The shape of the image (height, width).
-        **params: Additional parameters.
 
     Returns:
         np.ndarray: The rotated keypoints with the same shape as the input.
@@ -171,27 +169,21 @@ def keypoints_rot90(
         return keypoints
 
     rows, cols = image_shape[:2]
-    x, y, angle = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2]
+    rotated_keypoints = keypoints.copy().astype(np.float32)
+    x, y, angle = rotated_keypoints[:, 0], rotated_keypoints[:, 1], rotated_keypoints[:, 2]
 
     if factor == 1:
-        x_new, y_new = y, (cols - 1) - x
-        angle_new = angle - np.pi / 2
+        rotated_keypoints[:, 0] = y
+        rotated_keypoints[:, 1] = (cols - 1) - x
+        rotated_keypoints[:, 2] = angle - np.pi / 2
     elif factor == ROT90_180_FACTOR:
-        x_new, y_new = (cols - 1) - x, (rows - 1) - y
-        angle_new = angle - np.pi
+        rotated_keypoints[:, 0] = (cols - 1) - x
+        rotated_keypoints[:, 1] = (rows - 1) - y
+        rotated_keypoints[:, 2] = angle - np.pi
     elif factor == ROT90_270_FACTOR:
-        x_new, y_new = (rows - 1) - y, x
-        angle_new = angle + np.pi / 2
-
-    # Ensure angles are in the range [0, 2π)
-    angle_new = angle_new % (2 * np.pi)
-
-    # Create the output array
-    rotated_keypoints = np.column_stack([x_new, y_new, angle_new, keypoints[:, 3]])
-
-    # If there are additional columns, preserve them
-    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        rotated_keypoints = np.column_stack([rotated_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]])
+        rotated_keypoints[:, 0] = (rows - 1) - y
+        rotated_keypoints[:, 1] = x
+        rotated_keypoints[:, 2] = angle + np.pi / 2
 
     return rotated_keypoints
 
@@ -561,6 +553,7 @@ def perspective_keypoints(
     max_height: int,
     keep_size: bool,
 ) -> np.ndarray:
+    keypoints = keypoints.copy().astype(np.float32)
     x, y, angle, scale = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
 
     # Reshape keypoints for perspective transform

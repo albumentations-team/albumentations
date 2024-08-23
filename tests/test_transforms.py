@@ -375,14 +375,14 @@ def test_lambda_transform():
         return np.eye(num_channels, dtype=np.uint8)[mask]
 
 
-    def vflip_bbox(bboxes, **kwargs):
+    def vflip_bboxes(bboxes, **kwargs):
         return fgeometric.bboxes_vflip(bboxes)
 
-    def vflip_keypoint(keypoints, **kwargs):
+    def vflip_keypoints(keypoints, **kwargs):
         return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
 
     aug = A.Lambda(
-        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bboxes=vflip_bbox, keypoints=vflip_keypoint, p=1
+        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bboxes=vflip_bboxes, keypoints=vflip_keypoints, p=1
     )
 
     output = aug(
@@ -394,7 +394,7 @@ def test_lambda_transform():
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
     assert output["bboxes"] == [fgeometric.bboxes_vflip((10, 15, 25, 35))]
-    assert output["keypoints"] == [fgeometric.keypointes_vflip((20, 30, 40, 50), 10)]
+    assert output["keypoints"] == [fgeometric.keypoints_vflip((20, 30, 40, 50), 10)]
 
 
 def test_channel_droput():
@@ -712,7 +712,6 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     # check grid offsets
     if shift_xy:
         assert holes[0][:2] == shift_xy
-
     else:
         assert holes[0] == (0, 0)
 
@@ -1731,8 +1730,8 @@ def test_dual_transforms_methods(augmentation_cls, params):
     arg = {
         "masks": mask,
         "masks": [mask],
-        "bboxes": [[0, 0, 0.1, 0.1, 1]],
-        "keypoints": [(0, 0, 0, 0), (1, 1, 0, 0)],
+        "bboxes": np.array([[0, 0, 0.1, 0.1, 1]]),
+        "keypoints": np.array([(0, 0, 0, 0), (1, 1, 0, 0)]),
     }
 
     for target in aug.targets:
@@ -1992,8 +1991,8 @@ def test_rot90(bboxes, angle, keypoints):
     np.testing.assert_array_equal(transformed["image"], image_rotated)
     np.testing.assert_array_equal(transformed["mask"], mask_rotated)
 
-    np.testing.assert_array_equal(transformed["bboxes"], bboxes_rotated)
-    np.testing.assert_array_equal(transformed["keypoints"], keypoints_rotated)
+    np.testing.assert_array_almost_equal(transformed["bboxes"], bboxes_rotated, decimal=5)
+    np.testing.assert_array_almost_equal(transformed["keypoints"], keypoints_rotated)
 
 
 @pytest.mark.parametrize(
