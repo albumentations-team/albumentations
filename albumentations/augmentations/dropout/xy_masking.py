@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Callable, Sequence, Tuple, cast
+from typing import Any, Callable, Tuple, cast
 
 import numpy as np
 from pydantic import Field, model_validator
@@ -9,9 +9,9 @@ from typing_extensions import Self
 
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
+from albumentations.core.types import ColorType, ScaleIntType, Targets
 
-from .functional import cutout, keypoint_in_hole
+from .functional import cutout, filter_keypoints_in_holes
 
 __all__ = ["XYMasking"]
 
@@ -192,16 +192,12 @@ class XYMasking(DualTransform):
 
     def apply_to_keypoints(
         self,
-        keypoints: Sequence[KeypointType],
+        keypoints: np.ndarray,
         masks_x: list[tuple[int, int, int, int]],
         masks_y: list[tuple[int, int, int, int]],
         **params: Any,
-    ) -> list[KeypointType]:
-        return [
-            keypoint
-            for keypoint in keypoints
-            if not any(keypoint_in_hole(keypoint, hole) for hole in masks_x + masks_y)
-        ]
+    ) -> np.ndarray:
+        return filter_keypoints_in_holes(keypoints, np.array(masks_x + masks_y))
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (

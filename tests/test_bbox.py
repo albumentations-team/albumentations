@@ -8,6 +8,9 @@ import pytest
 
 from albumentations import RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
 from albumentations.core.bbox_utils import (
+    calculate_bbox_areas,
+    check_bboxes,
+    convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
     denormalize_bboxes,
     filter_bboxes,
@@ -18,217 +21,586 @@ from albumentations.core.bbox_utils import (
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp, BasicTransform
-from albumentations.core.types import BoxType
 import albumentations as A
 from .utils import set_seed
 
 
-@pytest.mark.parametrize(
-    ["bbox", "expected"],
-    [
-        ((15, 25, 100, 200), (0.0375, 0.125, 0.25, 1.0)),
-        ((15, 25, 100, 200, 99), (0.0375, 0.125, 0.25, 1.0, 99)),
-    ],
-)
-def test_normalize_bbox(bbox: BoxType, expected: BoxType) -> None:
-    normalized_bbox = normalize_bbox(bbox, (200, 400))
-    assert normalized_bbox == expected
+
+@pytest.mark.parametrize("bboxes, image_shape, expected", [
+    (
+        np.array([[10, 20, 30, 40], [50, 60, 70, 80]]),
+        (100, 200),
+        np.array([[0.05, 0.2, 0.15, 0.4], [0.25, 0.6, 0.35, 0.8]])
+    ),
+    (
+        np.array([[0, 0, 200, 100]]),
+        (100, 200),
+        np.array([[0, 0, 1, 1]])
+    ),
+    (
+        np.array([[50, 50, 150, 150, 1], [25, 25, 75, 75, 2]]),
+        (200, 200),
+        np.array([[0.25, 0.25, 0.75, 0.75, 1], [0.125, 0.125, 0.375, 0.375, 2]])
+    ),
+    (
+        np.array([]),
+        (100, 100),
+        np.array([])
+    ),
+])
+def test_normalize_bboxes(bboxes, image_shape, expected):
+    result = normalize_bboxes(bboxes, image_shape)
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_normalize_bboxes_preserves_input():
+    bboxes = np.array([[10, 20, 30, 40], [50, 60, 70, 80]])
+    image_shape = (100, 200)
+    original_bboxes = bboxes.copy()
+
+    normalize_bboxes(bboxes, image_shape)
+
+    np.testing.assert_array_equal(bboxes, original_bboxes)
+
+def test_normalize_bboxes_output_type():
+    bboxes = np.array([[10, 20, 30, 40], [50, 60, 70, 80]])
+    image_shape = (100, 200)
+
+    result = normalize_bboxes(bboxes, image_shape)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == float
 
 
-@pytest.mark.parametrize(
-    ["bbox", "expected"],
-    [
-        ((0.0375, 0.125, 0.25, 1.0), (15, 25, 100, 200)),
-        ((0.0375, 0.125, 0.25, 1.0, 99), (15, 25, 100, 200, 99)),
-    ],
-)
-def test_denormalize_bbox(bbox: BoxType, expected: BoxType) -> None:
-    denormalized_bbox = denormalize_bbox(bbox, (200, 400))
-    assert denormalized_bbox == expected
+@pytest.mark.parametrize("bboxes, image_shape, expected", [
+    (
+        np.array([[0.05, 0.2, 0.15, 0.4], [0.25, 0.6, 0.35, 0.8]]),
+        (100, 200),
+        np.array([[10, 20, 30, 40], [50, 60, 70, 80]])
+    ),
+    (
+        np.array([[0, 0, 1, 1]]),
+        (100, 200),
+        np.array([[0, 0, 200, 100]])
+    ),
+    (
+        np.array([[0.25, 0.25, 0.75, 0.75, 1], [0.125, 0.125, 0.375, 0.375, 2]]),
+        (200, 200),
+        np.array([[50, 50, 150, 150, 1], [25, 25, 75, 75, 2]])
+    ),
+    (
+        np.array([]),
+        (100, 100),
+        np.array([])
+    ),
+])
+def test_denormalize_bboxes(bboxes, image_shape, expected):
+    result = denormalize_bboxes(bboxes, image_shape)
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_denormalize_bboxes_preserves_input():
+    bboxes = np.array([[0.05, 0.2, 0.15, 0.4], [0.25, 0.6, 0.35, 0.8]])
+    image_shape = (100, 200)
+    original_bboxes = bboxes.copy()
+
+    denormalize_bboxes(bboxes, image_shape)
+
+    np.testing.assert_array_equal(bboxes, original_bboxes)
+
+def test_denormalize_bboxes_output_type():
+    bboxes = np.array([[0.05, 0.2, 0.15, 0.4], [0.25, 0.6, 0.35, 0.8]])
+    image_shape = (100, 200)
+
+    result = denormalize_bboxes(bboxes, image_shape)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == float
 
 
-@pytest.mark.parametrize("bbox", [(15, 25, 100, 200), (15, 25, 100, 200, 99)])
-def test_normalize_denormalize_bbox(bbox: BoxType) -> None:
-    normalized_bbox = normalize_bbox(bbox, (200, 400))
-    denormalized_bbox = denormalize_bbox(normalized_bbox, (200, 400))
-    assert denormalized_bbox == bbox
+@pytest.mark.parametrize("bboxes, image_shape", [
+    (np.array([[10, 20, 30, 40], [50, 60, 70, 80]]), (100, 200)),
+    (np.array([[0, 0, 200, 100]]), (100, 200)),
+    (np.array([[50, 50, 150, 150, 1], [25, 25, 75, 75, 2]]), (200, 200)),
+    (np.array([]), (100, 100)),
+])
+def test_normalize_denormalize_roundtrip(bboxes, image_shape):
+    normalized = normalize_bboxes(bboxes, image_shape)
+    denormalized = denormalize_bboxes(normalized, image_shape)
+    np.testing.assert_allclose(denormalized, bboxes, rtol=1e-5)
+
+@pytest.mark.parametrize("bboxes, image_shape", [
+    (np.array([[0.05, 0.2, 0.15, 0.4], [0.25, 0.6, 0.35, 0.8]]), (100, 200)),
+    (np.array([[0, 0, 1, 1]]), (100, 200)),
+    (np.array([[0.25, 0.25, 0.75, 0.75, 1], [0.125, 0.125, 0.375, 0.375, 2]]), (200, 200)),
+    (np.array([]), (100, 100)),
+])
+def test_denormalize_normalize_roundtrip(bboxes, image_shape):
+    denormalized = denormalize_bboxes(bboxes, image_shape)
+    normalized = normalize_bboxes(denormalized, image_shape)
+    np.testing.assert_allclose(normalized, bboxes, rtol=1e-5)
 
 
-@pytest.mark.parametrize(
-    "bbox", [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
-)
-def test_denormalize_normalize_bbox(bbox: BoxType) -> None:
-    denormalized_bbox = denormalize_bbox(bbox, (200, 400))
-    normalized_bbox = normalize_bbox(denormalized_bbox, (200, 400))
-    assert normalized_bbox == bbox
+@pytest.mark.parametrize("bboxes, image_shape, expected", [
+    (
+        np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]]),
+        (100, 100),
+        np.array([1600, 3600])
+    ),
+    (
+        np.array([[0, 0, 1, 1]]),
+        (200, 300),
+        np.array([60000])
+    ),
+    (
+        np.array([[0.25, 0.25, 0.75, 0.75, 1], [0.1, 0.1, 0.9, 0.9, 2]]),
+        (100, 100),
+        np.array([2500, 6400])
+    ),
+    (
+        np.array([]),
+        (100, 100),
+        np.array([])
+    ),
+    (
+        np.array([[0.1, 0.1, 0.3, 0.3], [0.4, 0.4, 0.6, 0.6]]),
+        (50, 200),
+        np.array([400, 400])
+    ),
+])
+def test_calculate_bbox_areas(bboxes, image_shape, expected):
+    result = calculate_bbox_areas(bboxes, image_shape)
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_calculate_bbox_areas_preserves_input():
+    bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]])
+    image_shape = (100, 100)
+    original_bboxes = bboxes.copy()
+
+    calculate_bbox_areas(bboxes, image_shape)
+
+    np.testing.assert_array_equal(bboxes, original_bboxes)
+
+def test_calculate_bbox_areas_output_type():
+    bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]])
+    image_shape = (100, 100)
+
+    result = calculate_bbox_areas(bboxes, image_shape)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
 
 
-def test_normalize_bboxes():
-    # Test with list input
-    bboxes_list = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
-    normalized_list = normalize_bboxes(bboxes_list, (200, 400))
-    expected_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
-    assert normalized_list == expected_list
-
-    # Test with numpy array input
-    bboxes_array = np.array([[15, 25, 100, 200], [15, 25, 100, 200]])
-    normalized_array = normalize_bboxes(bboxes_array, (200, 400))
-    expected_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
-    np.testing.assert_array_almost_equal(normalized_array, expected_array)
-
-    # Test individual bbox normalization
-    for bbox, expected in zip(bboxes_list, expected_list):
-        normalized = normalize_bbox(bbox, (200, 400))
-        assert normalized == expected
-
-def test_denormalize_bboxes():
-    # Test with list input
-    bboxes_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
-    denormalized_list = denormalize_bboxes(bboxes_list, (200, 400))
-    expected_list = [(15.0, 25.0, 100.0, 200.0), (15.0, 25.0, 100.0, 200.0, 99)]
-    assert denormalized_list == expected_list
-
-    # Test with numpy array input
-    bboxes_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
-    denormalized_array = denormalize_bboxes(bboxes_array, (200, 400))
-    expected_array = np.array([[15.0, 25.0, 100.0, 200.0], [15.0, 25.0, 100.0, 200.0]])
-    np.testing.assert_array_almost_equal(denormalized_array, expected_array)
-
-    # Test individual bbox denormalization
-    for bbox, expected in zip(bboxes_list, expected_list):
-        denormalized = denormalize_bbox(bbox, (200, 400))
-        assert denormalized == expected
+def test_calculate_bbox_areas_zero_area():
+    bboxes = np.array([[0.1, 0.1, 0.1, 0.2], [0.3, 0.3, 0.4, 0.3]])  # Zero width and zero height
+    image_shape = (100, 100)
+    result = calculate_bbox_areas(bboxes, image_shape)
+    np.testing.assert_allclose(result, [0, 0], atol=1e-10)
 
 
+@pytest.mark.parametrize("bboxes, source_format, image_shape, expected", [
+    # COCO format
+    (
+        np.array([[10, 20, 30, 40], [50, 60, 20, 30]]),
+        "coco",
+        (100, 200),
+        np.array([[0.05, 0.2, 0.2, 0.6], [0.25, 0.6, 0.35, 0.9]])
+    ),
+    # Pascal VOC format
+    (
+        np.array([[10, 20, 40, 60], [50, 60, 70, 90]]),
+        "pascal_voc",
+        (100, 200),
+        np.array([[0.05, 0.2, 0.2, 0.6], [0.25, 0.6, 0.35, 0.9]])
+    ),
+    # YOLO format
+    (
+        np.array([[0.25, 0.5, 0.2, 0.4], [0.7, 0.8, 0.2, 0.3]]),
+        "yolo",
+        (100, 200),  # image shape doesn't matter for YOLO
+        np.array([[0.15, 0.3, 0.35, 0.7], [0.6, 0.65, 0.8, 0.95]])
+    ),
+    # With additional columns
+    (
+        np.array([[10, 20, 30, 40, 1], [50, 60, 20, 30, 2]]),
+        "coco",
+        (100, 200),
+        np.array([[0.05, 0.2, 0.2, 0.6, 1], [0.25, 0.6, 0.35, 0.9, 2]])
+    ),
+    # Empty array
+    (
+        np.array([]).reshape(0, 4),
+        "coco",
+        (100, 200),
+        np.array([]).reshape(0, 4)
+    ),
+])
+def test_convert_bboxes_to_albumentations(bboxes, source_format, image_shape, expected):
+    result = convert_bboxes_to_albumentations(bboxes, source_format, image_shape)
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
 
-@pytest.mark.parametrize(
-    ["bbox", "rows", "cols", "expected"],
-    [((0, 0, 1, 1), 50, 100, 5000), ((0.2, 0.2, 1, 1, 99), 50, 50, 1600)],
-)
-def test_calculate_bbox_area(
-    bbox: BoxType, rows: int, cols: int, expected: int
-) -> None:
-    area = calculate_bbox_area(bbox, (rows, cols))
-    assert area == expected
+def test_convert_bboxes_to_albumentations_preserves_input():
+    bboxes = np.array([[10, 20, 30, 40], [50, 60, 20, 30]])
+    original_bboxes = bboxes.copy()
+    convert_bboxes_to_albumentations(bboxes, "coco", (100, 200))
+    np.testing.assert_array_equal(bboxes, original_bboxes)
 
+def test_convert_bboxes_to_albumentations_output_type():
+    bboxes = np.array([[10, 20, 30, 40], [50, 60, 20, 30]], dtype=np.float32)
+    result = convert_bboxes_to_albumentations(bboxes, "coco", (100, 200))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == bboxes.dtype
 
-@pytest.mark.parametrize(
-    ["bbox", "source_format", "expected"],
-    [
-        ((20, 30, 40, 50), "coco", (0.2, 0.3, 0.6, 0.8)),
-        ((20, 30, 40, 50, 99), "coco", (0.2, 0.3, 0.6, 0.8, 99)),
-        ((20, 30, 60, 80), "pascal_voc", (0.2, 0.3, 0.6, 0.8)),
-        ((20, 30, 60, 80, 99), "pascal_voc", (0.2, 0.3, 0.6, 0.8, 99)),
-        ((0.2, 0.3, 0.4, 0.5), "yolo", (0.00, 0.05, 0.40, 0.55)),
-        ((0.2, 0.3, 0.4, 0.5, 99), "yolo", (0.00, 0.05, 0.40, 0.55, 99)),
-        ((0.1, 0.1, 0.2, 0.2), "yolo", (0.0, 0.0, 0.2, 0.2)),
-        (
-            (0.99662423, 0.7520255, 0.00675154, 0.01446759),
-            "yolo",
-            (0.99324846, 0.744791705, 1.0, 0.759259295),
-        ),
-        (
-            (0.9375, 0.510416, 0.1234375, 0.97638),
-            "yolo",
-            (0.87578125, 0.022226, 0.999218749, 0.998606),
-        ),
-    ],
-)
-def test_convert_bbox_to_albumentations(
-    bbox: BoxType, source_format: str, expected: BoxType
-) -> None:
-    image = np.ones((100, 100, 3))
+@pytest.mark.parametrize("source_format", ["invalid_format", "COCO", "Pascal_VOC"])
+def test_convert_bboxes_to_albumentations_invalid_format(source_format):
+    bboxes = np.array([[10, 20, 30, 40]])
+    with pytest.raises(ValueError, match="Unknown source_format"):
+        convert_bboxes_to_albumentations(bboxes, source_format, (100, 200))
 
-    converted_bbox = convert_bbox_to_albumentations(
-        bbox, source_format=source_format, image_shape=image.shape
-    )
-    assert np.all(np.isclose(converted_bbox, expected))
+def test_convert_bboxes_to_albumentations_yolo_invalid_range():
+    bboxes = np.array([[0, 0.5, 0.2, 0.4], [1.1, 0.8, 0.2, 0.3]])
+    with pytest.raises(ValueError, match="In YOLO format all coordinates must be float and in range"):
+        convert_bboxes_to_albumentations(bboxes, "yolo", (100, 200), check_validity=True)
 
+@pytest.mark.parametrize("source_format", ["coco", "pascal_voc", "yolo"])
+def test_convert_bboxes_to_albumentations_check_validity(source_format, mocker):
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    image_shape = (100, 200)
+    mock_check_bboxes = mocker.patch("albumentations.core.bbox_utils.check_bboxes")
 
-@pytest.mark.parametrize(
-    ["bbox", "target_format", "expected"],
-    [
-        ((0.2, 0.3, 0.6, 0.8), "coco", (20, 30, 40, 50)),
-        ((0.2, 0.3, 0.6, 0.8, 99), "coco", (20, 30, 40, 50, 99)),
-        ((0.2, 0.3, 0.6, 0.8), "pascal_voc", (20, 30, 60, 80)),
-        ((0.2, 0.3, 0.6, 0.8, 99), "pascal_voc", (20, 30, 60, 80, 99)),
-        ((0.00, 0.05, 0.40, 0.55), "yolo", (0.2, 0.3, 0.4, 0.5)),
-        ((0.00, 0.05, 0.40, 0.55, 99), "yolo", (0.2, 0.3, 0.4, 0.5, 99)),
-    ],
-)
-def test_convert_bbox_from_albumentations(
-    bbox: BoxType, target_format: str, expected: BoxType
-) -> None:
-    image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_from_albumentations(
-        bbox, target_format=target_format, image_shape=image.shape
-    )
-    assert np.all(np.isclose(converted_bbox, expected))
+    convert_bboxes_to_albumentations(bboxes, source_format, image_shape, check_validity=True)
 
+    mock_check_bboxes.assert_called_once()
 
-@pytest.mark.parametrize(
-    ["bbox", "bbox_format"],
-    [
-        ((20, 30, 40, 50), "coco"),
-        ((20, 30, 40, 50, 99), "coco"),
-        ((20, 30, 41, 51, 99), "coco"),
-        ((21, 31, 40, 50, 99), "coco"),
-        ((21, 31, 41, 51, 99), "coco"),
-        ((20, 30, 60, 80), "pascal_voc"),
-        ((20, 30, 60, 80, 99), "pascal_voc"),
-        ((20, 30, 61, 81, 99), "pascal_voc"),
-        ((21, 31, 60, 80, 99), "pascal_voc"),
-        ((21, 31, 61, 81, 99), "pascal_voc"),
-        ((0.01, 0.06, 0.41, 0.56), "yolo"),
-        ((0.01, 0.06, 0.41, 0.56, 99), "yolo"),
-        ((0.02, 0.06, 0.42, 0.56, 99), "yolo"),
-        ((0.01, 0.05, 0.41, 0.55, 99), "yolo"),
-        ((0.02, 0.06, 0.41, 0.55, 99), "yolo"),
-    ],
-)
-def test_convert_bbox_to_albumentations_and_back(
-    bbox: BoxType, bbox_format: str
-) -> None:
-    image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_to_albumentations(
-        bbox, source_format=bbox_format, image_shape=image.shape
-    )
-    converted_back_bbox = convert_bbox_from_albumentations(
-        converted_bbox,
-        target_format=bbox_format,
-        image_shape=image.shape,
-    )
-    assert np.all(np.isclose(converted_back_bbox, bbox))
+@pytest.mark.parametrize("source_format", ["coco", "pascal_voc"])
+def test_convert_bboxes_to_albumentations_calls_normalize(source_format, mocker):
+    bboxes = np.array([[10, 20, 30, 40]])
+    image_shape = (100, 200)
+    mock_normalize_bboxes = mocker.patch("albumentations.core.bbox_utils.normalize_bboxes", return_value=bboxes)
+
+    convert_bboxes_to_albumentations(bboxes, source_format, image_shape)
+
+    mock_normalize_bboxes.assert_called_once()
+
+def test_convert_bboxes_to_albumentations_yolo_does_not_call_normalize(mocker):
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    image_shape = (100, 200)
+    mock_normalize_bboxes = mocker.patch("albumentations.core.bbox_utils.normalize_bboxes")
+
+    convert_bboxes_to_albumentations(bboxes, "yolo", image_shape)
+
+    mock_normalize_bboxes.assert_not_called()
 
 
-def test_convert_bboxes_to_albumentations() -> None:
-    bboxes = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
-    image = np.ones((100, 100, 3))
-    converted_bboxes = convert_bboxes_to_albumentations(
-        bboxes, source_format="coco", image_shape=image.shape
-    )
-    converted_bbox_1 = convert_bbox_to_albumentations(
-        bboxes[0], source_format="coco", image_shape=image.shape
-    )
-    converted_bbox_2 = convert_bbox_to_albumentations(
-        bboxes[1], source_format="coco", image_shape=image.shape
-    )
-    assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
+@pytest.mark.parametrize("bboxes, target_format, image_shape, expected", [
+    # Albumentations to COCO format
+    (
+        np.array([[0.05, 0.2, 0.2, 0.6], [0.25, 0.6, 0.35, 0.9]]),
+        "coco",
+        (100, 200),
+        np.array([[10, 20, 30, 40], [50, 60, 20, 30]])
+    ),
+    # Albumentations to Pascal VOC format
+    (
+        np.array([[0.05, 0.2, 0.2, 0.6], [0.25, 0.6, 0.35, 0.9]]),
+        "pascal_voc",
+        (100, 200),
+        np.array([[10, 20, 40, 60], [50, 60, 70, 90]])
+    ),
+    # Albumentations to YOLO format
+    (
+        np.array([[0.15, 0.3, 0.35, 0.7], [0.6, 0.65, 0.8, 0.95]]),
+        "yolo",
+        (100, 200),  # image shape doesn't matter for YOLO
+        np.array([[0.25, 0.5, 0.2, 0.4], [0.7, 0.8, 0.2, 0.3]])
+    ),
+    # With additional columns
+    (
+        np.array([[0.05, 0.2, 0.2, 0.6, 1], [0.25, 0.6, 0.35, 0.9, 2]]),
+        "coco",
+        (100, 200),
+        np.array([[10, 20, 30, 40, 1], [50, 60, 20, 30, 2]])
+    ),
+    # Empty array
+    (
+        np.array([]).reshape(0, 4),
+        "coco",
+        (100, 200),
+        np.array([]).reshape(0, 4)
+    ),
+])
+def test_convert_bboxes_from_albumentations(bboxes, target_format, image_shape, expected):
+    result = convert_bboxes_from_albumentations(bboxes, target_format, image_shape)
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_convert_bboxes_from_albumentations_preserves_input():
+    bboxes = np.array([[0.05, 0.2, 0.2, 0.6], [0.25, 0.6, 0.35, 0.9]])
+    original_bboxes = bboxes.copy()
+    convert_bboxes_from_albumentations(bboxes, "coco", (100, 200))
+    np.testing.assert_array_equal(bboxes, original_bboxes)
+
+def test_convert_bboxes_from_albumentations_output_type():
+    bboxes = np.array([[0.05, 0.2, 0.2, 0.6], [0.25, 0.6, 0.35, 0.9]])
+    result = convert_bboxes_from_albumentations(bboxes, "coco", (100, 200))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == bboxes.dtype
+
+@pytest.mark.parametrize("target_format", ["invalid_format", "COCO", "Pascal_VOC"])
+def test_convert_bboxes_from_albumentations_invalid_format(target_format):
+    bboxes = np.array([[0.05, 0.2, 0.2, 0.6]])
+    with pytest.raises(ValueError, match="Unknown target_format"):
+        convert_bboxes_from_albumentations(bboxes, target_format, (100, 200))
+
+def test_convert_bboxes_from_albumentations_check_validity(mocker):
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    image_shape = (100, 200)
+    mock_check_bboxes = mocker.patch("albumentations.core.bbox_utils.check_bboxes")
+
+    convert_bboxes_from_albumentations(bboxes, "coco", image_shape, check_validity=True)
+
+    mock_check_bboxes.assert_called_once()
+
+@pytest.mark.parametrize("target_format", ["coco", "pascal_voc"])
+def test_convert_bboxes_from_albumentations_calls_denormalize(target_format, mocker):
+    bboxes = np.array([[0.05, 0.2, 0.2, 0.6]])
+    image_shape = (100, 200)
+    mock_denormalize_bboxes = mocker.patch("albumentations.core.bbox_utils.denormalize_bboxes", return_value=bboxes)
+
+    convert_bboxes_from_albumentations(bboxes, target_format, image_shape)
+
+    mock_denormalize_bboxes.assert_called_once()
+
+def test_convert_bboxes_from_albumentations_yolo_does_not_call_denormalize(mocker):
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    image_shape = (100, 200)
+    mock_denormalize_bboxes = mocker.patch("albumentations.core.bbox_utils.denormalize_bboxes")
+
+    convert_bboxes_from_albumentations(bboxes, "yolo", image_shape)
+
+    mock_denormalize_bboxes.assert_not_called()
+
+@pytest.mark.parametrize("original_format, image_shape", [
+    ("coco", (100, 200)),
+    ("pascal_voc", (100, 200)),
+    ("yolo", (100, 200)),
+])
+def test_round_trip_to_from_albumentations(original_format, image_shape):
+    original_bboxes = np.array([[10, 20, 30, 40], [50, 60, 70, 80]])
+    if original_format == "yolo":
+        original_bboxes = np.array([[0.25, 0.3, 0.2, 0.2], [0.6, 0.7, 0.2, 0.2]])
+
+    # Convert to albumentations format
+    albu_bboxes = convert_bboxes_to_albumentations(original_bboxes, original_format, image_shape)
+
+    # Convert back to original format
+    converted_bboxes = convert_bboxes_from_albumentations(albu_bboxes, original_format, image_shape)
+
+    np.testing.assert_allclose(converted_bboxes, original_bboxes, rtol=1e-5)
+
+@pytest.mark.parametrize("target_format, image_shape", [
+    ("coco", (100, 200)),
+    ("pascal_voc", (100, 200)),
+    ("yolo", (100, 200)),
+])
+def test_round_trip_from_to_albumentations(target_format, image_shape):
+    albu_bboxes = np.array([[0.05, 0.1, 0.15, 0.2], [0.25, 0.3, 0.35, 0.4]])
+
+    # Convert from albumentations format
+    converted_bboxes = convert_bboxes_from_albumentations(albu_bboxes, target_format, image_shape)
+
+    # Convert back to albumentations format
+    reconverted_bboxes = convert_bboxes_to_albumentations(converted_bboxes, target_format, image_shape)
+
+    np.testing.assert_allclose(reconverted_bboxes, albu_bboxes, rtol=1e-5)
+
+def test_check_bboxes_valid():
+    valid_bboxes = np.array([
+        [0.1, 0.2, 0.3, 0.4, 2],
+        [0.5, 0.6, 0.7, 0.8, 3],
+        [0, 0, 1, 1, 0],
+        [0.1, 0.1, 0.2, 0.2, 1]  # with additional column
+    ])
+    check_bboxes(valid_bboxes)  # Should not raise any exception
+
+@pytest.mark.parametrize("invalid_bbox, error_message", [
+    (np.array([[1.1, 0.2, 0.3, 0.4]]), "Expected x_min for bbox"),
+    (np.array([[0.1, 1.2, 0.3, 0.4]]), "Expected y_min for bbox"),
+    (np.array([[0.1, 0.2, 1.3, 0.4]]), "Expected x_max for bbox"),
+    (np.array([[0.1, 0.2, 0.3, 1.4]]), "Expected y_max for bbox"),
+    (np.array([[-0.1, 0.2, 0.3, 0.4]]), "Expected x_min for bbox"),
+])
+def test_check_bboxes_out_of_range(invalid_bbox, error_message):
+    with pytest.raises(ValueError, match=error_message):
+        check_bboxes(invalid_bbox)
+
+def test_check_bboxes_x_max_less_than_x_min():
+    invalid_bbox = np.array([[0.3, 0.2, 0.1, 0.4]])
+    with pytest.raises(ValueError, match="x_max is less than or equal to x_min"):
+        check_bboxes(invalid_bbox)
+
+def test_check_bboxes_y_max_less_than_y_min():
+    invalid_bbox = np.array([[0.1, 0.4, 0.3, 0.2]])
+    with pytest.raises(ValueError, match="y_max is less than or equal to y_min"):
+        check_bboxes(invalid_bbox)
+
+def test_check_bboxes_close_to_zero():
+    valid_bbox = np.array([[1e-8, 0.2, 0.3, 0.4]])
+    check_bboxes(valid_bbox)  # Should not raise any exception
+
+def test_check_bboxes_close_to_one():
+    valid_bbox = np.array([[0.1, 0.2, 0.3, 1 - 1e-8]])
+    check_bboxes(valid_bbox)  # Should not raise any exception
+
+def test_check_bboxes_empty():
+    empty_bboxes = np.array([]).reshape(0, 4)
+    check_bboxes(empty_bboxes)  # Should not raise any exception
+
+def test_check_bboxes_multiple_invalid():
+    invalid_bboxes = np.array([
+        [0.1, 0.2, 0.3, 0.4],
+        [1.1, 0.2, 0.3, 0.4],  # invalid x_min
+        [0.5, 0.6, 0.7, 0.8],
+        [0.3, 0.2, 0.1, 0.4],  # invalid x_max < x_min
+    ])
+    with pytest.raises(ValueError, match="Expected x_min for bbox"):
+        check_bboxes(invalid_bboxes)
+
+@pytest.mark.parametrize("bbox", [
+    np.array([[0, 0.2, 0.3, 0.4]]),
+    np.array([[0.1, 0, 0.3, 0.4]]),
+    np.array([[0.1, 0.2, 1, 0.4]]),
+    np.array([[0.1, 0.2, 0.3, 1]]),
+])
+def test_check_bboxes_exact_zero_and_one(bbox):
+    check_bboxes(bbox)  # Should not raise any exception
+
+def test_check_bboxes_additional_columns():
+    valid_bboxes = np.array([
+        [0.1, 0.2, 0.3, 0.4, 1, 2, 3],
+        [0.5, 0.6, 0.7, 0.8, 4, 5, 6],
+    ])
+    check_bboxes(valid_bboxes)  # Should not raise any exception
 
 
-def test_convert_bboxes_from_albumentations() -> None:
-    bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-    image = np.ones((100, 100, 3))
-    converted_bboxes = convert_bboxes_to_albumentations(
-        bboxes, source_format="coco", image_shape=image.shape
-    )
-    converted_bbox_1 = convert_bbox_to_albumentations(
-        bboxes[0], source_format="coco", image_shape=image.shape
-    )
-    converted_bbox_2 = convert_bbox_to_albumentations(
-        bboxes[1], source_format="coco", image_shape=image.shape
-    )
-    assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
+
+@pytest.mark.parametrize("bboxes, image_shape, min_area, min_visibility, min_width, min_height, expected", [
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]]),
+        (100, 100),
+        0, 0, 0, 0,
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]])
+    ),
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]]),
+        (100, 100),
+        200, 0, 0, 0,
+        np.array([], dtype=np.float32).reshape(0, 4)
+    ),
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]]),
+        (100, 100),
+        0, 0.5, 0, 0,
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]])
+    ),
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.5, 0.4], [0.5, 0.5, 0.7, 0.6]]),
+        (100, 100),
+        0, 0, 15, 0,
+        np.array([[0.3, 0.3, 0.5, 0.4], [0.5, 0.5, 0.7, 0.6]])
+    ),
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.5], [0.5, 0.5, 0.6, 0.7]]),
+        (100, 100),
+        0, 0, 0, 15,
+        np.array([[0.3, 0.3, 0.4, 0.5], [0.5, 0.5, 0.6, 0.7]])
+    ),
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2, 1], [0.3, 0.3, 0.4, 0.4, 2], [0.5, 0.5, 0.6, 0.7, 3]]),
+        (100, 100),
+        200, 0, 0, 0,
+        np.array([[0.5, 0.5, 0.6, 0.7, 3]])
+    ),
+    (
+        np.array([]),
+        (100, 100),
+        0, 0, 0, 0,
+        np.array([])
+    ),
+])
+def test_filter_bboxes(bboxes, image_shape, min_area, min_visibility, min_width, min_height, expected):
+    result = filter_bboxes(bboxes, image_shape, min_area, min_visibility, min_width, min_height)
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_filter_bboxes_preserves_input():
+    bboxes = np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]])
+    original_bboxes = bboxes.copy()
+    image_shape = (100, 100)
+
+    filter_bboxes(bboxes, image_shape)
+
+    np.testing.assert_array_equal(bboxes, original_bboxes)
+
+def test_filter_bboxes_output_type():
+    bboxes = np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]])
+    image_shape = (100, 100)
+
+    result = filter_bboxes(bboxes, image_shape)
+
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == bboxes.dtype
+
+def test_filter_bboxes_clipping():
+    bboxes = np.array([[-0.1, -0.1, 1.1, 1.1], [0.3, 0.3, 0.4, 0.4]])
+    image_shape = (100, 100)
+
+    result = filter_bboxes(bboxes, image_shape)
+
+    expected = np.array([[0.0, 0.0, 1.0, 1.0], [0.3, 0.3, 0.4, 0.4]])
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+
+@pytest.mark.parametrize("bboxes, erosion_rate, expected", [
+    (np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]]), 0, np.array([0.1, 0.1, 0.6, 0.6])),
+    (np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]]), 0.5, np.array([0.225, 0.225, 0.475, 0.475])),
+    (np.array([[0.1, 0.1, 0.5, 0.5]]), 0, np.array([0.1, 0.1, 0.5, 0.5])),
+    (np.array([[0.1, 0.1, 0.5, 0.5]]), 1, None),
+    (np.array([]), 0, None),
+    (np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4]]), 1, None),
+    (np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]]), 0.9, np.array([0.325, 0.325, 0.375, 0.375])),
+])
+def test_union_of_bboxes(bboxes, erosion_rate, expected):
+    result = union_of_bboxes(bboxes, erosion_rate)
+    if expected is None:
+        assert result is None
+    else:
+        np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_union_of_bboxes_single_bbox():
+    bbox = np.array([[0.1, 0.1, 0.5, 0.5]])
+    result = union_of_bboxes(bbox, 0.5)
+    expected = np.array([0.1, 0.1, 0.5, 0.5])
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+
+def test_union_of_bboxes_output_type():
+    bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]])
+    result = union_of_bboxes(bboxes, 0)
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float32
+
+def test_union_of_bboxes_additional_columns():
+    bboxes = np.array([[0.1, 0.1, 0.5, 0.5, 1], [0.2, 0.2, 0.6, 0.6, 2]])
+    result = union_of_bboxes(bboxes, 0)
+    expected = np.array([0.1, 0.1, 0.6, 0.6])
+    np.testing.assert_allclose(result, expected, rtol=1e-5)
+
+def test_union_of_bboxes_edge_case():
+    bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.1, 0.1, 0.5, 0.5]])
+    result = union_of_bboxes(bboxes, 0.999999)
+    assert result is None
+
+def test_union_of_bboxes_precision():
+    bboxes = np.array([[0.12345678, 0.12345678, 0.87654321, 0.87654321]])
+    result = union_of_bboxes(bboxes, 0)
+    np.testing.assert_allclose(result, bboxes[0], rtol=1e-7)
 
 
 @pytest.mark.parametrize(
@@ -456,97 +828,6 @@ def test_bounding_box_vflip(bbox: BoxType, expected_bbox: BoxType) -> None:
 
 
 @pytest.mark.parametrize(
-    ["bboxes", "min_area", "min_visibility", "target"],
-    [
-        (
-            [(0.1, 0.5, 1.1, 0.9), (-0.1, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
-            0,
-            0,
-            [(0.1, 0.5, 1, 0.9), (0.0, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
-        ),
-        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.5, 0.5, 0.6)], 150, 0, [(0.1, 0.5, 0.8, 0.9)]),
-        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.9, 0.5, 1.6)], 0, 0.75, [(0.1, 0.5, 0.8, 0.9)]),
-        (
-            [(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1.1)],
-            0,
-            0.7,
-            [(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1)],
-        ),
-    ],
-)
-def test_filter_bboxes(
-    bboxes: list[BoxType], min_area: float, min_visibility: float, target: list[BoxType]
-) -> None:
-    filtered_bboxes = filter_bboxes(
-        bboxes, min_area=min_area, min_visibility=min_visibility, image_shape=(100, 100),
-    )
-
-
-    assert filtered_bboxes == target
-
-
-@pytest.mark.parametrize(
-    ["bboxes", "img_width", "img_height", "min_width", "min_height", "target"],
-    [
-        [
-            [
-                (0.1, 0.1, 0.9, 0.9),
-                (0.1, 0.1, 0.2, 0.9),
-                (0.1, 0.1, 0.9, 0.2),
-                (0.1, 0.1, 0.2, 0.2),
-            ],
-            100,
-            100,
-            20,
-            20,
-            [(0.1, 0.1, 0.9, 0.9)],
-        ],
-        [
-            [
-                (0.1, 0.1, 0.9, 0.9),
-                (0.1, 0.1, 0.2, 0.9),
-                (0.1, 0.1, 0.9, 0.2),
-                (0.1, 0.1, 0.2, 0.2),
-            ],
-            100,
-            100,
-            20,
-            0,
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.9, 0.2)],
-        ],
-        [
-            [
-                (0.1, 0.1, 0.9, 0.9),
-                (0.1, 0.1, 0.2, 0.9),
-                (0.1, 0.1, 0.9, 0.2),
-                (0.1, 0.1, 0.2, 0.2),
-            ],
-            100,
-            100,
-            0,
-            20,
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9)],
-        ],
-    ],
-)
-def test_filter_bboxes_by_min_width_height(
-    bboxes: list[BoxType],
-    img_width: int,
-    img_height: int,
-    min_width: int,
-    min_height: int,
-    target: list[BoxType],
-) -> None:
-    filtered_bboxes = filter_bboxes(
-        bboxes,
-        image_shape=(img_height, img_width),
-        min_width=min_width,
-        min_height=min_height,
-    )
-    assert filtered_bboxes == target
-
-
-@pytest.mark.parametrize(
     "get_transform",
     [
         lambda sign: A.Affine(translate_px=sign * 2, mode=cv2.BORDER_CONSTANT, cval=255),
@@ -595,45 +876,6 @@ def test_bbox_clipping_perspective() -> None:
     res = transform(image=image, bboxes=bboxes)["bboxes"]
     assert len(res) == 0
 
-
-@pytest.mark.parametrize(
-    "bboxes, erosion_rate, expected",
-    [
-        # No bboxes
-        ([], 0.0, None),
-
-        # Single bbox, no erosion
-        ([(0.1, 0.1, 0.3, 0.3)], 0.0, (0.1, 0.1, 0.3, 0.3)),
-        ([(0.0, 0.0, 0.16759776536312848, 0.8333333333333334, 1)], 0, (0.0, 0.0, 0.16759776536312848, 0.8333333333333334) ),
-
-        # Multiple bboxes, no erosion
-        ([(0.1, 0.1, 0.3, 0.3), (0.2, 0.2, 0.4, 0.4)], 0.0, (0.1, 0.1, 0.4, 0.4)),
-
-        # Single bbox with erosion
-        ([(0.1, 0.1, 0.3, 0.3)], 0.5, (0.15, 0.15, 0.25, 0.25)),
-
-        # Multiple bboxes with erosion
-        ([(0.1, 0.1, 0.3, 0.3), (0.2, 0.2, 0.4, 0.4)], 0.5, (0.15, 0.15, 0.35, 0.35)),
-
-        # Edge case with maximum erosion
-        ([(0.1, 0.1, 0.3, 0.3), (0.2, 0.2, 0.4, 0.4)], 1.0, (0.2, 0.2, 0.3, 0.3)),
-
-        # Bboxes touching edges of normalized space
-        ([(0.0, 0.0, 0.5, 0.5), (0.5, 0.5, 1.0, 1.0)], 0.0, (0.0, 0.0, 1.0, 1.0)),
-
-        # Mixed size bboxes with no erosion
-        ([(0.1, 0.1, 0.2, 0.2), (0.2, 0.2, 0.4, 0.4), (0.3, 0.3, 0.5, 0.5)], 0.0, (0.1, 0.1, 0.5, 0.5)),
-
-        # Mixed size bboxes with erosion
-        ([(0.1, 0.1, 0.2, 0.2), (0.2, 0.2, 0.4, 0.4), (0.3, 0.3, 0.5, 0.5)], 0.3, (0.115, 0.115, 0.47, 0.47)),
-
-        # Single bbox with maximum erosion
-        ([(0.0, 0.0, 0.16759776536312848, 0.8333333333333334)], 1.0, None),
-    ],
-)
-def test_union_of_bboxes(bboxes, erosion_rate, expected):
-    result = union_of_bboxes(bboxes, erosion_rate)
-    assert result == expected or np.testing.assert_almost_equal(result, expected, decimal=6) is None
 
 @pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, image_shape, expected", [
     # Symmetric padding
@@ -733,3 +975,93 @@ def test_pad_bboxes_constant_border(image_shape, bboxes, pad_params, expected_bb
     )
 
     np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
+
+
+@pytest.mark.parametrize("bboxes, expected", [
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4]]),
+        np.array([[0.1, 0.6, 0.3, 0.8]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
+        np.array([[0.1, 0.6, 0.3, 0.8], [0.5, 0.2, 0.7, 0.4]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.6, 0.7, 0.8, 0.9]]),
+        np.array([[0.1, 0.6, 0.3, 0.8, 0.5], [0.5, 0.2, 0.7, 0.4, 0.9]])
+    ),
+    (
+        np.array([[0, 0, 1, 1]]),
+        np.array([[0, 0, 1, 1]])
+    ),
+    (
+        np.array([]),
+        np.array([])
+    ),
+])
+def test_bboxes_vflip(bboxes, expected):
+    flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
+    np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+
+def test_bboxes_vflip_preserves_shape():
+    bboxes = np.random.rand(10, 6)  # 10 bboxes with 2 extra columns
+    flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
+    assert flipped_bboxes.shape == bboxes.shape
+
+def test_bboxes_vflip_inplace():
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    original_bboxes = bboxes.copy()
+    flipped_bboxes = fgeometric.bboxes_vflip(bboxes)
+    assert not np.array_equal(flipped_bboxes, original_bboxes)
+    assert np.array_equal(bboxes, original_bboxes)
+
+
+@pytest.mark.parametrize("bboxes, expected", [
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4]]),
+        np.array([[0.7, 0.2, 0.9, 0.4]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
+        np.array([[0.7, 0.2, 0.9, 0.4], [0.3, 0.6, 0.5, 0.8]])
+    ),
+    (
+        np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.6, 0.7, 0.8, 0.9]]),
+        np.array([[0.7, 0.2, 0.9, 0.4, 0.5], [0.3, 0.6, 0.5, 0.8, 0.9]])
+    ),
+    (
+        np.array([[0, 0, 1, 1]]),
+        np.array([[0, 0, 1, 1]])
+    ),
+    (
+        np.array([]),
+        np.array([])
+    ),
+])
+def test_bboxes_hflip(bboxes, expected):
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)
+
+def test_bboxes_hflip_preserves_shape():
+    bboxes = np.random.rand(10, 6)  # 10 bboxes with 2 extra columns
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    assert flipped_bboxes.shape == bboxes.shape
+
+def test_bboxes_hflip_inplace():
+    bboxes = np.array([[0.1, 0.2, 0.3, 0.4]])
+    original_bboxes = bboxes.copy()
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    assert not np.array_equal(flipped_bboxes, original_bboxes)
+    assert np.array_equal(bboxes, original_bboxes)  # Original array should not be modified
+
+def test_bboxes_hflip_symmetry():
+    bboxes = np.random.rand(5, 4)
+    flipped_once = fgeometric.bboxes_hflip(bboxes)
+    flipped_twice = fgeometric.bboxes_hflip(flipped_once)
+    np.testing.assert_allclose(bboxes, flipped_twice, rtol=1e-5)
+
+def test_bboxes_hflip_extreme_values():
+    bboxes = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
+    expected = np.array([[0, 0, 1, 1], [0.1, 0.1, 0.9, 0.9]])
+    flipped_bboxes = fgeometric.bboxes_hflip(bboxes)
+    np.testing.assert_allclose(flipped_bboxes, expected, rtol=1e-5)

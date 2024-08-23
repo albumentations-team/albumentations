@@ -15,7 +15,7 @@ from typing_extensions import Annotated
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
-from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, Targets
+from albumentations.core.types import LENGTH_RAW_BBOX, ReferenceImage, Targets
 from albumentations.random_utils import beta
 
 __all__ = ["MixUp", "OverlayElements"]
@@ -178,16 +178,16 @@ class MixUp(ReferenceBasedTransform):
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
+    def apply_to_bboxes(self, bboxes: np.ndarray, mix_data: ReferenceImage, **params: Any) -> np.ndarray:
         msg = "MixUp does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
     def apply_to_keypoints(
         self,
-        keypoints: Sequence[KeypointType],
+        keypoints: np.ndarray,
         *args: Any,
         **params: Any,
-    ) -> Sequence[KeypointType]:
+    ) -> np.ndarray:
         msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 

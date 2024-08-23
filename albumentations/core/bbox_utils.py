@@ -4,13 +4,12 @@ from typing import Any, Literal, Sequence
 
 import numpy as np
 
-from .types import BoxType
 from .utils import DataProcessor, Params
 
 __all__ = [
     "normalize_bboxes",
     "denormalize_bboxes",
-    "filter_bboxes_by_visibility",
+    # "filter_bboxes_by_visibility",
     "convert_bboxes_to_albumentations",
     "convert_bboxes_from_albumentations",
     "check_bboxes",
@@ -21,6 +20,7 @@ __all__ = [
 ]
 
 BBOX_WITH_LABEL_SHAPE = 5
+EPSILON = 1e-4
 
 
 class BboxParams(Params):
@@ -118,39 +118,37 @@ class BboxProcessor(DataProcessor):
             msg = "Your 'label_fields' are not valid - them must have same names as params in dict"
             raise ValueError(msg)
 
-    def filter(self, data: Sequence[BoxType], image_shape: tuple[int, int]) -> list[BoxType]:
+    def filter(self, data: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
         self.params: BboxParams
         return filter_bboxes(
-            np.array(data, dtype=np.float32),
+            data,
             image_shape,
             min_area=self.params.min_area,
             min_visibility=self.params.min_visibility,
             min_width=self.params.min_width,
             min_height=self.params.min_height,
-        ).tolist()
+        )
 
-    def check(self, data: Sequence[BoxType], image_shape: tuple[int, int]) -> None:
+    def check(self, data: np.ndarray, image_shape: tuple[int, int]) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data: Sequence[BoxType], image_shape: tuple[int, int]) -> list[BoxType]:
-        result = np.array(
+    def convert_from_albumentations(self, data: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+        return np.array(
             convert_bboxes_from_albumentations(data, self.params.format, image_shape, check_validity=True),
             dtype=np.float32,
         )
-        return result.tolist()
 
-    def convert_to_albumentations(self, data: Sequence[BoxType], image_shape: tuple[int, int]) -> list[BoxType]:
-        data_np = np.array(data, dtype=np.float32)
+    def convert_to_albumentations(self, data: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
         if self.params.clip:
-            data_np = convert_bboxes_to_albumentations(data_np, self.params.format, image_shape, check_validity=False)
+            data_np = convert_bboxes_to_albumentations(data, self.params.format, image_shape, check_validity=False)
             data_np = filter_bboxes(data_np, image_shape, min_area=0, min_visibility=0, min_width=0, min_height=0)
             check_bboxes(data_np)
             return data_np.tolist()
 
-        return convert_bboxes_to_albumentations(data_np, self.params.format, image_shape, check_validity=True).tolist()
+        return convert_bboxes_to_albumentations(data, self.params.format, image_shape, check_validity=True)
 
 
-def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> list[BoxType] | np.ndarray:
+def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Normalize array of bounding boxes.
 
     Args:
@@ -161,6 +159,8 @@ def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> list[B
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
+    if len(bboxes) == 0:
+        return bboxes
     rows, cols = image_shape[:2]
     normalized = bboxes.copy().astype(float)
     normalized[:, [0, 2]] /= cols
@@ -182,6 +182,8 @@ def denormalize_bboxes(
         Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
+    if len(bboxes) == 0:
+        return bboxes
     rows, cols = image_shape[:2]
 
     denormalized = bboxes.copy().astype(float)
@@ -190,49 +192,39 @@ def denormalize_bboxes(
     return denormalized
 
 
-def filter_bboxes_by_visibility(
-    original_shape: tuple[int, int],
-    bboxes: np.ndarray,
-    transformed_shape: tuple[int, int],
-    transformed_bboxes: np.ndarray,
-    threshold: float = 0.0,
-    min_area: float = 0.0,
-) -> np.ndarray:
-    """Filter bounding boxes and return only those boxes whose visibility after transformation is above
-    the threshold and minimal area of bounding box in pixels is more than min_area.
+def calculate_bbox_areas(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+    """Calculate areas for multiple bounding boxes.
+
+    This function computes the areas of bounding boxes given their normalized coordinates
+    and the dimensions of the image they belong to. The bounding boxes are expected to be
+    in the format [x_min, y_min, x_max, y_max] with normalized coordinates (0 to 1).
 
     Args:
-        original_shape: Original image shape `(height, width, ...)`.
-        bboxes: Original bounding boxes, numpy array with shape (num_bboxes, 4+).
-        transformed_shape: Transformed image shape `(height, width)`.
-        transformed_bboxes: Transformed bounding boxes, numpy array with shape (num_bboxes, 4+).
-        threshold: visibility threshold. Should be a value in the range [0.0, 1.0].
-        min_area: Minimal area threshold.
+        bboxes (np.ndarray): A numpy array of shape (N, 4+) where N is the number of bounding boxes.
+                             Each row contains [x_min, y_min, x_max, y_max] in normalized coordinates.
+                             Additional columns beyond the first 4 are ignored.
+        image_shape (tuple[int, int]): A tuple containing the height and width of the image (height, width).
 
     Returns:
-        Filtered bounding boxes, numpy array with shape (num_filtered_bboxes, 4+).
+        np.ndarray: A 1D numpy array of shape (N,) containing the areas of the bounding boxes in pixels.
+                    Returns an empty array if the input `bboxes` is empty.
+
+    Note:
+        - The function assumes that the input bounding boxes are valid (i.e., x_max > x_min and y_max > y_min).
+          Invalid bounding boxes may result in negative areas.
+        - The function preserves the input array and creates a copy for internal calculations.
+        - The returned areas are in pixel units, not normalized.
+
+    Example:
+        >>> bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]])
+        >>> image_shape = (100, 100)
+        >>> areas = calculate_bbox_areas(bboxes, image_shape)
+        >>> print(areas)
+        [1600. 3600.]
     """
-    img_height, img_width = original_shape[:2]
-    transformed_img_height, transformed_img_width = transformed_shape[:2]
+    if len(bboxes) == 0:
+        return np.array([], dtype=np.float32)
 
-    # Check if all values in transformed bboxes are within [0, 1]
-    valid_bboxes = np.all((transformed_bboxes[:, :4] >= 0.0) & (transformed_bboxes[:, :4] <= 1.0), axis=1)
-
-    # Calculate areas
-    original_areas = calculate_bbox_areas(bboxes[:, :4], (img_height, img_width))
-    transformed_areas = calculate_bbox_areas(transformed_bboxes[:, :4], (transformed_img_height, transformed_img_width))
-
-    # Calculate visibility
-    visibility = transformed_areas / original_areas
-
-    # Create a mask for bboxes that meet all criteria
-    mask = valid_bboxes & (transformed_areas >= min_area) & (visibility >= threshold)
-
-    return transformed_bboxes[mask]
-
-
-def calculate_bbox_areas(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
-    """Calculate areas for multiple bounding boxes."""
     height, width = image_shape
     bboxes_denorm = bboxes.copy()
     bboxes_denorm[:, [0, 2]] *= width
@@ -268,6 +260,7 @@ def convert_bboxes_to_albumentations(
             f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
 
+    bboxes = bboxes.copy().astype(np.float32)
     converted_bboxes = np.zeros_like(bboxes)
     converted_bboxes[:, 4:] = bboxes[:, 4:]  # Preserve additional columns
 
@@ -447,6 +440,9 @@ def filter_bboxes(
     Returns:
         numpy array of filtered bounding boxes.
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     # Calculate areas of bounding boxes before clipping
     transformed_box_areas = calculate_bbox_areas(bboxes, image_shape)
 
@@ -486,35 +482,30 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
         np.ndarray | None: A bounding box `(x_min, y_min, x_max, y_max)` or None if no bboxes are given or if
                     the bounding boxes become invalid after erosion.
     """
-    if not bboxes:
+    if not bboxes.size:
+        return None
+
+    if erosion_rate == 1:
         return None
 
     if bboxes.shape[0] == 1:
-        if erosion_rate == 1:
-            return None
-        if erosion_rate == 0:
-            return bboxes[0][:4]
+        return bboxes[0][:4]
 
-    x_min = bboxes[:, 0]
-    y_min = bboxes[:, 1]
-    x_max = bboxes[:, 2]
-    y_max = bboxes[:, 3]
+    x_min, y_min = np.min(bboxes[:, :2], axis=0)
+    x_max, y_max = np.max(bboxes[:, 2:4], axis=0)
 
-    bbox_width = x_max - x_min
-    bbox_height = y_max - y_min
+    width = x_max - x_min
+    height = y_max - y_min
 
-    # Adjust erosion rate to shrink bounding boxes accordingly
-    lim_x1 = x_min + erosion_rate * 0.5 * bbox_width
-    lim_y1 = y_min + erosion_rate * 0.5 * bbox_height
-    lim_x2 = x_max - erosion_rate * 0.5 * bbox_width
-    lim_y2 = y_max - erosion_rate * 0.5 * bbox_height
+    erosion_x = width * erosion_rate * 0.5
+    erosion_y = height * erosion_rate * 0.5
 
-    x1 = np.min(lim_x1)
-    y1 = np.min(lim_y1)
-    x2 = np.max(lim_x2)
-    y2 = np.max(lim_y2)
+    x_min += erosion_x
+    y_min += erosion_y
+    x_max -= erosion_x
+    y_max -= erosion_y
 
-    if x1 == x2 or y1 == y2:
+    if abs(x_max - x_min) < EPSILON or abs(y_max - y_min) < EPSILON:
         return None
 
-    return np.array([x1, y1, x2, y2], dtype=np.float32)
+    return np.array([x_min, y_min, x_max, y_max], dtype=np.float32)

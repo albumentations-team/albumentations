@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 import numpy as np
-from typing_extensions import Literal
 
 from .serialization import Serializable
-from .types import PAIR, BoxOrKeypointType, ScalarType, ScaleType
+from .types import PAIR, ScalarType, ScaleType
 
 if TYPE_CHECKING:
     import torch
@@ -92,10 +91,10 @@ class DataProcessor(ABC):
 
     def check_and_convert(
         self,
-        data: list[BoxOrKeypointType],
+        data: np.ndarray,
         image_shape: tuple[int, int],
         direction: Literal["to", "from"] = "to",
-    ) -> list[BoxOrKeypointType]:
+    ) -> np.ndarray:
         if self.params.format == "albumentations":
             self.check(data, image_shape)
             return data
@@ -109,27 +108,27 @@ class DataProcessor(ABC):
         raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence[BoxOrKeypointType], image_shape: tuple[int, int]) -> Sequence[BoxOrKeypointType]:
+    def filter(self, data: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
         pass
 
     @abstractmethod
-    def check(self, data: list[BoxOrKeypointType], image_shape: tuple[int, int]) -> None:
+    def check(self, data: np.ndarray, image_shape: tuple[int, int]) -> None:
         pass
 
     @abstractmethod
     def convert_to_albumentations(
         self,
-        data: list[BoxOrKeypointType],
+        data: np.ndarray,
         image_shape: tuple[int, int],
-    ) -> list[BoxOrKeypointType]:
+    ) -> np.ndarray:
         pass
 
     @abstractmethod
     def convert_from_albumentations(
         self,
-        data: list[BoxOrKeypointType],
+        data: np.ndarray,
         image_shape: tuple[int, int],
-    ) -> list[BoxOrKeypointType]:
+    ) -> np.ndarray:
         pass
 
     def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:

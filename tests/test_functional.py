@@ -440,25 +440,25 @@ def test_resize_nearest_interpolation_float(target):
     assert np.array_equal(resized_img, expected)
 
 
-def test_bbox_vflip():
-    assert fgeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5)) == (0.1, 0.5, 0.6, 0.8)
+# def test_bbox_vflip():
+#     assert fgeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5)) == (0.1, 0.5, 0.6, 0.8)
 
 
-def test_bbox_hflip():
-    assert fgeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5)) == (0.4, 0.2, 0.9, 0.5)
+# def test_bbox_hflip():
+#     assert fgeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5)) == (0.4, 0.2, 0.9, 0.5)
 
 
-@pytest.mark.parametrize(
-    ["code", "func"],
-    [
-        [0, fgeometric.bbox_vflip],
-        [1, fgeometric.bbox_hflip],
-        [-1, lambda bbox: fgeometric.bbox_vflip(fgeometric.bbox_hflip(bbox))],
-    ],
-)
-def test_bbox_flip(code, func):
-    bbox = [0.1, 0.2, 0.6, 0.5]
-    assert fgeometric.bbox_flip(bbox, code) == func(bbox)
+# @pytest.mark.parametrize(
+#     ["code", "func"],
+#     [
+#         [0, fgeometric.bbox_vflip],
+#         [1, fgeometric.bbox_hflip],
+#         [-1, lambda bbox: fgeometric.bbox_vflip(fgeometric.bbox_hflip(bbox))],
+#     ],
+# )
+# def test_bbox_flip(code, func):
+#     bbox = [0.1, 0.2, 0.6, 0.5]
+#     assert fgeometric.bbox_flip(bbox, code) == func(bbox)
 
 
 @pytest.mark.parametrize("factor, expected_positions", [

@@ -14,9 +14,7 @@ from albumentations.augmentations.functional import center
 from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
-    BoxInternalType,
     ColorType,
-    KeypointInternalType,
     ScaleFloatType,
     Targets,
 )
@@ -51,11 +49,11 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bbox(self, bbox: BoxInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_rot90(bbox, factor)
+    def apply_to_bbox(self, bboxes: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+        return fgeometric.bboxes_rot90(bboxes, factor)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.keypoint_rot90(keypoint, factor, params["shape"])
+    def apply_to_keypoints(self, keypoints: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+        return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -164,9 +162,9 @@ class Rotate(DualTransform):
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: np.ndarray,
         angle: float,
         x_min: int,
         x_max: int,
@@ -175,25 +173,25 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         image_shape = params["shape"][:2]
-        bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, image_shape)
+        bboxes_out = fgeometric.bboxes_rotate(bboxes, angle, self.rotate_method, image_shape)
         if self.crop_border:
-            return fcrops.crop_bbox_by_coords(bbox_out, (x_min, y_min, x_max, y_max), image_shape)
-        return bbox_out
+            return fcrops.crop_bboxes_by_coords(bboxes_out, (x_min, y_min, x_max, y_max), image_shape)
+        return bboxes_out
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         angle: float,
         x_min: int,
         x_max: int,
         y_min: int,
         y_max: int,
         **params: Any,
-    ) -> KeypointInternalType:
-        keypoint_out = fgeometric.keypoint_rotate(keypoint, angle, params["shape"][:2], **params)
+    ) -> np.ndarray:
+        keypoints_out = fgeometric.keypoints_rotate(keypoints, angle, params["shape"][:2], **params)
         if self.crop_border:
-            return fcrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
-        return keypoint_out
+            return fcrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
+        return keypoints_out
 
     @staticmethod
     def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> dict[str, int]:
@@ -300,18 +298,19 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, mask: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_safe_rotate(bbox, params["matrix"], params["shape"])
+    def apply_to_bboxes(self, bboxes: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.bboxes_safe_rotate(bboxes, matrix, params["shape"])
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         angle: float,
         scale_x: float,
         scale_y: float,
+        matrix: np.ndarray,
         **params: Any,
-    ) -> KeypointInternalType:
-        return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, params["shape"])
+    ) -> np.ndarray:
+        return fgeometric.keypoints_safe_rotate(keypoints, matrix, angle, scale_x, scale_y, params["shape"])
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"]

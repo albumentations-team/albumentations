@@ -47,12 +47,10 @@ from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
     PAIR,
-    BoxInternalType,
     ChromaticAberrationMode,
     ColorType,
     ImageCompressionType,
     ImageMode,
-    KeypointInternalType,
     MorphologyMode,
     PlanckianJitterMode,
     RainMode,
@@ -166,36 +164,53 @@ class RandomGridShuffle(DualTransform):
     def apply_to_mask(self, mask: np.ndarray, tiles: np.ndarray, mapping: list[int], **params: Any) -> np.ndarray:
         return fmain.swap_tiles_on_image(mask, tiles, mapping)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         tiles: np.ndarray,
-        mapping: list[int],
+        mapping: np.ndarray,
         **params: Any,
-    ) -> KeypointInternalType:
-        x, y = keypoint[:2]
+    ) -> np.ndarray:
+        # Broadcast keypoints and tiles for vectorized comparison
+        kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
+        kp_y = keypoints[:, 1][:, np.newaxis]  # Shape: (num_keypoints, 1)
 
-        # Find which original tile the keypoint belongs to
-        for original_index, new_index in enumerate(mapping):
-            start_y, start_x, end_y, end_x = tiles[original_index]
-            # check if the keypoint is in this tile
-            if start_y <= y < end_y and start_x <= x < end_x:
-                # Get the new tile's coordinates
-                new_start_y, new_start_x = tiles[new_index][:2]
+        start_y, start_x, end_y, end_x = tiles.T  # Each shape: (num_tiles,)
 
-                # Map the keypoint to the new tile's position
-                new_x = (x - start_x) + new_start_x
-                new_y = (y - start_y) + new_start_y
+        # Check if each keypoint is inside each tile
+        in_tile = (kp_y >= start_y) & (kp_y < end_y) & (kp_x >= start_x) & (kp_x < end_x)
 
-                return (new_x, new_y, *keypoint[2:])
+        # Find which tile each keypoint belongs to
+        tile_indices = np.argmax(in_tile, axis=1)
 
-        # If the keypoint wasn't in any tile (shouldn't happen), log a warning for debugging purposes
-        warn(
-            "Keypoint not in any tile, returning it unchanged. This is unexpected and should be investigated.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        return keypoint
+        # Check if any keypoint is not in any tile
+        not_in_any_tile = ~np.any(in_tile, axis=1)
+        if np.any(not_in_any_tile):
+            warn(
+                "Some keypoints are not in any tile. They will be returned unchanged. This is unexpected and should be "
+                "investigated.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+        # Get the new tile indices
+        new_tile_indices = mapping[tile_indices]
+
+        # Calculate the offsets
+        old_start_x = tiles[tile_indices, 1]
+        old_start_y = tiles[tile_indices, 0]
+        new_start_x = tiles[new_tile_indices, 1]
+        new_start_y = tiles[new_tile_indices, 0]
+
+        # Apply the transformation
+        new_keypoints = keypoints.copy()
+        new_keypoints[:, 0] = (keypoints[:, 0] - old_start_x) + new_start_x
+        new_keypoints[:, 1] = (keypoints[:, 1] - old_start_y) + new_start_y
+
+        # Keep original coordinates for keypoints not in any tile
+        new_keypoints[not_in_any_tile] = keypoints[not_in_any_tile]
+
+        return new_keypoints
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
@@ -2353,8 +2368,8 @@ class Lambda(NoOp):
         self,
         image: Callable[..., Any] | None = None,
         mask: Callable[..., Any] | None = None,
-        keypoint: Callable[..., Any] | None = None,
-        bbox: Callable[..., Any] | None = None,
+        keypoints: Callable[..., Any] | None = None,
+        bboxes: Callable[..., Any] | None = None,
         global_label: Callable[..., Any] | None = None,
         name: str | None = None,
         always_apply: bool | None = None,
@@ -2364,13 +2379,13 @@ class Lambda(NoOp):
 
         self.name = name
         self.custom_apply_fns = {
-            target_name: fmain.noop for target_name in ("image", "mask", "keypoint", "bbox", "global_label")
+            target_name: fmain.noop for target_name in ("image", "mask", "keypoints", "bboxes", "global_label")
         }
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
-            "keypoint": keypoint,
-            "bbox": bbox,
+            "keypoints": keypoints,
+            "bboxes": bboxes,
             "global_label": global_label,
         }.items():
             if custom_apply_fn is not None:
@@ -2391,13 +2406,13 @@ class Lambda(NoOp):
         fn = self.custom_apply_fns["mask"]
         return fn(mask, **params)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         fn = self.custom_apply_fns["bbox"]
-        return fn(bbox, **params)
+        return fn(bboxes, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
+    def apply_to_keypoint(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         fn = self.custom_apply_fns["keypoint"]
-        return fn(keypoint, **params)
+        return fn(keypoints, **params)
 
     def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
         fn = self.custom_apply_fns["global_label"]
@@ -3182,11 +3197,11 @@ class PixelDropout(DualTransform):
 
         return fmain.pixel_dropout(mask, drop_mask, self.mask_drop_value)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return bbox
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        return bboxes
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return keypoint
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        return keypoints
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         img = data["image"] if "image" in data else data["images"][0]

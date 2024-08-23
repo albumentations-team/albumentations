@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, cast
+from typing import Sequence
 
 import cv2
 import numpy as np
@@ -8,16 +8,12 @@ from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
-from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType
+from albumentations.core.types import ColorType
 
 __all__ = [
     "get_crop_coords",
-    "crop_bbox_by_coords",
-    "crop_keypoint_by_coords",
     "crop",
     "crop_and_pad",
-    "crop_and_pad_bbox",
-    "crop_and_pad_keypoint",
 ]
 
 
@@ -43,42 +39,49 @@ def get_crop_coords(
     return x_min, y_min, x_max, y_max
 
 
-def crop_bbox_by_coords(
-    bbox: BoxInternalType,
+def crop_bboxes_by_coords(
+    bboxes: np.ndarray,
     crop_coords: tuple[int, int, int, int],
     image_shape: tuple[int, int],
-) -> BoxInternalType:
-    denormalized_bbox = denormalize_bboxes(bbox, image_shape)
+) -> np.ndarray:
+    denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
 
-    x_min, y_min, x_max, y_max = denormalized_bbox[:4]
-    x1, y1 = crop_coords[:2]
-    cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
+    x_min, y_min = crop_coords[:2]
+
+    # Subtract crop coordinates
+    cropped_bboxes = denormalized_bboxes.copy()
+    cropped_bboxes[:, [0, 2]] -= x_min
+    cropped_bboxes[:, [1, 3]] -= y_min
+
+    # Calculate crop shape
     crop_height = crop_coords[3] - crop_coords[1]
     crop_width = crop_coords[2] - crop_coords[0]
-
     crop_shape = (crop_height, crop_width)
 
-    return cast(BoxInternalType, normalize_bboxes(cropped_bbox, crop_shape))
+    # Normalize the cropped bboxes
+    return normalize_bboxes(cropped_bboxes, crop_shape)
 
 
-def crop_keypoint_by_coords(
-    keypoint: KeypointInternalType,
+def crop_keypoints_by_coords(
+    keypoints: np.ndarray,
     crop_coords: tuple[int, int, int, int],
-) -> KeypointInternalType:
-    """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
+) -> np.ndarray:
+    """Crop keypoints using the provided coordinates of bottom-left and top-right corners in pixels.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
+        keypoints (np.ndarray): An array of keypoints with shape (N, 4+) where each row is (x, y, angle, scale, ...).
+        crop_coords (tuple): Crop box coords (x1, y1, x2, y2).
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
-
+        np.ndarray: An array of cropped keypoints with the same shape as the input.
     """
-    x, y, angle, scale = keypoint[:4]
     x1, y1 = crop_coords[:2]
-    return x - x1, y - y1, angle, scale
+
+    cropped_keypoints = keypoints.copy()
+    cropped_keypoints[:, 0] -= x1  # Adjust x coordinates
+    cropped_keypoints[:, 1] -= y1  # Adjust y coordinates
+
+    return cropped_keypoints
 
 
 def get_center_crop_coords(image_shape: tuple[int, int], crop_shape: tuple[int, int]) -> tuple[int, int, int, int]:
@@ -142,54 +145,64 @@ def crop_and_pad(
     return img
 
 
-def crop_and_pad_bbox(
-    bbox: BoxInternalType,
-    crop_params: Sequence[int] | None,
-    pad_params: Sequence[int] | None,
+def crop_and_pad_bboxes(
+    bboxes: np.ndarray,
+    crop_params: tuple[int, int, int, int] | None,
+    pad_params: tuple[int, int, int, int] | None,
     image_shape: tuple[int, int],
     result_shape: tuple[int, int],
-) -> BoxInternalType:
-    x_min, y_min, x_max, y_max = denormalize_bboxes(bbox, image_shape)[:4]
+) -> np.ndarray:
+    # Denormalize bboxes
+    denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
 
     if crop_params is not None:
         crop_x, crop_y = crop_params[:2]
-
-        x_min -= crop_x
-        y_min -= crop_y
-        x_max -= crop_x
-        y_max -= crop_y
+        # Subtract crop values from x and y coordinates
+        denormalized_bboxes[:, [0, 2]] -= crop_x
+        denormalized_bboxes[:, [1, 3]] -= crop_y
 
     if pad_params is not None:
-        top = pad_params[0]
-        left = pad_params[2]
+        top, _, left, _ = pad_params
+        # Add pad values to x and y coordinates
+        denormalized_bboxes[:, [0, 2]] += left
+        denormalized_bboxes[:, [1, 3]] += top
 
-        x_min += left
-        y_min += top
-        x_max += left
-        y_max += top
-
-    return cast(BoxInternalType, normalize_bboxes((x_min, y_min, x_max, y_max), result_shape))
+    # Normalize bboxes to the result shape
+    return normalize_bboxes(denormalized_bboxes, result_shape)
 
 
-def crop_and_pad_keypoint(
-    keypoint: KeypointInternalType,
-    crop_params: Sequence[int] | None,
-    pad_params: Sequence[int] | None,
-    image_shape: tuple[int, int],
-    result_shape: tuple[int, int],
-    keep_size: bool,
-) -> KeypointInternalType:
-    x, y, angle, scale = keypoint[:4]
+def crop_and_pad_keypoints(
+    keypoints: np.ndarray,
+    crop_params: tuple[int, int, int, int] | None = None,
+    pad_params: tuple[int, int, int, int] | None = None,
+    image_shape: tuple[int, int] = (0, 0),
+    result_shape: tuple[int, int] = (0, 0),
+    keep_size: bool = False,
+) -> np.ndarray:
+    """Crop and pad multiple keypoints simultaneously.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, 4+) where each row is (x, y, angle, scale, ...).
+        crop_params (Sequence[int], optional): Crop parameters [crop_x1, crop_y1, ...].
+        pad_params (Sequence[int], optional): Pad parameters [top, bottom, left, right].
+        image_shape (Tuple[int, int]): Original image shape (rows, cols).
+        result_shape (Tuple[int, int]): Result image shape (rows, cols).
+        keep_size (bool): Whether to keep the original size.
+
+    Returns:
+        np.ndarray: Array of transformed keypoints with the same shape as input.
+    """
+    transformed_keypoints = keypoints.copy()
 
     if crop_params is not None:
         crop_x1, crop_y1 = crop_params[:2]
-        x, y = x - crop_x1, y - crop_y1
-    if pad_params is not None:
-        top = pad_params[0]
-        left = pad_params[2]
+        transformed_keypoints[:, 0] -= crop_x1
+        transformed_keypoints[:, 1] -= crop_y1
 
-        x += left
-        y += top
+    if pad_params is not None:
+        top, _, left, _ = pad_params
+        transformed_keypoints[:, 0] += left
+        transformed_keypoints[:, 1] += top
 
     rows, cols = image_shape[:2]
     result_rows, result_cols = result_shape[:2]
@@ -197,6 +210,6 @@ def crop_and_pad_keypoint(
     if keep_size and (result_cols != cols or result_rows != rows):
         scale_x = cols / result_cols
         scale_y = rows / result_rows
-        return fgeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
+        return fgeometric.keypoints_scale(transformed_keypoints, scale_x, scale_y)
 
-    return x, y, angle, scale
+    return transformed_keypoints

@@ -10,8 +10,6 @@ from pydantic import Field, ValidationInfo, field_validator
 from albumentations.core.pydantic import InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
-    BoxInternalType,
-    KeypointInternalType,
     ScaleFloatType,
     Targets,
 )
@@ -80,17 +78,17 @@ class RandomScale(DualTransform):
     ) -> np.ndarray:
         return fgeometric.scale(img, scale, interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
-        return bbox
+        return bboxes
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         scale: float,
         **params: Any,
-    ) -> KeypointInternalType:
-        return fgeometric.keypoint_scale(keypoint, scale, scale)
+    ) -> np.ndarray:
+        return fgeometric.keypoints_scale(keypoints, scale, scale)
 
     def get_transform_init_args(self) -> dict[str, Any]:
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
@@ -157,20 +155,20 @@ class LongestMaxSize(DualTransform):
     ) -> np.ndarray:
         return fgeometric.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
-        return bbox
+        return bboxes
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         max_size: int,
         **params: Any,
-    ) -> KeypointInternalType:
+    ) -> np.ndarray:
         image_shape = params["shape"][:2]
 
         scale = max_size / max(image_shape)
-        return fgeometric.keypoint_scale(keypoint, scale, scale)
+        return fgeometric.keypoints_scale(keypoints, scale, scale)
 
     def get_params(self) -> dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
@@ -221,26 +219,26 @@ class SmallestMaxSize(DualTransform):
     ) -> np.ndarray:
         return fgeometric.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return bbox
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        # Bounding box coordinates are scale invariant
+        return bboxes
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         max_size: int,
         **params: Any,
-    ) -> KeypointInternalType:
+    ) -> np.ndarray:
         image_shape = params["shape"][:2]
-        height, width = image_shape
 
         scale = max_size / min(image_shape)
-        return fgeometric.keypoint_scale(keypoint, scale, scale)
+        return fgeometric.keypoints_scale(keypoints, scale, scale)
 
     def get_params(self) -> dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("max_size", "interpolation")
+        return "max_size", "interpolation"
 
 
 class Resize(DualTransform):
@@ -286,15 +284,15 @@ class Resize(DualTransform):
     def apply(self, img: np.ndarray, interpolation: int, **params: Any) -> np.ndarray:
         return fgeometric.resize(img, (self.height, self.width), interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
-        return bbox
+        return bboxes
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         height, width = params["shape"][:2]
         scale_x = self.width / width
         scale_y = self.height / height
-        return fgeometric.keypoint_scale(keypoint, scale_x, scale_y)
+        return fgeometric.keypoints_scale(keypoints, scale_x, scale_y)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "height", "width", "interpolation"
