@@ -297,6 +297,44 @@ def convert_keypoints_from_albumentations(
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> np.ndarray:
+    """Convert keypoints from Albumentations format to various other formats.
+
+    This function takes keypoints in the standard Albumentations format [x, y, angle, scale]
+    and converts them to the specified target format.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints in Albumentations format with shape (N, 4+),
+                                where N is the number of keypoints. Each row represents a keypoint
+                                [x, y, angle, scale, ...].
+        target_format (Literal["xy", "yx", "xya", "xys", "xyas", "xysa"]): The desired output format.
+            - "xy": [x, y]
+            - "yx": [y, x]
+            - "xya": [x, y, angle]
+            - "xys": [x, y, scale]
+            - "xyas": [x, y, angle, scale]
+            - "xysa": [x, y, scale, angle]
+        image_shape (tuple[int, int]): The shape of the image (height, width).
+        check_validity (bool, optional): If True, check if the keypoints are within the image boundaries.
+                                         Defaults to False.
+        angle_in_degrees (bool, optional): If True, convert output angles to degrees.
+                                           If False, angles remain in radians.
+                                           Defaults to True.
+
+    Returns:
+        np.ndarray: Array of keypoints in the specified target format with shape (N, 2+).
+                    Any additional columns from the input keypoints beyond the first 4
+                    are preserved and appended after the converted columns.
+
+    Raises:
+        ValueError: If the target_format is not one of the supported formats.
+
+    Note:
+        - Input angles are assumed to be in the range [0, 2π) radians.
+        - If the input keypoints have additional columns beyond the first 4,
+          these columns are preserved in the output.
+        - The constant NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS should be defined
+          elsewhere in the module, typically as 4.
+    """
     if target_format not in keypoint_formats:
         raise ValueError(f"Unknown target_format {target_format}. Supported formats are: {keypoint_formats}")
 

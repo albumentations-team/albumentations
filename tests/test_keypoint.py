@@ -260,113 +260,154 @@ def test_convert_keypoints_to_albumentations_check_validity(keypoints, source_fo
     with pytest.raises(ValueError):
         convert_keypoints_to_albumentations(keypoints, source_format, image_shape, check_validity=True)
 
+@pytest.mark.parametrize("keypoints, target_format, image_shape, check_validity, angle_in_degrees, expected", [
+    # Test case 1: xy format
+    (
+        np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
+        "xy",
+        (100, 100),
+        False,
+        True,
+        np.array([[10, 20], [30, 40]])
+    ),
+    # Test case 2: yx format
+    (
+        np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
+        "yx",
+        (100, 100),
+        False,
+        True,
+        np.array([[20, 10], [40, 30]])
+    ),
+    # Test case 3: xya format with degrees
+    (
+        np.array([[10, 20, np.pi/4, 0], [30, 40, np.pi/2, 0]]),
+        "xya",
+        (100, 100),
+        False,
+        True,
+        np.array([[10, 20, 45], [30, 40, 90]])
+    ),
+    # Test case 4: xya format with radians
+    (
+        np.array([[10, 20, np.pi/4, 0], [30, 40, np.pi/2, 0]]),
+        "xya",
+        (100, 100),
+        False,
+        False,
+        np.array([[10, 20, np.pi/4], [30, 40, np.pi/2]])
+    ),
+    # Test case 5: xys format
+    (
+        np.array([[10, 20, 0, 2], [30, 40, 0, 3]]),
+        "xys",
+        (100, 100),
+        False,
+        True,
+        np.array([[10, 20, 2], [30, 40, 3]])
+    ),
+    # Test case 6: xyas format with degrees
+    (
+        np.array([[10, 20, np.pi/4, 2], [30, 40, np.pi/2, 3]]),
+        "xyas",
+        (100, 100),
+        False,
+        True,
+        np.array([[10, 20, 45, 2], [30, 40, 90, 3]])
+    ),
+    # Test case 7: xysa format with degrees
+    (
+        np.array([[10, 20, np.pi/4, 2], [30, 40, np.pi/2, 3]]),
+        "xysa",
+        (100, 100),
+        False,
+        True,
+        np.array([[10, 20, 2, 45], [30, 40, 3, 90]])
+    ),
+    # Test case 8: with additional columns
+    (
+        np.array([[10, 20, np.pi/4, 2, 1], [30, 40, np.pi/2, 3, 2]]),
+        "xyas",
+        (100, 100),
+        False,
+        True,
+        np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]])
+    ),
+])
+def test_convert_keypoints_from_albumentations(keypoints, target_format, image_shape, check_validity, angle_in_degrees, expected):
+    result = convert_keypoints_from_albumentations(keypoints, target_format, image_shape, check_validity, angle_in_degrees)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-8)
+
+def test_convert_keypoints_from_albumentations_invalid_format():
+    with pytest.raises(ValueError, match="Unknown target_format"):
+        convert_keypoints_from_albumentations(np.array([[10, 20, 0, 0]]), "invalid_format", (100, 100))
+
+@pytest.mark.parametrize("keypoints, source_format, image_shape", [
+    (np.array([[10, 20], [30, 40]]), "xy", (100, 100)),
+    (np.array([[20, 10], [40, 30]]), "yx", (100, 100)),
+    (np.array([[10, 20, 45], [30, 40, 90]]), "xya", (100, 100)),
+    (np.array([[10, 20, 2], [30, 40, 3]]), "xys", (100, 100)),
+    (np.array([[10, 20, 45, 2], [30, 40, 90, 3]]), "xyas", (100, 100)),
+    (np.array([[10, 20, 2, 45], [30, 40, 3, 90]]), "xysa", (100, 100)),
+    (np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]]), "xyas", (100, 100)),
+])
+def test_keypoint_conversion_roundtrip(keypoints, source_format, image_shape):
+    # original => to_albumentations => from_albumentations
+    albumentations_format = convert_keypoints_to_albumentations(keypoints, source_format, image_shape)
+    result = convert_keypoints_from_albumentations(albumentations_format, source_format, image_shape)
+    np.testing.assert_allclose(result, keypoints, rtol=1e-5, atol=1e-8)
+
+    # albumentations => from_albumentations => to_albumentations
+    other_format = convert_keypoints_from_albumentations(albumentations_format, source_format, image_shape)
+    result = convert_keypoints_to_albumentations(other_format, source_format, image_shape)
+    np.testing.assert_allclose(result, albumentations_format, rtol=1e-5, atol=1e-8)
+
+@pytest.mark.parametrize("keypoints, image_shape", [
+    (np.array([[10, 20, 0, 0], [-10, 30, 0, 0]]), (100, 100)),
+    (np.array([[10, 20, 0, 0], [110, 30, 0, 0]]), (100, 100)),
+    (np.array([[10, -20, 0, 0], [30, 40, 0, 0]]), (100, 100)),
+    (np.array([[10, 120, 0, 0], [30, 40, 0, 0]]), (100, 100)),
+])
+def test_convert_keypoints_from_albumentations_check_validity(keypoints, image_shape):
+    with pytest.raises(ValueError):
+        convert_keypoints_from_albumentations(keypoints, "xy", image_shape, check_validity=True)
 
 
-# @pytest.mark.parametrize(
-#     ["kp", "target_format", "expected"],
-#     [
-#         ((20, 30, 0, 0), "xy", (20, 30)),
-#         ((20, 30, 0, 0), "yx", (30, 20)),
-#         ((20, 30, 0.6, 0), "xya", (20, 30, math.degrees(0.6))),
-#         ((20, 30, 0, 0.6), "xys", (20, 30, 0.6)),
-#         ((20, 30, 0.6, 80), "xyas", (20, 30, math.degrees(0.6), 80)),
-#     ],
-# )
-# def test_convert_keypoint_from_albumentations(kp: KeypointType, target_format: str, expected: KeypointType) -> None:
-#     image = np.ones((100, 100, 3))
-#     converted_keypoint = convert_keypoint_from_albumentations(
-#         kp, target_format=target_format, image_shape=image.shape
-#     )
-#     assert converted_keypoint == expected
+@pytest.mark.parametrize(
+    ["keypoints", "keypoint_format", "labels"],
+    [
+        ([(20, 30, 40, 50)], "xyas", [1]),
+        ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "xy", None),
+        ([(20, 30, 60, 80)], "yx", [2]),
+        ([(20, 30, 60, 80, 99)], "xys", None),
+    ],
+)
+def test_compose_with_keypoint_noop(keypoints, keypoint_format: str, labels: Optional[List[int]]) -> None:
+    image = np.ones((100, 100, 3))
+    if labels is not None:
+        aug = A.Compose(
+            [A.NoOp(p=1.0)],
+            keypoint_params={"format": keypoint_format, "label_fields": ["labels"]},
+        )
+        transformed = aug(image=image, keypoints=keypoints, labels=labels)
+    else:
+        aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format})
+        transformed = aug(image=image, keypoints=keypoints)
+    assert np.array_equal(transformed["image"], image)
+    assert transformed["keypoints"] == keypoints
 
-
-# @pytest.mark.parametrize(
-#     ["kp", "keypoint_format"],
-#     [
-#         ((20, 30, 40, 50), "xy"),
-#         ((20, 30, 40, 50, 99), "xyas"),
-#         ((20, 30, 60, 80), "xysa"),
-#         ((20, 30, 60, 80, 99), "yx"),
-#     ],
-# )
-# def test_convert_keypoint_to_albumentations_and_back(kp: KeypointType, keypoint_format: str) -> None:
-#     image = np.ones((100, 100, 3))
-#     converted_kp = convert_keypoint_to_albumentations(
-#         kp, source_format=keypoint_format, image_shape=image.shape
-#     )
-#     converted_back_kp = convert_keypoint_from_albumentations(
-#         converted_kp,
-#         target_format=keypoint_format,
-#         image_shape=image.shape,
-#     )
-#     assert converted_back_kp == kp
-
-
-# def test_convert_keypoints_to_albumentations() -> None:
-#     keypoints = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
-#     image = np.ones((100, 100, 3))
-#     converted_keypoints = convert_keypoints_to_albumentations(
-#         keypoints, source_format="xyas", image_shape=image.shape
-#     )
-#     converted_keypoint_1 = convert_keypoint_to_albumentations(
-#         keypoints[0], source_format="xyas", image_shape=image.shape
-#     )
-#     converted_keypoint_2 = convert_keypoint_to_albumentations(
-#         keypoints[1], source_format="xyas", image_shape=image.shape
-#     )
-#     assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
-
-
-# def test_convert_keypoints_from_albumentations() -> None:
-#     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-#     image = np.ones((100, 100, 3))
-#     converted_keypoints = convert_keypoints_from_albumentations(
-#         keypoints, target_format="xyas", image_shape=image.shape
-#     )
-#     converted_keypoint_1 = convert_keypoint_from_albumentations(
-#         keypoints[0], target_format="xyas", image_shape=image.shape
-#     )
-#     converted_keypoint_2 = convert_keypoint_from_albumentations(
-#         keypoints[1], target_format="xyas", image_shape=image.shape
-#     )
-#     assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
-
-
-# @pytest.mark.parametrize(
-#     ["keypoints", "keypoint_format", "labels"],
-#     [
-#         ([(20, 30, 40, 50)], "xyas", [1]),
-#         ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "xy", None),
-#         ([(20, 30, 60, 80)], "yx", [2]),
-#         ([(20, 30, 60, 80, 99)], "xys", None),
-#     ],
-# )
-# def test_compose_with_keypoint_noop(keypoints: KeypointType, keypoint_format: str, labels: Optional[List[int]]) -> None:
-#     image = np.ones((100, 100, 3))
-#     if labels is not None:
-#         aug = A.Compose(
-#             [A.NoOp(p=1.0)],
-#             keypoint_params={"format": keypoint_format, "label_fields": ["labels"]},
-#         )
-#         transformed = aug(image=image, keypoints=keypoints, labels=labels)
-#     else:
-#         aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format})
-#         transformed = aug(image=image, keypoints=keypoints)
-#     assert np.array_equal(transformed["image"], image)
-#     assert transformed["keypoints"] == keypoints
-
-
-# @pytest.mark.parametrize(
-#     ["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]]
-# )
-# def test_compose_with_keypoint_noop_error_label_fields(keypoints: KeypointType, keypoint_format: str) -> None:
-#     image = np.ones((100, 100, 3))
-#     aug = A.Compose(
-#         [A.NoOp(p=1.0)],
-#         keypoint_params={"format": keypoint_format, "label_fields": "class_id"},
-#     )
-#     with pytest.raises(Exception):
-#         aug(image=image, keypoints=keypoints, cls_id=[0])
+@pytest.mark.parametrize(
+    ["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]],
+    ["keypoints", "keypoint_format"], [[np.array([[20, 30, 40, 50]]), "xyas"]],
+)
+def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format: str) -> None:
+    image = np.ones((100, 100, 3))
+    aug = A.Compose(
+        [A.NoOp(p=1.0)],
+        keypoint_params={"format": keypoint_format, "label_fields": "class_id"},
+    )
+    with pytest.raises(Exception):
+        aug(image=image, keypoints=keypoints, cls_id=["temp_label"])
 
 
 # @pytest.mark.parametrize(

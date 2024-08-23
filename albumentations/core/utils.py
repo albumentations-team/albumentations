@@ -37,6 +37,32 @@ def format_args(args_dict: dict[str, Any]) -> str:
     return ", ".join(formatted_args)
 
 
+class LabelEncoder:
+    def __init__(self) -> None:
+        self.classes_: dict[str | int | float, int] = {}
+        self.inverse_classes_: dict[int, str | int | float] = {}
+        self.num_classes: int = 0
+
+    def fit(self, y: list[Any] | np.ndarray) -> LabelEncoder:
+        unique_labels = sorted(set(y))
+        for label in unique_labels:
+            if label not in self.classes_:
+                self.classes_[label] = self.num_classes
+                self.inverse_classes_[self.num_classes] = label
+                self.num_classes += 1
+        return self
+
+    def transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+        return np.array([self.classes_[label] for label in y])
+
+    def fit_transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+        self.fit(y)
+        return self.transform(y)
+
+    def inverse_transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+        return np.array([self.inverse_classes_[label] for label in y])
+
+
 class Params(Serializable, ABC):
     def __init__(self, format: Any, label_fields: Sequence[str] | None = None):  # noqa: A002
         self.format = format
@@ -71,6 +97,21 @@ class DataProcessor(ABC):
         pass
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Postprocess the data after applying transformations.
+
+        This method performs the following steps:
+        1. Gets the shape of the image from the data.
+        2. For each data field:
+           - Filters the data based on the image shape.
+           - Converts the data from the Albumentations format to the original format.
+        3. Removes label fields from the data.
+
+        Args:
+            data (dict[str, Any]): A dictionary containing the transformed data.
+
+        Returns:
+            dict[str, Any]: The postprocessed data.
+        """
         image_shape = get_shape(data["image"])
 
         for data_name in self.data_fields:
@@ -81,6 +122,20 @@ class DataProcessor(ABC):
         return self.remove_label_fields_from_data(data)
 
     def preprocess(self, data: dict[str, Any]) -> None:
+        """Preprocess the data before applying transformations.
+
+        This method performs the following steps:
+        1. Adds label fields to the data.
+        2. Gets the shape of the image from the data.
+        3. For each data field:
+           - Converts the data from the original format to the Albumentations format.
+
+        Args:
+            data (dict[str, Any]): A dictionary containing the data to be preprocessed.
+
+        Note:
+            This method modifies the input data dictionary in-place.
+        """
         data = self.add_label_fields_to_data(data)
 
         image_shape = get_shape(data["image"])
@@ -95,6 +150,26 @@ class DataProcessor(ABC):
         image_shape: tuple[int, int],
         direction: Literal["to", "from"] = "to",
     ) -> np.ndarray:
+        """Check the validity of the data and convert it between formats if necessary.
+
+        Args:
+            data (np.ndarray): The data to be checked and potentially converted.
+            image_shape (tuple[int, int]): The shape of the image (height, width).
+            direction (Literal["to", "from"]): The direction of conversion.
+                "to" converts from the original format to Albumentations format.
+                "from" converts from Albumentations format to the original format.
+                Defaults to "to".
+
+        Returns:
+            np.ndarray: The checked and potentially converted data.
+
+        Raises:
+            ValueError: If an invalid direction is provided.
+
+        Note:
+            If the data is already in Albumentations format (self.params.format == "albumentations"),
+            this method only performs a check without conversion.
+        """
         if self.params.format == "albumentations":
             self.check(data, image_shape)
             return data

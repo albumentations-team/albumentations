@@ -67,6 +67,36 @@ def get_transforms_dict(transforms: TransformsSeqType) -> dict[int, BasicTransfo
 
 
 class BaseCompose(Serializable):
+    """Base class for composing multiple transforms together.
+
+    This class serves as a foundation for creating compositions of transforms
+    in the Albumentations library. It provides basic functionality for
+    managing a sequence of transforms and applying them to data.
+
+    Attributes:
+        transforms (List[TransformType]): A list of transforms to be applied.
+        p (float): Probability of applying the compose. Should be in the range [0, 1].
+        replay_mode (bool): If True, the compose is in replay mode.
+        applied_in_replay (bool): Indicates if the compose was applied during replay.
+        _additional_targets (Dict[str, str]): Additional targets for transforms.
+        _available_keys (Set[str]): Set of available keys for data.
+        processors (Dict[str, Union[BboxProcessor, KeypointsProcessor]]): Processors for specific data types.
+
+    Args:
+        transforms (TransformsSeqType): A sequence of transforms to compose.
+        p (float): Probability of applying the compose.
+
+    Raises:
+        ValueError: If an invalid additional target is specified.
+
+    Note:
+        - Subclasses should implement the __call__ method to define how
+          the composition is applied to data.
+        - The class supports serialization and deserialization of transforms.
+        - It provides methods for adding targets, setting deterministic behavior,
+          and checking data validity post-transform.
+    """
+
     _transforms_dict: dict[int, BasicTransform] | None = None
     check_each_transform: tuple[DataProcessor, ...] | None = None
     main_compose: bool = True
