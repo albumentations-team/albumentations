@@ -1497,7 +1497,7 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     Returns:
         np.ndarray: An array of flipped keypoints with the same shape as the input.
     """
-    flipped_keypoints = keypoints.copy()
+    flipped_keypoints = keypoints.copy().astype(np.float32)
 
     # Flip y-coordinates
     flipped_keypoints[:, 1] = (rows - 1) - keypoints[:, 1]
@@ -1519,7 +1519,7 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     Returns:
         np.ndarray: An array of flipped keypoints with the same shape as the input.
     """
-    flipped_keypoints = keypoints.copy()
+    flipped_keypoints = keypoints.copy().astype(np.float32)
 
     # Flip x-coordinates
     flipped_keypoints[:, 0] = (cols - 1) - keypoints[:, 0]

@@ -667,3 +667,25 @@ def test_validate_keypoints_all_invalid():
     keypoints = np.array([[-1, -1], [101, 101]])
     result = fgeometric.validate_keypoints(keypoints, (100, 100))
     assert result.shape == (0, 2)
+
+
+@pytest.mark.parametrize("keypoint, rows, cols", [
+    ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
+    ((200, 100, np.pi/4, 0.5), 300, 400),
+    ((50, 250, np.pi/2, 2), 300, 400),
+])
+def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
+
+    keypoints = np.array([keypoint])
+
+    # Perform vertical and then horizontal flip
+    hflipped_keypoints = fgeometric.keypoints_hflip(keypoints, cols)
+    vhflipped_keypoints = fgeometric.keypoints_vflip(hflipped_keypoints, rows)
+
+    vflipped_keypoints = fgeometric.keypoints_vflip(keypoints, rows)
+    hvflipped_keypoints = fgeometric.keypoints_hflip(vflipped_keypoints, cols)
+
+    assert vhflipped_keypoints == pytest.approx(hvflipped_keypoints), \
+        "Sequential vflip + hflip not equivalent to hflip + vflip"
+    assert vhflipped_keypoints == pytest.approx(fgeometric.keypoints_rot90(keypoints, 2, (rows, cols))), \
+        "rot180 not equivalent to vflip + hflip"

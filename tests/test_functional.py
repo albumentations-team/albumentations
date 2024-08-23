@@ -440,26 +440,6 @@ def test_resize_nearest_interpolation_float(target):
     assert np.array_equal(resized_img, expected)
 
 
-# def test_bbox_vflip():
-#     assert fgeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5)) == (0.1, 0.5, 0.6, 0.8)
-
-
-# def test_bbox_hflip():
-#     assert fgeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5)) == (0.4, 0.2, 0.9, 0.5)
-
-
-# @pytest.mark.parametrize(
-#     ["code", "func"],
-#     [
-#         [0, fgeometric.bbox_vflip],
-#         [1, fgeometric.bbox_hflip],
-#         [-1, lambda bbox: fgeometric.bbox_vflip(fgeometric.bbox_hflip(bbox))],
-#     ],
-# )
-# def test_bbox_flip(code, func):
-#     bbox = [0.1, 0.2, 0.6, 0.5]
-#     assert fgeometric.bbox_flip(bbox, code) == func(bbox)
-
 
 @pytest.mark.parametrize("factor, expected_positions", [
     (1, (199, 150)),  # Rotated 90 degrees CCW
@@ -946,26 +926,6 @@ def test_d4_output_shape_with_factor(image, factor):
 def test_bbox_d4(bbox, group_member, expected):
     result = fgeometric.bbox_d4(bbox, group_member)
     assert result == pytest.approx(expected, rel=1e-5), f"Failed for transformation {group_member} with bbox {bbox}"
-
-
-@pytest.mark.parametrize("keypoint, rows, cols", [
-    ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
-    ((200, 100, np.pi/4, 0.5), 300, 400),
-    ((50, 250, np.pi/2, 2), 300, 400),
-])
-def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
-
-    # Perform vertical and then horizontal flip
-    hflipped_keypoint = fgeometric.keypoint_hflip(keypoint, cols)
-    vhflipped_keypoint = fgeometric.keypoint_vflip(hflipped_keypoint, rows)
-
-    vflipped_keypoint = fgeometric.keypoint_vflip(keypoint, rows)
-    hvflipped_keypoint = fgeometric.keypoint_hflip(vflipped_keypoint, cols)
-
-    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), \
-        "Sequential vflip + hflip not equivalent to hflip + vflip"
-    assert vhflipped_keypoint == pytest.approx(fgeometric.keypoint_rot90(keypoint, 2, (rows, cols))), \
-        "rot180 not equivalent to vflip + hflip"
 
 
 base_matrix = np.array([[1, 2, 3],
