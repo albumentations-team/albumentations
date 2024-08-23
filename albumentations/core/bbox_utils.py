@@ -9,7 +9,6 @@ from .utils import DataProcessor, Params
 __all__ = [
     "normalize_bboxes",
     "denormalize_bboxes",
-    # "filter_bboxes_by_visibility",
     "convert_bboxes_to_albumentations",
     "convert_bboxes_from_albumentations",
     "check_bboxes",

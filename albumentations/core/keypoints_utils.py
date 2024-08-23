@@ -221,6 +221,41 @@ def convert_keypoints_to_albumentations(
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> np.ndarray:
+    """Convert keypoints from various formats to the Albumentations format.
+
+    This function takes keypoints in different formats and converts them to the standard
+    Albumentations format: [x, y, angle, scale]. If the input format doesn't include
+    angle or scale, these values are set to 0.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, 2+), where N is the number of keypoints.
+                                The number of columns depends on the source_format.
+        source_format (Literal["xy", "yx", "xya", "xys", "xyas", "xysa"]): The format of the input keypoints.
+            - "xy": [x, y]
+            - "yx": [y, x]
+            - "xya": [x, y, angle]
+            - "xys": [x, y, scale]
+            - "xyas": [x, y, angle, scale]
+            - "xysa": [x, y, scale, angle]
+        image_shape (tuple[int, int]): The shape of the image (height, width).
+        check_validity (bool, optional): If True, check if the converted keypoints are within the image boundaries.
+                                         Defaults to False.
+        angle_in_degrees (bool, optional): If True, convert input angles from degrees to radians.
+                                           Defaults to True.
+
+    Returns:
+        np.ndarray: Array of keypoints in Albumentations format [x, y, angle, scale] with shape (N, 4+).
+                    Any additional columns from the input keypoints are preserved and appended after the
+                    first 4 columns.
+
+    Raises:
+        ValueError: If the source_format is not one of the supported formats.
+
+    Note:
+        - Angles are converted to the range [0, 2π) radians.
+        - If the input keypoints have additional columns beyond what's specified in the source_format,
+          these columns are preserved in the output.
+    """
     if source_format not in keypoint_formats:
         raise ValueError(f"Unknown source_format {source_format}. Supported formats are: {keypoint_formats}")
 
@@ -287,6 +322,6 @@ def convert_keypoints_from_albumentations(
 
     # Add any additional columns from the original keypoints
     if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        result = np.column_stack((result, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]))
+        return np.column_stack((result, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]))
 
     return result
