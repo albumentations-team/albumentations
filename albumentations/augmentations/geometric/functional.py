@@ -1252,7 +1252,7 @@ def from_distance_maps(
             keypoints[~valid_mask] = [if_not_found_x, if_not_found_y]
         else:
             # Keep only valid keypoints
-            keypoints = keypoints[valid_mask]
+            return keypoints[valid_mask]
 
     return keypoints
 
