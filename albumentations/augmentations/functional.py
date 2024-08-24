@@ -1833,7 +1833,7 @@ def swap_tiles_on_keypoints(
         )
 
     # Get the new tile indices
-    new_tile_indices = mapping[tile_indices]
+    new_tile_indices = np.array(mapping)[tile_indices]
 
     # Calculate the offsets
     old_start_x = tiles[tile_indices, 1]
