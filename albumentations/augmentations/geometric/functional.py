@@ -1176,6 +1176,51 @@ def from_distance_maps(
     if_not_found_coords: Sequence[int] | dict[str, Any] | None = None,
     threshold: float | None = None,
 ) -> np.ndarray:
+    """Convert distance maps back to keypoints coordinates.
+
+    This function is the inverse of `to_distance_maps`. It takes distance maps generated for a set of keypoints
+    and reconstructs the original keypoint coordinates. The function supports both regular and inverted distance maps,
+    and can handle cases where keypoints are not found or fall outside a specified threshold.
+
+    Args:
+        distance_maps (np.ndarray): A 3D numpy array of shape (height, width, nb_keypoints) containing
+            distance maps for each keypoint. Each channel represents the distance map for one keypoint.
+        inverted (bool): If True, treats the distance maps as inverted (where higher values indicate
+            closer proximity to keypoints). If False, treats them as regular distance maps (where lower
+            values indicate closer proximity).
+        if_not_found_coords (Sequence[int] | dict[str, Any] | None, optional): Coordinates to use for
+            keypoints that are not found or fall outside the threshold. Can be:
+            - None: Drop keypoints that are not found.
+            - Sequence of two integers: Use these as (x, y) coordinates for not found keypoints.
+            - Dict with 'x' and 'y' keys: Use these values for not found keypoints.
+            Defaults to None.
+        threshold (float | None, optional): A threshold value to determine valid keypoints. For inverted
+            maps, values >= threshold are considered valid. For regular maps, values <= threshold are
+            considered valid. If None, all keypoints are considered valid. Defaults to None.
+
+    Returns:
+        np.ndarray: A 2D numpy array of shape (nb_keypoints, 2) containing the (x, y) coordinates
+        of the reconstructed keypoints. If `drop_if_not_found` is True (derived from if_not_found_coords),
+        the output may have fewer rows than input keypoints.
+
+    Raises:
+        ValueError: If the input `distance_maps` is not a 3D array.
+
+    Notes:
+        - The function uses vectorized operations for improved performance, especially with large numbers of keypoints.
+        - When `threshold` is None, all keypoints are considered valid, and `if_not_found_coords` is not used.
+        - The function assumes that the input distance maps are properly normalized and scaled according to the
+          original image dimensions.
+
+    Example:
+        >>> distance_maps = np.random.rand(100, 100, 3)  # 3 keypoints
+        >>> inverted = True
+        >>> if_not_found_coords = [0, 0]
+        >>> threshold = 0.5
+        >>> keypoints = from_distance_maps(distance_maps, inverted, if_not_found_coords, threshold)
+        >>> print(keypoints.shape)
+        (3, 2)
+    """
     if distance_maps.ndim != NUM_MULTI_CHANNEL_DIMENSIONS:
         msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
         raise ValueError(msg)
@@ -1183,17 +1228,33 @@ def from_distance_maps(
 
     drop_if_not_found, if_not_found_x, if_not_found_y = validate_if_not_found_coords(if_not_found_coords)
 
-    keypoints = []
-    for i in range(nb_keypoints):
-        hitidx_flat = np.argmax(distance_maps[..., i]) if inverted else np.argmin(distance_maps[..., i])
-        hitidx_ndim = np.unravel_index(hitidx_flat, (height, width))
-        keypoint = find_keypoint(hitidx_ndim, distance_maps[:, :, i], threshold, inverted)
-        if keypoint:
-            keypoints.append(keypoint)
-        elif not drop_if_not_found:
-            keypoints.append((if_not_found_x, if_not_found_y))
+    # Find the indices of max/min values for all keypoints at once
+    if inverted:
+        hitidx_flat = np.argmax(distance_maps.reshape(height * width, nb_keypoints), axis=0)
+    else:
+        hitidx_flat = np.argmin(distance_maps.reshape(height * width, nb_keypoints), axis=0)
 
-    return np.array(keypoints)
+    # Convert flat indices to 2D coordinates
+    hitidx_y, hitidx_x = np.unravel_index(hitidx_flat, (height, width))
+
+    # Create keypoints array
+    keypoints = np.column_stack((hitidx_x, hitidx_y)).astype(float)
+
+    if threshold is not None:
+        # Check threshold condition
+        if inverted:
+            valid_mask = distance_maps[hitidx_y, hitidx_x, np.arange(nb_keypoints)] >= threshold
+        else:
+            valid_mask = distance_maps[hitidx_y, hitidx_x, np.arange(nb_keypoints)] <= threshold
+
+        if not drop_if_not_found:
+            # Replace invalid keypoints with if_not_found_coords
+            keypoints[~valid_mask] = [if_not_found_x, if_not_found_y]
+        else:
+            # Keep only valid keypoints
+            keypoints = keypoints[valid_mask]
+
+    return keypoints
 
 
 def keypoints_piecewise_affine(
@@ -1221,7 +1282,7 @@ def keypoints_piecewise_affine(
 
     # If there are additional columns, preserve them
     if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        transformed_keypoints = np.column_stack(
+        return np.column_stack(
             [transformed_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
         )
 
