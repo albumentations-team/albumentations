@@ -176,15 +176,15 @@ def keypoints_rot90(
     if factor == 1:
         rotated_keypoints[:, 0] = y
         rotated_keypoints[:, 1] = width - 1 - x
-        rotated_keypoints[:, 2] = angle + np.pi / 2
+        rotated_keypoints[:, 2] = angle - np.pi / 2
     elif factor == ROT90_180_FACTOR:
         rotated_keypoints[:, 0] = width - 1 - x
         rotated_keypoints[:, 1] = height - 1 - y
-        rotated_keypoints[:, 2] = angle + np.pi
+        rotated_keypoints[:, 2] = angle - np.pi
     elif factor == ROT90_270_FACTOR:
         rotated_keypoints[:, 0] = height - 1 - y
         rotated_keypoints[:, 1] = x
-        rotated_keypoints[:, 2] = angle - np.pi / 2
+        rotated_keypoints[:, 2] = angle + np.pi / 2
 
     return rotated_keypoints
 
