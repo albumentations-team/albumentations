@@ -171,46 +171,7 @@ class RandomGridShuffle(DualTransform):
         mapping: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        # Broadcast keypoints and tiles for vectorized comparison
-        kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
-        kp_y = keypoints[:, 1][:, np.newaxis]  # Shape: (num_keypoints, 1)
-
-        start_y, start_x, end_y, end_x = tiles.T  # Each shape: (num_tiles,)
-
-        # Check if each keypoint is inside each tile
-        in_tile = (kp_y >= start_y) & (kp_y < end_y) & (kp_x >= start_x) & (kp_x < end_x)
-
-        # Find which tile each keypoint belongs to
-        tile_indices = np.argmax(in_tile, axis=1)
-
-        # Check if any keypoint is not in any tile
-        not_in_any_tile = ~np.any(in_tile, axis=1)
-        if np.any(not_in_any_tile):
-            warn(
-                "Some keypoints are not in any tile. They will be returned unchanged. This is unexpected and should be "
-                "investigated.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-
-        # Get the new tile indices
-        new_tile_indices = mapping[tile_indices]
-
-        # Calculate the offsets
-        old_start_x = tiles[tile_indices, 1]
-        old_start_y = tiles[tile_indices, 0]
-        new_start_x = tiles[new_tile_indices, 1]
-        new_start_y = tiles[new_tile_indices, 0]
-
-        # Apply the transformation
-        new_keypoints = keypoints.copy()
-        new_keypoints[:, 0] = (keypoints[:, 0] - old_start_x) + new_start_x
-        new_keypoints[:, 1] = (keypoints[:, 1] - old_start_y) + new_start_y
-
-        # Keep original coordinates for keypoints not in any tile
-        new_keypoints[not_in_any_tile] = keypoints[not_in_any_tile]
-
-        return new_keypoints
+        return fmain.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
