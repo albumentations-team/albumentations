@@ -1197,3 +1197,97 @@ def test_bbox_d4(bbox, group_member, expected):
     bboxes = np.array([bbox])
     result = fgeometric.bboxes_d4(bboxes, group_member)[0]
     np.testing.assert_array_almost_equal(result, expected)
+
+
+def test_bboxes_safe_rotate_empty():
+    bboxes = np.array([])
+    matrix = np.eye(3)
+    image_shape = (100, 100)
+    result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+    assert result.size == 0
+
+def test_bboxes_safe_rotate_identity():
+    bboxes = np.array([[0.1, 0.1, 0.2, 0.2, 1], [0.3, 0.3, 0.4, 0.4, 2]])
+    matrix = np.eye(3)
+    image_shape = (100, 100)
+    result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+    np.testing.assert_allclose(result, bboxes, atol=1e-6)
+
+def test_bboxes_safe_rotate_90_degrees():
+    bboxes = np.array([[0.1, 0.1, 0.2, 0.2, 1]])
+    matrix = np.array([[0, -1, 1], [1, 0, 0], [0, 0, 1]])
+    image_shape = (100, 100)
+    result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+    expected = np.array([[0.8, 0.1, 0.9, 0.2, 1]])
+    np.testing.assert_allclose(result, expected, atol=1e-6)
+
+# def test_bboxes_safe_rotate_45_degrees():
+#     bboxes = np.array([[0.25, 0.25, 0.75, 0.75, 1]])
+#     angle = np.pi / 4
+#     matrix = np.array([
+#         [np.cos(angle), -np.sin(angle), 0],
+#         [np.sin(angle), np.cos(angle), 0],
+#         [0, 0, 1]
+#     ])
+#     image_shape = (100, 100)
+#     result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+#     # The rotated bbox should be larger and centered
+#     expected = np.array([[0.1464, 0.1464, 0.8536, 0.8536, 1]])
+#     np.testing.assert_allclose(result, expected, atol=1e-4)
+
+# def test_bboxes_safe_rotate_out_of_bounds():
+#     bboxes = np.array([[0.9, 0.9, 1.0, 1.0, 1]])
+#     matrix = np.array([[1, 0, 0.1], [0, 1, 0.1], [0, 0, 1]])
+#     image_shape = (100, 100)
+#     result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+#     # The bbox should be clipped to the image boundaries
+#     expected = np.array([[0.9, 0.9, 1.0, 1.0, 1]])
+#     np.testing.assert_allclose(result, expected, atol=1e-6)
+
+# def test_bboxes_safe_rotate_multiple():
+#     bboxes = np.array([
+#         [0.1, 0.1, 0.2, 0.2, 1],
+#         [0.3, 0.3, 0.4, 0.4, 2],
+#         [0.5, 0.5, 0.6, 0.6, 3]
+#     ])
+#     angle = np.pi / 6
+#     matrix = np.array([
+#         [np.cos(angle), -np.sin(angle), 0],
+#         [np.sin(angle), np.cos(angle), 0],
+#         [0, 0, 1]
+#     ])
+#     image_shape = (100, 100)
+#     result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+#     assert result.shape == bboxes.shape
+#     assert np.all(result[:, 0] < result[:, 2])  # x_min < x_max
+#     assert np.all(result[:, 1] < result[:, 3])  # y_min < y_max
+#     assert np.all(result[:, 4] == bboxes[:, 4])  # labels preserved
+
+# def test_bboxes_safe_rotate_2x3_matrix():
+#     bboxes = np.array([[0.1, 0.1, 0.2, 0.2, 1]])
+#     matrix = np.array([[1, 0, 0.1], [0, 1, 0.1]])
+#     image_shape = (100, 100)
+#     result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+#     expected = np.array([[0.2, 0.2, 0.3, 0.3, 1]])
+#     np.testing.assert_allclose(result, expected, atol=1e-6)
+
+# @pytest.mark.parametrize("bbox", [
+#     [0, 0, 1, 1],
+#     [0.25, 0.25, 0.75, 0.75],
+#     [0.1, 0.1, 0.2, 0.2],
+#     [0.8, 0.8, 1.0, 1.0]
+# ])
+# def test_bboxes_safe_rotate_various_inputs(bbox):
+#     bboxes = np.array([bbox + [1]])
+#     angle = np.pi / 3
+#     matrix = np.array([
+#         [np.cos(angle), -np.sin(angle), 0],
+#         [np.sin(angle), np.cos(angle), 0],
+#         [0, 0, 1]
+#     ])
+#     image_shape = (100, 100)
+#     result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
+#     assert result.shape == bboxes.shape
+#     assert np.all(result[:, :4] >= 0)
+#     assert np.all(result[:, :4] <= 1)
+#     assert result[0, 4] == 1  # label preserved

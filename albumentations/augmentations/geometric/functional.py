@@ -947,65 +947,72 @@ def safe_rotate(
     return warp_fn(img)
 
 
+def fix_point(pt1: float, pt2: float, max_val: float) -> tuple[float, float]:
+    if pt1 < 0:
+        return 0, min(pt2 + pt1, max_val)
+    if pt2 > max_val:
+        return max(pt1 - (pt2 - max_val), 0), max_val
+    return pt1, pt2
+
+
 def bboxes_safe_rotate(bboxes: np.ndarray, matrix: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Safely rotate bounding boxes using a transformation matrix.
 
     Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-        matrix: 3x3 transformation matrix.
-        image_shape: Image shape (height, width).
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                             Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+        matrix (np.ndarray): 2x3 or 3x3 transformation matrix.
+        image_shape (Tuple[int, int]): Image shape (height, width).
 
     Returns:
         np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
     """
-    rows, cols = image_shape[:2]
+    if bboxes.size == 0:
+        return bboxes
+
+    height, width = image_shape[:2]
+
+    # Ensure matrix is 3x3
+    if matrix.shape == (2, 3):
+        matrix = np.vstack([matrix, [0, 0, 1]])
+
+    bboxes = bboxes.copy().astype(np.float32)
 
     # Denormalize bboxes
-    denorm_bboxes = denormalize_bboxes(bboxes[:, :4], image_shape)
+    denorm_bboxes = denormalize_bboxes(bboxes, image_shape)
 
     # Create points for each bbox
     points = np.array(
         [
-            [denorm_bboxes[:, 0], denorm_bboxes[:, 1], np.ones(len(bboxes))],
-            [denorm_bboxes[:, 2], denorm_bboxes[:, 1], np.ones(len(bboxes))],
-            [denorm_bboxes[:, 2], denorm_bboxes[:, 3], np.ones(len(bboxes))],
-            [denorm_bboxes[:, 0], denorm_bboxes[:, 3], np.ones(len(bboxes))],
+            denorm_bboxes[:, [0, 1]],  # top-left
+            denorm_bboxes[:, [2, 1]],  # top-right
+            denorm_bboxes[:, [2, 3]],  # bottom-right
+            denorm_bboxes[:, [0, 3]],  # bottom-left
         ],
     )
 
+    # Add homogeneous coordinate
+    points = np.pad(points, ((0, 0), (0, 0), (0, 1)), constant_values=1)
+
     # Apply transformation
-    transformed_points = np.dot(matrix, points.reshape(3, -1)).reshape(3, 4, -1).transpose(2, 1, 0)
+    transformed_points = np.dot(points, matrix.T)
 
     # Find new bbox coordinates
-    x_min = np.min(transformed_points[:, :, 0], axis=1)
-    x_max = np.max(transformed_points[:, :, 0], axis=1)
-    y_min = np.min(transformed_points[:, :, 1], axis=1)
-    y_max = np.max(transformed_points[:, :, 1], axis=1)
+    new_bboxes = np.zeros_like(bboxes)
+    new_bboxes[:, 0] = np.min(transformed_points[:, :, 0], axis=0)  # x_min
+    new_bboxes[:, 1] = np.min(transformed_points[:, :, 1], axis=0)  # y_min
+    new_bboxes[:, 2] = np.max(transformed_points[:, :, 0], axis=0)  # x_max
+    new_bboxes[:, 3] = np.max(transformed_points[:, :, 1], axis=0)  # y_max
 
-    # Fix points
-    def fix_points(pts1: np.ndarray, pts2: np.ndarray, max_val: float) -> tuple[np.ndarray, np.ndarray]:
-        mask = pts1 < 0
-        pts1[mask] = 0
-        pts2[mask] += pts1[mask]
-
-        mask = pts2 > max_val
-        pts1[mask] -= pts2[mask] - max_val
-        pts2[mask] = max_val
-
-        return pts1, pts2
-
-    x_min, x_max = fix_points(x_min, x_max, cols)
-    y_min, y_max = fix_points(y_min, y_max, rows)
-
-    # Create new bboxes array
-    new_bboxes = np.column_stack([x_min, y_min, x_max, y_max])
+    # Apply fix_point to each bbox
+    for i in range(len(new_bboxes)):
+        new_bboxes[i, 0], new_bboxes[i, 2] = fix_point(new_bboxes[i, 0], new_bboxes[i, 2], width - 1)
+        new_bboxes[i, 1], new_bboxes[i, 3] = fix_point(new_bboxes[i, 1], new_bboxes[i, 3], height - 1)
 
     # Normalize the new bboxes
-    normalized_bboxes = normalize_bboxes(new_bboxes, image_shape)
+    new_bboxes[:, :4] = normalize_bboxes(new_bboxes[:, :4], image_shape)
 
-    # Update the first 4 columns of the input array
-    bboxes[:, :4] = normalized_bboxes
+    bboxes[:, :4] = new_bboxes[:, :4]
 
     return bboxes
 
