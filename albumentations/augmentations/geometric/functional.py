@@ -2714,8 +2714,10 @@ def bboxes_grid_distortion(
     bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
 
     # Create a mask for each bbox
-    masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm[:4].astype(int)):
+    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
+
+    for i, bbox in enumerate(bboxes_denorm):
+        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
         masks[i, y_min:y_max, x_min:x_max] = 1
 
     # Apply grid distortion to all masks
