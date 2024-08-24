@@ -1165,7 +1165,7 @@ def find_keypoint(
     value = distance_map[y, x]
     if not inverted and threshold is not None and value >= threshold:
         return None
-    if inverted and threshold is not None and value < threshold:
+    if inverted and threshold is not None and value <= threshold:
         return None
     return float(x), float(y)
 
@@ -1176,9 +1176,6 @@ def from_distance_maps(
     if_not_found_coords: Sequence[int] | dict[str, Any] | None = None,
     threshold: float | None = None,
 ) -> np.ndarray:
-    """Convert outputs of `to_distance_maps` to keypoints.
-    This is the inverse of `to_distance_maps`.
-    """
     if distance_maps.ndim != NUM_MULTI_CHANNEL_DIMENSIONS:
         msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
         raise ValueError(msg)
@@ -1186,37 +1183,17 @@ def from_distance_maps(
 
     drop_if_not_found, if_not_found_x, if_not_found_y = validate_if_not_found_coords(if_not_found_coords)
 
-    # Find indices of max/min values for all keypoints at once
-    if inverted:
-        hitidx_flat = np.argmax(distance_maps.reshape(height * width, nb_keypoints), axis=0)
-    else:
-        hitidx_flat = np.argmin(distance_maps.reshape(height * width, nb_keypoints), axis=0)
+    keypoints = []
+    for i in range(nb_keypoints):
+        hitidx_flat = np.argmax(distance_maps[..., i]) if inverted else np.argmin(distance_maps[..., i])
+        hitidx_ndim = np.unravel_index(hitidx_flat, (height, width))
+        keypoint = find_keypoint(hitidx_ndim, distance_maps[:, :, i], threshold, inverted)
+        if keypoint:
+            keypoints.append(keypoint)
+        elif not drop_if_not_found:
+            keypoints.append((if_not_found_x, if_not_found_y))
 
-    # Convert flat indices to 2D coordinates
-    hitidx_y, hitidx_x = np.unravel_index(hitidx_flat, (height, width))
-
-    # Get the distance values at the found coordinates
-    found_distances = distance_maps[hitidx_y, hitidx_x, np.arange(nb_keypoints)]
-
-    # Create a mask for valid keypoints based on the threshold
-    if threshold is not None:
-        valid_mask = found_distances >= threshold if inverted else found_distances <= threshold
-    else:
-        valid_mask = np.ones(nb_keypoints, dtype=bool)
-
-    # Prepare the output array
-    keypoints = np.zeros((nb_keypoints, 2), dtype=float)
-
-    # Assign valid keypoints
-    keypoints[valid_mask] = np.column_stack((hitidx_x[valid_mask], hitidx_y[valid_mask]))
-
-    # Handle not found keypoints
-    if not drop_if_not_found:
-        keypoints[~valid_mask] = [if_not_found_x, if_not_found_y]
-    else:
-        return keypoints[valid_mask]
-
-    return keypoints
+    return np.array(keypoints)
 
 
 def keypoints_piecewise_affine(
