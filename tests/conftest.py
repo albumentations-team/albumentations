@@ -14,17 +14,17 @@ def mask():
 
 @pytest.fixture
 def bboxes():
-    return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
+    return np.array([[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]])
 
 
 @pytest.fixture
 def albumentations_bboxes():
-    return [[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]]
+    return np.array([[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]])
 
 
 @pytest.fixture
 def keypoints():
-    return [[30, 20, 40, 50, 1], [20, 30, 60, 80, 2]]
+    return np.array([[30, 20, 40, 50, 1], [20, 30, 60, 80, 2]])
 
 @pytest.fixture
 def template():

@@ -20,7 +20,7 @@ from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from albumentations.augmentations.transforms import RandomSnow
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -1965,11 +1965,12 @@ def test_random_sun_flare_invalid_input(params):
 
 @pytest.mark.parametrize("angle", [90, 180, -90])
 def test_rot90(bboxes, angle, keypoints):
-    image = SQUARE_UINT8_IMAGE
+    image = RECTANGULAR_UINT8_IMAGE
+
     mask = image.copy()
 
     bboxes = np.array(bboxes)
-    keypoints = np.array(keypoints)
+    keypoints = np.array(keypoints).astype(np.float32)
 
     image_shape = image.shape[:2]
     normalized_bboxes = normalize_bboxes(bboxes, image_shape)
@@ -1986,6 +1987,7 @@ def test_rot90(bboxes, angle, keypoints):
     mask_rotated = fgeometric.rot90(image, factor)
     bboxes_rotated = fgeometric.bboxes_rot90(normalized_bboxes, factor)
     bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_shape)
+
     keypoints_rotated = fgeometric.keypoints_rot90(keypoints, factor, image_shape)
 
     np.testing.assert_array_equal(transformed["image"], image_rotated)

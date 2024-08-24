@@ -548,7 +548,7 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
         return fgeometric.vflip(mask)
 
     def vflip_bbox(bboxes, **kwargs):
-        return fgeometric.bboxes_vflip(bboxes, kwargs["rows"])
+        return fgeometric.bboxes_vflip(bboxes)
 
     def vflip_keypoint(keypoints, **kwargs):
         return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
