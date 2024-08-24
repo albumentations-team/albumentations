@@ -1965,7 +1965,7 @@ def test_random_sun_flare_invalid_input(params):
 
 @pytest.mark.parametrize("angle", [90, 180, -90])
 def test_rot90(bboxes, angle, keypoints):
-    image = RECTANGULAR_UINT8_IMAGE
+    image = SQUARE_UINT8_IMAGE
 
     mask = image.copy()
 
@@ -1994,6 +1994,11 @@ def test_rot90(bboxes, angle, keypoints):
     np.testing.assert_array_equal(transformed["mask"], mask_rotated)
 
     np.testing.assert_array_almost_equal(transformed["bboxes"], bboxes_rotated, decimal=5)
+
+    print("keypoints", keypoints)
+    print("keypoints_rotated", keypoints_rotated)
+    print("transformed['keypoints']", transformed["keypoints"])
+
     np.testing.assert_array_almost_equal(transformed["keypoints"], keypoints_rotated, decimal=5)
 
 

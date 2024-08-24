@@ -1117,21 +1117,23 @@ def to_distance_maps(
             height and width in ``image_shape``.
     """
     height, width = image_shape[:2]
+    if len(keypoints) == 0:
+        return np.zeros((height, width, 0), dtype=np.float32)
 
+    # Create coordinate grids
     yy, xx = np.mgrid[:height, :width]
 
-    # Reshape coordinates for broadcasting
-    xx = xx[:, :, np.newaxis]
-    yy = yy[:, :, np.newaxis]
-    x_coords = keypoints[:, 0].reshape(1, 1, -1)
-    y_coords = keypoints[:, 1].reshape(1, 1, -1)
+    # Convert keypoints to numpy array
+    keypoints_array = np.array(keypoints)
 
     # Compute distances for all keypoints at once
-    distance_maps = np.sqrt((xx - x_coords) ** 2 + (yy - y_coords) ** 2)
+    distances = np.sqrt(
+        (xx[..., np.newaxis] - keypoints_array[:, 0]) ** 2 + (yy[..., np.newaxis] - keypoints_array[:, 1]) ** 2,
+    )
 
     if inverted:
-        return 1 / (distance_maps + 1)
-    return distance_maps
+        return (1 / (distances + 1)).astype(np.float32)
+    return distances.astype(np.float32)
 
 
 def validate_if_not_found_coords(
@@ -1212,7 +1214,7 @@ def from_distance_maps(
     if not drop_if_not_found:
         keypoints[~valid_mask] = [if_not_found_x, if_not_found_y]
     else:
-        keypoints = keypoints[valid_mask]
+        return keypoints[valid_mask]
 
     return keypoints
 
@@ -2638,10 +2640,11 @@ def bbox_elastic_transform(
     random_seed: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    bboxes = bboxes.copy()
     bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
     # Create a mask for each bbox
     masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm.astype(int)):
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm[:, :4].astype(int)):
         masks[i, y_min:y_max, x_min:x_max] = 1
 
     # Apply elastic transform to all masks
@@ -2657,7 +2660,9 @@ def bbox_elastic_transform(
     bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
 
     # Normalize the returned bboxes
-    return normalize_bboxes(bboxes_returned, image_shape)
+    bboxes[:, :4] = normalize_bboxes(bboxes_returned, image_shape)
+
+    return bboxes
 
 
 def bboxes_grid_distortion(

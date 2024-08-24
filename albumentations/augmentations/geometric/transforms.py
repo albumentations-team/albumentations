@@ -742,7 +742,7 @@ class Affine(DualTransform):
         scale: dict[str, Any],
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.keypoints_affine(keypoints, matrix, params["shape"][:2], scale, self.mode)
+        return fgeometric.keypoints_affine(keypoints, matrix, params["shape"], scale, self.mode)
 
     @staticmethod
     def get_scale(
