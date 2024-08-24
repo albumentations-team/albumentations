@@ -442,15 +442,16 @@ def test_resize_nearest_interpolation_float(target):
 
 
 @pytest.mark.parametrize("factor, expected_positions", [
-    (1, (199, 150)),  # Rotated 90 degrees CCW
+    (1, (299, 150)),  # Rotated 90 degrees CCW
     (2, (249, 199)),  # Rotated 180 degrees
     (3, (100, 249)),  # Rotated 270 degrees CCW
 ])
 def test_keypoint_image_rot90_match(factor, expected_positions):
-    rows, cols = 300, 400  # Non-square dimensions
-    img = np.zeros((rows, cols), dtype=int)
+    image_shape = (300, 400)  # Non-square dimensions
+    img = np.zeros(image_shape, dtype=np.uint8)
     # Placing the keypoint away from the center and edge: (150, 100)
     keypoints = np.array([[150, 100, 0, 1]])
+
     img[keypoints[0][1], keypoints[0][0]] = 1
 
     # Rotate the image

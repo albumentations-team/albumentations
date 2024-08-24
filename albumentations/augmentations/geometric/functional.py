@@ -168,22 +168,23 @@ def keypoints_rot90(
     if factor == 0:
         return keypoints
 
-    rows, cols = image_shape[:2]
+    height, width = image_shape[:2]
     rotated_keypoints = keypoints.copy().astype(np.float32)
-    x, y, angle = rotated_keypoints[:, 0], rotated_keypoints[:, 1], rotated_keypoints[:, 2]
+
+    x, y, angle = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2]
 
     if factor == 1:
         rotated_keypoints[:, 0] = y
-        rotated_keypoints[:, 1] = (cols - 1) - x
-        rotated_keypoints[:, 2] = angle - np.pi / 2
-    elif factor == ROT90_180_FACTOR:
-        rotated_keypoints[:, 0] = (cols - 1) - x
-        rotated_keypoints[:, 1] = (rows - 1) - y
-        rotated_keypoints[:, 2] = angle - np.pi
-    elif factor == ROT90_270_FACTOR:
-        rotated_keypoints[:, 0] = (rows - 1) - y
-        rotated_keypoints[:, 1] = x
+        rotated_keypoints[:, 1] = width - 1 - x
         rotated_keypoints[:, 2] = angle + np.pi / 2
+    elif factor == ROT90_180_FACTOR:
+        rotated_keypoints[:, 0] = width - 1 - x
+        rotated_keypoints[:, 1] = height - 1 - y
+        rotated_keypoints[:, 2] = angle + np.pi
+    elif factor == ROT90_270_FACTOR:
+        rotated_keypoints[:, 0] = height - 1 - y
+        rotated_keypoints[:, 1] = x
+        rotated_keypoints[:, 2] = angle - np.pi / 2
 
     return rotated_keypoints
 
@@ -2671,7 +2672,7 @@ def bboxes_grid_distortion(
 
     # Create a mask for each bbox
     masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm.astype(int)):
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm[:4].astype(int)):
         masks[i, y_min:y_max, x_min:x_max] = 1
 
     # Apply grid distortion to all masks

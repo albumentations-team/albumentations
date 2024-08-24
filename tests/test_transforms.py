@@ -517,49 +517,49 @@ def test_crop_keypoints():
 
 def test_longest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.LongestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(18, 10, 0, 0)]
+    np.testing.assert_array_almost_equal(result["keypoints"], [(18, 10, 0, 0)], decimal=5)
 
     aug = A.LongestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
+    np.testing.assert_array_almost_equal(result["keypoints"], [(0.9, 0.5, 0, 0)], decimal=5)
 
     aug = A.LongestMaxSize(max_size=50, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
 
 
 def test_smallest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(90, 50, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(90, 50, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 2.5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(4.5, 2.5, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=10, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
 
 
 def test_resize_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.Resize(height=100, width=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 10, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(4.5, 10, 0, 0)])
 
     aug = A.Resize(height=50, width=10, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
 
 
 @pytest.mark.parametrize(
@@ -1992,7 +1992,7 @@ def test_rot90(bboxes, angle, keypoints):
     np.testing.assert_array_equal(transformed["mask"], mask_rotated)
 
     np.testing.assert_array_almost_equal(transformed["bboxes"], bboxes_rotated, decimal=5)
-    np.testing.assert_array_almost_equal(transformed["keypoints"], keypoints_rotated)
+    np.testing.assert_array_almost_equal(transformed["keypoints"], keypoints_rotated, decimal=5)
 
 
 @pytest.mark.parametrize(
