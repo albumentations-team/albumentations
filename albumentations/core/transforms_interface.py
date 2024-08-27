@@ -98,7 +98,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
             return kwargs
 
-        if force_apply or (random.random() < self.p):
+        if force_apply or self.p >= 1.0 or (random.random() < self.p):
             params = self.get_params()
             params = self.update_params_shape(params=params, data=kwargs)
 
