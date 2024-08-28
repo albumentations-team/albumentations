@@ -39,7 +39,6 @@ __all__ = [
     "rotation2d_matrix_to_euler_angles",
     "is_identity_matrix",
     "warp_affine",
-    "safe_rotate",
     "piecewise_affine",
     "to_distance_maps",
     "from_distance_maps",
@@ -629,7 +628,11 @@ def warp_affine(
     if is_identity_matrix(matrix):
         return image
 
-    dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
+    height = int(np.round(output_shape[0]))
+    width = int(np.round(output_shape[1]))
+
+    dsize = (width, height)
+
     warp_fn = maybe_process_in_chunks(
         warp_affine_with_value_extension,
         matrix=matrix.params[:2],
@@ -925,151 +928,6 @@ def bboxes_affine(
     validated_bboxes = validate_bboxes(transformed_bboxes, output_shape)
 
     return normalize_bboxes(validated_bboxes, output_shape)
-
-
-@preserve_channel_dim
-def safe_rotate(
-    img: np.ndarray,
-    matrix: np.ndarray,
-    interpolation: int,
-    value: ColorType | None = None,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-) -> np.ndarray:
-    height, width = img.shape[:2]
-    warp_fn = maybe_process_in_chunks(
-        cv2.warpAffine,
-        M=matrix,
-        dsize=(width, height),
-        flags=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return warp_fn(img)
-
-
-def fix_point(pt1: float, pt2: float, max_val: float) -> tuple[float, float]:
-    if pt1 < 0:
-        return 0, min(pt2 + pt1, max_val)
-    if pt2 > max_val:
-        return max(pt1 - (pt2 - max_val), 0), max_val
-    return pt1, pt2
-
-
-def bboxes_safe_rotate(bboxes: np.ndarray, matrix: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
-    """Safely rotate bounding boxes using a transformation matrix.
-
-    Args:
-        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                             Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-        matrix (np.ndarray): 2x3 or 3x3 transformation matrix.
-        image_shape (Tuple[int, int]): Image shape (height, width).
-
-    Returns:
-        np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
-    """
-    if bboxes.size == 0:
-        return bboxes
-
-    height, width = image_shape[:2]
-
-    # Ensure matrix is 3x3
-    if matrix.shape == (2, 3):
-        matrix = np.vstack([matrix, [0, 0, 1]])
-
-    bboxes = bboxes.copy().astype(np.float32)
-
-    # Denormalize bboxes
-    denorm_bboxes = denormalize_bboxes(bboxes, image_shape)
-
-    # Create points for each bbox
-    points = np.array(
-        [
-            denorm_bboxes[:, [0, 1]],  # top-left
-            denorm_bboxes[:, [2, 1]],  # top-right
-            denorm_bboxes[:, [2, 3]],  # bottom-right
-            denorm_bboxes[:, [0, 3]],  # bottom-left
-        ],
-    )
-
-    # Add homogeneous coordinate
-    points = np.pad(points, ((0, 0), (0, 0), (0, 1)), constant_values=1)
-
-    # Apply transformation
-    transformed_points = np.dot(points, matrix.T)
-
-    # Find new bbox coordinates
-    new_bboxes = np.zeros_like(bboxes)
-    new_bboxes[:, 0] = np.min(transformed_points[:, :, 0], axis=0)  # x_min
-    new_bboxes[:, 1] = np.min(transformed_points[:, :, 1], axis=0)  # y_min
-    new_bboxes[:, 2] = np.max(transformed_points[:, :, 0], axis=0)  # x_max
-    new_bboxes[:, 3] = np.max(transformed_points[:, :, 1], axis=0)  # y_max
-
-    # Apply fix_point to each bbox
-    for i in range(len(new_bboxes)):
-        new_bboxes[i, 0], new_bboxes[i, 2] = fix_point(new_bboxes[i, 0], new_bboxes[i, 2], width - 1)
-        new_bboxes[i, 1], new_bboxes[i, 3] = fix_point(new_bboxes[i, 1], new_bboxes[i, 3], height - 1)
-
-    # Normalize the new bboxes
-    new_bboxes[:, :4] = normalize_bboxes(new_bboxes[:, :4], image_shape)
-
-    bboxes[:, :4] = new_bboxes[:, :4]
-
-    return bboxes
-
-
-@angle_2pi_range
-def keypoints_safe_rotate(
-    keypoints: np.ndarray,
-    matrix: np.ndarray,
-    angle: float,
-    scale_x: float,
-    scale_y: float,
-    image_shape: Sequence[int],
-) -> np.ndarray:
-    """Safely rotate multiple keypoints.
-
-    Args:
-        keypoints (np.ndarray): Array of keypoints with shape (N, 4+) in format (x, y, angle, scale, ...).
-        matrix (np.ndarray): 3x3 transformation matrix.
-        angle (float): Rotation angle in radians.
-        scale_x (float): Scale factor for x-axis.
-        scale_y (float): Scale factor for y-axis.
-        image_shape (Sequence[int]): Shape of the image (height, width).
-
-    Returns:
-        np.ndarray: Array of transformed keypoints with the same shape as input.
-    """
-    x, y, a, s = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
-
-    # Create homogeneous coordinates
-    points = np.column_stack([x, y, np.ones_like(x)])
-
-    # Apply transformation
-    transformed_points = points @ matrix.T
-
-    # Extract new x and y
-    x_new, y_new = transformed_points[:, 0], transformed_points[:, 1]
-
-    rows, cols = image_shape[:2]
-
-    # Clip x and y to avoid float errors
-    x_new = np.clip(x_new, 0, cols - 1)
-    y_new = np.clip(y_new, 0, rows - 1)
-
-    # Update angles and scales
-    a_new = a + angle
-    s_new = s * max(scale_x, scale_y)
-
-    # Create the output array
-    transformed_keypoints = np.column_stack([x_new, y_new, a_new, s_new])
-
-    # If there are additional columns, preserve them
-    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        transformed_keypoints = np.column_stack(
-            [transformed_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
-        )
-
-    return transformed_keypoints
 
 
 @clipped
