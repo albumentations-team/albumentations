@@ -277,7 +277,7 @@ def convert_keypoints_to_albumentations(
 
     indices: list[int | None] = format_to_indices[source_format]
 
-    processed_keypoints = np.zeros((keypoints.shape[0], 4))
+    processed_keypoints = np.zeros((keypoints.shape[0], NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS), dtype=np.float32)
 
     for i, idx in enumerate(indices):
         if idx is not None:

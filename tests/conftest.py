@@ -24,7 +24,7 @@ def albumentations_bboxes():
 
 @pytest.fixture
 def keypoints():
-    return np.array([[30, 20, 40, 50, 1], [20, 30, 60, 80, 2]])
+    return np.array([[30, 20, 0, 50, 1], [20, 30, 60, 80, 2]], dtype=np.float32)
 
 @pytest.fixture
 def template():
