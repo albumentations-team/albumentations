@@ -781,8 +781,7 @@ def test_grid_dropout_holes_generation(params, expected_holes):
         data={"image": image},
     )["holes"]
 
-    assert holes == expected_holes, f"Failed on holes generation with value {holes}"
-
+    np.testing.assert_array_equal(holes, expected_holes, f"Failed on holes generation with value {holes}")
 
 @pytest.mark.parametrize(
     ["blur_limit", "sigma", "result_blur", "result_sigma"],
