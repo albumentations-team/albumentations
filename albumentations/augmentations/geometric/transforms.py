@@ -1158,7 +1158,7 @@ class PiecewiseAffine(DualTransform):
         matrix: skimage.transform.PiecewiseAffineTransform,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.bboxes_piecewise_affine(np.ndarray, matrix, params["shape"], self.keypoints_threshold)
+        return fgeometric.bboxes_piecewise_affine(bboxes, matrix, params["shape"], self.keypoints_threshold)
 
     def apply_to_keypoints(
         self,
