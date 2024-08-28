@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 BBOX_WITH_LABEL_SHAPE = 5
-EPSILON = 1e-4
+EPSILON = 1e-3
 
 
 class BboxParams(Params):
@@ -191,7 +191,7 @@ def denormalize_bboxes(
     return denormalized
 
 
-def calculate_bbox_areas(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Calculate areas for multiple bounding boxes.
 
     This function computes the areas of bounding boxes given their normalized coordinates
@@ -430,8 +430,8 @@ def filter_bboxes(
     image_shape: tuple[int, int],
     min_area: float = 0.0,
     min_visibility: float = 0.0,
-    min_width: float = 0.0,
-    min_height: float = 0.0,
+    min_width: float = 1.0,
+    min_height: float = 1.0,
 ) -> np.ndarray:
     """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also crops boxes to final image size.
@@ -448,31 +448,31 @@ def filter_bboxes(
     Returns:
         numpy array of filtered bounding boxes.
     """
-    min_area = min_area + EPSILON
     if len(bboxes) == 0:
         return np.array([], dtype=np.float32)
 
-    # Calculate areas of bounding boxes before clipping
-    transformed_box_areas = calculate_bbox_areas(bboxes, image_shape)
+    # Calculate areas of bounding boxes before clipping in pixels
+    denormalized_box_areas = calculate_bbox_areas_in_pixels(bboxes, image_shape)
 
-    # Clip bounding boxes
+    # Clip bounding boxes in ratio
     clipped_bboxes = clip_bboxes(bboxes, image_shape)
 
-    # Calculate areas of clipped bounding boxes
-    clipped_box_areas = calculate_bbox_areas(clipped_bboxes, image_shape)
+    # Calculate areas of clipped bounding boxes in pixels
+    clipped_box_areas = calculate_bbox_areas_in_pixels(clipped_bboxes, image_shape)
 
     # Calculate width and height of the clipped bounding boxes
     denormalized_bboxes = denormalize_bboxes(clipped_bboxes[:, :4], image_shape)
+
     clipped_widths = denormalized_bboxes[:, 2] - denormalized_bboxes[:, 0]
     clipped_heights = denormalized_bboxes[:, 3] - denormalized_bboxes[:, 1]
 
     # Create a mask for bboxes that meet all criteria
     mask = (
-        (clipped_box_areas != 0)  # to ensure transformed_box_area!=0 and to handle min_area=0 or min_visibility=0
-        & (clipped_box_areas >= min_area)
-        & (clipped_box_areas / transformed_box_areas >= min_visibility)
-        & (clipped_widths >= min_width)
-        & (clipped_heights >= min_height)
+        (denormalized_box_areas >= 1)
+        & (clipped_box_areas >= min_area - EPSILON)
+        & (clipped_box_areas / denormalized_box_areas >= min_visibility - EPSILON)
+        & (clipped_widths >= max(min_width, 1))
+        & (clipped_heights >= max(min_height, 1))
     )
 
     # Apply the mask to get the filtered bboxes

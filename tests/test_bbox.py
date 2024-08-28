@@ -10,7 +10,7 @@ from albumentations import RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotat
 from albumentations.augmentations.crops.functional import crop_bboxes_by_coords
 from albumentations.core.bbox_utils import (
     BboxProcessor,
-    calculate_bbox_areas,
+    calculate_bbox_areas_in_pixels,
     check_bboxes,
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
@@ -169,7 +169,7 @@ def test_denormalize_normalize_roundtrip(bboxes, image_shape):
     ),
 ])
 def test_calculate_bbox_areas(bboxes, image_shape, expected):
-    result = calculate_bbox_areas(bboxes, image_shape)
+    result = calculate_bbox_areas_in_pixels(bboxes, image_shape)
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
 def test_calculate_bbox_areas_preserves_input():
@@ -177,7 +177,7 @@ def test_calculate_bbox_areas_preserves_input():
     image_shape = (100, 100)
     original_bboxes = bboxes.copy()
 
-    calculate_bbox_areas(bboxes, image_shape)
+    calculate_bbox_areas_in_pixels(bboxes, image_shape)
 
     np.testing.assert_array_equal(bboxes, original_bboxes)
 
@@ -185,7 +185,7 @@ def test_calculate_bbox_areas_output_type():
     bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]])
     image_shape = (100, 100)
 
-    result = calculate_bbox_areas(bboxes, image_shape)
+    result = calculate_bbox_areas_in_pixels(bboxes, image_shape)
 
     assert isinstance(result, np.ndarray)
     assert result.dtype == np.float64
@@ -194,7 +194,7 @@ def test_calculate_bbox_areas_output_type():
 def test_calculate_bbox_areas_zero_area():
     bboxes = np.array([[0.1, 0.1, 0.1, 0.2], [0.3, 0.3, 0.4, 0.3]])  # Zero width and zero height
     image_shape = (100, 100)
-    result = calculate_bbox_areas(bboxes, image_shape)
+    result = calculate_bbox_areas_in_pixels(bboxes, image_shape)
     np.testing.assert_allclose(result, [0, 0], atol=1e-10)
 
 
