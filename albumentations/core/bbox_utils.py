@@ -449,7 +449,7 @@ def filter_bboxes(
         numpy array of filtered bounding boxes.
     """
     if len(bboxes) == 0:
-        return bboxes
+        return np.array([], dtype=np.float32)
 
     # Calculate areas of bounding boxes before clipping
     transformed_box_areas = calculate_bbox_areas(bboxes, image_shape)
@@ -475,7 +475,13 @@ def filter_bboxes(
     )
 
     # Apply the mask to get the filtered bboxes
-    return clipped_bboxes[mask]
+    filtered_bboxes = clipped_bboxes[mask]
+
+    # If no bboxes pass the filter, return an empty array with the same number of columns as input
+    if len(filtered_bboxes) == 0:
+        return np.array([], dtype=np.float32)
+
+    return filtered_bboxes
 
 
 def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | None:
