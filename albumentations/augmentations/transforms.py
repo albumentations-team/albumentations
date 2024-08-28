@@ -2368,12 +2368,33 @@ class Lambda(NoOp):
         return fn(mask, **params)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        fn = self.custom_apply_fns["bboxes"]
-        return fn(bboxes, **params)
+        is_ndarray = True
 
-    def apply_to_keypoint(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        if not isinstance(bboxes, np.ndarray):
+            is_ndarray = False
+            bboxes = np.array(bboxes, dtype=np.float32)
+
+        fn = self.custom_apply_fns["bboxes"]
+        result = fn(bboxes, **params)
+
+        if not is_ndarray:
+            return result.tolist()
+
+        return result
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        is_ndarray = True
+        if not isinstance(keypoints, np.ndarray):
+            is_ndarray = False
+            keypoints = np.array(keypoints, dtype=np.float32)
+
         fn = self.custom_apply_fns["keypoints"]
-        return fn(keypoints, **params)
+        result = fn(keypoints, **params)
+
+        if not is_ndarray:
+            return result.tolist()
+
+        return result
 
     def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
         fn = self.custom_apply_fns["global_label"]

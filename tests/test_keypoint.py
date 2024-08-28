@@ -48,7 +48,6 @@ def test_angle_to_2pi_range_negative_zero():
     assert not np.signbit(result[0])  # Ensure -0.0 is converted to +0.0
 
 
-
 @pytest.mark.parametrize("keypoints, image_shape, expected_error", [
     # Valid keypoints
     (np.array([[10, 20, 0.5], [30, 40, 1.5]]), (100, 100), None),

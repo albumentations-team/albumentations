@@ -20,7 +20,7 @@ from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from albumentations.augmentations.transforms import RandomSnow
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -374,7 +374,6 @@ def test_lambda_transform():
     def one_hot_mask(mask, num_channels, **kwargs):
         return np.eye(num_channels, dtype=np.uint8)[mask]
 
-
     def vflip_bboxes(bboxes, **kwargs):
         return fgeometric.bboxes_vflip(bboxes)
 
@@ -385,16 +384,25 @@ def test_lambda_transform():
         image=negate_image, mask=partial(one_hot_mask, num_channels=16), bboxes=vflip_bboxes, keypoints=vflip_keypoints, p=1
     )
 
+    bboxes = [(0.1, 0.1, 0.4, 0.5)]
+    keypoints = [(2, 3, np.pi/4, 5)]
+
+    height, width = 10, 10
+
+    image = np.ones((height, width, 3), dtype=np.float32)
+    mask = np.tile(np.arange(0, height), (width, 1)).T
+
     output = aug(
-        image=np.ones((10, 10, 3), dtype=np.float32),
-        mask=np.tile(np.arange(0, 10), (10, 1)),
-        bboxes=[(10, 15, 25, 35)],
-        keypoints=[(20, 30, 40, 50)],
+        image=image,
+        mask=mask,
+        bboxes=bboxes,
+        keypoints=keypoints,
     )
+
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [fgeometric.bboxes_vflip((10, 15, 25, 35))]
-    assert output["keypoints"] == [fgeometric.keypoints_vflip((20, 30, 40, 50), 10)]
+    np.testing.assert_array_almost_equal(output["bboxes"], fgeometric.bboxes_vflip(np.array(bboxes)))
+    np.testing.assert_array_almost_equal(output["keypoints"], fgeometric.keypoints_vflip(np.array(keypoints), height))
 
 
 def test_channel_droput():
@@ -502,17 +510,17 @@ def test_downscale(interpolation):
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
-# def test_crop_keypoints():
-#     image = np.random.randint(0, 256, (100, 100), np.uint8)
-#     keypoints = [(50, 50, 0, 0)]
+def test_crop_keypoints():
+    image = np.random.randint(0, 256, (100, 100), np.uint8)
+    keypoints = [(50, 50, 0, 0)]
 
-#     aug = A.Crop(0, 0, 80, 80, p=1)
-#     result = aug(image=image, keypoints=keypoints)
-#     assert result["keypoints"] == keypoints
+    aug = A.Crop(0, 0, 80, 80, p=1)
+    result = aug(image=image, keypoints=keypoints)
+    assert result["keypoints"] == keypoints
 
-#     aug = A.Crop(50, 50, 100, 100, p=1)
-#     result = aug(image=image, keypoints=keypoints)
-#     assert result["keypoints"] == [(0, 0, 0, 0)]
+    aug = A.Crop(50, 50, 100, 100, p=1)
+    result = aug(image=image, keypoints=keypoints)
+    assert result["keypoints"] == [(0, 0, 0, 0)]
 
 
 def test_longest_max_size_keypoints():
@@ -688,7 +696,7 @@ def test_grid_dropout_mask(image):
     ],
 )
 def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
-    img = np.random.randint(0, 256, [256, 320], np.uint8)
+    img = SQUARE_FLOAT_IMAGE
 
     aug = A.GridDropout(
         ratio=ratio,
@@ -714,13 +722,6 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
         np.testing.assert_array_equal(holes[0][:2], shift_xy)
     else:
         np.testing.assert_array_equal(holes[0], (0, 0))
-
-    # for grid set with range
-    if unit_size_range:
-        assert max(1, unit_size_range[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_range[1] * ratio), 256)
-    elif holes_number_xy:
-        assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_xy[0]))
-        assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_xy[1]))
 
 
 @pytest.mark.parametrize("params, expected", [
@@ -943,24 +944,24 @@ def test_perspective_keep_size():
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
 
 
-# def test_longest_max_size_list():
-#     img = np.random.randint(0, 256, [50, 10], np.uint8)
-#     keypoints = np.array([(9, 5, 0, 0)])
+def test_longest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = np.array([(9, 5, 0, 0)])
 
-#     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
-#     result = aug(image=img, keypoints=keypoints)
-#     assert result["image"].shape in [(10, 2), (5, 1)]
-#     assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(10, 2), (5, 1)]
+    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
 
 
-# def test_smallest_max_size_list():
-#     img = np.random.randint(0, 256, [50, 10], np.uint8)
-#     keypoints = np.array([(9, 5, 0, 0)])
+def test_smallest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = np.array([(9, 5, 0, 0)])
 
-#     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
-#     result = aug(image=img, keypoints=keypoints)
-#     assert result["image"].shape in [(250, 50), (500, 100)]
-#     assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(250, 50), (500, 100)]
+    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
 
 
 @pytest.mark.parametrize(

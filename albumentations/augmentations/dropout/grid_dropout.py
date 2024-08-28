@@ -194,11 +194,9 @@ class GridDropout(DualTransform):
     def _calculate_hole_dimensions(self, unit_shape: tuple[int, int]) -> tuple[int, int]:
         """Calculates the dimensions of the holes to be dropped out."""
         unit_height, unit_width = unit_shape
-        hole_width = int(unit_width * self.ratio)
-        hole_height = int(unit_height * self.ratio)
-        hole_width = min(max(hole_width, 1), unit_width - 1)
-        hole_height = min(max(hole_height, 1), unit_height - 1)
-        return hole_height, hole_height
+        hole_width = min(max(1, int(unit_width * self.ratio)), unit_width - 1)
+        hole_height = min(max(1, int(unit_height * self.ratio)), unit_height - 1)
+        return hole_height, hole_width
 
     def _calculate_shifts(
         self,
