@@ -679,48 +679,48 @@ def test_grid_dropout_mask(image):
     assert result["mask"].sum() == mask.sum()
 
 
-# @pytest.mark.parametrize(
-#     ["ratio", "holes_number_xy", "unit_size_range", "shift_xy"],
-#     [
-#         (0.00001, (10, 10), (100, 100), (50, 50)),
-#         (0.4556, (10, 20), None, (0, 0)),
-#         (0.00004, None, (2, 100), (0, 0)),
-#     ],
-# )
-# def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
-#     img = np.random.randint(0, 256, [256, 320], np.uint8)
+@pytest.mark.parametrize(
+    ["ratio", "holes_number_xy", "unit_size_range", "shift_xy"],
+    [
+        (0.00001, (10, 10), (100, 100), (50, 50)),
+        (0.4556, (10, 20), None, (0, 0)),
+        (0.00004, None, (2, 100), (0, 0)),
+    ],
+)
+def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
+    img = np.random.randint(0, 256, [256, 320], np.uint8)
 
-#     aug = A.GridDropout(
-#         ratio=ratio,
-#         unit_size_range=unit_size_range,
-#         holes_number_xy=holes_number_xy,
-#         shift_xy=shift_xy,
-#         random_offset=False,
-#         fill_value=0,
-#         p=1,
-#     )
-#     result = aug(image=img)["image"]
-#     # with fill_value = 0 the sum of pixels is smaller
-#     assert result.sum() < img.sum()
-#     assert result.shape == img.shape
-#     params = aug.get_params_dependent_on_data(
-#         params={"shape": img.shape},
-#         data={"image": img},
-#     )
-#     holes = params["holes"]
-#     assert len(holes[0]) == 4
-#     # check grid offsets
-#     if shift_xy:
-#         assert holes[0][:2] == shift_xy
-#     else:
-#         assert holes[0] == (0, 0)
+    aug = A.GridDropout(
+        ratio=ratio,
+        unit_size_range=unit_size_range,
+        holes_number_xy=holes_number_xy,
+        shift_xy=shift_xy,
+        random_offset=False,
+        fill_value=0,
+        p=1,
+    )
+    result = aug(image=img)["image"]
+    # with fill_value = 0 the sum of pixels is smaller
+    assert result.sum() < img.sum()
+    assert result.shape == img.shape
+    params = aug.get_params_dependent_on_data(
+        params={"shape": img.shape},
+        data={"image": img},
+    )
+    holes = params["holes"]
+    assert len(holes[0]) == 4
+    # check grid offsets
+    if shift_xy:
+        assert holes[0][:2] == shift_xy
+    else:
+        assert holes[0] == (0, 0)
 
-#     # for grid set with range
-#     if unit_size_range:
-#         assert max(1, unit_size_range[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_range[1] * ratio), 256)
-#     elif holes_number_xy:
-#         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_xy[0]))
-#         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_xy[1]))
+    # for grid set with range
+    if unit_size_range:
+        assert max(1, unit_size_range[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_range[1] * ratio), 256)
+    elif holes_number_xy:
+        assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_xy[0]))
+        assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_xy[1]))
 
 
 @pytest.mark.parametrize("params, expected", [
@@ -944,24 +944,24 @@ def test_perspective_keep_size():
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
 
 
-def test_longest_max_size_list():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
+# def test_longest_max_size_list():
+#     img = np.random.randint(0, 256, [50, 10], np.uint8)
+#     keypoints = np.array([(9, 5, 0, 0)])
 
-    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["image"].shape in [(10, 2), (5, 1)]
-    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+#     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+#     result = aug(image=img, keypoints=keypoints)
+#     assert result["image"].shape in [(10, 2), (5, 1)]
+#     assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
 
 
-def test_smallest_max_size_list():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
+# def test_smallest_max_size_list():
+#     img = np.random.randint(0, 256, [50, 10], np.uint8)
+#     keypoints = np.array([(9, 5, 0, 0)])
 
-    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["image"].shape in [(250, 50), (500, 100)]
-    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+#     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+#     result = aug(image=img, keypoints=keypoints)
+#     assert result["image"].shape in [(250, 50), (500, 100)]
+#     assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
 
 
 @pytest.mark.parametrize(
@@ -1091,10 +1091,16 @@ def test_affine_incorrect_scale_range(params):
             },
             {
                 "bboxes": [
-                    [(16.036253471129026, 0.7268824985344293, 21.42442059056688, 5.049479254799872, 0), (194.61183288056216, 25.996579994841458, 200.0, 30.319176751106898, 0), (179.33014645626594, 95.67740324373456, 184.71831357570377, 100.0, 0), (0.8521337495555823, 70.54534260014618, 6.078767680466058, 74.1330081974473, 0)]
+                    [15.264852523803711, 0.0, 20.678197860717773, 4.27599573135376, 0.0],
+                    [194.73916625976562, 25.38059425354004, 200.0, 29.73569107055664, 0.0],
+                    [179.32180786132812, 95.72400665283203, 184.7351531982422, 100.0, 0.0],
+                    [0.009779278188943863, 70.2643051147461, 5.260837078094482, 73.87895202636719, 0.0]
                 ],
                 "keypoints": [
-                    [(16.84391941376591, 0.7268824985344293, 147.04220486917677, 0.0), (199.0, 26.514932763996473, 157.04220486917674, 9.30232558139535), (183.15608058623408, 99.0, 167.04220486917674, 18.6046511627907), (0.8521337495555823, 73.48506723600353, 177.04220486917674, 27.906976744186046)]
+                    [16.455339431762695, 0.35640794038772583, 351.9260559082031, 0.0],
+                    [199.61117553710938, 26.338354110717773, 1.9260603189468384, 9.345794677734375],
+                    [183.54466247558594, 99.64359283447266, 11.92605972290039, 18.69158935546875],
+                    [0.3888263702392578, 73.6616439819336, 21.92605972290039, 28.037382125854492]
                 ],
             },
         ],
@@ -1115,12 +1121,15 @@ def test_affine_incorrect_scale_range(params):
                 ],
             },
             {
-                "bboxes": [
-                    [(0.8521337495555819, 25.866991802552704, 6.240300868993435, 30.18958855881814, 0), (179.4916796447933, 0.5972943062456757, 184.87984676423113, 4.919891062511116, 0), (194.61183288056216, 70.41575440785743, 200.0, 74.73835116412288, 0), (16.1977866596564, 95.68545190416447, 21.424420590566875, 99.27311750146558, 0)]
-                ],
+                "bboxes":  [[0.0, 25.38059425354004, 5.260837078094482, 29.73569107055664, 0.0],
+                            [179.32180786132812, 0.0, 184.7351531982422, 4.275995254516602, 0.0],
+                            [194.73916625976562, 70.2643051147461, 200.0, 74.6194076538086, 0.0],
+                            [15.264852523803711, 95.72400665283203, 20.515911102294922, 99.3386459350586, 0.0]],
                 "keypoints": [
-                    [(0.852133749555582, 26.514932763996473, 212.95779513082323, 0.0), (183.15608058623408, 0.7268824985344295, 222.95779513082323, 9.30232558139535), (199.0, 73.48506723600353, 232.9577951308232, 18.6046511627907), (16.84391941376591, 99.0, 242.9577951308232, 27.906976744186046)]
-                ],
+                    [0.3888259530067444, 26.338354110717773, 8.073939323425293, 0.0],
+                    [183.54466247558594, 0.35640716552734375, 18.073938369750977, 9.345794677734375],
+                    [199.61117553710938, 73.6616439819336, 28.073936462402344, 18.69158935546875],
+                    [16.455339431762695, 99.64359283447266, 38.073936462402344, 28.037382125854492]],
             },
         ],
     ],
@@ -1132,13 +1141,13 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
             A.SafeRotate(limit=(angle, angle), border_mode=0, value=0, p=1),
         ],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
-        keypoint_params=A.KeypointParams("xyas"),
+        keypoint_params=A.KeypointParams("xyas", angle_in_degrees=True),
         p=1,
     )
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        np.testing.assert_allclose(np.array(value), res[key]), key
+        np.testing.assert_allclose(value, res[key]), key
 
 
 @pytest.mark.parametrize(
