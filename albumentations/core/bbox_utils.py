@@ -448,6 +448,7 @@ def filter_bboxes(
     Returns:
         numpy array of filtered bounding boxes.
     """
+    min_area = min_area + EPSILON
     if len(bboxes) == 0:
         return np.array([], dtype=np.float32)
 
