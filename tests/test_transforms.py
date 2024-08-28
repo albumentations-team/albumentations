@@ -711,9 +711,9 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     assert len(holes[0]) == 4
     # check grid offsets
     if shift_xy:
-        assert holes[0][:2] == shift_xy
+        np.testing.assert_array_equal(holes[0][:2], shift_xy)
     else:
-        assert holes[0] == (0, 0)
+        np.testing.assert_array_equal(holes[0], (0, 0))
 
     # for grid set with range
     if unit_size_range:
