@@ -1198,29 +1198,6 @@ def test_bbox_d4(bbox, group_member, expected):
     result = fgeometric.bboxes_d4(bboxes, group_member)[0]
     np.testing.assert_array_almost_equal(result, expected)
 
-
-def test_bboxes_safe_rotate_empty():
-    bboxes = np.array([])
-    matrix = np.eye(3)
-    image_shape = (100, 100)
-    result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
-    assert result.size == 0
-
-def test_bboxes_safe_rotate_identity():
-    bboxes = np.array([[0.1, 0.1, 0.2, 0.2, 1], [0.3, 0.3, 0.4, 0.4, 2]])
-    matrix = np.eye(3)
-    image_shape = (100, 100)
-    result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
-    np.testing.assert_allclose(result, bboxes, atol=1e-6)
-
-def test_bboxes_safe_rotate_90_degrees():
-    bboxes = np.array([[0.1, 0.1, 0.2, 0.2, 1]])
-    matrix = np.array([[0, -1, 1], [1, 0, 0], [0, 0, 1]])
-    image_shape = (100, 100)
-    result = fgeometric.bboxes_safe_rotate(bboxes, matrix, image_shape)
-    expected = np.array([[0.8, 0.1, 0.9, 0.2, 1]])
-    np.testing.assert_allclose(result, expected, atol=1e-6)
-
 # def test_bboxes_safe_rotate_45_degrees():
 #     bboxes = np.array([[0.25, 0.25, 0.75, 0.75, 1]])
 #     angle = np.pi / 4

@@ -280,6 +280,9 @@ class SafeRotate(Affine):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    class InitSchema(RotateInitSchema):
+        pass
+
     def __init__(
         self,
         limit: ScaleFloatType = (-90, 90),
@@ -310,6 +313,9 @@ class SafeRotate(Affine):
         self.value = value
         self.mask_value = mask_value
         self.rotate_method = rotate_method
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method"
 
     def _create_safe_rotate_matrix(
         self,
@@ -361,6 +367,3 @@ class SafeRotate(Affine):
             "bbox_matrix": bbox_matrix,
             "output_shape": image_shape,
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method"
