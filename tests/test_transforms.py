@@ -19,8 +19,7 @@ from albumentations.augmentations.transforms import ImageCompression, RandomRain
 from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
-from albumentations.augmentations.transforms import RandomSnow
-from tests.conftest import IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -951,7 +950,7 @@ def test_longest_max_size_list():
     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(10, 2), (5, 1)]
-    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+    assert tuple(result["keypoints"][0].tolist()) in [(0.9, 0.5, 0, 0), (1.8, 1.0, 0, 0)]
 
 
 def test_smallest_max_size_list():
@@ -961,7 +960,7 @@ def test_smallest_max_size_list():
     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
-    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+    assert tuple(result["keypoints"][0].tolist()) in [(45.0, 25.0, 0, 0), (90.0, 50.0, 0, 0)]
 
 
 @pytest.mark.parametrize(
@@ -1676,7 +1675,7 @@ def test_random_rain_invalid_input(params):
     ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
 ])
 def test_random_snow_initialization(params, expected):
-    img_comp = RandomSnow(**params)
+    img_comp = A.RandomSnow(**params)
     for key, value in expected.items():
         assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
 
@@ -1686,7 +1685,7 @@ def test_random_snow_initialization(params, expected):
 ])
 def test_random_snow_invalid_input(params):
     with pytest.raises(Exception):
-        a = RandomSnow(**params)
+        a = A.RandomSnow(**params)
         print(a.snow_point_range)
 
 
