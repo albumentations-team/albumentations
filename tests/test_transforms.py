@@ -511,15 +511,15 @@ def test_downscale(interpolation):
 
 def test_crop_keypoints():
     image = np.random.randint(0, 256, (100, 100), np.uint8)
-    keypoints = [(50, 50, 0, 0)]
+    keypoints = np.array([(50, 50, 0, 0)])
 
     aug = A.Crop(0, 0, 80, 80, p=1)
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == keypoints
+    np.testing.assert_array_equal(result["keypoints"], keypoints)
 
     aug = A.Crop(50, 50, 100, 100, p=1)
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == [(0, 0, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(0, 0, 0, 0)])
 
 
 def test_longest_max_size_keypoints():
