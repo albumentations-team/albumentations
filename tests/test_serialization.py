@@ -766,13 +766,9 @@ def test_augmentations_serialization(augmentation_cls: A.BasicTransform, params:
                 if not field.deprecated:
                     fields.add(field_name)
 
-        for base in model_cls.__bases__:
-            fields |= get_all_init_schema_fields(base)
-
         return fields
 
     model_fields = get_all_init_schema_fields(augmentation_cls)
-
     # Note: You might want to adjust this based on how you handle default fields in your models
     expected_args = model_fields - {'__class_fullname__'}
 

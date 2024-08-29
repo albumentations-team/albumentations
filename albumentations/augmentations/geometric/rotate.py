@@ -281,7 +281,7 @@ class SafeRotate(Affine):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(RotateInitSchema):
-        pass
+        rotate_method: Literal["largest_box", "ellipse"]
 
     def __init__(
         self,
