@@ -23,7 +23,7 @@ keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
 
 
 def angle_to_2pi_range(angles: np.ndarray) -> np.ndarray:
-    return angles % (2 * np.pi)
+    return np.mod(angles, 2 * np.pi)
 
 
 class KeypointParams(Params):

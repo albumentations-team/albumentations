@@ -7,7 +7,7 @@ from typing_extensions import Literal
 from albumentations import random_utils
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType
 
-__all__ = ["cutout", "channel_dropout"]
+__all__ = ["cutout", "channel_dropout", "filter_keypoints_in_holes", "generate_random_fill"]
 
 
 @preserve_channel_dim

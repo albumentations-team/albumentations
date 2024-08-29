@@ -47,6 +47,18 @@ __all__ = [
     "transpose",
     "vflip",
     "d4",
+    "bboxes_rotate",
+    "keypoints_rotate",
+    "bboxes_d4",
+    "keypoints_d4",
+    "bboxes_rot90",
+    "keypoints_rot90",
+    "bboxes_transpose",
+    "keypoints_transpose",
+    "bboxes_vflip",
+    "keypoints_vflip",
+    "bboxes_hflip",
+    "keypoints_hflip",
 ]
 
 PAIR = 2

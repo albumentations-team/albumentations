@@ -17,6 +17,8 @@ __all__ = [
     "get_center_crop_coords",
     "crop",
     "crop_and_pad",
+    "crop_and_pad_bboxes",
+    "crop_and_pad_keypoints",
 ]
 
 
@@ -176,6 +178,9 @@ def crop_and_pad_bboxes(
     image_shape: tuple[int, int],
     result_shape: tuple[int, int],
 ) -> np.ndarray:
+    if len(bboxes) == 0:
+        return bboxes
+
     # Denormalize bboxes
     denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
 

@@ -30,16 +30,19 @@ def test_angle_to_2pi_range(input_angles, expected_angles):
     result = angle_to_2pi_range(input_angles)
     np.testing.assert_allclose(result, expected_angles, atol=1e-7)
 
+
 def test_angle_to_2pi_range_large_array():
     input_angles = np.random.uniform(-10*np.pi, 10*np.pi, 1000)
     result = angle_to_2pi_range(input_angles)
     assert np.all((result >= 0) & (result < 2*np.pi))
+    np.testing.assert_allclose((input_angles - result) % (2*np.pi), 0, atol=1e-8)
 
 
 def test_angle_to_2pi_range_precision():
     small_angle = np.array([1e-10])
     result = angle_to_2pi_range(small_angle)
     np.testing.assert_allclose(result, small_angle, atol=1e-15)
+
 
 def test_angle_to_2pi_range_negative_zero():
     input_angles = np.array([-0.0, 0.0])

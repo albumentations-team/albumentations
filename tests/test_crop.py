@@ -97,7 +97,7 @@ def test_crop_bbox_by_coords():
 )
 def test_bbox_params_edges(
     transforms,
-        bboxes,
+    bboxes,
     expected_bboxes,
     min_area: float,
     min_visibility: float,

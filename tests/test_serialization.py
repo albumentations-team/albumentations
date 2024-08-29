@@ -691,7 +691,7 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
     image = SQUARE_UINT8_IMAGE
     template_transform = A.TemplateTransform(name="template", templates=template, p=p)
 
-    aug = A.Compose([A.Flip(), template_transform, A.Blur()])
+    aug = A.Compose([A.HorizontalFlip(p=1), template_transform, A.Blur(p=1)])
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, nonserializable={"template": template_transform})
