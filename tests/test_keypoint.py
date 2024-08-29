@@ -704,6 +704,7 @@ def test_swap_tiles_on_keypoints_basic():
     expected = np.array([[50, 50], [30, 30], [10, 10]])
     np.testing.assert_array_equal(new_keypoints, expected)
 
+
 def test_swap_tiles_on_keypoints_no_change():
     keypoints = np.array([[10, 10], [30, 30], [50, 50]])
     tiles = np.array([[0, 0, 20, 20], [20, 20, 40, 40], [40, 40, 60, 60]])

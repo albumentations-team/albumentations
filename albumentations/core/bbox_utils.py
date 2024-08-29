@@ -354,7 +354,7 @@ def check_bboxes(bboxes: np.ndarray) -> None:
     Raises:
         ValueError: If any bbox is invalid.
     """
-    if not bboxes.size:
+    if len(bboxes) == 0:
         return
 
     # Check if all values are in range [0, 1]
