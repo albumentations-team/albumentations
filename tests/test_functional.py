@@ -440,63 +440,31 @@ def test_resize_nearest_interpolation_float(target):
     assert np.array_equal(resized_img, expected)
 
 
-def test_bbox_vflip():
-    assert fgeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5)) == (0.1, 0.5, 0.6, 0.8)
-
-
-def test_bbox_hflip():
-    assert fgeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5)) == (0.4, 0.2, 0.9, 0.5)
-
-
-@pytest.mark.parametrize(
-    ["code", "func"],
-    [
-        [0, fgeometric.bbox_vflip],
-        [1, fgeometric.bbox_hflip],
-        [-1, lambda bbox: fgeometric.bbox_vflip(fgeometric.bbox_hflip(bbox))],
-    ],
-)
-def test_bbox_flip(code, func):
-    bbox = [0.1, 0.2, 0.6, 0.5]
-    assert fgeometric.bbox_flip(bbox, code) == func(bbox)
-
 
 @pytest.mark.parametrize("factor, expected_positions", [
-    (1, (199, 150)),  # Rotated 90 degrees CCW
+    (1, (299, 150)),  # Rotated 90 degrees CCW
     (2, (249, 199)),  # Rotated 180 degrees
     (3, (100, 249)),  # Rotated 270 degrees CCW
 ])
 def test_keypoint_image_rot90_match(factor, expected_positions):
-    rows, cols = 300, 400  # Non-square dimensions
-    img = np.zeros((rows, cols), dtype=int)
+    image_shape = (300, 400)  # Non-square dimensions
+    img = np.zeros(image_shape, dtype=np.uint8)
     # Placing the keypoint away from the center and edge: (150, 100)
-    keypoint = (150, 100, 0, 1)
-    img[keypoint[1], keypoint[0]] = 1
+    keypoints = np.array([[150, 100, 0, 1]])
+
+    img[keypoints[0][1], keypoints[0][0]] = 1
 
     # Rotate the image
     rotated_img = fgeometric.rot90(img, factor)
 
     # Rotate the keypoint
-    rotated_keypoint = fgeometric.keypoint_rot90(keypoint, factor, img.shape)
+    rotated_keypoints = fgeometric.keypoints_rot90(keypoints, factor, img.shape)[0]
 
     # Assert that the rotated keypoint lands where expected
-    assert rotated_img[rotated_keypoint[1], rotated_keypoint[0]] == 1, \
+    assert rotated_img[int(rotated_keypoints[1]), int(rotated_keypoints[0])] == 1, \
         f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, "\
-        f"but at {rotated_keypoint}"
+        f"but at {rotated_keypoints}"
 
-
-def test_bbox_rot90():
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0) == (0.1, 0.2, 0.3, 0.4)
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1) == (0.2, 0.7, 0.4, 0.9)
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2) == (0.7, 0.6, 0.9, 0.8)
-    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3) == (0.6, 0.1, 0.8, 0.3)
-
-
-def test_bbox_transpose():
-    assert np.allclose(fgeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4)), (0.1, 0.7, 0.4, 0.8))
-    rot90 = fgeometric.bbox_rot90((0.7, 0.1, 0.8, 0.4), 2)
-    reflected_anti_diagonal = fgeometric.bbox_transpose(rot90)
-    assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
 
 
 def test_fun_max_size():
@@ -931,41 +899,6 @@ def test_d4_output_shape_with_factor(image, factor):
         assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
     else:
         assert result.shape == image.shape, "Output shape should match input shape"
-
-
-@pytest.mark.parametrize("bbox, group_member, expected", [
-    ((0.05, 0.1, 0.55, 0.6), 'e', (0.05, 0.1, 0.55, 0.6)),  # Identity
-    ((0.05, 0.1, 0.55, 0.6), 'r90', (0.1, 0.45, 0.6, 0.95)),  # Rotate 90 degrees CCW
-    ((0.05, 0.1, 0.55, 0.6), 'r180', (0.45, 0.4, 0.95, 0.9)),  # Rotate 180 degrees
-    ((0.05, 0.1, 0.55, 0.6), 'r270', (0.4, 0.05, 0.9, 0.55)),  # Rotate 270 degrees CCW
-    ((0.05, 0.1, 0.55, 0.6), 'v', (0.05, 0.4, 0.55, 0.9)),  # Vertical flip
-    ((0.05, 0.1, 0.55, 0.6), 't', (0.1, 0.05, 0.6, 0.55)),  # Transpose around main diagonal
-    ((0.05, 0.1, 0.55, 0.6), 'h', (0.45, 0.1, 0.95, 0.6)),  # Horizontal flip
-    ((0.05, 0.1, 0.55, 0.6), 'hvt', (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)),  # Transpose around second diagonal
-])
-def test_bbox_d4(bbox, group_member, expected):
-    result = fgeometric.bbox_d4(bbox, group_member)
-    assert result == pytest.approx(expected, rel=1e-5), f"Failed for transformation {group_member} with bbox {bbox}"
-
-
-@pytest.mark.parametrize("keypoint, rows, cols", [
-    ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
-    ((200, 100, np.pi/4, 0.5), 300, 400),
-    ((50, 250, np.pi/2, 2), 300, 400),
-])
-def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
-
-    # Perform vertical and then horizontal flip
-    hflipped_keypoint = fgeometric.keypoint_hflip(keypoint, cols)
-    vhflipped_keypoint = fgeometric.keypoint_vflip(hflipped_keypoint, rows)
-
-    vflipped_keypoint = fgeometric.keypoint_vflip(keypoint, rows)
-    hvflipped_keypoint = fgeometric.keypoint_hflip(vflipped_keypoint, cols)
-
-    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), \
-        "Sequential vflip + hflip not equivalent to hflip + vflip"
-    assert vhflipped_keypoint == pytest.approx(fgeometric.keypoint_rot90(keypoint, 2, (rows, cols))), \
-        "rot180 not equivalent to vflip + hflip"
 
 
 base_matrix = np.array([[1, 2, 3],

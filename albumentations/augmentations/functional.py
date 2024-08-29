@@ -32,7 +32,6 @@ from albumentations.core.types import (
     ColorType,
     ImageMode,
     PlanckianJitterMode,
-    SizeType,
     SpatterMode,
 )
 
@@ -1755,7 +1754,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
 
 
 def generate_approx_gaussian_noise(
-    shape: SizeType,
+    shape: tuple[int, ...],
     mean: float = 0,
     sigma: float = 1,
     scale: float = 0.25,
@@ -1777,3 +1776,77 @@ def generate_approx_gaussian_noise(
 @clipped
 def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
     return add_array(img, noise)
+
+
+def swap_tiles_on_keypoints(
+    keypoints: np.ndarray,
+    tiles: np.ndarray,
+    mapping: np.ndarray,
+) -> np.ndarray:
+    """Swap the positions of keypoints based on a tile mapping.
+
+    This function takes a set of keypoints and repositions them according to a mapping of tile swaps.
+    Keypoints are moved from their original tiles to new positions in the swapped tiles.
+
+    Args:
+        keypoints (np.ndarray): A 2D numpy array of shape (N, 2) where N is the number of keypoints.
+                                Each row represents a keypoint's (x, y) coordinates.
+        tiles (np.ndarray): A 2D numpy array of shape (M, 4) where M is the number of tiles.
+                            Each row represents a tile's (start_y, start_x, end_y, end_x) coordinates.
+        mapping (np.ndarray): A 1D numpy array of shape (M,) where M is the number of tiles.
+                              Each element i contains the index of the tile that tile i should be swapped with.
+
+    Returns:
+        np.ndarray: A 2D numpy array of the same shape as the input keypoints, containing the new positions
+                    of the keypoints after the tile swap.
+
+    Raises:
+        RuntimeWarning: If any keypoint is not found within any tile.
+
+    Notes:
+        - Keypoints that do not fall within any tile will remain unchanged.
+        - The function assumes that the tiles do not overlap and cover the entire image space.
+    """
+    if not keypoints.size:
+        return keypoints
+
+    # Broadcast keypoints and tiles for vectorized comparison
+    kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
+    kp_y = keypoints[:, 1][:, np.newaxis]  # Shape: (num_keypoints, 1)
+
+    start_y, start_x, end_y, end_x = tiles.T  # Each shape: (num_tiles,)
+
+    # Check if each keypoint is inside each tile
+    in_tile = (kp_y >= start_y) & (kp_y < end_y) & (kp_x >= start_x) & (kp_x < end_x)
+
+    # Find which tile each keypoint belongs to
+    tile_indices = np.argmax(in_tile, axis=1)
+
+    # Check if any keypoint is not in any tile
+    not_in_any_tile = ~np.any(in_tile, axis=1)
+    if np.any(not_in_any_tile):
+        warn(
+            "Some keypoints are not in any tile. They will be returned unchanged. This is unexpected and should be "
+            "investigated.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+    # Get the new tile indices
+    new_tile_indices = np.array(mapping)[tile_indices]
+
+    # Calculate the offsets
+    old_start_x = tiles[tile_indices, 1]
+    old_start_y = tiles[tile_indices, 0]
+    new_start_x = tiles[new_tile_indices, 1]
+    new_start_y = tiles[new_tile_indices, 0]
+
+    # Apply the transformation
+    new_keypoints = keypoints.copy()
+    new_keypoints[:, 0] = (keypoints[:, 0] - old_start_x) + new_start_x
+    new_keypoints[:, 1] = (keypoints[:, 1] - old_start_y) + new_start_y
+
+    # Keep original coordinates for keypoints not in any tile
+    new_keypoints[not_in_any_tile] = keypoints[not_in_any_tile]
+
+    return new_keypoints

@@ -5,7 +5,7 @@ from albumentations.augmentations.geometric import functional as fgeometric
 
 import numpy as np
 import pytest
-from albumentations.augmentations.geometric.functional import calculate_grid_dimensions
+from albumentations.augmentations.geometric.functional import calculate_grid_dimensions, from_distance_maps, to_distance_maps
 from tests.utils import set_seed
 
 @pytest.mark.parametrize("image_shape, num_grid_xy, expected_shape, expected_first, expected_last", [
@@ -127,3 +127,74 @@ def test_generate_distorted_grid_polygons_consistent_shared_points(image_shape, 
             top_right = polygons[(i - 1) * grid_width + (j - 1), 4:6]
             bottom_left = polygons[i * grid_width + j, 0:2]
             assert np.allclose(top_right, bottom_left)
+
+
+@pytest.mark.parametrize("image_shape, keypoints, inverted", [
+    ((100, 100), [(50, 50), (25, 75)], False),
+    ((100, 100), [(50, 50), (25, 75)], True),
+    ((200, 300), [(100, 150), (50, 199), (150, 50)], False),
+    ((200, 300), [(100, 150), (50, 199), (150, 50)], True),
+])
+def test_to_distance_maps(image_shape, keypoints, inverted):
+    distance_maps = to_distance_maps(keypoints, image_shape, inverted)
+
+    assert distance_maps.shape == (*image_shape, len(keypoints))
+    assert distance_maps.dtype == np.float32
+
+
+    for i, (x, y) in enumerate(keypoints):
+        if inverted:
+            assert np.isclose(distance_maps[int(y), int(x), i], 1.0)
+        else:
+            assert np.isclose(distance_maps[int(y), int(x), i], 0.0)
+
+    if inverted:
+        assert np.all(distance_maps > 0) and np.all(distance_maps <= 1)
+    else:
+        assert np.all(distance_maps >= 0)
+
+@pytest.mark.parametrize("image_shape, keypoints, inverted, threshold, if_not_found_coords", [
+    ((100, 100), [(50, 50), (25, 75)], False, None, None),
+    ((100, 100), [(50, 50), (25, 75)], True, None, None),
+    ((200, 300), [(100, 150), (50, 199), (150, 50)], False, 10, None),
+    ((200, 300), [(100, 150), (50, 199), (150, 50)], True, 0.5, [0, 0]),
+    ((150, 150), [(75, 75), (25, 125), (125, 25)], False, None, {"x": -1, "y": -1}),
+])
+def test_from_distance_maps(image_shape, keypoints, inverted, threshold, if_not_found_coords):
+    distance_maps = to_distance_maps(keypoints, image_shape, inverted)
+    recovered_keypoints = from_distance_maps(distance_maps, inverted, if_not_found_coords, threshold)
+
+    assert len(recovered_keypoints) == len(keypoints)
+
+    for original, recovered in zip(keypoints, recovered_keypoints):
+        if threshold is None:
+            np.testing.assert_allclose(original, recovered, atol=1)
+        else:
+            x, y = original
+            i = keypoints.index(original)
+            if (inverted and distance_maps[int(y), int(x), i] >= threshold) or (not inverted and distance_maps[int(y), int(x), i] <= threshold):
+                np.testing.assert_allclose(original, recovered, atol=1)
+            elif if_not_found_coords is not None:
+                if isinstance(if_not_found_coords, dict):
+                    assert np.allclose(recovered, [if_not_found_coords['x'], if_not_found_coords['y']])
+                else:
+                    assert np.allclose(recovered, if_not_found_coords)
+            else:
+                np.testing.assert_allclose(original, recovered, atol=1)
+
+@pytest.mark.parametrize("image_shape, keypoints, inverted", [
+    ((100, 100), [(50, 50), (25, 75)], False),
+    ((200, 300), [(100, 150), (50, 199), (150, 50)], True),
+])
+def test_to_distance_maps_extra_columns(image_shape, keypoints, inverted):
+    keypoints_with_extra = [(x, y, 0, 1) for x, y in keypoints]
+    distance_maps = to_distance_maps(keypoints, image_shape, inverted)
+
+    assert distance_maps.shape == (*image_shape, len(keypoints))
+    assert distance_maps.dtype == np.float32
+
+    for i, (x, y, _, _) in enumerate(keypoints_with_extra):
+        if inverted:
+            assert np.isclose(distance_maps[int(y), int(x), i], 1.0)
+        else:
+            assert np.isclose(distance_maps[int(y), int(x), i], 0.0)

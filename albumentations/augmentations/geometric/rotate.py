@@ -7,16 +7,16 @@ from typing import Any, Tuple, cast
 import cv2
 import numpy as np
 from pydantic import Field
+from skimage.transform import ProjectiveTransform
 from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
-from albumentations.augmentations.functional import center
+from albumentations.augmentations.functional import center, center_bbox
+from albumentations.augmentations.geometric.transforms import Affine
 from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
-    BoxInternalType,
     ColorType,
-    KeypointInternalType,
     ScaleFloatType,
     Targets,
 )
@@ -51,11 +51,11 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bbox(self, bbox: BoxInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_rot90(bbox, factor)
+    def apply_to_bboxes(self, bboxes: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+        return fgeometric.bboxes_rot90(bboxes, factor)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.keypoint_rot90(keypoint, factor, params["shape"])
+    def apply_to_keypoints(self, keypoints: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+        return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -164,9 +164,9 @@ class Rotate(DualTransform):
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: np.ndarray,
         angle: float,
         x_min: int,
         x_max: int,
@@ -175,25 +175,25 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         image_shape = params["shape"][:2]
-        bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, image_shape)
+        bboxes_out = fgeometric.bboxes_rotate(bboxes, angle, self.rotate_method, image_shape)
         if self.crop_border:
-            return fcrops.crop_bbox_by_coords(bbox_out, (x_min, y_min, x_max, y_max), image_shape)
-        return bbox_out
+            return fcrops.crop_bboxes_by_coords(bboxes_out, (x_min, y_min, x_max, y_max), image_shape)
+        return bboxes_out
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         angle: float,
         x_min: int,
         x_max: int,
         y_min: int,
         y_max: int,
         **params: Any,
-    ) -> KeypointInternalType:
-        keypoint_out = fgeometric.keypoint_rotate(keypoint, angle, params["shape"][:2], **params)
+    ) -> np.ndarray:
+        keypoints_out = fgeometric.keypoints_rotate(keypoints, angle, params["shape"][:2])
         if self.crop_border:
-            return fcrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
-        return keypoint_out
+            return fcrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
+        return keypoints_out
 
     @staticmethod
     def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> dict[str, int]:
@@ -242,27 +242,29 @@ class Rotate(DualTransform):
         return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border"
 
 
-class SafeRotate(DualTransform):
+# class SafeRotate(DualTransform):
+class SafeRotate(Affine):
     """Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
 
-    The resulting image may have artifacts in it. After rotation, the image may have a different aspect ratio, and
-    after resizing, it returns to its original shape with the original aspect ratio of the image. For these reason we
-    may see some artifacts.
+    This transformation ensures that the entire rotated image fits within the original frame by scaling it
+    down if necessary. The resulting image maintains its original dimensions but may contain artifacts due to the
+    rotation and scaling process.
 
     Args:
-        limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+        limit (float, tuple of float): Range from which a random angle is picked. If limit is a single float,
             an angle is picked from (-limit, limit). Default: (-90, 90)
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+        border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-        p (float): probability of applying the transform. Default: 0.5.
+        value (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT applied
+            for masks.
+        rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
+            Default: 'largest_box'
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -270,12 +272,16 @@ class SafeRotate(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - The rotation is performed around the center of the image.
+        - After rotation, the image is scaled to fit within the original frame, which may cause some distortion.
+        - The output image will always have the same dimensions as the input image.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(RotateInitSchema):
-        pass
+        rotate_method: Literal["largest_box", "ellipse"]
 
     def __init__(
         self,
@@ -284,73 +290,80 @@ class SafeRotate(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        value = 0 if value is None else value
+        mask_value = 0 if mask_value is None else mask_value
+        super().__init__(
+            rotate=limit,
+            interpolation=interpolation,
+            mode=border_mode,
+            cval=value,
+            cval_mask=mask_value,
+            rotate_method=rotate_method,
+            fit_output=True,
+            p=p,
+            always_apply=always_apply,
+        )
         self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.rotate_method = rotate_method
 
-    def apply(self, img: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method"
 
-    def apply_to_mask(self, mask: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
-
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_safe_rotate(bbox, params["matrix"], params["shape"])
-
-    def apply_to_keypoint(
+    def _create_safe_rotate_matrix(
         self,
-        keypoint: KeypointInternalType,
         angle: float,
-        scale_x: float,
-        scale_y: float,
-        **params: Any,
-    ) -> KeypointInternalType:
-        return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, params["shape"])
+        center: tuple[float, float],
+        image_shape: tuple[int, int],
+    ) -> tuple[ProjectiveTransform, dict[str, float]]:
+        height, width = image_shape[:2]
+        rotation_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        image_shape = params["shape"]
-
-        angle = random.uniform(*self.limit)
-
-        # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
-        image_center = center(image_shape)
-
-        # Rotation Matrix
-        rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-
-        # rotation calculates the cos and sin, taking absolutes of those.
+        # Calculate new image size
         abs_cos = abs(rotation_mat[0, 0])
         abs_sin = abs(rotation_mat[0, 1])
+        new_w = int(height * abs_sin + width * abs_cos)
+        new_h = int(height * abs_cos + width * abs_sin)
 
-        height, width = image_shape[:2]
+        # Adjust the rotation matrix to take into account the new size
+        rotation_mat[0, 2] += new_w / 2 - center[0]
+        rotation_mat[1, 2] += new_h / 2 - center[1]
 
-        # find the new width and height bounds
-        new_w = math.ceil(height * abs_sin + width * abs_cos)
-        new_h = math.ceil(height * abs_cos + width * abs_sin)
-
+        # Calculate scaling factors
         scale_x = width / new_w
         scale_y = height / new_h
 
-        # Shift the image to create padding
-        rotation_mat[0, 2] += new_w / 2 - image_center[0]
-        rotation_mat[1, 2] += new_h / 2 - image_center[1]
+        # Create scaling matrix
+        scale_mat = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
 
-        # Rescale to original size
-        scale_mat = np.diag(np.ones(3))
-        scale_mat[0, 0] *= scale_x
-        scale_mat[1, 1] *= scale_y
-        _tmp = np.diag(np.ones(3))
-        _tmp[:2] = rotation_mat
-        _tmp = scale_mat @ _tmp
-        rotation_mat = _tmp[:2]
+        # Combine rotation and scaling
+        matrix = scale_mat @ np.vstack([rotation_mat, [0, 0, 1]])
 
-        return {"matrix": rotation_mat, "angle": angle, "scale_x": scale_x, "scale_y": scale_y}
+        return ProjectiveTransform(matrix=matrix), {"x": scale_x, "y": scale_y}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "limit", "interpolation", "border_mode", "value", "mask_value"
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image_shape = params["shape"][:2]
+        angle = random.uniform(self.limit[0], self.limit[1])
+
+        # Calculate centers for image and bbox
+        image_center = center(image_shape)
+        bbox_center = center_bbox(image_shape)
+
+        # Create matrices for image and bbox
+        matrix, scale = self._create_safe_rotate_matrix(angle, image_center, image_shape)
+        bbox_matrix, _ = self._create_safe_rotate_matrix(angle, bbox_center, image_shape)
+
+        return {
+            "rotate": angle,
+            "scale": scale,
+            "matrix": matrix,
+            "bbox_matrix": bbox_matrix,
+            "output_shape": image_shape,
+        }

@@ -20,8 +20,9 @@ def test_random_crop_vs_crop(bboxes, keypoints):
 
     np.testing.assert_array_equal(random_crop_result["image"], crop_result["image"])
     np.testing.assert_array_equal(random_crop_result["mask"], crop_result["mask"])
-    assert random_crop_result["bboxes"] == crop_result["bboxes"]
-    assert random_crop_result["keypoints"] == crop_result["keypoints"]
+
+    np.testing.assert_equal(random_crop_result["bboxes"], crop_result["bboxes"])
+    np.testing.assert_equal(random_crop_result["keypoints"], crop_result["keypoints"])
 
 
 def test_center_crop_vs_crop(bboxes, keypoints):
@@ -39,8 +40,9 @@ def test_center_crop_vs_crop(bboxes, keypoints):
 
     np.testing.assert_array_equal(center_crop_result["image"], crop_result["image"])
     np.testing.assert_array_equal(center_crop_result["mask"], crop_result["mask"])
-    assert center_crop_result["bboxes"] == crop_result["bboxes"]
-    assert center_crop_result["keypoints"] == crop_result["keypoints"]
+
+    np.testing.assert_equal(center_crop_result["bboxes"], crop_result["bboxes"])
+    np.testing.assert_equal(center_crop_result["keypoints"], crop_result["keypoints"])
 
 
 @pytest.mark.parametrize("image", IMAGES)
@@ -69,12 +71,12 @@ def test_crop_near_bbox(image, bboxes, keypoints):
 
 
 def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), (100, 100))
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
+    cropped_bbox = A.crop_bboxes_by_coords(np.array([[0.5, 0.2, 0.9, 0.7]]), (18, 18, 82, 82), (100, 100))
+    np.testing.assert_array_almost_equal(cropped_bbox, np.array([[0.5, 0.03125, 1.125, 0.8125]]))
 
 
 @pytest.mark.parametrize(
-    ["transforms", "bboxes", "result_bboxes", "min_area", "min_visibility"],
+    ["transforms", "bboxes", "expected_bboxes", "min_area", "min_visibility"],
     [
         [[A.Crop(10, 10, 20, 20)], [[0, 0, 10, 10, 0]], [], 0, 0],
         [
@@ -96,7 +98,7 @@ def test_crop_bbox_by_coords():
 def test_bbox_params_edges(
     transforms,
     bboxes,
-    result_bboxes,
+    expected_bboxes,
     min_area: float,
     min_visibility: float,
 ) -> None:
@@ -109,4 +111,4 @@ def test_bbox_params_edges(
     )
     res = aug(image=image, bboxes=bboxes)["bboxes"]
 
-    assert np.array_equal(res, result_bboxes)
+    np.testing.assert_array_equal(res, expected_bboxes)

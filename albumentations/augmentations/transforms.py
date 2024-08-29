@@ -47,12 +47,10 @@ from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
     PAIR,
-    BoxInternalType,
     ChromaticAberrationMode,
     ColorType,
     ImageCompressionType,
     ImageMode,
-    KeypointInternalType,
     MorphologyMode,
     PlanckianJitterMode,
     RainMode,
@@ -166,36 +164,14 @@ class RandomGridShuffle(DualTransform):
     def apply_to_mask(self, mask: np.ndarray, tiles: np.ndarray, mapping: list[int], **params: Any) -> np.ndarray:
         return fmain.swap_tiles_on_image(mask, tiles, mapping)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: np.ndarray,
         tiles: np.ndarray,
-        mapping: list[int],
+        mapping: np.ndarray,
         **params: Any,
-    ) -> KeypointInternalType:
-        x, y = keypoint[:2]
-
-        # Find which original tile the keypoint belongs to
-        for original_index, new_index in enumerate(mapping):
-            start_y, start_x, end_y, end_x = tiles[original_index]
-            # check if the keypoint is in this tile
-            if start_y <= y < end_y and start_x <= x < end_x:
-                # Get the new tile's coordinates
-                new_start_y, new_start_x = tiles[new_index][:2]
-
-                # Map the keypoint to the new tile's position
-                new_x = (x - start_x) + new_start_x
-                new_y = (y - start_y) + new_start_y
-
-                return (new_x, new_y, *keypoint[2:])
-
-        # If the keypoint wasn't in any tile (shouldn't happen), log a warning for debugging purposes
-        warn(
-            "Keypoint not in any tile, returning it unchanged. This is unexpected and should be investigated.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        return keypoint
+    ) -> np.ndarray:
+        return fmain.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
@@ -1365,8 +1341,8 @@ class RandomToneCurve(ImageOnlyTransform):
 
         if self.per_channel and num_channels != 1:
             return {
-                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=[num_channels]), 0, 1),
-                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=[num_channels]), 0, 1),
+                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=(num_channels,)), 0, 1),
+                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=(num_channels,)), 0, 1),
             }
         # Same values for all channels
         low_y = np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1)
@@ -2353,8 +2329,8 @@ class Lambda(NoOp):
         self,
         image: Callable[..., Any] | None = None,
         mask: Callable[..., Any] | None = None,
-        keypoint: Callable[..., Any] | None = None,
-        bbox: Callable[..., Any] | None = None,
+        keypoints: Callable[..., Any] | None = None,
+        bboxes: Callable[..., Any] | None = None,
         global_label: Callable[..., Any] | None = None,
         name: str | None = None,
         always_apply: bool | None = None,
@@ -2364,13 +2340,13 @@ class Lambda(NoOp):
 
         self.name = name
         self.custom_apply_fns = {
-            target_name: fmain.noop for target_name in ("image", "mask", "keypoint", "bbox", "global_label")
+            target_name: fmain.noop for target_name in ("image", "mask", "keypoints", "bboxes", "global_label")
         }
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
-            "keypoint": keypoint,
-            "bbox": bbox,
+            "keypoints": keypoints,
+            "bboxes": bboxes,
             "global_label": global_label,
         }.items():
             if custom_apply_fn is not None:
@@ -2391,13 +2367,34 @@ class Lambda(NoOp):
         fn = self.custom_apply_fns["mask"]
         return fn(mask, **params)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        fn = self.custom_apply_fns["bbox"]
-        return fn(bbox, **params)
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        is_ndarray = True
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        fn = self.custom_apply_fns["keypoint"]
-        return fn(keypoint, **params)
+        if not isinstance(bboxes, np.ndarray):
+            is_ndarray = False
+            bboxes = np.array(bboxes, dtype=np.float32)
+
+        fn = self.custom_apply_fns["bboxes"]
+        result = fn(bboxes, **params)
+
+        if not is_ndarray:
+            return result.tolist()
+
+        return result
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        is_ndarray = True
+        if not isinstance(keypoints, np.ndarray):
+            is_ndarray = False
+            keypoints = np.array(keypoints, dtype=np.float32)
+
+        fn = self.custom_apply_fns["keypoints"]
+        result = fn(keypoints, **params)
+
+        if not is_ndarray:
+            return result.tolist()
+
+        return result
 
     def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
         fn = self.custom_apply_fns["global_label"]
@@ -3182,11 +3179,11 @@ class PixelDropout(DualTransform):
 
         return fmain.pixel_dropout(mask, drop_mask, self.mask_drop_value)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return bbox
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        return bboxes
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return keypoint
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        return keypoints
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         img = data["image"] if "image" in data else data["images"][0]

@@ -547,11 +547,11 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
     def vflip_mask(mask, **kwargs):
         return fgeometric.vflip(mask)
 
-    def vflip_bbox(bbox, **kwargs):
-        return fgeometric.bbox_vflip(bbox)
+    def vflip_bbox(bboxes, **kwargs):
+        return fgeometric.bboxes_vflip(bboxes)
 
-    def vflip_keypoint(keypoint, **kwargs):
-        return fgeometric.keypoint_vflip(keypoint, kwargs["rows"])
+    def vflip_keypoint(keypoints, **kwargs):
+        return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
 
     mask = image.copy()
 
@@ -559,8 +559,8 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
         name="vflip",
         image=vflip_image,
         mask=vflip_mask,
-        bbox=vflip_bbox,
-        keypoint=vflip_keypoint,
+        bboxes=vflip_bbox,
+        keypoints=vflip_keypoint,
         p=p,
     )
 
@@ -691,7 +691,7 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
     image = SQUARE_UINT8_IMAGE
     template_transform = A.TemplateTransform(name="template", templates=template, p=p)
 
-    aug = A.Compose([A.Flip(), template_transform, A.Blur()])
+    aug = A.Compose([A.HorizontalFlip(p=1), template_transform, A.Blur(p=1)])
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, nonserializable={"template": template_transform})
@@ -766,13 +766,9 @@ def test_augmentations_serialization(augmentation_cls: A.BasicTransform, params:
                 if not field.deprecated:
                     fields.add(field_name)
 
-        for base in model_cls.__bases__:
-            fields |= get_all_init_schema_fields(base)
-
         return fields
 
     model_fields = get_all_init_schema_fields(augmentation_cls)
-
     # Note: You might want to adjust this based on how you handle default fields in your models
     expected_args = model_fields - {'__class_fullname__'}
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+__all__ = ["copy_and_paste_blend"]
+
 
 def copy_and_paste_blend(
     base_image: np.ndarray,

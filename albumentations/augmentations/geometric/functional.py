@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Literal, Sequence, TypedDict, cast
+from typing import Any, Callable, Literal, Sequence, Tuple, TypedDict, cast
 
 import cv2
 import numpy as np
@@ -9,18 +9,16 @@ import skimage.transform
 from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations import random_utils
-from albumentations.augmentations.functional import center
+from albumentations.augmentations.functional import bbox_from_mask, center
 from albumentations.augmentations.utils import angle_2pi_range
-from albumentations.core.bbox_utils import denormalize_bbox, denormalize_bboxes, normalize_bbox, normalize_bboxes
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import (
+    NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
-    BoxInternalType,
     ColorType,
     D4Type,
-    KeypointInternalType,
     ScalarType,
-    SizeType,
 )
 
 __all__ = [
@@ -30,49 +28,37 @@ __all__ = [
     "grid_distortion",
     "pad",
     "pad_with_params",
-    "bbox_rot90",
-    "keypoint_rot90",
     "rotate",
-    "bbox_rotate",
-    "keypoint_rotate",
     "elastic_transform",
     "resize",
     "scale",
-    "keypoint_scale",
     "_func_max_size",
     "longest_max_size",
     "smallest_max_size",
     "perspective",
-    "perspective_bbox",
     "rotation2d_matrix_to_euler_angles",
-    "perspective_keypoint",
     "is_identity_matrix",
     "warp_affine",
-    "safe_rotate",
-    "bbox_safe_rotate",
-    "keypoint_safe_rotate",
     "piecewise_affine",
     "to_distance_maps",
     "from_distance_maps",
-    "keypoint_piecewise_affine",
-    "bbox_piecewise_affine",
-    "bbox_flip",
-    "bbox_hflip",
-    "bbox_transpose",
-    "bbox_vflip",
     "hflip",
     "hflip_cv2",
     "transpose",
-    "keypoint_flip",
-    "keypoint_hflip",
-    "keypoint_transpose",
-    "keypoint_vflip",
-    "normalize_bbox",
-    "denormalize_bbox",
     "vflip",
     "d4",
-    "bbox_d4",
-    "keypoint_d4",
+    "bboxes_rotate",
+    "keypoints_rotate",
+    "bboxes_d4",
+    "keypoints_d4",
+    "bboxes_rot90",
+    "keypoints_rot90",
+    "bboxes_transpose",
+    "keypoints_transpose",
+    "bboxes_vflip",
+    "keypoints_vflip",
+    "bboxes_hflip",
+    "keypoints_hflip",
 ]
 
 PAIR = 2
@@ -81,34 +67,52 @@ ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
 
 
-def bbox_rot90(bbox: BoxInternalType, factor: int) -> BoxInternalType:
-    """Rotates a bounding box by 90 degrees CCW (see np.rot90)
+def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
+    """Rotates bounding boxes by 90 degrees CCW (see np.rot90)
 
     Args:
-        bbox: A bounding box tuple (x_min, y_min, x_max, y_max).
+        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
         factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
 
     Returns:
-        tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
+        np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
 
+    Raises:
+        ValueError: If factor is not in set {0, 1, 2, 3}.
     """
     if factor not in {0, 1, 2, 3}:
-        msg = "Parameter n must be in set {0, 1, 2, 3}"
-        raise ValueError(msg)
-    x_min, y_min, x_max, y_max = bbox[:4]
+        raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
+
+    if factor == 0:
+        return bboxes
+
+    rotated_bboxes = bboxes.copy()
+    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+
     if factor == 1:
-        bbox = y_min, 1 - x_max, y_max, 1 - x_min
+        rotated_bboxes[:, 0] = y_min
+        rotated_bboxes[:, 1] = 1 - x_max
+        rotated_bboxes[:, 2] = y_max
+        rotated_bboxes[:, 3] = 1 - x_min
     elif factor == ROT90_180_FACTOR:
-        bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
+        rotated_bboxes[:, 0] = 1 - x_max
+        rotated_bboxes[:, 1] = 1 - y_max
+        rotated_bboxes[:, 2] = 1 - x_min
+        rotated_bboxes[:, 3] = 1 - y_min
     elif factor == ROT90_270_FACTOR:
-        bbox = 1 - y_max, x_min, 1 - y_min, x_max
-    return bbox
+        rotated_bboxes[:, 0] = 1 - y_max
+        rotated_bboxes[:, 1] = x_min
+        rotated_bboxes[:, 2] = 1 - y_min
+        rotated_bboxes[:, 3] = x_max
+
+    return rotated_bboxes
 
 
-def bbox_d4(
-    bbox: BoxInternalType,
+def bboxes_d4(
+    bboxes: np.ndarray,
     group_member: D4Type,
-) -> BoxInternalType:
+) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to a bounding box.
 
     The function transforms a bounding box according to the specified group member from the `D_4` group.
@@ -116,8 +120,8 @@ def bbox_d4(
     its dimensions.
 
     Parameters:
-    - bbox (BoxInternalType): The bounding box to transform. This should be a structure specifying coordinates
-        like (xmin, ymin, xmax, ymax).
+    -  bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
     - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
 
@@ -134,66 +138,74 @@ def bbox_d4(
     """
     transformations = {
         "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: bbox_rot90(x, 1),  # Rotate 90 degrees
-        "r180": lambda x: bbox_rot90(x, 2),  # Rotate 180 degrees
-        "r270": lambda x: bbox_rot90(x, 3),  # Rotate 270 degrees
-        "v": lambda x: bbox_vflip(x),  # Vertical flip
-        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2)),  # Reflect over anti-diagonal
-        "h": lambda x: bbox_hflip(x),  # Horizontal flip
-        "t": lambda x: bbox_transpose(x),  # Transpose (reflect over main diagonal)
+        "r90": lambda x: bboxes_rot90(x, 1),  # Rotate 90 degrees
+        "r180": lambda x: bboxes_rot90(x, 2),  # Rotate 180 degrees
+        "r270": lambda x: bboxes_rot90(x, 3),  # Rotate 270 degrees
+        "v": lambda x: bboxes_vflip(x),  # Vertical flip
+        "hvt": lambda x: bboxes_transpose(bboxes_rot90(x, 2)),  # Reflect over anti-diagonal
+        "h": lambda x: bboxes_hflip(x),  # Horizontal flip
+        "t": lambda x: bboxes_transpose(x),  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
     if group_member in transformations:
-        return transformations[group_member](bbox)
+        return transformations[group_member](bboxes)
 
     raise ValueError(f"Invalid group member: {group_member}")
 
 
 @angle_2pi_range
-def keypoint_rot90(
-    keypoint: KeypointInternalType,
+def keypoints_rot90(
+    keypoints: np.ndarray,
     factor: int,
     image_shape: tuple[int, int],
-    **params: Any,
-) -> KeypointInternalType:
-    """Rotate a keypoint by 90 degrees counter-clockwise (CCW) a specified number of times.
+) -> np.ndarray:
+    """Rotate keypoints by 90 degrees counter-clockwise (CCW) a specified number of times.
 
     Args:
-        keypoint (KeypointInternalType): A keypoint in the format `(x, y, angle, scale)`.
+        keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
         factor (int): The number of 90 degree CCW rotations to apply. Must be in the range [0, 3].
-        image_shape (tuple[int, int]): The shape of the image.
-        **params: Additional parameters.
+        image_shape (tuple[int, int]): The shape of the image (height, width).
 
     Returns:
-        KeypointInternalType: The rotated keypoint in the format `(x, y, angle, scale)`.
+        np.ndarray: The rotated keypoints with the same shape as the input.
 
     Raises:
         ValueError: If the factor is not in the set {0, 1, 2, 3}.
     """
-    x, y, angle, scale = keypoint
-
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
 
-    rows, cols = image_shape[:2]
+    if factor == 0:
+        return keypoints
+
+    height, width = image_shape[:2]
+    rotated_keypoints = keypoints.copy().astype(np.float32)
+
+    x, y, angle = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2]
 
     if factor == 1:
-        x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
+        rotated_keypoints[:, 0] = y
+        rotated_keypoints[:, 1] = width - 1 - x
+        rotated_keypoints[:, 2] = angle - np.pi / 2
     elif factor == ROT90_180_FACTOR:
-        x, y, angle = (cols - 1) - x, (rows - 1) - y, angle - math.pi
+        rotated_keypoints[:, 0] = width - 1 - x
+        rotated_keypoints[:, 1] = height - 1 - y
+        rotated_keypoints[:, 2] = angle - np.pi
     elif factor == ROT90_270_FACTOR:
-        x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
+        rotated_keypoints[:, 0] = height - 1 - y
+        rotated_keypoints[:, 1] = x
+        rotated_keypoints[:, 2] = angle + np.pi / 2
 
-    return x, y, angle, scale
+    return rotated_keypoints
 
 
-def keypoint_d4(
-    keypoint: KeypointInternalType,
+def keypoints_d4(
+    keypoints: np.ndarray,
     group_member: D4Type,
     image_shape: tuple[int, int],
     **params: Any,
-) -> KeypointInternalType:
+) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to a keypoint.
 
     This function adjusts a keypoint's coordinates according to the specified `D_4` group transformation,
@@ -201,10 +213,8 @@ def keypoint_d4(
     for the dimensions of the image to ensure the keypoint remains within its boundaries.
 
     Parameters:
-    - keypoint (KeypointInternalType): The keypoint to transform. T
-        his should be a structure or tuple specifying coordinates
-        like (x, y, [additional parameters]).
-    - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+    - keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
+    -group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
     - image_shape (tuple[int, int]): The shape of the image.
     - params (Any): Not used
@@ -223,17 +233,17 @@ def keypoint_d4(
     rows, cols = image_shape[:2]
     transformations = {
         "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: keypoint_rot90(x, 1, image_shape),  # Rotate 90 degrees
-        "r180": lambda x: keypoint_rot90(x, 2, image_shape),  # Rotate 180 degrees
-        "r270": lambda x: keypoint_rot90(x, 3, image_shape),  # Rotate 270 degrees
-        "v": lambda x: keypoint_vflip(x, rows),  # Vertical flip
-        "hvt": lambda x: keypoint_transpose(keypoint_rot90(x, 2, image_shape)),  # Reflect over anti diagonal
-        "h": lambda x: keypoint_hflip(x, cols),  # Horizontal flip
-        "t": lambda x: keypoint_transpose(x),  # Transpose (reflect over main diagonal)
+        "r90": lambda x: keypoints_rot90(x, 1, image_shape),  # Rotate 90 degrees
+        "r180": lambda x: keypoints_rot90(x, 2, image_shape),  # Rotate 180 degrees
+        "r270": lambda x: keypoints_rot90(x, 3, image_shape),  # Rotate 270 degrees
+        "v": lambda x: keypoints_vflip(x, rows),  # Vertical flip
+        "hvt": lambda x: keypoints_transpose(keypoints_rot90(x, 2, image_shape)),  # Reflect over anti diagonal
+        "h": lambda x: keypoints_hflip(x, cols),  # Horizontal flip
+        "t": lambda x: keypoints_transpose(x),  # Transpose (reflect over main diagonal)
     }
     # Execute the appropriate transformation
     if group_member in transformations:
-        return transformations[group_member](keypoint)
+        return transformations[group_member](keypoints)
 
     raise ValueError(f"Invalid group member: {group_member}")
 
@@ -264,74 +274,98 @@ def rotate(
     return warp_fn(img)
 
 
-def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, image_shape: tuple[int, int]) -> BoxInternalType:
-    """Rotates a bounding box by angle degrees.
+def bboxes_rotate(
+    bboxes: np.ndarray,
+    angle: float,
+    method: Literal["largest_box", "ellipse"],
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    """Rotates bounding boxes by angle degrees.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
         angle: Angle of rotation in degrees.
-        method: Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
-        image_shape: Image shape `(height, width)`.
+        method: Rotation method used. Should be one of: "largest_box", "ellipse".
+        image_shape: Image shape (height, width).
 
     Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
+        np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
 
     Reference:
         https://arxiv.org/abs/2109.13488
-
     """
-    rows, cols = image_shape
-    x_min, y_min, x_max, y_max = bbox[:4]
+    bboxes = bboxes.copy()
+    rows, cols = image_shape[:2]
+    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     scale = cols / float(rows)
+
     if method == "largest_box":
-        x = np.array([x_min, x_max, x_max, x_min]) - 0.5
-        y = np.array([y_min, y_min, y_max, y_max]) - 0.5
+        x = np.column_stack([x_min, x_max, x_max, x_min]) - 0.5
+        y = np.column_stack([y_min, y_min, y_max, y_max]) - 0.5
     elif method == "ellipse":
         w = (x_max - x_min) / 2
         h = (y_max - y_min) / 2
         data = np.arange(0, 360, dtype=np.float32)
-        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
-        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
+        x = w[:, np.newaxis] * np.sin(np.radians(data)) + (w + x_min - 0.5)[:, np.newaxis]
+        y = h[:, np.newaxis] * np.cos(np.radians(data)) + (h + y_min - 0.5)[:, np.newaxis]
     else:
         raise ValueError(f"Method {method} is not a valid rotation method.")
-    angle = np.deg2rad(angle)
-    x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
-    y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
+
+    angle_rad = np.deg2rad(angle)
+    x_t = (np.cos(angle_rad) * x * scale + np.sin(angle_rad) * y) / scale
+    y_t = -np.sin(angle_rad) * x * scale + np.cos(angle_rad) * y
     x_t = x_t + 0.5
     y_t = y_t + 0.5
 
-    x_min, x_max = min(x_t), max(x_t)
-    y_min, y_max = min(y_t), max(y_t)
+    # Update the first 4 columns of the input array
+    bboxes[:, 0] = np.min(x_t, axis=1)
+    bboxes[:, 1] = np.min(y_t, axis=1)
+    bboxes[:, 2] = np.max(x_t, axis=1)
+    bboxes[:, 3] = np.max(y_t, axis=1)
 
-    return x_min, y_min, x_max, y_max
+    return bboxes
 
 
 @angle_2pi_range
-def keypoint_rotate(
-    keypoint: KeypointInternalType,
+def keypoints_rotate(
+    keypoints: np.ndarray,
     angle: float,
     image_shape: tuple[int, int],
-    **params: Any,
-) -> KeypointInternalType:
-    """Rotate a keypoint by a specified angle.
+) -> np.ndarray:
+    """Rotate keypoints by a specified angle.
 
     Args:
-        keypoint (KeypointInternalType): A keypoint in the format `(x, y, angle, scale)`.
-        angle (float): The angle by which to rotate the keypoint, in degrees.
-        image_shape (tuple[int, int]): The shape of the image the keypoint belongs to.
+        keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
+        angle (float): The angle by which to rotate the keypoints, in degrees.
+        image_shape (tuple[int, int]): The shape of the image the keypoints belong to (height, width).
         **params: Additional parameters.
 
     Returns:
-        KeypointInternalType: The rotated keypoint in the format `(x, y, angle, scale)`.
+        np.ndarray: The rotated keypoints with the same shape as the input.
 
     Note:
         The rotation is performed around the center of the image.
     """
     image_center = center(image_shape)
     matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-    x, y, a, s = keypoint[:4]
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return x, y, a + math.radians(angle), s
+
+    # Create a copy of the input keypoints to avoid modifying the original array
+    rotated_keypoints = keypoints.copy().astype(np.float32)
+
+    # Extract x and y coordinates
+    xy = rotated_keypoints[:, :2]
+
+    # Rotate x and y coordinates
+    xy_rotated = cv2.transform(xy.reshape(-1, 1, 2), matrix).squeeze()
+
+    # Update x and y coordinates
+    rotated_keypoints[:, :2] = xy_rotated
+
+    # Update angles
+    rotated_keypoints[:, 2] += np.radians(angle)
+
+    return rotated_keypoints
 
 
 @preserve_channel_dim
@@ -351,20 +385,37 @@ def scale(img: np.ndarray, scale: float, interpolation: int) -> np.ndarray:
     return resize(img, new_size, interpolation)
 
 
-def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: float) -> KeypointInternalType:
-    """Scales a keypoint by scale_x and scale_y.
+def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
+    """Scales keypoints by scale_x and scale_y.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
+        keypoints: A numpy array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
         scale_x: Scale coefficient x-axis.
         scale_y: Scale coefficient y-axis.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
-
+        A numpy array of scaled keypoints with the same shape as input.
     """
-    x, y, angle, scale = keypoint[:4]
-    return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
+    # Extract x, y, angle, and scale
+    x, y, angle, scale = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
+
+    # Scale x and y
+    x_scaled = x * scale_x
+    y_scaled = y * scale_y
+
+    # Scale the keypoint scale by the maximum of scale_x and scale_y
+    scale_scaled = scale * max(scale_x, scale_y)
+
+    # Create the output array
+    scaled_keypoints = np.column_stack([x_scaled, y_scaled, angle, scale_scaled])
+
+    # If there are additional columns, preserve them
+    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
+        scaled_keypoints = np.column_stack(
+            [scaled_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
+        )
+
+    return scaled_keypoints
 
 
 def _func_max_size(img: np.ndarray, max_size: int, interpolation: int, func: Callable[..., Any]) -> np.ndarray:
@@ -416,33 +467,82 @@ def perspective(
     return warped
 
 
-def perspective_bbox(
-    bbox: BoxInternalType,
+def perspective_bboxes(
+    bboxes: np.ndarray,
     image_shape: tuple[int, int],
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, image_shape)[:4]
+) -> np.ndarray:
+    """Applies perspective transformation to bounding boxes.
 
-    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
+    This function transforms bounding boxes using the given perspective transformation matrix.
+    It handles bounding boxes with additional attributes beyond the standard coordinates.
 
-    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
-    for pt in points:
-        point = perspective_keypoint((*pt.tolist(), 0, 0), image_shape, matrix, max_width, max_height, keep_size)
-        x, y = point[:2]
-        x1 = min(x1, x)
-        x2 = max(x2, x)
-        y1 = min(y1, y)
-        y2 = max(y2, y)
+    Args:
+        bboxes (np.ndarray): An array of bounding boxes with shape (num_bboxes, 4+).
+                             Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+                             Additional columns beyond the first 4 are preserved unchanged.
+        image_shape (tuple[int, int]): The shape of the image (height, width).
+        matrix (np.ndarray): The perspective transformation matrix.
+        max_width (int): The maximum width of the output image.
+        max_height (int): The maximum height of the output image.
+        keep_size (bool): If True, maintains the original image size after transformation.
 
+    Returns:
+        np.ndarray: An array of transformed bounding boxes with the same shape as input.
+                    The first 4 columns contain the transformed coordinates, and any
+                    additional columns are preserved from the input.
+
+    Note:
+        - This function modifies only the coordinate columns (first 4) of the input bounding boxes.
+        - Any additional attributes (columns beyond the first 4) are kept unchanged.
+        - The function handles denormalization and renormalization of coordinates internally.
+
+    Example:
+        >>> bboxes = np.array([[0.1, 0.1, 0.3, 0.3, 1], [0.5, 0.5, 0.8, 0.8, 2]])
+        >>> image_shape = (100, 100)
+        >>> matrix = np.array([[1.5, 0.2, -20], [-0.1, 1.3, -10], [0.002, 0.001, 1]])
+        >>> transformed_bboxes = perspective_bboxes(bboxes, image_shape, matrix, 150, 150, False)
+    """
     height, width = image_shape[:2]
 
-    return cast(
-        BoxInternalType,
-        normalize_bbox((x1, y1, x2, y2), (height if keep_size else max_height, width if keep_size else max_width)),
+    # Create a copy of the input bboxes to avoid modifying the original array
+    transformed_bboxes = bboxes.copy()
+
+    # Denormalize bboxes
+    denormalized_coords = denormalize_bboxes(bboxes[:, :4], image_shape)
+
+    # Create points for each bbox
+    x_min, y_min, x_max, y_max = denormalized_coords.T
+    points = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(2, 0, 1)
+    # Shape is: (num_bboxes, 4, 2)
+
+    # Reshape points to (num_bboxes * 4, 2)
+    points_reshaped = points.reshape(-1, 2)
+
+    # Pad points_reshaped with two columns of zeros
+    points_padded = np.pad(points_reshaped, ((0, 0), (0, 2)), mode="constant")
+
+    # Apply perspective transformation to all points at once
+    transformed_points = perspective_keypoints(points_padded, image_shape, matrix, max_width, max_height, keep_size)
+
+    # Reshape back to (num_bboxes, 4, 2)
+    transformed_points = transformed_points[:, :2].reshape(-1, 4, 2)
+    # Get new bounding boxes
+    new_coords = np.array(
+        [[np.min(box[:, 0]), np.min(box[:, 1]), np.max(box[:, 0]), np.max(box[:, 1])] for box in transformed_points],
     )
+
+    # Normalize the new bounding boxes
+    output_shape = (height if keep_size else max_height, width if keep_size else max_width)
+    normalized_coords = normalize_bboxes(new_coords, output_shape)
+
+    # Update only the first 4 columns of the bboxes array
+    transformed_bboxes[:, :4] = normalized_coords
+
+    return transformed_bboxes
 
 
 def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
@@ -457,21 +557,28 @@ def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
 
 
 @angle_2pi_range
-def perspective_keypoint(
-    keypoint: KeypointInternalType,
+def perspective_keypoints(
+    keypoints: np.ndarray,
     image_shape: tuple[int, int],
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> KeypointInternalType:
-    x, y, angle, scale = keypoint
+) -> np.ndarray:
+    keypoints = keypoints.copy().astype(np.float32)
+    x, y, angle, scale = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
 
-    keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
+    # Reshape keypoints for perspective transform
+    keypoint_vector = np.column_stack((x, y)).astype(np.float32).reshape(-1, 1, 2)
 
-    x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
+    # Apply perspective transform
+    transformed_points = cv2.perspectiveTransform(keypoint_vector, matrix).squeeze()
+    x, y = transformed_points[:, 0], transformed_points[:, 1]
+
+    # Update angles
     angle += rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=True)
 
+    # Calculate scale factors
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
     scale *= max(scale_x, scale_y)
@@ -480,9 +587,20 @@ def perspective_keypoint(
         width, height = image_shape[:2]
         scale_x = width / max_width
         scale_y = height / max_height
-        return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
+        x *= scale_x
+        y *= scale_y
+        scale *= max(scale_x, scale_y)
 
-    return x, y, angle, scale
+    # Create the output array
+    transformed_keypoints = np.column_stack([x, y, angle, scale])
+
+    # If there are additional columns, preserve them
+    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
+        transformed_keypoints = np.column_stack(
+            [transformed_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
+        )
+
+    return transformed_keypoints
 
 
 def is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
@@ -522,7 +640,11 @@ def warp_affine(
     if is_identity_matrix(matrix):
         return image
 
-    dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
+    height = int(np.round(output_shape[0]))
+    width = int(np.round(output_shape[1]))
+
+    dsize = (width, height)
+
     warp_fn = maybe_process_in_chunks(
         warp_affine_with_value_extension,
         matrix=matrix.params[:2],
@@ -771,7 +893,7 @@ def bboxes_affine(
     rotate_method: Literal["largest_box", "ellipse"],
     image_shape: tuple[int, int],
     border_mode: int,
-    output_shape: Sequence[int],
+    output_shape: tuple[int, int],
 ) -> np.ndarray:
     """Apply an affine transformation to bounding boxes.
 
@@ -820,81 +942,6 @@ def bboxes_affine(
     return normalize_bboxes(validated_bboxes, output_shape)
 
 
-@preserve_channel_dim
-def safe_rotate(
-    img: np.ndarray,
-    matrix: np.ndarray,
-    interpolation: int,
-    value: ColorType | None = None,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-) -> np.ndarray:
-    height, width = img.shape[:2]
-    warp_fn = maybe_process_in_chunks(
-        cv2.warpAffine,
-        M=matrix,
-        dsize=(width, height),
-        flags=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return warp_fn(img)
-
-
-def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, image_shape: Sequence[int]) -> BoxInternalType:
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
-    points = np.array(
-        [
-            [x_min, y_min, 1],
-            [x_max, y_min, 1],
-            [x_max, y_max, 1],
-            [x_min, y_max, 1],
-        ],
-    )
-    points = points @ matrix.T
-    x_min = points[:, 0].min()
-    x_max = points[:, 0].max()
-    y_min = points[:, 1].min()
-    y_max = points[:, 1].max()
-
-    def fix_point(pt1: float, pt2: float, max_val: float) -> tuple[float, float]:
-        # In my opinion, these errors should be very low, around 1-2 pixels.
-        if pt1 < 0:
-            return 0, pt2 + pt1
-        if pt2 > max_val:
-            return pt1 - (pt2 - max_val), max_val
-        return pt1, pt2
-
-    rows, cols = image_shape[:2]
-
-    x_min, x_max = fix_point(x_min, x_max, cols)
-    y_min, y_max = fix_point(y_min, y_max, rows)
-
-    return cast(KeypointInternalType, normalize_bbox((x_min, y_min, x_max, y_max), image_shape))
-
-
-def keypoint_safe_rotate(
-    keypoint: KeypointInternalType,
-    matrix: np.ndarray,
-    angle: float,
-    scale_x: float,
-    scale_y: float,
-    image_shape: Sequence[int],
-) -> KeypointInternalType:
-    x, y, a, s = keypoint[:4]
-    point = np.array([[x, y, 1]])
-    x, y = (point @ matrix.T)[0]
-
-    rows, cols = image_shape[:2]
-
-    # To avoid problems with float errors
-    x = np.clip(x, 0, cols - 1)
-    y = np.clip(y, 0, rows - 1)
-
-    a += angle
-    s *= max(scale_x, scale_y)
-    return x, y, a, s
-
-
 @clipped
 def piecewise_affine(
     img: np.ndarray,
@@ -917,7 +964,7 @@ def piecewise_affine(
 
 
 def to_distance_maps(
-    keypoints: Sequence[tuple[float, float]],
+    keypoints: np.ndarray,
     image_shape: tuple[int, int],
     inverted: bool = False,
 ) -> np.ndarray:
@@ -930,42 +977,45 @@ def to_distance_maps(
     method that only supports the augmentation of images.
 
     Args:
-        keypoints: keypoint coordinates
-        image_shape: tuple[int, int] shape of the image
+        keypoints: A numpy array of shape (N, 2+) where N is the number of keypoints.
+                   Each row represents a keypoint's (x, y) coordinates.
+        image_shape: tuple[int, int] shape of the image (height, width)
         inverted (bool): If ``True``, inverted distance maps are returned where each
             distance value d is replaced by ``d/(d+1)``, i.e. the distance
             maps have values in the range ``(0.0, 1.0]`` with ``1.0`` denoting
             exactly the position of the respective keypoint.
 
     Returns:
-        (H, W, N) ndarray
-            A ``float32`` array containing ``N`` distance maps for ``N``
+        np.ndarray: A ``float32`` array of shape (H, W, N) containing ``N`` distance maps for ``N``
             keypoints. Each location ``(y, x, n)`` in the array denotes the
             euclidean distance at ``(y, x)`` to the ``n``-th keypoint.
             If `inverted` is ``True``, the distance ``d`` is replaced
             by ``d/(d+1)``. The height and width of the array match the
-            height and width in ``KeypointsOnImage.shape``.
-
+            height and width in ``image_shape``.
     """
     height, width = image_shape[:2]
-    distance_maps = np.zeros((height, width, len(keypoints)), dtype=np.float32)
+    if len(keypoints) == 0:
+        return np.zeros((height, width, 0), dtype=np.float32)
 
-    yy = np.arange(0, height)
-    xx = np.arange(0, width)
-    grid_xx, grid_yy = np.meshgrid(xx, yy)
+    # Create coordinate grids
+    yy, xx = np.mgrid[:height, :width]
 
-    for i, (x, y) in enumerate(keypoints):
-        distance_maps[:, :, i] = (grid_xx - x) ** 2 + (grid_yy - y) ** 2
+    # Convert keypoints to numpy array
+    keypoints_array = np.array(keypoints)
 
-    distance_maps = np.sqrt(distance_maps)
+    # Compute distances for all keypoints at once
+    distances = np.sqrt(
+        (xx[..., np.newaxis] - keypoints_array[:, 0]) ** 2 + (yy[..., np.newaxis] - keypoints_array[:, 1]) ** 2,
+    )
+
     if inverted:
-        return 1 / (distance_maps + 1)
-    return distance_maps
+        return (1 / (distances + 1)).astype(np.float32)
+    return distances.astype(np.float32)
 
 
 def validate_if_not_found_coords(
     if_not_found_coords: Sequence[int] | dict[str, Any] | None,
-) -> tuple[bool, int, int]:
+) -> tuple[bool, float, float]:
     """Validate and process `if_not_found_coords` parameter."""
     if if_not_found_coords is None:
         return True, -1, -1
@@ -992,7 +1042,7 @@ def find_keypoint(
     value = distance_map[y, x]
     if not inverted and threshold is not None and value >= threshold:
         return None
-    if inverted and threshold is not None and value < threshold:
+    if inverted and threshold is not None and value <= threshold:
         return None
     return float(x), float(y)
 
@@ -1000,11 +1050,53 @@ def find_keypoint(
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
-    if_not_found_coords: Sequence[int] | dict[str, Any] | None,
-    threshold: float | None,
-) -> list[tuple[float, float]]:
-    """Convert outputs of `to_distance_maps` to `KeypointsOnImage`.
-    This is the inverse of `to_distance_maps`.
+    if_not_found_coords: Sequence[int] | dict[str, Any] | None = None,
+    threshold: float | None = None,
+) -> np.ndarray:
+    """Convert distance maps back to keypoints coordinates.
+
+    This function is the inverse of `to_distance_maps`. It takes distance maps generated for a set of keypoints
+    and reconstructs the original keypoint coordinates. The function supports both regular and inverted distance maps,
+    and can handle cases where keypoints are not found or fall outside a specified threshold.
+
+    Args:
+        distance_maps (np.ndarray): A 3D numpy array of shape (height, width, nb_keypoints) containing
+            distance maps for each keypoint. Each channel represents the distance map for one keypoint.
+        inverted (bool): If True, treats the distance maps as inverted (where higher values indicate
+            closer proximity to keypoints). If False, treats them as regular distance maps (where lower
+            values indicate closer proximity).
+        if_not_found_coords (Sequence[int] | dict[str, Any] | None, optional): Coordinates to use for
+            keypoints that are not found or fall outside the threshold. Can be:
+            - None: Drop keypoints that are not found.
+            - Sequence of two integers: Use these as (x, y) coordinates for not found keypoints.
+            - Dict with 'x' and 'y' keys: Use these values for not found keypoints.
+            Defaults to None.
+        threshold (float | None, optional): A threshold value to determine valid keypoints. For inverted
+            maps, values >= threshold are considered valid. For regular maps, values <= threshold are
+            considered valid. If None, all keypoints are considered valid. Defaults to None.
+
+    Returns:
+        np.ndarray: A 2D numpy array of shape (nb_keypoints, 2) containing the (x, y) coordinates
+        of the reconstructed keypoints. If `drop_if_not_found` is True (derived from if_not_found_coords),
+        the output may have fewer rows than input keypoints.
+
+    Raises:
+        ValueError: If the input `distance_maps` is not a 3D array.
+
+    Notes:
+        - The function uses vectorized operations for improved performance, especially with large numbers of keypoints.
+        - When `threshold` is None, all keypoints are considered valid, and `if_not_found_coords` is not used.
+        - The function assumes that the input distance maps are properly normalized and scaled according to the
+          original image dimensions.
+
+    Example:
+        >>> distance_maps = np.random.rand(100, 100, 3)  # 3 keypoints
+        >>> inverted = True
+        >>> if_not_found_coords = [0, 0]
+        >>> threshold = 0.5
+        >>> keypoints = from_distance_maps(distance_maps, inverted, if_not_found_coords, threshold)
+        >>> print(keypoints.shape)
+        (3, 2)
     """
     if distance_maps.ndim != NUM_MULTI_CHANNEL_DIMENSIONS:
         msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
@@ -1013,62 +1105,126 @@ def from_distance_maps(
 
     drop_if_not_found, if_not_found_x, if_not_found_y = validate_if_not_found_coords(if_not_found_coords)
 
-    keypoints = []
-    for i in range(nb_keypoints):
-        hitidx_flat = np.argmax(distance_maps[..., i]) if inverted else np.argmin(distance_maps[..., i])
-        hitidx_ndim = np.unravel_index(hitidx_flat, (height, width))
-        keypoint = find_keypoint(hitidx_ndim, distance_maps[:, :, i], threshold, inverted)
-        if keypoint:
-            keypoints.append(keypoint)
-        elif not drop_if_not_found:
-            keypoints.append((if_not_found_x, if_not_found_y))
+    # Find the indices of max/min values for all keypoints at once
+    if inverted:
+        hitidx_flat = np.argmax(distance_maps.reshape(height * width, nb_keypoints), axis=0)
+    else:
+        hitidx_flat = np.argmin(distance_maps.reshape(height * width, nb_keypoints), axis=0)
+
+    # Convert flat indices to 2D coordinates
+    hitidx_y, hitidx_x = np.unravel_index(hitidx_flat, (height, width))
+
+    # Create keypoints array
+    keypoints = np.column_stack((hitidx_x, hitidx_y)).astype(float)
+
+    if threshold is not None:
+        # Check threshold condition
+        if inverted:
+            valid_mask = distance_maps[hitidx_y, hitidx_x, np.arange(nb_keypoints)] >= threshold
+        else:
+            valid_mask = distance_maps[hitidx_y, hitidx_x, np.arange(nb_keypoints)] <= threshold
+
+        if not drop_if_not_found:
+            # Replace invalid keypoints with if_not_found_coords
+            keypoints[~valid_mask] = [if_not_found_x, if_not_found_y]
+        else:
+            # Keep only valid keypoints
+            return keypoints[valid_mask]
 
     return keypoints
 
 
-def keypoint_piecewise_affine(
-    keypoint: KeypointInternalType,
+def keypoints_piecewise_affine(
+    keypoints: np.ndarray,
     matrix: skimage.transform.PiecewiseAffineTransform | None,
     image_shape: tuple[int, int],
     keypoints_threshold: float,
-) -> KeypointInternalType:
+) -> np.ndarray:
     if matrix is None:
-        return keypoint
-    x, y, a, s = keypoint[:4]
-    dist_maps = to_distance_maps([(x, y)], image_shape, True)
+        return keypoints
+
+    a, s = keypoints[:, 2], keypoints[:, 3]
+
+    # Create distance maps for all keypoints
+    dist_maps = to_distance_maps(keypoints[:, :2], image_shape, True)
+
+    # Apply piecewise affine transformation to all distance maps
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    x, y = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)[0]
-    return x, y, a, s
+
+    # Convert distance maps back to keypoints
+    transformed_xy = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
+
+    # Combine transformed x, y with original a, s
+    transformed_keypoints = np.column_stack([transformed_xy, a, s])
+
+    # If there are additional columns, preserve them
+    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
+        return np.column_stack(
+            [transformed_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
+        )
+
+    return transformed_keypoints
 
 
-def bbox_piecewise_affine(
-    bbox: BoxInternalType,
-    matrix: skimage.transform.PiecewiseAffineTransform | None,
+def bboxes_piecewise_affine(
+    bboxes: np.ndarray,
+    matrix: skimage.transform.PiecewiseAffineTransform,
     image_shape: tuple[int, int],
     keypoints_threshold: float,
-) -> BoxInternalType:
+) -> np.ndarray:
     if matrix is None:
-        return bbox
-
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
-    keypoints = [
-        (x_min, y_min),
-        (x_max, y_min),
-        (x_max, y_max),
-        (x_min, y_max),
-    ]
-    dist_maps = to_distance_maps(keypoints, image_shape, True)
-    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
+        return bboxes
 
     height, width = image_shape[:2]
-    keypoints = [i for i in keypoints if 0 <= i[0] < width and 0 <= i[1] < height]
-    keypoints_arr = np.array(keypoints)
-    x_min = keypoints_arr[:, 0].min()
-    y_min = keypoints_arr[:, 1].min()
-    x_max = keypoints_arr[:, 0].max()
-    y_max = keypoints_arr[:, 1].max()
-    return cast(BoxInternalType, normalize_bbox((x_min, y_min, x_max, y_max), image_shape))
+
+    # Denormalize bboxes
+    denorm_bboxes = denormalize_bboxes(bboxes, image_shape)
+
+    # Create keypoints for all bboxes
+    keypoints = np.array(
+        [
+            denorm_bboxes[:, [0, 1]],  # x_min, y_min
+            denorm_bboxes[:, [2, 1]],  # x_max, y_min
+            denorm_bboxes[:, [2, 3]],  # x_max, y_max
+            denorm_bboxes[:, [0, 3]],  # x_min, y_max
+        ],
+    )
+    keypoints = keypoints.transpose(1, 0, 2).reshape(-1, 2)
+
+    # Create distance maps for all keypoints
+    dist_maps = to_distance_maps(keypoints, image_shape, True)
+
+    # Apply piecewise affine transformation to all distance maps
+    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
+
+    # Convert distance maps back to keypoints
+    transformed_keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
+
+    # Reshape transformed keypoints back to (N, 4, 2) where N is the number of bboxes
+    transformed_keypoints = transformed_keypoints.reshape(-1, 4, 2)
+
+    # Filter out keypoints outside the image
+    mask = (
+        (transformed_keypoints[:, :, 0] >= 0)
+        & (transformed_keypoints[:, :, 0] < width)
+        & (transformed_keypoints[:, :, 1] >= 0)
+        & (transformed_keypoints[:, :, 1] < height)
+    )
+
+    # Compute new bboxes
+    new_bboxes = np.zeros_like(bboxes)
+    for i in range(len(bboxes)):
+        valid_points = transformed_keypoints[i][mask[i]]
+        if len(valid_points) > 0:
+            new_bboxes[i, 0] = valid_points[:, 0].min()
+            new_bboxes[i, 1] = valid_points[:, 1].min()
+            new_bboxes[i, 2] = valid_points[:, 0].max()
+            new_bboxes[i, 3] = valid_points[:, 1].max()
+        else:
+            new_bboxes[i] = bboxes[i]  # Keep original bbox if all points are outside
+
+    # Normalize the new bboxes
+    return normalize_bboxes(new_bboxes, image_shape)
 
 
 def vflip(img: np.ndarray) -> np.ndarray:
@@ -1159,39 +1315,52 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.rot90(img, factor)
 
 
-def bbox_vflip(bbox: BoxInternalType) -> BoxInternalType:
-    """Flip a bounding box vertically around the x-axis.
+def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
+    """Flip bounding boxes vertically around the x-axis.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
 
     Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
+        np.ndarray: A numpy array of vertically flipped bounding boxes with the same shape as input.
     """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return x_min, 1 - y_max, x_max, 1 - y_min
+    if bboxes.size == 0:
+        return bboxes
+
+    flipped_bboxes = bboxes.copy()
+    flipped_bboxes[:, 1] = 1 - bboxes[:, 3]  # new y_min = 1 - y_max
+    flipped_bboxes[:, 3] = 1 - bboxes[:, 1]  # new y_max = 1 - y_min
+
+    return flipped_bboxes
 
 
-def bbox_hflip(bbox: BoxInternalType) -> BoxInternalType:
-    """Flip a bounding box horizontally around the y-axis.
+def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
+    """Flip bounding boxes horizontally around the y-axis.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
 
     Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
+        np.ndarray: A numpy array of horizontally flipped bounding boxes with the same shape as input.
     """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return 1 - x_max, y_min, 1 - x_min, y_max
+    if bboxes.size == 0:
+        return bboxes
+
+    flipped_bboxes = bboxes.copy()
+    flipped_bboxes[:, 0] = 1 - bboxes[:, 2]  # new x_min = 1 - x_max
+    flipped_bboxes[:, 2] = 1 - bboxes[:, 0]  # new x_max = 1 - x_min
+
+    return flipped_bboxes
 
 
-def bbox_flip(bbox: BoxInternalType, d: int) -> BoxInternalType:
+def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
         d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
 
     Returns:
@@ -1202,77 +1371,82 @@ def bbox_flip(bbox: BoxInternalType, d: int) -> BoxInternalType:
 
     """
     if d == 0:
-        bbox = bbox_vflip(bbox)
-    elif d == 1:
-        bbox = bbox_hflip(bbox)
-    elif d == -1:
-        bbox = bbox_hflip(bbox)
-        bbox = bbox_vflip(bbox)
-    else:
-        raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
-    return bbox
+        return bboxes_vflip(bboxes)
+    if d == 1:
+        return bboxes_hflip(bboxes)
+    if d == -1:
+        bboxes = bboxes_hflip(bboxes)
+        return bboxes_vflip(bboxes)
+
+    raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
-def bbox_transpose(
-    bbox: KeypointInternalType,
-) -> KeypointInternalType:
-    """Transposes a bounding box along given axis.
+def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
+    """Transpose bounding boxes by swapping x and y coordinates.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
+                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
 
     Returns:
-        A bounding box tuple `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: If axis not equal to 0 or 1.
-
+        np.ndarray: A numpy array of transposed bounding boxes with the same shape as input.
     """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return (y_min, x_min, y_max, x_max)
+    transposed_bboxes = bboxes.copy()
+    transposed_bboxes[:, [0, 1, 2, 3]] = bboxes[:, [1, 0, 3, 2]]
+
+    return transposed_bboxes
 
 
 @angle_2pi_range
-def keypoint_vflip(keypoint: KeypointInternalType, rows: int) -> KeypointInternalType:
-    """Flip a keypoint vertically around the x-axis.
+def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
+    """Flip keypoints vertically around the x-axis.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
+        keypoints: A numpy array of shape (N, 4+) where each row represents a keypoint (x, y, angle, scale, ...).
         rows: Image height.
 
-
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
+        np.ndarray: An array of flipped keypoints with the same shape as the input.
     """
-    x, y, angle, scale = keypoint[:4]
-    angle = -angle
-    return x, (rows - 1) - y, angle, scale
+    flipped_keypoints = keypoints.copy().astype(np.float32)
+
+    # Flip y-coordinates
+    flipped_keypoints[:, 1] = (rows - 1) - keypoints[:, 1]
+
+    # Negate angles
+    flipped_keypoints[:, 2] = -keypoints[:, 2]
+
+    return flipped_keypoints
 
 
 @angle_2pi_range
-def keypoint_hflip(keypoint: KeypointInternalType, cols: int) -> KeypointInternalType:
-    """Flip a keypoint horizontally around the y-axis.
+def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
+    """Flip keypoints horizontally around the y-axis.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
+        keypoints: A numpy array of shape (N, 4+) where each row represents a keypoint (x, y, angle, scale, ...).
         cols: Image width.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
-
+        np.ndarray: An array of flipped keypoints with the same shape as the input.
     """
-    x, y, angle, scale = keypoint[:4]
-    angle = math.pi - angle
-    return (cols - 1) - x, y, angle, scale
+    flipped_keypoints = keypoints.copy().astype(np.float32)
+
+    # Flip x-coordinates
+    flipped_keypoints[:, 0] = (cols - 1) - keypoints[:, 0]
+
+    # Adjust angles
+    flipped_keypoints[:, 2] = np.pi - keypoints[:, 2]
+
+    return flipped_keypoints
 
 
 @angle_2pi_range
-def keypoint_flip(keypoint: KeypointInternalType, d: int, image_shape: tuple[int, int]) -> KeypointInternalType:
+def keypoints_flip(keypoints: np.ndarray, d: int, image_shape: tuple[int, int]) -> np.ndarray:
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
+        keypoints: A keypoints `(x, y, angle, scale)`.
         d: Number of flip. Must be -1, 0 or 1:
             * 0 - vertical flip,
             * 1 - horizontal flip,
@@ -1289,39 +1463,36 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, image_shape: tuple[int
     rows, cols = image_shape[:2]
 
     if d == 0:
-        keypoint = keypoint_vflip(keypoint, rows)
-    elif d == 1:
-        keypoint = keypoint_hflip(keypoint, cols)
-    elif d == -1:
-        keypoint = keypoint_hflip(keypoint, cols)
-        keypoint = keypoint_vflip(keypoint, rows)
-    else:
-        raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
-    return keypoint
+        return keypoints_vflip(keypoints, rows)
+    if d == 1:
+        return keypoints_hflip(keypoints, cols)
+    if d == -1:
+        keypoints = keypoints_hflip(keypoints, cols)
+        return keypoints_vflip(keypoints, rows)
+
+    raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
 @angle_2pi_range
-def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
-    """Transposes a keypoint along a specified axis: main diagonal
+def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
+    """Transposes keypoints along the main diagonal.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
+        keypoints: A numpy array of shape (N, 4+) where each row represents a keypoint (x, y, angle, scale, ...).
 
     Returns:
-        A transformed keypoint `(x, y, angle, scale)`.
-
-    Raises:
-        ValueError: If axis is not 0 or 1.
-
+        np.ndarray: An array of transposed keypoints with the same shape as the input.
     """
-    x, y, angle, scale = keypoint[:4]
+    transposed_keypoints = keypoints.copy()
 
-    # Transpose over the main diagonal: swap x and y.
-    new_x, new_y = y, x
-    # Adjust angle to reflect the coordinate swap.
-    angle = np.pi / 2 - angle if angle <= np.pi else 3 * np.pi / 2 - angle
+    # Swap x and y coordinates
+    transposed_keypoints[:, [0, 1]] = keypoints[:, [1, 0]]
 
-    return new_x, new_y, angle, scale
+    # Adjust angles to reflect the coordinate swap
+    angles = keypoints[:, 2]
+    transposed_keypoints[:, 2] = np.where(angles <= np.pi, np.pi / 2 - angles, 3 * np.pi / 2 - angles)
+
+    return transposed_keypoints
 
 
 @preserve_channel_dim
@@ -2311,12 +2482,12 @@ def compute_transformed_image_bounds(
 
 def compute_affine_warp_output_shape(
     matrix: skimage.transform.ProjectiveTransform,
-    input_shape: SizeType,
-) -> tuple[skimage.transform.ProjectiveTransform, SizeType]:
+    input_shape: tuple[int, ...],
+) -> tuple[skimage.transform.ProjectiveTransform, tuple[int, int]]:
     height, width = input_shape[:2]
 
     if height == 0 or width == 0:
-        return matrix, input_shape
+        return matrix, cast(Tuple[int, int], input_shape[:2])
 
     min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
     minc, minr = min_coords
@@ -2335,4 +2506,115 @@ def compute_affine_warp_output_shape(
     translation = -minc, -minr
     matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
     matrix += matrix_to_fit
-    return matrix, output_shape_tuple
+    return matrix, cast(Tuple[int, int], output_shape_tuple)
+
+
+def bboxes_optical_distortion(
+    bboxes: np.ndarray,
+    k: float,
+    dx: int,
+    dy: int,
+    border_mode: int,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    height, width = image_shape[:2]
+
+    # Denormalize bboxes
+    bboxes_denorm = denormalize_bboxes(bboxes[:, :4], image_shape)
+
+    # Create masks for each bbox
+    masks = np.zeros((len(bboxes), height, width), dtype=np.uint8)
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm.astype(int)):
+        masks[i, y_min:y_max, x_min:x_max] = 1
+
+    # Apply optical distortion to all masks
+    distorted_masks = np.array(
+        [optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
+    )
+
+    # Get bboxes from distorted masks
+    distorted_bboxes = np.array([bbox_from_mask(mask) for mask in distorted_masks])
+
+    # Normalize the distorted bboxes
+    normalized_bboxes = normalize_bboxes(distorted_bboxes, image_shape)
+
+    # Update the first 4 columns of the input array
+    bboxes[:, :4] = normalized_bboxes
+
+    return bboxes
+
+
+def bbox_elastic_transform(
+    bboxes: np.ndarray,
+    alpha: float,
+    sigma: float,
+    interpolation: int,
+    border_mode: int,
+    approximate: bool,
+    same_dxdy: bool,
+    random_seed: int,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    bboxes = bboxes.copy()
+    bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
+    # Create a mask for each bbox
+    masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm[:, :4].astype(int)):
+        masks[i, y_min:y_max, x_min:x_max] = 1
+
+    # Apply elastic transform to all masks
+    rng = np.random.RandomState(random_seed)
+    transformed_masks = np.stack(
+        [
+            elastic_transform(mask, alpha, sigma, interpolation, border_mode, -1, rng, approximate, same_dxdy)
+            for mask in masks
+        ],
+    )
+
+    # Get bboxes from transformed masks
+    bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
+
+    # Normalize the returned bboxes
+    bboxes[:, :4] = normalize_bboxes(bboxes_returned, image_shape)
+
+    return bboxes
+
+
+def bboxes_grid_distortion(
+    bboxes: np.ndarray,
+    stepsx: tuple[float, ...],
+    stepsy: tuple[float, ...],
+    num_steps: int,
+    border_mode: int,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
+
+    # Create a mask for each bbox
+    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
+
+    for i, bbox in enumerate(bboxes_denorm):
+        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
+        masks[i, y_min:y_max, x_min:x_max] = 1
+
+    # Apply grid distortion to all masks
+    transformed_masks = np.stack(
+        [
+            grid_distortion(
+                mask,
+                num_steps,
+                stepsx,
+                stepsy,
+                cv2.INTER_NEAREST,
+                border_mode,
+                -1,
+            )
+            for mask in masks
+        ],
+    )
+
+    # Get bboxes from transformed masks
+    bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
+
+    # Normalize the returned bboxes
+    return normalize_bboxes(bboxes_returned, image_shape)

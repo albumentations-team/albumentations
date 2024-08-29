@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from enum import Enum, IntEnum
-from typing import Any, List, Literal, Sequence, Tuple, TypeVar, Union
+from typing import List, Literal, Sequence, Tuple, TypeVar, Union
 
 import cv2
 import numpy as np
@@ -8,13 +10,6 @@ from typing_extensions import NotRequired, TypedDict
 
 ScalarType = Union[int, float]
 ColorType = Union[float, Sequence[float]]
-SizeType = Sequence[int]
-
-BoxInternalType = Tuple[float, float, float, float]
-BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any], Tuple[float, float, float, float]]
-KeypointInternalType = Tuple[float, float, float, float]
-KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
-BoxOrKeypointType = Union[BoxType, KeypointType]
 
 ScaleFloatType = Union[float, Tuple[float, float]]
 ScaleIntType = Union[int, Tuple[int, int]]
@@ -45,8 +40,8 @@ class ReferenceImage(TypedDict):
     image: np.ndarray
     mask: NotRequired[np.ndarray]
     global_label: NotRequired[np.ndarray]
-    bbox: NotRequired[BoxType]
-    keypoints: NotRequired[KeypointType]
+    bbox: NotRequired[tuple[float, ...] | np.ndarray]
+    keypoints: NotRequired[tuple[float, ...] | np.ndarray]
 
 
 class Targets(Enum):
@@ -120,3 +115,5 @@ REFLECT_BORDER_MODES = {
     cv2.BORDER_REFLECT_101,
     cv2.BORDER_REFLECT,
 }
+
+NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS = 4

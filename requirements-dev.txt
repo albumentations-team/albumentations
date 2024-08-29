@@ -1,12 +1,12 @@
 deepdiff>=6.7.1
 eval-type-backport
-mypy>=1.11.1
+mypy>=1.11.2
 pre_commit>=3.5.0
 pytest>=8.3.2
 pytest_cov>=5.0.0
 pytest_mock>=3.14.0
 requests>=2.31.0
-ruff>=0.6.1
+ruff>=0.6.2
 tomli>=2.0.1
 types-PyYAML
 types-setuptools
