@@ -5,6 +5,7 @@ from albucore.utils import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_cha
 from typing_extensions import Literal
 
 from albumentations import random_utils
+from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType
 
 __all__ = ["cutout", "channel_dropout", "filter_keypoints_in_holes", "generate_random_fill"]
@@ -74,6 +75,7 @@ def cutout(
     return img
 
 
+@handle_empty_array
 def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.ndarray:
     """Filter out keypoints that are inside any of the holes.
 

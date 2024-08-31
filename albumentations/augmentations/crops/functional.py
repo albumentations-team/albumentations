@@ -7,6 +7,7 @@ import numpy as np
 from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as fgeometric
+from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import ColorType
 
@@ -88,6 +89,7 @@ def crop_bboxes_by_coords(
     return normalize_bboxes(cropped_bboxes, crop_shape)
 
 
+@handle_empty_array
 def crop_keypoints_by_coords(
     keypoints: np.ndarray,
     crop_coords: tuple[int, int, int, int],
@@ -101,9 +103,6 @@ def crop_keypoints_by_coords(
     Returns:
         np.ndarray: An array of cropped keypoints with the same shape as the input.
     """
-    if len(keypoints) == 0:
-        return keypoints
-
     x1, y1 = crop_coords[:2]
 
     cropped_keypoints = keypoints.copy()
@@ -203,6 +202,7 @@ def crop_and_pad_bboxes(
     return normalize_bboxes(denormalized_bboxes, result_shape)
 
 
+@handle_empty_array
 def crop_and_pad_keypoints(
     keypoints: np.ndarray,
     crop_params: tuple[int, int, int, int] | None = None,
@@ -224,9 +224,6 @@ def crop_and_pad_keypoints(
     Returns:
         np.ndarray: Array of transformed keypoints with the same shape as input.
     """
-    if len(keypoints) == 0:
-        return keypoints
-
     transformed_keypoints = keypoints.copy()
 
     if crop_params is not None:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import functools
 from functools import wraps
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import cv2
 import numpy as np
@@ -27,8 +28,8 @@ __all__ = [
 ]
 
 P = ParamSpec("P")
-
-TWO = 2
+T = TypeVar("T", bound=np.ndarray)
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def read_bgr_image(path: str | Path) -> np.ndarray:
@@ -50,7 +51,7 @@ def angle_2pi_range(
     @wraps(func)
     def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         result = func(keypoints, *args, **kwargs)
-        if len(result) > 0 and result.shape[1] > TWO:
+        if len(result) > 0 and result.shape[1] > 2:  # noqa: PLR2004
             result[:, 2] = angle_to_2pi_range(result[:, 2])
         return result
 
@@ -139,3 +140,13 @@ class PCA:
 
     def cumulative_explained_variance_ratio(self) -> np.ndarray:
         return np.cumsum(self.explained_variance_ratio())
+
+
+def handle_empty_array(func: F) -> F:
+    @functools.wraps(func)
+    def wrapper(array: T, *args: Any, **kwargs: Any) -> Any:
+        if len(array) == 0:
+            return array
+        return func(array, *args, **kwargs)
+
+    return cast(F, wrapper)
