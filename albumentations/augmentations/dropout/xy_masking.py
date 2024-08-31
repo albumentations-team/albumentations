@@ -197,6 +197,8 @@ class XYMasking(DualTransform):
         masks_y: list[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
+        if len(keypoints) == 0:
+            return keypoints
         return filter_keypoints_in_holes(keypoints, np.array(masks_x + masks_y))
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:

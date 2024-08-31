@@ -84,6 +84,9 @@ def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
 
+    if len(bboxes) == 0:
+        return bboxes
+
     if factor == 0:
         return bboxes
 
@@ -136,6 +139,9 @@ def bboxes_d4(
       `bbox_d4((10, 20, 110, 120), 'r90')`
       This would rotate the bounding box 90 degrees within a 100x100 image.
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     transformations = {
         "e": lambda x: x,  # Identity transformation
         "r90": lambda x: bboxes_rot90(x, 1),  # Rotate 90 degrees
@@ -177,6 +183,9 @@ def keypoints_rot90(
         raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
 
     if factor == 0:
+        return keypoints
+
+    if len(keypoints) == 0:
         return keypoints
 
     height, width = image_shape[:2]
@@ -230,6 +239,9 @@ def keypoints_d4(
       `keypoint_d4((50, 30), 'r90', 100, 100)`
       This would move the keypoint from (50, 30) to (70, 50) assuming standard coordinate transformations.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     rows, cols = image_shape[:2]
     transformations = {
         "e": lambda x: x,  # Identity transformation
@@ -295,6 +307,9 @@ def bboxes_rotate(
     Reference:
         https://arxiv.org/abs/2109.13488
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     bboxes = bboxes.copy()
     rows, cols = image_shape[:2]
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
@@ -347,6 +362,9 @@ def keypoints_rotate(
     Note:
         The rotation is performed around the center of the image.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     image_center = center(image_shape)
     matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
 
@@ -396,6 +414,9 @@ def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np
     Returns:
         A numpy array of scaled keypoints with the same shape as input.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     # Extract x, y, angle, and scale
     x, y, angle, scale = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
 
@@ -506,6 +527,9 @@ def perspective_bboxes(
         >>> matrix = np.array([[1.5, 0.2, -20], [-0.1, 1.3, -10], [0.002, 0.001, 1]])
         >>> transformed_bboxes = perspective_bboxes(bboxes, image_shape, matrix, 150, 150, False)
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     height, width = image_shape[:2]
 
     # Create a copy of the input bboxes to avoid modifying the original array
@@ -565,6 +589,9 @@ def perspective_keypoints(
     max_height: int,
     keep_size: bool,
 ) -> np.ndarray:
+    if len(keypoints) == 0:
+        return keypoints
+
     keypoints = keypoints.copy().astype(np.float32)
     x, y, angle, scale = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
 
@@ -695,6 +722,9 @@ def keypoints_affine(
         >>> scale = {'x': 1.5, 'y': 1.2}
         >>> transformed_keypoints = keypoints_affine(keypoints, matrix, (480, 640), scale, cv2.BORDER_REFLECT_101)
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     keypoints = keypoints.copy().astype(np.float32)
 
     if is_identity_matrix(matrix):
@@ -803,6 +833,9 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
         [[ 25.  25.  45.  45.   1.]
          [ 65.  65.  85.  85.   2.]]
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     # Extract corners of all bboxes
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     corners = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(
@@ -859,6 +892,9 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
         [[ 5.86  5.86 34.14 24.14  1.  ]
          [30.   30.   70.   70.    2.  ]]
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     bbox_width = (x_max - x_min) / 2
     bbox_height = (y_max - y_min) / 2
@@ -917,6 +953,9 @@ def bboxes_affine(
     Returns:
         np.ndarray: Transformed and normalized bounding boxes
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     if is_identity_matrix(matrix):
         return bboxes
 
@@ -1143,6 +1182,9 @@ def keypoints_piecewise_affine(
     if matrix is None:
         return keypoints
 
+    if len(keypoints) == 0:
+        return keypoints
+
     a, s = keypoints[:, 2], keypoints[:, 3]
 
     # Create distance maps for all keypoints
@@ -1172,6 +1214,9 @@ def bboxes_piecewise_affine(
     image_shape: tuple[int, int],
     keypoints_threshold: float,
 ) -> np.ndarray:
+    if len(bboxes) == 0:
+        return bboxes
+
     if matrix is None:
         return bboxes
 
@@ -1325,7 +1370,7 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of vertically flipped bounding boxes with the same shape as input.
     """
-    if bboxes.size == 0:
+    if len(bboxes) == 0:
         return bboxes
 
     flipped_bboxes = bboxes.copy()
@@ -1345,7 +1390,7 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of horizontally flipped bounding boxes with the same shape as input.
     """
-    if bboxes.size == 0:
+    if len(bboxes) == 0:
         return bboxes
 
     flipped_bboxes = bboxes.copy()
@@ -1370,6 +1415,9 @@ def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     if d == 0:
         return bboxes_vflip(bboxes)
     if d == 1:
@@ -1391,6 +1439,9 @@ def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of transposed bounding boxes with the same shape as input.
     """
+    if len(bboxes) == 0:
+        return bboxes
+
     transposed_bboxes = bboxes.copy()
     transposed_bboxes[:, [0, 1, 2, 3]] = bboxes[:, [1, 0, 3, 2]]
 
@@ -1408,6 +1459,9 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     Returns:
         np.ndarray: An array of flipped keypoints with the same shape as the input.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     flipped_keypoints = keypoints.copy().astype(np.float32)
 
     # Flip y-coordinates
@@ -1430,6 +1484,9 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     Returns:
         np.ndarray: An array of flipped keypoints with the same shape as the input.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     flipped_keypoints = keypoints.copy().astype(np.float32)
 
     # Flip x-coordinates
@@ -1460,6 +1517,9 @@ def keypoints_flip(keypoints: np.ndarray, d: int, image_shape: tuple[int, int]) 
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     rows, cols = image_shape[:2]
 
     if d == 0:
@@ -1483,6 +1543,9 @@ def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: An array of transposed keypoints with the same shape as the input.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     transposed_keypoints = keypoints.copy()
 
     # Swap x and y coordinates
@@ -1819,6 +1882,9 @@ def pad_bboxes(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    if len(bboxes) == 0:
+        return bboxes
+
     if border_mode not in REFLECT_BORDER_MODES:
         shift_vector = np.array([pad_left, pad_top, pad_left, pad_top])
         return shift_bboxes(bboxes, shift_vector)
@@ -2231,6 +2297,9 @@ def pad_keypoints(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    if len(keypoints) == 0:
+        return keypoints
+
     if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
         shift_vector = np.array([pad_left, pad_top])  # Only shift x and y
         return shift_keypoints(keypoints, shift_vector)
@@ -2362,6 +2431,9 @@ def flip_keypoints(
     flip_vertical: bool = False,
     image_shape: tuple[int, int] = (0, 0),
 ) -> np.ndarray:
+    if len(keypoints) == 0:
+        return keypoints
+
     rows, cols = image_shape[:2]
     flipped_keypoints = keypoints.copy()
     if flip_horizontal:
@@ -2517,6 +2589,9 @@ def bboxes_optical_distortion(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    if len(bboxes) == 0:
+        return bboxes
+
     height, width = image_shape[:2]
 
     # Denormalize bboxes
@@ -2555,6 +2630,9 @@ def bbox_elastic_transform(
     random_seed: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    if len(bboxes) == 0:
+        return bboxes
+
     bboxes = bboxes.copy()
     bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
     # Create a mask for each bbox
@@ -2588,6 +2666,9 @@ def bboxes_grid_distortion(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    if len(bboxes) == 0:
+        return bboxes
+
     bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
 
     # Create a mask for each bbox

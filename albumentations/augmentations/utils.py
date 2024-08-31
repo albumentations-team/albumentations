@@ -28,6 +28,8 @@ __all__ = [
 
 P = ParamSpec("P")
 
+TWO = 2
+
 
 def read_bgr_image(path: str | Path) -> np.ndarray:
     return cv2.imread(str(path), cv2.IMREAD_COLOR)
@@ -48,7 +50,8 @@ def angle_2pi_range(
     @wraps(func)
     def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         result = func(keypoints, *args, **kwargs)
-        result[:, 2] = angle_to_2pi_range(result[:, 2])
+        if len(result) > 0 and result.shape[1] > TWO:
+            result[:, 2] = angle_to_2pi_range(result[:, 2])
         return result
 
     return wrapped_function

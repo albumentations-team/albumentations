@@ -16,6 +16,7 @@ from albumentations.core.keypoints_utils import (
     convert_keypoints_to_albumentations,
     filter_keypoints,
 )
+from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.transforms_interface import BasicTransform
 
 
@@ -743,3 +744,42 @@ def test_swap_tiles_on_keypoints_empty_input():
     new_keypoints = swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     assert new_keypoints.size == 0
+
+
+def dummy_keypoint_func(keypoints):
+    return keypoints
+
+@pytest.mark.parametrize("input_keypoints, expected_output", [
+    (np.array([[1, 2, 0], [3, 4, np.pi], [5, 6, 2*np.pi]]),
+     np.array([[1, 2, 0], [3, 4, np.pi], [5, 6, 0]])),
+    (np.array([[1, 2, -np.pi], [3, 4, 3*np.pi]]),
+     np.array([[1, 2, np.pi], [3, 4, np.pi]])),
+    (np.array([]), np.array([])),
+    (np.array([[1, 2]]), np.array([[1, 2]])),
+])
+def test_angle_2pi_range(input_keypoints, expected_output):
+    wrapped_func = angle_2pi_range(dummy_keypoint_func)
+    result = wrapped_func(input_keypoints)
+    np.testing.assert_allclose(result, expected_output, atol=1e-7)
+
+@pytest.mark.parametrize("input_keypoints", [
+    np.array([[1, 2, 3], [4, 5, 6]]),
+    np.array([]),
+    np.array([[1, 2]]),
+])
+def test_angle_2pi_range_preserves_input(input_keypoints):
+    def modify_input(keypoints):
+        keypoints = keypoints.copy()
+        if keypoints.size > 0 and keypoints.shape[1] > 2:
+            keypoints[:, 2] += 1
+        return keypoints
+
+    wrapped_func = angle_2pi_range(modify_input)
+    result = wrapped_func(input_keypoints)
+
+    if input_keypoints.size > 0 and input_keypoints.shape[1] > 2:
+        expected = input_keypoints.copy()
+        expected[:, 2] = np.mod(expected[:, 2] + 1, 2 * np.pi)
+        np.testing.assert_allclose(result, expected, atol=1e-7)
+    else:
+        np.testing.assert_array_equal(result, input_keypoints)

@@ -101,6 +101,9 @@ def crop_keypoints_by_coords(
     Returns:
         np.ndarray: An array of cropped keypoints with the same shape as the input.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     x1, y1 = crop_coords[:2]
 
     cropped_keypoints = keypoints.copy()
@@ -221,6 +224,9 @@ def crop_and_pad_keypoints(
     Returns:
         np.ndarray: Array of transformed keypoints with the same shape as input.
     """
+    if len(keypoints) == 0:
+        return keypoints
+
     transformed_keypoints = keypoints.copy()
 
     if crop_params is not None:
