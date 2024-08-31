@@ -1146,7 +1146,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        np.testing.assert_allclose(value, res[key]), key
+        np.testing.assert_almost_equal(value, res[key]), key
 
 
 @pytest.mark.parametrize(

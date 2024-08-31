@@ -784,7 +784,8 @@ def test_contiguous_output_dual(augmentation_cls, params):
             A.RandomSizedBBoxSafeCrop,
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
-            A.TextImage
+            A.TextImage,
+            A.FromFloat,
         },
     ),
 )
