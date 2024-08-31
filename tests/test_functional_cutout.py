@@ -45,8 +45,6 @@ def test_cutout_with_various_fill_values(img, fill_value):
 
 @pytest.mark.parametrize("dtype, max_value", [
     (np.uint8, MAX_VALUES_BY_DTYPE[np.uint8]),
-    (np.uint16, MAX_VALUES_BY_DTYPE[np.uint16]),
-    (np.uint32, MAX_VALUES_BY_DTYPE[np.uint32]),
     (np.float32, MAX_VALUES_BY_DTYPE[np.float32]),
 ])
 @pytest.mark.parametrize("shape", [

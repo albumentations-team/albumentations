@@ -4,6 +4,8 @@ from typing import Any, Literal, Sequence
 
 import numpy as np
 
+from albumentations.augmentations.utils import handle_empty_array
+
 from .utils import DataProcessor, Params
 
 __all__ = [
@@ -147,6 +149,7 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_to_albumentations(data, self.params.format, image_shape, check_validity=True)
 
 
+@handle_empty_array
 def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Normalize array of bounding boxes.
 
@@ -158,8 +161,6 @@ def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.nda
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
-    if len(bboxes) == 0:
-        return bboxes
     rows, cols = image_shape[:2]
     normalized = bboxes.copy().astype(float)
     normalized[:, [0, 2]] /= cols
@@ -167,6 +168,7 @@ def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.nda
     return normalized
 
 
+@handle_empty_array
 def denormalize_bboxes(
     bboxes: np.ndarray,
     image_shape: tuple[int, int],
@@ -181,8 +183,6 @@ def denormalize_bboxes(
         Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
-    if len(bboxes) == 0:
-        return bboxes
     rows, cols = image_shape[:2]
 
     denormalized = bboxes.copy().astype(float)
@@ -231,6 +231,7 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, image_shape: tuple[int, i
     return (bboxes_denorm[:, 2] - bboxes_denorm[:, 0]) * (bboxes_denorm[:, 3] - bboxes_denorm[:, 1])
 
 
+@handle_empty_array
 def convert_bboxes_to_albumentations(
     bboxes: np.ndarray,
     source_format: Literal["coco", "pascal_voc", "yolo"],
@@ -258,9 +259,6 @@ def convert_bboxes_to_albumentations(
         raise ValueError(
             f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
-
-    if not bboxes.size:
-        return bboxes
 
     bboxes = bboxes.copy().astype(np.float32)
     converted_bboxes = np.zeros_like(bboxes)
@@ -292,6 +290,7 @@ def convert_bboxes_to_albumentations(
     return converted_bboxes
 
 
+@handle_empty_array
 def convert_bboxes_from_albumentations(
     bboxes: np.ndarray,
     target_format: Literal["coco", "pascal_voc", "yolo"],
@@ -318,9 +317,6 @@ def convert_bboxes_from_albumentations(
             f"Unknown target_format {target_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
 
-    if not bboxes.size:
-        return bboxes
-
     if check_validity:
         check_bboxes(bboxes)
 
@@ -345,6 +341,7 @@ def convert_bboxes_from_albumentations(
     return converted_bboxes
 
 
+@handle_empty_array
 def check_bboxes(bboxes: np.ndarray) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser than maximums.
 
@@ -354,9 +351,6 @@ def check_bboxes(bboxes: np.ndarray) -> None:
     Raises:
         ValueError: If any bbox is invalid.
     """
-    if len(bboxes) == 0:
-        return
-
     # Check if all values are in range [0, 1]
     in_range = (bboxes[:, :4] >= 0) & (bboxes[:, :4] <= 1)
     close_to_zero = np.isclose(bboxes[:, :4], 0)
@@ -384,6 +378,7 @@ def check_bboxes(bboxes: np.ndarray) -> None:
         raise ValueError(f"y_max is less than or equal to y_min for bbox {invalid_bbox}.")
 
 
+@handle_empty_array
 def clip_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Clips the bounding box coordinates to ensure they fit within the boundaries of an image.
 

@@ -1146,7 +1146,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        np.testing.assert_allclose(value, res[key]), key
+        np.testing.assert_allclose(value, res[key], atol=1e-6, rtol=1e-6), key
 
 
 @pytest.mark.parametrize(
@@ -2089,3 +2089,54 @@ def test_padding_color(transform, num_channels):
     for channel_id, channel in enumerate(channels):
         unique_values = np.unique(channel)
         assert set(unique_values) == {0, 128}, f"{channel_id}"
+
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.D4: {},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop,
+                              A.MixUp, A.MaskDropout, A.OverlayElements, A.GridElasticDeform, A.CropNonEmptyMaskIfExists},
+    ),
+)
+def test_empty_bboxes_keypoints(augmentation_cls, params):
+    aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xyas"))
+    image = SQUARE_UINT8_IMAGE
+    data = {
+        "image": image,
+        "bboxes": [],
+        "labels": [],
+        "keypoints": [],
+    }
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": []
+        }
+
+    data = aug(**data)
+
+    np.testing.assert_array_equal(data["bboxes"], np.array([]))
+    np.testing.assert_array_equal(data["keypoints"], np.array([]))

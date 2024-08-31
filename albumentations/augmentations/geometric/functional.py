@@ -10,7 +10,7 @@ from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, p
 
 from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask, center
-from albumentations.augmentations.utils import angle_2pi_range
+from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import (
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
@@ -67,6 +67,7 @@ ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
 
 
+@handle_empty_array
 def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
     """Rotates bounding boxes by 90 degrees CCW (see np.rot90)
 
@@ -109,6 +110,7 @@ def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
     return rotated_bboxes
 
 
+@handle_empty_array
 def bboxes_d4(
     bboxes: np.ndarray,
     group_member: D4Type,
@@ -154,6 +156,7 @@ def bboxes_d4(
     raise ValueError(f"Invalid group member: {group_member}")
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_rot90(
     keypoints: np.ndarray,
@@ -200,6 +203,7 @@ def keypoints_rot90(
     return rotated_keypoints
 
 
+@handle_empty_array
 def keypoints_d4(
     keypoints: np.ndarray,
     group_member: D4Type,
@@ -274,6 +278,7 @@ def rotate(
     return warp_fn(img)
 
 
+@handle_empty_array
 def bboxes_rotate(
     bboxes: np.ndarray,
     angle: float,
@@ -327,6 +332,7 @@ def bboxes_rotate(
     return bboxes
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_rotate(
     keypoints: np.ndarray,
@@ -385,6 +391,7 @@ def scale(img: np.ndarray, scale: float, interpolation: int) -> np.ndarray:
     return resize(img, new_size, interpolation)
 
 
+@handle_empty_array
 def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
     """Scales keypoints by scale_x and scale_y.
 
@@ -467,6 +474,7 @@ def perspective(
     return warped
 
 
+@handle_empty_array
 def perspective_bboxes(
     bboxes: np.ndarray,
     image_shape: tuple[int, int],
@@ -556,6 +564,7 @@ def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
     return np.arctan2(-matrix[1, 0], matrix[0, 0])
 
 
+@handle_empty_array
 @angle_2pi_range
 def perspective_keypoints(
     keypoints: np.ndarray,
@@ -656,6 +665,7 @@ def warp_affine(
     return warp_fn(image)
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_affine(
     keypoints: np.ndarray,
@@ -769,6 +779,7 @@ def calculate_affine_transform_padding(
     return pad_left, pad_right, pad_top, pad_bottom
 
 
+@handle_empty_array
 def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
     """Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
 
@@ -824,6 +835,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
     return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
 
 
+@handle_empty_array
 def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
     """Apply an affine transformation to bounding boxes using an ellipse approximation method.
 
@@ -887,6 +899,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
     return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
 
 
+@handle_empty_array
 def bboxes_affine(
     bboxes: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
@@ -1134,6 +1147,7 @@ def from_distance_maps(
     return keypoints
 
 
+@handle_empty_array
 def keypoints_piecewise_affine(
     keypoints: np.ndarray,
     matrix: skimage.transform.PiecewiseAffineTransform | None,
@@ -1166,6 +1180,7 @@ def keypoints_piecewise_affine(
     return transformed_keypoints
 
 
+@handle_empty_array
 def bboxes_piecewise_affine(
     bboxes: np.ndarray,
     matrix: skimage.transform.PiecewiseAffineTransform,
@@ -1315,6 +1330,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.rot90(img, factor)
 
 
+@handle_empty_array
 def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     """Flip bounding boxes vertically around the x-axis.
 
@@ -1325,9 +1341,6 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of vertically flipped bounding boxes with the same shape as input.
     """
-    if bboxes.size == 0:
-        return bboxes
-
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 1] = 1 - bboxes[:, 3]  # new y_min = 1 - y_max
     flipped_bboxes[:, 3] = 1 - bboxes[:, 1]  # new y_max = 1 - y_min
@@ -1335,6 +1348,7 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     return flipped_bboxes
 
 
+@handle_empty_array
 def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     """Flip bounding boxes horizontally around the y-axis.
 
@@ -1345,9 +1359,6 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A numpy array of horizontally flipped bounding boxes with the same shape as input.
     """
-    if bboxes.size == 0:
-        return bboxes
-
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 0] = 1 - bboxes[:, 2]  # new x_min = 1 - x_max
     flipped_bboxes[:, 2] = 1 - bboxes[:, 0]  # new x_max = 1 - x_min
@@ -1355,6 +1366,7 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     return flipped_bboxes
 
 
+@handle_empty_array
 def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
@@ -1381,6 +1393,7 @@ def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
     raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
+@handle_empty_array
 def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
     """Transpose bounding boxes by swapping x and y coordinates.
 
@@ -1397,6 +1410,7 @@ def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
     return transposed_bboxes
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     """Flip keypoints vertically around the x-axis.
@@ -1419,6 +1433,7 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     return flipped_keypoints
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     """Flip keypoints horizontally around the y-axis.
@@ -1441,6 +1456,7 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     return flipped_keypoints
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_flip(keypoints: np.ndarray, d: int, image_shape: tuple[int, int]) -> np.ndarray:
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
@@ -1473,6 +1489,7 @@ def keypoints_flip(keypoints: np.ndarray, d: int, image_shape: tuple[int, int]) 
     raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
+@handle_empty_array
 @angle_2pi_range
 def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
     """Transposes keypoints along the main diagonal.
@@ -1810,6 +1827,7 @@ def elastic_transform(
     )
 
 
+@handle_empty_array
 def pad_bboxes(
     bboxes: np.ndarray,
     pad_top: int,
@@ -1992,6 +2010,7 @@ def generate_reflected_bboxes(
     return shift_bboxes(result, -shift_vector) if center_in_origin else result
 
 
+@handle_empty_array
 def flip_bboxes(
     bboxes: np.ndarray,
     flip_horizontal: bool = False,
@@ -2222,6 +2241,7 @@ def generate_distorted_grid_polygons(
     return polygons
 
 
+@handle_empty_array
 def pad_keypoints(
     keypoints: np.ndarray,
     pad_top: int,
@@ -2356,6 +2376,7 @@ def generate_reflected_keypoints(
     return shift_keypoints(result, -shift_vector) if center_in_origin else result
 
 
+@handle_empty_array
 def flip_keypoints(
     keypoints: np.ndarray,
     flip_horizontal: bool = False,
@@ -2509,6 +2530,7 @@ def compute_affine_warp_output_shape(
     return matrix, cast(Tuple[int, int], output_shape_tuple)
 
 
+@handle_empty_array
 def bboxes_optical_distortion(
     bboxes: np.ndarray,
     k: float,
@@ -2544,6 +2566,7 @@ def bboxes_optical_distortion(
     return bboxes
 
 
+@handle_empty_array
 def bbox_elastic_transform(
     bboxes: np.ndarray,
     alpha: float,
@@ -2580,6 +2603,7 @@ def bbox_elastic_transform(
     return bboxes
 
 
+@handle_empty_array
 def bboxes_grid_distortion(
     bboxes: np.ndarray,
     stepsx: tuple[float, ...],
