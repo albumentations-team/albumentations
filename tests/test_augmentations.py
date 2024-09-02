@@ -1008,7 +1008,7 @@ def test_pad_if_needed_position(params, image_shape):
         assert (image_padded == true_result).all()
 
     elif params["position"] == "random":
-        true_result[0:5, -7:-1] = 0
+        true_result[5:, 0:6] = 0
         assert (image_padded == true_result).all()
 
 
