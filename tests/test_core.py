@@ -163,29 +163,27 @@ def test_additional_targets(image):
 
 def test_check_bboxes_with_correct_values():
     try:
-        check_bboxes([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6, 99]])
+        check_bboxes(np.array([[0.1, 0.5, 0.8, 1.0, 1], [0.2, 0.5, 0.5, 0.6, 99]]))
     except Exception as e:
         pytest.fail(f"Unexpected Exception {e!r}")
 
 
 def test_check_bboxes_with_values_less_than_zero():
     with pytest.raises(ValueError) as exc_info:
-        check_bboxes([[0.2, 0.5, 0.5, 0.6, 99], [-0.1, 0.5, 0.8, 1.0]])
-    message = "Expected x_min for bbox [-0.1, 0.5, 0.8, 1.0] to be in the range [0.0, 1.0], got -0.1."
+        check_bboxes(np.array([[0.2, 0.5, 0.5, 0.6, 99], [-0.1, 0.5, 0.8, 1.0, 0]]))
+    message = "Expected x_min for bbox [-0.1  0.5  0.8  1.   0. ] to be in the range [0.0, 1.0], got -0.1."
     assert str(exc_info.value) == message
-
 
 def test_check_bboxes_with_values_greater_than_one():
     with pytest.raises(ValueError) as exc_info:
-        check_bboxes([[0.2, 0.5, 1.5, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
-    message = "Expected x_max for bbox [0.2, 0.5, 1.5, 0.6, 99] to be in the range [0.0, 1.0], got 1.5."
+        check_bboxes(np.array([[0.2, 0.5, 1.5, 0.6, 99], [0.1, 0.5, 0.8, 1.0, 0]]))
+    message = "Expected x_max for bbox [ 0.2  0.5  1.5  0.6 99. ] to be in the range [0.0, 1.0], got 1.5."
     assert str(exc_info.value) == message
-
 
 def test_check_bboxes_with_end_greater_that_start():
     with pytest.raises(ValueError) as exc_info:
-        check_bboxes([[0.8, 0.5, 0.7, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
-    message = "x_max is less than or equal to x_min for bbox [0.8, 0.5, 0.7, 0.6, 99]."
+        check_bboxes(np.array([[0.8, 0.5, 0.7, 0.6, 99], [0.1, 0.5, 0.8, 1.0, 0]]))
+    message = "x_max is less than or equal to x_min for bbox [ 0.8  0.5  0.7  0.6 99. ]."
     assert str(exc_info.value) == message
 
 
@@ -786,7 +784,8 @@ def test_contiguous_output_dual(augmentation_cls, params):
             A.RandomSizedBBoxSafeCrop,
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
-            A.TextImage
+            A.TextImage,
+            A.FromFloat,
         },
     ),
 )

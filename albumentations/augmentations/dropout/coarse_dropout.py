@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable
 from warnings import warn
 
 import numpy as np
@@ -9,10 +9,10 @@ from typing_extensions import Annotated, Literal, Self
 
 from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
+from albumentations.core.types import ColorType, NumericType, ScalarType, Targets
 from albumentations.random_utils import randint, uniform
 
-from .functional import cutout, keypoint_in_hole
+from .functional import cutout, filter_keypoints_in_holes
 
 __all__ = ["CoarseDropout"]
 
@@ -198,13 +198,14 @@ class CoarseDropout(DualTransform):
 
     @staticmethod
     def calculate_hole_dimensions(
-        height: int,
-        width: int,
+        image_shape: tuple[int, int],
         height_range: tuple[ScalarType, ScalarType],
         width_range: tuple[ScalarType, ScalarType],
         size: int,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate random hole dimensions based on the provided ranges."""
+        height, width = image_shape[:2]
+
         if isinstance(height_range[0], int):
             min_height = height_range[0]
             max_height = min(height_range[1], height)
@@ -222,17 +223,18 @@ class CoarseDropout(DualTransform):
         return hole_heights, hole_widths
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
         num_holes = randint(self.num_holes_range[0], self.num_holes_range[1] + 1)
 
         hole_heights, hole_widths = self.calculate_hole_dimensions(
-            height,
-            width,
+            image_shape,
             self.hole_height_range,
             self.hole_width_range,
             size=num_holes,
         )
+
+        height, width = image_shape[:2]
 
         y1 = randint(np.int8(0), height - hole_heights + 1, size=num_holes)
         x1 = randint(np.int8(0), width - hole_widths + 1, size=num_holes)
@@ -241,15 +243,15 @@ class CoarseDropout(DualTransform):
 
         holes = np.stack([x1, y1, x2, y2], axis=-1)
 
-        return {"holes": holes.tolist()}
+        return {"holes": holes}
 
     def apply_to_keypoints(
         self,
-        keypoints: Sequence[KeypointType],
-        holes: Iterable[tuple[int, int, int, int]],
+        keypoints: np.ndarray,
+        holes: np.ndarray,
         **params: Any,
-    ) -> list[KeypointType]:
-        return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
+    ) -> np.ndarray:
+        return filter_keypoints_in_holes(keypoints, holes)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (

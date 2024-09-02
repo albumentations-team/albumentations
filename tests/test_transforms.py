@@ -19,7 +19,6 @@ from albumentations.augmentations.transforms import ImageCompression, RandomRain
 from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
-from albumentations.augmentations.transforms import RandomSnow
 from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
@@ -374,27 +373,35 @@ def test_lambda_transform():
     def one_hot_mask(mask, num_channels, **kwargs):
         return np.eye(num_channels, dtype=np.uint8)[mask]
 
+    def vflip_bboxes(bboxes, **kwargs):
+        return fgeometric.bboxes_vflip(bboxes)
 
-    def vflip_bbox(bbox, **kwargs):
-        return fgeometric.bbox_vflip(bbox)
-
-    def vflip_keypoint(keypoint, **kwargs):
-        return fgeometric.keypoint_vflip(keypoint, kwargs["rows"])
+    def vflip_keypoints(keypoints, **kwargs):
+        return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
 
     aug = A.Lambda(
-        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
+        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bboxes=vflip_bboxes, keypoints=vflip_keypoints, p=1
     )
 
+    bboxes = [(0.1, 0.1, 0.4, 0.5)]
+    keypoints = [(2, 3, np.pi/4, 5)]
+
+    height, width = 10, 10
+
+    image = np.ones((height, width, 3), dtype=np.float32)
+    mask = np.tile(np.arange(0, height), (width, 1)).T
+
     output = aug(
-        image=np.ones((10, 10, 3), dtype=np.float32),
-        mask=np.tile(np.arange(0, 10), (10, 1)),
-        bboxes=[(10, 15, 25, 35)],
-        keypoints=[(20, 30, 40, 50)],
+        image=image,
+        mask=mask,
+        bboxes=bboxes,
+        keypoints=keypoints,
     )
+
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [fgeometric.bbox_vflip((10, 15, 25, 35))]
-    assert output["keypoints"] == [fgeometric.keypoint_vflip((20, 30, 40, 50), 10)]
+    np.testing.assert_array_almost_equal(output["bboxes"], fgeometric.bboxes_vflip(np.array(bboxes)))
+    np.testing.assert_array_almost_equal(output["keypoints"], fgeometric.keypoints_vflip(np.array(keypoints), height))
 
 
 def test_channel_droput():
@@ -504,62 +511,62 @@ def test_downscale(interpolation):
 
 def test_crop_keypoints():
     image = np.random.randint(0, 256, (100, 100), np.uint8)
-    keypoints = [(50, 50, 0, 0)]
+    keypoints = np.array([(50, 50, 0, 0)])
 
     aug = A.Crop(0, 0, 80, 80, p=1)
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == keypoints
+    np.testing.assert_array_equal(result["keypoints"], keypoints)
 
     aug = A.Crop(50, 50, 100, 100, p=1)
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == [(0, 0, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(0, 0, 0, 0)])
 
 
 def test_longest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.LongestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(18, 10, 0, 0)]
+    np.testing.assert_array_almost_equal(result["keypoints"], [(18, 10, 0, 0)], decimal=5)
 
     aug = A.LongestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
+    np.testing.assert_array_almost_equal(result["keypoints"], [(0.9, 0.5, 0, 0)], decimal=5)
 
     aug = A.LongestMaxSize(max_size=50, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
 
 
 def test_smallest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(90, 50, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(90, 50, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 2.5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(4.5, 2.5, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=10, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
 
 
 def test_resize_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.Resize(height=100, width=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 10, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(4.5, 10, 0, 0)])
 
     aug = A.Resize(height=50, width=10, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
 
 
 @pytest.mark.parametrize(
@@ -688,7 +695,7 @@ def test_grid_dropout_mask(image):
     ],
 )
 def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
-    img = np.random.randint(0, 256, [256, 320], np.uint8)
+    img = SQUARE_FLOAT_IMAGE
 
     aug = A.GridDropout(
         ratio=ratio,
@@ -711,17 +718,9 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     assert len(holes[0]) == 4
     # check grid offsets
     if shift_xy:
-        assert holes[0][:2] == shift_xy
-
+        np.testing.assert_array_equal(holes[0][:2], shift_xy)
     else:
-        assert holes[0] == (0, 0)
-
-    # for grid set with range
-    if unit_size_range:
-        assert max(1, unit_size_range[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_range[1] * ratio), 256)
-    elif holes_number_xy:
-        assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_xy[0]))
-        assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_xy[1]))
+        np.testing.assert_array_equal(holes[0], (0, 0))
 
 
 @pytest.mark.parametrize("params, expected", [
@@ -782,8 +781,7 @@ def test_grid_dropout_holes_generation(params, expected_holes):
         data={"image": image},
     )["holes"]
 
-    assert holes == expected_holes, f"Failed on holes generation with value {holes}"
-
+    np.testing.assert_array_equal(holes, expected_holes, f"Failed on holes generation with value {holes}")
 
 @pytest.mark.parametrize(
     ["blur_limit", "sigma", "result_blur", "result_sigma"],
@@ -947,22 +945,22 @@ def test_perspective_keep_size():
 
 def test_longest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(10, 2), (5, 1)]
-    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+    assert tuple(result["keypoints"][0].tolist()) in [(0.9, 0.5, 0, 0), (1.8, 1.0, 0, 0)]
 
 
 def test_smallest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [(9, 5, 0, 0)]
+    keypoints = np.array([(9, 5, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
-    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+    assert tuple(result["keypoints"][0].tolist()) in [(45.0, 25.0, 0, 0), (90.0, 50.0, 0, 0)]
 
 
 @pytest.mark.parametrize(
@@ -1092,10 +1090,16 @@ def test_affine_incorrect_scale_range(params):
             },
             {
                 "bboxes": [
-                    [(16.036253471129026, 0.7268824985344293, 21.42442059056688, 5.049479254799872, 0), (194.61183288056216, 25.996579994841458, 200.0, 30.319176751106898, 0), (179.33014645626594, 95.67740324373456, 184.71831357570377, 100.0, 0), (0.8521337495555823, 70.54534260014618, 6.078767680466058, 74.1330081974473, 0)]
+                    [15.264852523803711, 0.0, 20.678197860717773, 4.27599573135376, 0.0],
+                    [194.73916625976562, 25.38059425354004, 200.0, 29.73569107055664, 0.0],
+                    [179.32180786132812, 95.72400665283203, 184.7351531982422, 100.0, 0.0],
+                    [0.009779278188943863, 70.2643051147461, 5.260837078094482, 73.87895202636719, 0.0]
                 ],
                 "keypoints": [
-                    [(16.84391941376591, 0.7268824985344293, 147.04220486917677, 0.0), (199.0, 26.514932763996473, 157.04220486917674, 9.30232558139535), (183.15608058623408, 99.0, 167.04220486917674, 18.6046511627907), (0.8521337495555823, 73.48506723600353, 177.04220486917674, 27.906976744186046)]
+                    [16.455339431762695, 0.35640794038772583, 351.9260559082031, 0.0],
+                    [199.61117553710938, 26.338354110717773, 1.9260603189468384, 9.345794677734375],
+                    [183.54466247558594, 99.64359283447266, 11.92605972290039, 18.69158935546875],
+                    [0.3888263702392578, 73.6616439819336, 21.92605972290039, 28.037382125854492]
                 ],
             },
         ],
@@ -1116,12 +1120,15 @@ def test_affine_incorrect_scale_range(params):
                 ],
             },
             {
-                "bboxes": [
-                    [(0.8521337495555819, 25.866991802552704, 6.240300868993435, 30.18958855881814, 0), (179.4916796447933, 0.5972943062456757, 184.87984676423113, 4.919891062511116, 0), (194.61183288056216, 70.41575440785743, 200.0, 74.73835116412288, 0), (16.1977866596564, 95.68545190416447, 21.424420590566875, 99.27311750146558, 0)]
-                ],
+                "bboxes":  [[0.0, 25.38059425354004, 5.260837078094482, 29.73569107055664, 0.0],
+                            [179.32180786132812, 0.0, 184.7351531982422, 4.275995254516602, 0.0],
+                            [194.73916625976562, 70.2643051147461, 200.0, 74.6194076538086, 0.0],
+                            [15.264852523803711, 95.72400665283203, 20.515911102294922, 99.3386459350586, 0.0]],
                 "keypoints": [
-                    [(0.852133749555582, 26.514932763996473, 212.95779513082323, 0.0), (183.15608058623408, 0.7268824985344295, 222.95779513082323, 9.30232558139535), (199.0, 73.48506723600353, 232.9577951308232, 18.6046511627907), (16.84391941376591, 99.0, 242.9577951308232, 27.906976744186046)]
-                ],
+                    [0.3888259530067444, 26.338354110717773, 8.073939323425293, 0.0],
+                    [183.54466247558594, 0.35640716552734375, 18.073938369750977, 9.345794677734375],
+                    [199.61117553710938, 73.6616439819336, 28.073936462402344, 18.69158935546875],
+                    [16.455339431762695, 99.64359283447266, 38.073936462402344, 28.037382125854492]],
             },
         ],
     ],
@@ -1133,13 +1140,13 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
             A.SafeRotate(limit=(angle, angle), border_mode=0, value=0, p=1),
         ],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
-        keypoint_params=A.KeypointParams("xyas"),
+        keypoint_params=A.KeypointParams("xyas", angle_in_degrees=True),
         p=1,
     )
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        assert np.allclose(np.array(value), np.array(res[key])), key
+        np.testing.assert_allclose(value, res[key], atol=1e-6, rtol=1e-6), key
 
 
 @pytest.mark.parametrize(
@@ -1668,7 +1675,7 @@ def test_random_rain_invalid_input(params):
     ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
 ])
 def test_random_snow_initialization(params, expected):
-    img_comp = RandomSnow(**params)
+    img_comp = A.RandomSnow(**params)
     for key, value in expected.items():
         assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
 
@@ -1678,7 +1685,7 @@ def test_random_snow_initialization(params, expected):
 ])
 def test_random_snow_invalid_input(params):
     with pytest.raises(Exception):
-        a = RandomSnow(**params)
+        a = A.RandomSnow(**params)
         print(a.snow_point_range)
 
 
@@ -1731,8 +1738,8 @@ def test_dual_transforms_methods(augmentation_cls, params):
     arg = {
         "masks": mask,
         "masks": [mask],
-        "bboxes": [[0, 0, 0.1, 0.1, 1]],
-        "keypoints": [(0, 0, 0, 0), (1, 1, 0, 0)],
+        "bboxes": np.array([[0, 0, 0.1, 0.1, 1]]),
+        "keypoints": np.array([(0, 0, 0, 0), (1, 1, 0, 0)]),
     }
 
     for target in aug.targets:
@@ -1964,10 +1971,17 @@ def test_random_sun_flare_invalid_input(params):
         A.RandomSunFlare(**params)
 
 
-@pytest.mark.parametrize("angle", [90, 180, -90])
+@pytest.mark.parametrize("angle", [90,
+                                   180,
+                                   -90
+                                   ])
 def test_rot90(bboxes, angle, keypoints):
     image = SQUARE_UINT8_IMAGE
+
     mask = image.copy()
+
+    bboxes = np.array(bboxes, dtype=np.float32)
+    keypoints = np.array(keypoints, dtype=np.float32)
 
     image_shape = image.shape[:2]
     normalized_bboxes = normalize_bboxes(bboxes, image_shape)
@@ -1982,19 +1996,17 @@ def test_rot90(bboxes, angle, keypoints):
 
     image_rotated = fgeometric.rot90(image, factor)
     mask_rotated = fgeometric.rot90(image, factor)
-    bboxes_rotated = [fgeometric.bbox_rot90(bbox, factor) for bbox in normalized_bboxes]
+    bboxes_rotated = fgeometric.bboxes_rot90(normalized_bboxes, factor)
     bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_shape)
-    keypoints_rotated = [fgeometric.keypoint_rot90(keypoint[:4], factor, image_shape) for keypoint in keypoints]
 
-    assert np.array_equal(transformed["image"], image_rotated)
-    assert np.array_equal(transformed["mask"], mask_rotated)
+    keypoints_rotated = fgeometric.keypoints_rot90(keypoints, factor, image_shape)
 
-    # Assert bounding boxes
-    for transformed_bbox, expected_bbox in zip(transformed["bboxes"], bboxes_rotated):
-        assert np.allclose(transformed_bbox[:4], expected_bbox, atol=1e-7), f"Bounding boxes do not match: {transformed_bbox} != {expected_bbox}"
+    np.testing.assert_array_equal(transformed["image"], image_rotated)
+    np.testing.assert_array_equal(transformed["mask"], mask_rotated)
 
-    for transformed_keypoint, expected_keypoint in zip(transformed["keypoints"], keypoints_rotated):
-        assert np.allclose(transformed_keypoint[:2], expected_keypoint[:2], atol=1e-7), f"Keypoints do not match: {transformed_keypoint} != {expected_keypoint}"
+    np.testing.assert_array_almost_equal(transformed["bboxes"], bboxes_rotated, decimal=1e-5)
+    # If we want to check all coordinates we need additionally to convert for keypoints angle to radians and back as Compose does it for us
+    np.testing.assert_array_almost_equal(transformed["keypoints"][:, :2], keypoints_rotated[:, :2])
 
 
 @pytest.mark.parametrize(
@@ -2077,3 +2089,54 @@ def test_padding_color(transform, num_channels):
     for channel_id, channel in enumerate(channels):
         unique_values = np.unique(channel)
         assert set(unique_values) == {0, 128}, f"{channel_id}"
+
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.D4: {},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop,
+                              A.MixUp, A.MaskDropout, A.OverlayElements, A.GridElasticDeform, A.CropNonEmptyMaskIfExists},
+    ),
+)
+def test_empty_bboxes_keypoints(augmentation_cls, params):
+    aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xyas"))
+    image = SQUARE_UINT8_IMAGE
+    data = {
+        "image": image,
+        "bboxes": [],
+        "labels": [],
+        "keypoints": [],
+    }
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": []
+        }
+
+    data = aug(**data)
+
+    np.testing.assert_array_equal(data["bboxes"], np.array([]))
+    np.testing.assert_array_equal(data["keypoints"], np.array([]))

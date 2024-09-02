@@ -198,7 +198,7 @@ def test_color_jitter(brightness, contrast, saturation, hue):
     res1 = transform(image=img)["image"]
     res2 = np.array(pil_transform(pil_image))
 
-    assert np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max() <= 2, f"Max: {_max}"
+    assert np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max() <= 2
 
 
 def test_post_data_check():
@@ -223,5 +223,5 @@ def test_post_data_check():
 
     res = transform(image=img, keypoints=keypoints, bboxes=bboxes)
     assert len(res["keypoints"]) != 0 and len(res["bboxes"]) != 0
-    assert res["keypoints"] == [(45, 45), (25, 25)]
-    assert res["bboxes"] == [(0, 0, 45, 45, 0)]
+    np.testing.assert_array_equal(res["keypoints"], [(45, 45), (25, 25)])
+    np.testing.assert_array_equal(res["bboxes"], [(0, 0, 45, 45, 0)])

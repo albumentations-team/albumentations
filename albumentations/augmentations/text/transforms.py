@@ -10,10 +10,10 @@ from pydantic import AfterValidator, model_validator
 from typing_extensions import Annotated, Self
 
 import albumentations.augmentations.text.functional as ftext
-from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
+from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
 from albumentations.core.pydantic import check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import BoxType, ColorType
+from albumentations.core.types import ColorType
 
 __all__ = ["TextImage"]
 
@@ -153,9 +153,15 @@ class TextImage(ImageOnlyTransform):
         result_sentence = re.sub(" +", " ", result_sentence).strip()
         return result_sentence if result_sentence != text else ""
 
-    def preprocess_metadata(self, image: np.ndarray, bbox: BoxType, text: str, bbox_index: int) -> dict[str, Any]:
-        check_bbox(bbox)
-        denormalized_bbox = denormalize_bbox(bbox[:4], image.shape[:2])
+    def preprocess_metadata(
+        self,
+        image: np.ndarray,
+        bbox: tuple[float, float, float, float],
+        text: str,
+        bbox_index: int,
+    ) -> dict[str, Any]:
+        check_bboxes(bbox)
+        denormalized_bbox = denormalize_bboxes(np.array([bbox]), image.shape[:2])[0]
 
         x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
         bbox_height = y_max - y_min

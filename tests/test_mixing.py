@@ -4,7 +4,6 @@ import pytest
 import math
 
 import albumentations as A
-from albumentations.core.bbox_utils import denormalize_bbox
 from tests.conftest import IMAGES, UINT8_IMAGES
 from tests.utils import set_seed
 from .test_functional_mixing import find_mix_coef

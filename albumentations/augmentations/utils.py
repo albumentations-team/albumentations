@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import functools
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import cv2
 import numpy as np
@@ -13,7 +14,6 @@ from albucore.utils import (
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
-from albumentations.core.types import KeypointInternalType
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,6 +28,8 @@ __all__ = [
 ]
 
 P = ParamSpec("P")
+T = TypeVar("T", bound=np.ndarray)
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def read_bgr_image(path: str | Path) -> np.ndarray:
@@ -43,35 +45,14 @@ def read_grayscale(path: str | Path) -> np.ndarray:
     return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
 
 
-T = TypeVar("T", KeypointInternalType, np.ndarray)
-
-
-@overload
-def angle_2pi_range(
-    func: Callable[Concatenate[KeypointInternalType, P], KeypointInternalType],
-) -> Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]: ...
-
-
-@overload
 def angle_2pi_range(
     func: Callable[Concatenate[np.ndarray, P], np.ndarray],
-) -> Callable[Concatenate[np.ndarray, P], np.ndarray]: ...
-
-
-def angle_2pi_range(func: Callable[Concatenate[T, P], T]) -> Callable[Concatenate[T, P], T]:
+) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
     @wraps(func)
-    def wrapped_function(keypoints: T, *args: P.args, **kwargs: P.kwargs) -> T:
+    def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         result = func(keypoints, *args, **kwargs)
-
-        if isinstance(result, np.ndarray):
-            # Handle numpy array of shape (num_keypoints, 4+)
+        if len(result) > 0 and result.shape[1] > 2:  # noqa: PLR2004
             result[:, 2] = angle_to_2pi_range(result[:, 2])
-        else:
-            # Handle individual keypoint (tuple)
-            result_list = list(result)
-            result_list[2] = angle_to_2pi_range(result_list[2])
-            return cast(T, tuple(result_list))
-
         return result
 
     return wrapped_function
@@ -159,3 +140,13 @@ class PCA:
 
     def cumulative_explained_variance_ratio(self) -> np.ndarray:
         return np.cumsum(self.explained_variance_ratio())
+
+
+def handle_empty_array(func: F) -> F:
+    @functools.wraps(func)
+    def wrapper(array: T, *args: Any, **kwargs: Any) -> Any:
+        if len(array) == 0:
+            return array
+        return func(array, *args, **kwargs)
+
+    return cast(F, wrapper)

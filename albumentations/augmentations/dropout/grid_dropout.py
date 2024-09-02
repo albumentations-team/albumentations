@@ -149,36 +149,37 @@ class GridDropout(DualTransform):
         return fdropout.cutout(mask, holes, self.mask_fill_value)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
-        unit_width, unit_height = self._calculate_unit_dimensions(width, height)
-        hole_width, hole_height = self._calculate_hole_dimensions(unit_width, unit_height)
-        shift_x, shift_y = self._calculate_shifts(unit_width, unit_height, hole_width, hole_height)
-        holes = self._generate_holes(width, height, unit_width, unit_height, hole_width, hole_height, shift_x, shift_y)
+        image_shape = params["shape"]
+        unit_shape = self._calculate_unit_dimensions(image_shape)
+        hole_dimensions = self._calculate_hole_dimensions(unit_shape)
+        shift_x, shift_y = self._calculate_shifts(unit_shape, hole_dimensions)
+        holes = self._generate_holes(image_shape, unit_shape, hole_dimensions, shift_x, shift_y)
         return {"holes": holes}
 
-    def _calculate_unit_dimensions(self, width: int, height: int) -> tuple[int, int]:
+    def _calculate_unit_dimensions(self, shape: tuple[int, int]) -> tuple[int, int]:
         """Calculates the dimensions of the grid units."""
         if self.unit_size_range is not None:
-            self._validate_unit_sizes(height, width)
+            self._validate_unit_sizes(shape)
             unit_size = random.randint(*self.unit_size_range)
             return unit_size, unit_size
 
-        return self._calculate_dimensions_based_on_holes(width, height)
+        return self._calculate_dimensions_based_on_holes(shape)
 
-    def _validate_unit_sizes(self, height: int, width: int) -> None:
+    def _validate_unit_sizes(self, shape: tuple[int, int]) -> None:
         """Validates the minimum and maximum unit sizes."""
         if self.unit_size_range is None:
             raise ValueError("unit_size_range must not be None.")
-        if self.unit_size_range[1] > min(height, width):
+        if self.unit_size_range[1] > min(shape[:2]):
             msg = "Grid size limits must be within the shortest image edge."
             raise ValueError(msg)
 
-    def _calculate_dimensions_based_on_holes(self, width: int, height: int) -> tuple[int, int]:
+    def _calculate_dimensions_based_on_holes(self, shape: tuple[int, int]) -> tuple[int, int]:
         """Calculates dimensions based on the number of holes specified."""
+        height, width = shape[:2]
         holes_number_x, holes_number_y = self.holes_number_xy or (None, None)
         unit_width = self._calculate_dimension(width, holes_number_x, 10)
         unit_height = self._calculate_dimension(height, holes_number_y, unit_width)
-        return unit_width, unit_height
+        return unit_height, unit_width
 
     @staticmethod
     def _calculate_dimension(dimension: int, holes_number: int | None, fallback: int) -> int:
@@ -190,22 +191,21 @@ class GridDropout(DualTransform):
             raise ValueError(f"The number of holes must be between 1 and {dimension // 2}.")
         return dimension // holes_number
 
-    def _calculate_hole_dimensions(self, unit_width: int, unit_height: int) -> tuple[int, int]:
+    def _calculate_hole_dimensions(self, unit_shape: tuple[int, int]) -> tuple[int, int]:
         """Calculates the dimensions of the holes to be dropped out."""
-        hole_width = int(unit_width * self.ratio)
-        hole_height = int(unit_height * self.ratio)
-        hole_width = min(max(hole_width, 1), unit_width - 1)
-        hole_height = min(max(hole_height, 1), unit_height - 1)
-        return hole_width, hole_height
+        unit_height, unit_width = unit_shape
+        hole_width = min(max(1, int(unit_width * self.ratio)), unit_width - 1)
+        hole_height = min(max(1, int(unit_height * self.ratio)), unit_height - 1)
+        return hole_height, hole_width
 
     def _calculate_shifts(
         self,
-        unit_width: int,
-        unit_height: int,
-        hole_width: int,
-        hole_height: int,
+        unit_shape: tuple[int, int],
+        hole_dimensions: tuple[int, int],
     ) -> tuple[int, int]:
         """Calculates the shifts for the grid start."""
+        unit_width, unit_height = unit_shape
+        hole_width, hole_height = hole_dimensions
         if self.random_offset:
             shift_x = random.randint(0, unit_width - hole_width)
             shift_y = random.randint(0, unit_height - hole_height)
@@ -218,17 +218,17 @@ class GridDropout(DualTransform):
 
         return 0, 0
 
+    @staticmethod
     def _generate_holes(
-        self,
-        width: int,
-        height: int,
-        unit_width: int,
-        unit_height: int,
-        hole_width: int,
-        hole_height: int,
+        image_shape: tuple[int, int],
+        unit_shape: tuple[int, int],
+        hole_dimensions: tuple[int, int],
         shift_x: int,
         shift_y: int,
-    ) -> list[tuple[int, int, int, int]]:
+    ) -> np.ndarray:
+        height, width = image_shape[:2]
+        unit_height, unit_width = unit_shape
+        hole_width, hole_height = hole_dimensions
         """Generates the list of holes to be dropped out."""
         holes = []
         for i in range(width // unit_width + 1):
@@ -238,7 +238,7 @@ class GridDropout(DualTransform):
                 x2 = min(x1 + hole_width, width)
                 y2 = min(y1 + hole_height, height)
                 holes.append((x1, y1, x2, y2))
-        return holes
+        return np.array(holes)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
