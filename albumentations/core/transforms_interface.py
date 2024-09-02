@@ -93,17 +93,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 return self.apply_with_params(self.params, **kwargs)
 
             return kwargs
-        
-        if force_apply:
-            apply = True
-        elif self.p >= 1.0:
-            apply = True
-        elif self.p <= 0.0:
-            apply = False
-        else:
-            apply = random.random() < self.p
 
-        if apply:
+        if self.whether_to_apply(force_apply=force_apply):
             params = self.get_params()
             params = self.update_params_shape(params=params, data=kwargs)
 
@@ -127,6 +118,13 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             return self.apply_with_params(params, **kwargs)
 
         return kwargs
+
+    def whether_to_apply(self, force_apply: bool = False) -> bool:
+        if self.p <= 0.0:
+            return False
+        if self.p >= 1.0 or force_apply:
+            return True
+        return random.random() < self.p
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
