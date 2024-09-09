@@ -6,7 +6,9 @@ pytest>=8.3.2
 pytest_cov>=5.0.0
 pytest_mock>=3.14.0
 requests>=2.31.0
-ruff>=0.6.3
+ruff>=0.6.4
 tomli>=2.0.1
+torch>=2.3.1
+torchvision>=0.18.1
 types-PyYAML
 types-setuptools
