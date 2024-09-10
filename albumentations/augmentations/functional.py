@@ -1104,13 +1104,14 @@ def downscale(
     need_cast = (
         up_interpolation != cv2.INTER_NEAREST or down_interpolation != cv2.INTER_NEAREST
     ) and img.dtype == np.uint8
+
     if need_cast:
         img = to_float(img)
+
     downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
     upscaled = cv2.resize(downscaled, (width, height), interpolation=up_interpolation)
-    if need_cast:
-        return from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
-    return upscaled
+
+    return from_float(upscaled, dtype=np.uint8) if need_cast else upscaled
 
 
 def to_float(img: np.ndarray, max_value: float | None = None) -> np.ndarray:

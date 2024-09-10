@@ -2345,10 +2345,10 @@ class Downscale(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, Any]:
-        return {"scale": random.uniform(self.scale_range[0], self.scale_range[1])}
+        return {"scale": random.uniform(*self.scale_range)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
-        return ("scale_range", "interpolation_pair")
+        return "scale_range", "interpolation_pair"
 
 
 class Lambda(NoOp):
