@@ -362,6 +362,16 @@ class AdvancedBlur(ImageOnlyTransform):
     3. Kernel Noise: Adds multiplicative noise to the kernel before applying it to the image,
        creating more diverse and realistic blur effects.
 
+    Implementation Details:
+        The kernel is generated using a 2D Generalized Gaussian function. The process involves:
+        1. Creating a 2D grid based on the kernel size
+        2. Applying rotation to this grid
+        3. Calculating the kernel values using the Generalized Gaussian formula
+        4. Adding multiplicative noise to the kernel
+        5. Normalizing the kernel
+
+        The resulting kernel is then applied to the image using convolution.
+
     Args:
         blur_limit (tuple[int, int] | int, optional): Controls the size of the blur kernel. If a single int
             is provided, the kernel size will be randomly chosen between 3 and that value.
@@ -403,16 +413,6 @@ class AdvancedBlur(ImageOnlyTransform):
           a wider range of image degradations.
         - Extreme values, especially for beta and noise, may result in unrealistic effects and
           should be used cautiously.
-
-    Implementation Details:
-        The kernel is generated using a 2D Generalized Gaussian function. The process involves:
-        1. Creating a 2D grid based on the kernel size
-        2. Applying rotation to this grid
-        3. Calculating the kernel values using the Generalized Gaussian formula
-        4. Adding multiplicative noise to the kernel
-        5. Normalizing the kernel
-
-        The resulting kernel is then applied to the image using convolution.
 
     Reference:
         This transform is inspired by techniques described in:
