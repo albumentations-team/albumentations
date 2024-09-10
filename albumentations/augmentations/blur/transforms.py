@@ -344,57 +344,94 @@ class GlassBlur(ImageOnlyTransform):
 
 
 class AdvancedBlur(ImageOnlyTransform):
-    """Blurs the input image using a Generalized Normal filter with randomly selected parameters.
+    """Applies a Generalized Gaussian blur to the input image with randomized parameters for advanced data augmentation.
 
-    This transform also adds multiplicative noise to the generated kernel before convolution,
-    affecting the image in a unique way that combines blurring and noise injection for enhanced
-    data augmentation.
+    This transform creates a custom blur kernel based on the Generalized Gaussian distribution,
+    which allows for a wide range of blur effects beyond standard Gaussian blur. It then applies
+    this kernel to the input image through convolution. The transform also incorporates noise
+    into the kernel, resulting in a unique combination of blurring and noise injection.
+
+    Key features of this augmentation:
+
+    1. Generalized Gaussian Kernel: Uses a generalized normal distribution to create kernels
+       that can range from box-like blurs to very peaked blurs, controlled by the beta parameter.
+
+    2. Anisotropic Blurring: Allows for different blur strengths in horizontal and vertical
+       directions (controlled by sigma_x and sigma_y), and rotation of the kernel.
+
+    3. Kernel Noise: Adds multiplicative noise to the kernel before applying it to the image,
+       creating more diverse and realistic blur effects.
 
     Args:
-        blur_limit (ScaleIntType, optional): Maximum Gaussian kernel size for blurring the input image.
-            Must be zero or odd and in range [0, inf). If set to 0, it will be computed from sigma
-            as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
-            If a single value is provided, `blur_limit` will be in the range (0, blur_limit).
-            Defaults to (3, 7).
-        sigma_x_limit ScaleFloatType: Gaussian kernel standard deviation for the X dimension.
-            Must be in range [0, inf). If a single value is provided, `sigma_x_limit` will be in the range
-            (0, sigma_limit). If set to 0, sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`.
-            Defaults to (0.2, 1.0).
-        sigma_y_limit ScaleFloatType: Gaussian kernel standard deviation for the Y dimension.
-            Must follow the same rules as `sigma_x_limit`.
-            Defaults to (0.2, 1.0).
-        rotate_limit (ScaleIntType, optional): Range from which a random angle used to rotate the Gaussian kernel
-            is picked. If limit is a single int, an angle is picked from (-rotate_limit, rotate_limit).
-            Defaults to (-90, 90).
-        beta_limit (ScaleFloatType, optional): Distribution shape parameter. 1 represents the normal distribution.
-            Values below 1.0 make distribution tails heavier than normal, and values above 1.0 make it
-            lighter than normal.
-            Defaults to (0.5, 8.0).
-        noise_limit (ScaleFloatType, optional): Multiplicative factor that controls the strength of kernel noise.
-            Must be positive and preferably centered around 1.0. If a single value is provided,
-            `noise_limit` will be in the range (0, noise_limit).
-            Defaults to (0.75, 1.25).
-        p (float, optional): Probability of applying the transform.
-            Defaults to 0.5.
+        blur_limit (tuple[int, int] | int, optional): Controls the size of the blur kernel. If a single int
+            is provided, the kernel size will be randomly chosen between 3 and that value.
+            Must be odd and ≥ 3. Larger values create stronger blur effects.
+            Default: (3, 7)
+
+        sigma_x_limit (tuple[float, float] | float): Controls the spread of the blur in the x direction.
+            Higher values increase blur strength.
+            If a single float is provided, the range will be (0, limit).
+            Default: (0.2, 1.0)
+
+        sigma_y_limit (tuple[float, float] | float): Controls the spread of the blur in the y direction.
+            Higher values increase blur strength.
+            If a single float is provided, the range will be (0, limit).
+            Default: (0.2, 1.0)
+
+        rotate_limit (tuple[int, int] | int): Range of angles (in degrees) for rotating the kernel.
+            This rotation allows for diagonal blur directions. If limit is a single int, an angle is picked
+            from (-rotate_limit, rotate_limit).
+            Default: (-90, 90)
+
+        beta_limit (tuple[float, float] | float): Shape parameter of the Generalized Gaussian distribution.
+            - beta = 1 gives a standard Gaussian distribution
+            - beta < 1 creates heavier tails, resulting in more uniform, box-like blur
+            - beta > 1 creates lighter tails, resulting in more peaked, focused blur
+            Default: (0.5, 8.0)
+
+        noise_limit (tuple[float, float] | float): Controls the strength of multiplicative noise
+            applied to the kernel. Values around 1.0 keep the original kernel mostly intact,
+            while values further from 1.0 introduce more variation.
+            Default: (0.75, 1.25)
+
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Notes:
+        - This transform is particularly useful for simulating complex, real-world blur effects
+          that go beyond simple Gaussian blur.
+        - The combination of blur and noise can help in creating more robust models by simulating
+          a wider range of image degradations.
+        - Extreme values, especially for beta and noise, may result in unrealistic effects and
+          should be used cautiously.
+
+    Implementation Details:
+        The kernel is generated using a 2D Generalized Gaussian function. The process involves:
+        1. Creating a 2D grid based on the kernel size
+        2. Applying rotation to this grid
+        3. Calculating the kernel values using the Generalized Gaussian formula
+        4. Adding multiplicative noise to the kernel
+        5. Normalizing the kernel
+
+        The resulting kernel is then applied to the image using convolution.
 
     Reference:
-        "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data",
-        available at https://arxiv.org/abs/2107.10833
+        This transform is inspired by techniques described in:
+        "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"
+        https://arxiv.org/abs/2107.10833
 
     Targets:
         image
 
     Image types:
         uint8, float32
-
     """
 
     class InitSchema(BlurInitSchema):
-        sigma_x_limit: NonNegativeFloatRangeType = (0.2, 1.0)
-        sigma_y_limit: NonNegativeFloatRangeType = (0.2, 1.0)
-        beta_limit: NonNegativeFloatRangeType = (0.5, 8.0)
-        noise_limit: NonNegativeFloatRangeType = (0.75, 1.25)
-        rotate_limit: SymmetricRangeType = (-90, 90)
+        sigma_x_limit: NonNegativeFloatRangeType
+        sigma_y_limit: NonNegativeFloatRangeType
+        beta_limit: NonNegativeFloatRangeType
+        noise_limit: NonNegativeFloatRangeType
+        rotate_limit: SymmetricRangeType
 
         @field_validator("beta_limit")
         @classmethod
@@ -424,7 +461,7 @@ class AdvancedBlur(ImageOnlyTransform):
         sigma_y_limit: ScaleFloatType = (0.2, 1.0),
         sigmaX_limit: ScaleFloatType | None = None,  # noqa: N803
         sigmaY_limit: ScaleFloatType | None = None,  # noqa: N803
-        rotate_limit: ScaleIntType = 90,
+        rotate_limit: ScaleIntType = (-90, 90),
         beta_limit: ScaleFloatType = (0.5, 8.0),
         noise_limit: ScaleFloatType = (0.9, 1.1),
         always_apply: bool | None = None,
