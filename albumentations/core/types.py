@@ -13,7 +13,9 @@ ColorType = Union[float, Sequence[float]]
 
 NumericType = TypeVar("NumericType", float, int)
 
-ScaleType = Union[NumericType, Tuple[NumericType, NumericType]]
+ScaleIntType = Union[int, Tuple[int, int]]
+ScaleFloatType = Union[float, Tuple[float, float]]
+ScaleType = Union[ScaleIntType, ScaleFloatType]
 
 NumType = Union[ScalarType, np.ndarray]
 

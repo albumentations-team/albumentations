@@ -6,7 +6,6 @@ from typing import Any, Tuple, cast
 
 import cv2
 import numpy as np
-from pydantic import Field
 from skimage.transform import ProjectiveTransform
 from typing_extensions import Literal
 
@@ -17,7 +16,7 @@ from albumentations.core.pydantic import BorderModeType, InterpolationType, Symm
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     ColorType,
-    ScaleType,
+    ScaleFloatType,
     Targets,
 )
 
@@ -62,16 +61,13 @@ class RandomRotate90(DualTransform):
 
 
 class RotateInitSchema(BaseTransformInitSchema):
-    limit: SymmetricRangeType = (-90, 90)
+    limit: SymmetricRangeType
 
-    interpolation: InterpolationType = cv2.INTER_LINEAR
-    border_mode: BorderModeType = cv2.BORDER_CONSTANT
+    interpolation: InterpolationType
+    border_mode: BorderModeType
 
-    value: ColorType | None = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
-    mask_value: ColorType | None = Field(
-        default=None,
-        description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
-    )
+    value: ColorType | None
+    mask_value: ColorType | None
 
 
 class Rotate(DualTransform):
@@ -111,7 +107,7 @@ class Rotate(DualTransform):
 
     def __init__(
         self,
-        limit: ScaleType[float] = (-90, 90),
+        limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
@@ -282,7 +278,7 @@ class SafeRotate(Affine):
 
     def __init__(
         self,
-        limit: ScaleType[float] = (-90, 90),
+        limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,

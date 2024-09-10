@@ -18,7 +18,7 @@ from albumentations.augmentations.domain_adaptation_functional import (
 from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.pydantic import NonNegativeFloatRangeType, check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import ScaleType
+from albumentations.core.types import ScaleFloatType
 
 __all__ = [
     "HistogramMatching",
@@ -171,7 +171,7 @@ class FDA(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
         read_fn: Callable[[Any], np.ndarray]
-        beta_limit: NonNegativeFloatRangeType = (0, 0.1)
+        beta_limit: NonNegativeFloatRangeType
 
         @field_validator("beta_limit")
         @classmethod
@@ -184,7 +184,7 @@ class FDA(ImageOnlyTransform):
     def __init__(
         self,
         reference_images: Sequence[Any],
-        beta_limit: ScaleType[float] = (0, 0.1),
+        beta_limit: ScaleFloatType = (0, 0.1),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         always_apply: bool | None = None,
         p: float = 0.5,

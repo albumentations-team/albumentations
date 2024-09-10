@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, ScaleType, Targets
+from albumentations.core.types import ColorType, ScaleIntType, Targets
 
 from .functional import cutout, filter_keypoints_in_holes
 
@@ -78,10 +78,10 @@ class XYMasking(DualTransform):
 
     def __init__(
         self,
-        num_masks_x: ScaleType[int] = 0,
-        num_masks_y: ScaleType[int] = 0,
-        mask_x_length: ScaleType[int] = 0,
-        mask_y_length: ScaleType[int] = 0,
+        num_masks_x: ScaleIntType = 0,
+        num_masks_y: ScaleIntType = 0,
+        mask_x_length: ScaleIntType = 0,
+        mask_y_length: ScaleIntType = 0,
         fill_value: ColorType = 0,
         mask_fill_value: ColorType = 0,
         always_apply: bool | None = None,

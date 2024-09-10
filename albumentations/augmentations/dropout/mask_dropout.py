@@ -11,7 +11,7 @@ from typing_extensions import Literal
 
 from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ScalarType, ScaleType, Targets
+from albumentations.core.types import ScalarType, ScaleIntType, Targets
 
 __all__ = ["MaskDropout"]
 
@@ -43,7 +43,7 @@ class MaskDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        max_objects: OnePlusIntRangeType = (1, 1)
+        max_objects: OnePlusIntRangeType
 
         image_fill_value: float | Literal["inpaint"] = Field(
             default=0,
@@ -56,7 +56,7 @@ class MaskDropout(DualTransform):
 
     def __init__(
         self,
-        max_objects: ScaleType[int] = (1, 1),
+        max_objects: ScaleIntType = (1, 1),
         image_fill_value: float | Literal["inpaint"] = 0,
         mask_fill_value: ScalarType = 0,
         always_apply: bool | None = None,

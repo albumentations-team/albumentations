@@ -29,7 +29,8 @@ from albumentations.core.types import (
     PercentType,
     PxType,
     ScalarType,
-    ScaleType,
+    ScaleFloatType,
+    ScaleIntType,
     Targets,
 )
 
@@ -449,7 +450,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
                 "Please use a tuple (height, width) for the 'size' argument."
             ),
         )
-        size: ScaleType[int] | None = None
+        size: ScaleIntType | None = None
 
         @model_validator(mode="after")
         def process(self) -> Self:
@@ -471,7 +472,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         self,
         min_max_height: tuple[int, int],
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: ScaleType[int] | None = None,
+        size: ScaleIntType | None = None,
         width: int | None = None,
         height: int | None = None,
         *,
@@ -543,7 +544,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             None,
             deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
         )
-        size: ScaleType[int] | None = None
+        size: ScaleIntType | None = None
         p: ProbabilityType = 1
         interpolation: InterpolationType = cv2.INTER_LINEAR
 
@@ -567,7 +568,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     def __init__(
         self,
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: ScaleType[int] | None = None,
+        size: ScaleIntType | None = None,
         width: int | None = None,
         height: int | None = None,
         *,
@@ -668,13 +669,13 @@ class RandomCropNearBBox(_BaseCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        max_part_shift: ZeroOneRangeType = (0, 0.3)
+        max_part_shift: ZeroOneRangeType
         cropping_bbox_key: str = Field(default="cropping_bbox", description="Additional target key for cropping box.")
         p: ProbabilityType = 1
 
     def __init__(
         self,
-        max_part_shift: ScaleType[float] = (0, 0.3),
+        max_part_shift: ScaleFloatType = (0, 0.3),
         cropping_bbox_key: str = "cropping_bbox",
         cropping_box_key: str | None = None,  # Deprecated
         always_apply: bool | None = None,

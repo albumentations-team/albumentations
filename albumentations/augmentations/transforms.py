@@ -54,7 +54,8 @@ from albumentations.core.types import (
     MorphologyMode,
     PlanckianJitterMode,
     RainMode,
-    ScaleType,
+    ScaleFloatType,
+    ScaleIntType,
     SpatterMode,
     Targets,
 )
@@ -1379,9 +1380,9 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def __init__(
         self,
-        hue_shift_limit: ScaleType[float] = 20,
-        sat_shift_limit: ScaleType[float] = 30,
-        val_shift_limit: ScaleType[float] = 20,
+        hue_shift_limit: ScaleFloatType = 20,
+        sat_shift_limit: ScaleFloatType = 30,
+        val_shift_limit: ScaleFloatType = 20,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1433,7 +1434,7 @@ class Solarize(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         threshold: OnePlusFloatRangeType = (128, 128)
 
-    def __init__(self, threshold: ScaleType[int] = (128, 128), p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, threshold: ScaleIntType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.threshold = cast(Tuple[float, float], threshold)
 
@@ -1592,9 +1593,9 @@ class RGBShift(ImageOnlyTransform):
 
     def __init__(
         self,
-        r_shift_limit: ScaleType[float] = (-20, 20),
-        g_shift_limit: ScaleType[float] = (-20, 20),
-        b_shift_limit: ScaleType[float] = (-20, 20),
+        r_shift_limit: ScaleFloatType = (-20, 20),
+        g_shift_limit: ScaleFloatType = (-20, 20),
+        b_shift_limit: ScaleFloatType = (-20, 20),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1652,8 +1653,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness_limit: ScaleType[float] = (-0.2, 0.2),
-        contrast_limit: ScaleType[float] = (-0.2, 0.2),
+        brightness_limit: ScaleFloatType = (-0.2, 0.2),
+        contrast_limit: ScaleFloatType = (-0.2, 0.2),
         brightness_by_max: bool = True,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -1708,7 +1709,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def __init__(
         self,
-        var_limit: ScaleType[float] = (10.0, 50.0),
+        var_limit: ScaleFloatType = (10.0, 50.0),
         mean: float = 0,
         per_channel: bool = True,
         noise_scale_factor: float = 1,
@@ -1872,7 +1873,7 @@ class CLAHE(ImageOnlyTransform):
 
     def __init__(
         self,
-        clip_limit: ScaleType[float] = 4.0,
+        clip_limit: ScaleFloatType = 4.0,
         tile_grid_size: tuple[int, int] = (8, 8),
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -1973,7 +1974,7 @@ class RandomGamma(ImageOnlyTransform):
 
     def __init__(
         self,
-        gamma_limit: ScaleType[float] = (80, 120),
+        gamma_limit: ScaleFloatType = (80, 120),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -2499,7 +2500,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def __init__(
         self,
-        multiplier: ScaleType[float] = (0.9, 1.1),
+        multiplier: ScaleFloatType = (0.9, 1.1),
         per_channel: bool | None = None,
         elementwise: bool = False,
         always_apply: bool | None = None,
@@ -2641,14 +2642,14 @@ class ColorJitter(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness: ScaleType[float]
-        contrast: ScaleType[float]
-        saturation: ScaleType[float]
-        hue: ScaleType[float]
+        brightness: ScaleFloatType
+        contrast: ScaleFloatType
+        saturation: ScaleFloatType
+        hue: ScaleFloatType
 
         @field_validator("brightness", "contrast", "saturation", "hue")
         @classmethod
-        def check_ranges(cls, value: ScaleType[float], info: ValidationInfo) -> tuple[float, float]:
+        def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> tuple[float, float]:
             if info.field_name == "hue":
                 bounds = -0.5, 0.5
                 bias = 0
@@ -2672,10 +2673,10 @@ class ColorJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness: ScaleType[float] = (0.8, 1.2),
-        contrast: ScaleType[float] = (0.8, 1.2),
-        saturation: ScaleType[float] = (0.8, 1.2),
-        hue: ScaleType[float] = (-0.5, 0.5),
+        brightness: ScaleFloatType = (0.8, 1.2),
+        contrast: ScaleFloatType = (0.8, 1.2),
+        saturation: ScaleFloatType = (0.8, 1.2),
+        hue: ScaleFloatType = (-0.5, 0.5),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -2893,8 +2894,8 @@ class Superpixels(ImageOnlyTransform):
 
     def __init__(
         self,
-        p_replace: ScaleType[float] = (0, 0.1),
-        n_segments: ScaleType[int] = (100, 100),
+        p_replace: ScaleFloatType = (0, 0.1),
+        n_segments: ScaleIntType = (100, 100),
         max_size: int | None = 128,
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool | None = None,
@@ -2972,8 +2973,8 @@ class TemplateTransform(ImageOnlyTransform):
     def __init__(
         self,
         templates: np.ndarray | list[np.ndarray],
-        img_weight: ScaleType[float] = (0.5, 0.5),
-        template_weight: ScaleType[float] = (0.5, 0.5),
+        img_weight: ScaleFloatType = (0.5, 0.5),
+        template_weight: ScaleFloatType = (0.5, 0.5),
         template_transform: Callable[..., Any] | None = None,
         name: str | None = None,
         always_apply: bool | None = None,
@@ -3067,7 +3068,7 @@ class RingingOvershoot(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        blur_limit: ScaleType[int] = Field(default=(7, 15), description="Maximum kernel size for sinc filter.")
+        blur_limit: ScaleIntType = Field(default=(7, 15), description="Maximum kernel size for sinc filter.")
         cutoff: Annotated[tuple[float, float], nondecreasing]
 
         @field_validator("cutoff")
@@ -3079,7 +3080,7 @@ class RingingOvershoot(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleType[int] = (7, 15),
+        blur_limit: ScaleIntType = (7, 15),
         cutoff: tuple[float, float] = (np.pi / 4, np.pi / 2),
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -3146,25 +3147,22 @@ class UnsharpMask(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        sigma_limit: NonNegativeFloatRangeType = 0
+        sigma_limit: NonNegativeFloatRangeType
         alpha: ZeroOneRangeType
         threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
 
-        blur_limit: ScaleType[int] = Field(
-            default=(3, 7),
-            description="Maximum kernel size for blurring the input image.",
-        )
+        blur_limit: ScaleIntType
 
         @field_validator("blur_limit")
         @classmethod
-        def process_blur(cls, value: ScaleType[int], info: ValidationInfo) -> tuple[int, int]:
+        def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
             return process_blur_limit(value, info, min_value=3)
 
     def __init__(
         self,
-        blur_limit: ScaleType[int] = (3, 7),
-        sigma_limit: ScaleType[float] = 0.0,
-        alpha: ScaleType[float] = (0.2, 0.5),
+        blur_limit: ScaleIntType = (3, 7),
+        sigma_limit: ScaleFloatType = 0.0,
+        alpha: ScaleFloatType = (0.2, 0.5),
         threshold: int = 10,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -3217,11 +3215,11 @@ class PixelDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         dropout_prob: ProbabilityType = 0.01
         per_channel: bool = Field(default=False, description="Sample drop mask per channel.")
-        drop_value: ScaleType[float] | None = Field(
+        drop_value: ScaleFloatType | None = Field(
             default=0,
             description="Value to set in dropped pixels. None for random sampling.",
         )
-        mask_drop_value: ScaleType[float] | None = Field(
+        mask_drop_value: ScaleFloatType | None = Field(
             default=None,
             description="Value to set in dropped pixels in masks. None to leave masks unchanged.",
         )
@@ -3239,8 +3237,8 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: ScaleType[float] | None = 0,
-        mask_drop_value: ScaleType[float] | None = None,
+        drop_value: ScaleFloatType | None = 0,
+        mask_drop_value: ScaleFloatType | None = None,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -3397,11 +3395,11 @@ class Spatter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: ScaleType[float] = (0.65, 0.65),
-        std: ScaleType[float] = (0.3, 0.3),
-        gauss_sigma: ScaleType[float] = (2, 2),
-        cutout_threshold: ScaleType[float] = (0.68, 0.68),
-        intensity: ScaleType[float] = (0.6, 0.6),
+        mean: ScaleFloatType = (0.65, 0.65),
+        std: ScaleFloatType = (0.3, 0.3),
+        gauss_sigma: ScaleFloatType = (2, 2),
+        cutout_threshold: ScaleFloatType = (0.68, 0.68),
+        intensity: ScaleFloatType = (0.6, 0.6),
         mode: SpatterMode | Sequence[SpatterMode] = "rain",
         color: Sequence[int] | dict[str, Sequence[int]] | None = None,
         always_apply: bool | None = None,
@@ -3556,8 +3554,8 @@ class ChromaticAberration(ImageOnlyTransform):
 
     def __init__(
         self,
-        primary_distortion_limit: ScaleType[float] = (-0.02, 0.02),
-        secondary_distortion_limit: ScaleType[float] = (-0.05, 0.05),
+        primary_distortion_limit: ScaleFloatType = (-0.02, 0.02),
+        secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
         mode: ChromaticAberrationMode = "green_purple",
         interpolation: InterpolationType = cv2.INTER_LINEAR,
         always_apply: bool | None = None,
@@ -3677,7 +3675,7 @@ class Morphological(DualTransform):
 
     def __init__(
         self,
-        scale: ScaleType[int] = (2, 3),
+        scale: ScaleIntType = (2, 3),
         operation: MorphologyMode = "dilation",
         always_apply: bool | None = None,
         p: float = 0.5,

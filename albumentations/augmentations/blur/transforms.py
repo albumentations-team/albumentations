@@ -19,7 +19,7 @@ from albumentations.core.pydantic import (
     SymmetricRangeType,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import ScaleType
+from albumentations.core.types import ScaleFloatType, ScaleIntType
 from albumentations.core.utils import to_tuple
 
 from . import functional as fblur
@@ -31,7 +31,7 @@ HALF = 0.5
 TWO = 2
 
 
-def process_blur_limit(value: ScaleType[int], info: ValidationInfo, min_value: float = 0) -> tuple[int, int]:
+def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: float = 0) -> tuple[int, int]:
     bounds = 0, float("inf")
     result = to_tuple(value, min_value)
     check_range(result, *bounds, info.field_name)
@@ -43,11 +43,11 @@ def process_blur_limit(value: ScaleType[int], info: ValidationInfo, min_value: f
 
 
 class BlurInitSchema(BaseTransformInitSchema):
-    blur_limit: ScaleType[int]
+    blur_limit: ScaleIntType
 
     @field_validator("blur_limit")
     @classmethod
-    def process_blur(cls, value: ScaleType[int], info: ValidationInfo) -> tuple[int, int]:
+    def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
         return process_blur_limit(value, info, min_value=3)
 
 
@@ -95,7 +95,7 @@ class Blur(ImageOnlyTransform):
     class InitSchema(BlurInitSchema):
         pass
 
-    def __init__(self, blur_limit: ScaleType[int] = (3, 7), p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, blur_limit: ScaleIntType = (3, 7), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
@@ -132,7 +132,7 @@ class MotionBlur(Blur):
             default=True,
             description="If set to true creates non-shifted kernels only, otherwise creates randomly shifted kernels.",
         )
-        blur_limit: ScaleType[int]
+        blur_limit: ScaleIntType
 
         @model_validator(mode="after")
         def process_blur(self) -> Self:
@@ -145,7 +145,7 @@ class MotionBlur(Blur):
 
     def __init__(
         self,
-        blur_limit: ScaleType[int] = 7,
+        blur_limit: ScaleIntType = 7,
         allow_shifted: bool = True,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -215,7 +215,7 @@ class MedianBlur(Blur):
 
     """
 
-    def __init__(self, blur_limit: ScaleType[int] = 7, p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, blur_limit: ScaleIntType = 7, p: float = 0.5, always_apply: bool | None = None):
         super().__init__(blur_limit, p, always_apply)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
@@ -249,7 +249,7 @@ class GaussianBlur(ImageOnlyTransform):
 
         @field_validator("blur_limit")
         @classmethod
-        def process_blur(cls, value: ScaleType[int], info: ValidationInfo) -> tuple[int, int]:
+        def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
             return process_blur_limit(value, info, min_value=0)
 
         @model_validator(mode="after")
@@ -276,8 +276,8 @@ class GaussianBlur(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleType[int] = (3, 7),
-        sigma_limit: ScaleType[float] = 0,
+        blur_limit: ScaleIntType = (3, 7),
+        sigma_limit: ScaleFloatType = 0,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -457,7 +457,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
         @field_validator("beta_limit")
         @classmethod
-        def check_beta_limit(cls, value: ScaleType[float]) -> tuple[float, float]:
+        def check_beta_limit(cls, value: ScaleFloatType) -> tuple[float, float]:
             result = to_tuple(value, low=0)
             if not (result[0] < 1.0 < result[1]):
                 msg = "beta_limit is expected to include 1.0."
@@ -478,14 +478,14 @@ class AdvancedBlur(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleType[int] = (3, 7),
-        sigma_x_limit: ScaleType[float] = (0.2, 1.0),
-        sigma_y_limit: ScaleType[float] = (0.2, 1.0),
-        sigmaX_limit: ScaleType[float] | None = None,  # noqa: N803
-        sigmaY_limit: ScaleType[float] | None = None,  # noqa: N803
-        rotate_limit: ScaleType[int] = (-90, 90),
-        beta_limit: ScaleType[float] = (0.5, 8.0),
-        noise_limit: ScaleType[float] = (0.9, 1.1),
+        blur_limit: ScaleIntType = (3, 7),
+        sigma_x_limit: ScaleFloatType = (0.2, 1.0),
+        sigma_y_limit: ScaleFloatType = (0.2, 1.0),
+        sigmaX_limit: ScaleFloatType | None = None,  # noqa: N803
+        sigmaY_limit: ScaleFloatType | None = None,  # noqa: N803
+        rotate_limit: ScaleIntType = (-90, 90),
+        beta_limit: ScaleFloatType = (0.5, 8.0),
+        noise_limit: ScaleFloatType = (0.9, 1.1),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -608,8 +608,8 @@ class Defocus(ImageOnlyTransform):
 
     def __init__(
         self,
-        radius: ScaleType[int] = (3, 10),
-        alias_blur: ScaleType[float] = (0.1, 0.5),
+        radius: ScaleIntType = (3, 10),
+        alias_blur: ScaleFloatType = (0.1, 0.5),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -658,8 +658,8 @@ class ZoomBlur(ImageOnlyTransform):
 
     def __init__(
         self,
-        max_factor: ScaleType[float] = (1, 1.31),
-        step_factor: ScaleType[float] = (0.01, 0.03),
+        max_factor: ScaleFloatType = (1, 1.31),
+        step_factor: ScaleFloatType = (0.01, 0.03),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
