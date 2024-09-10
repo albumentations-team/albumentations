@@ -11,14 +11,11 @@ from typing_extensions import NotRequired, TypedDict
 ScalarType = Union[int, float]
 ColorType = Union[float, Sequence[float]]
 
-ScaleFloatType = Union[float, Tuple[float, float]]
-ScaleIntType = Union[int, Tuple[int, int]]
-
 NumericType = TypeVar("NumericType", float, int)
 
-ScaleType = Union[ScaleIntType, ScaleFloatType]
+ScaleType = Union[NumericType, Tuple[NumericType, NumericType]]
 
-NumType = Union[int, float, np.ndarray]
+NumType = Union[ScalarType, np.ndarray]
 
 IntNumType = Union[np.integer, np.ndarray]
 FloatNumType = Union[np.floating, np.ndarray]

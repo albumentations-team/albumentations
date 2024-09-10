@@ -17,7 +17,7 @@ from albumentations.core.pydantic import BorderModeType, InterpolationType, Symm
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     ColorType,
-    ScaleFloatType,
+    ScaleType,
     Targets,
 )
 
@@ -106,15 +106,12 @@ class Rotate(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(RotateInitSchema):
-        rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
-        crop_border: bool = Field(
-            default=False,
-            description="If True, makes a largest possible crop within the rotated image.",
-        )
+        rotate_method: Literal["largest_box", "ellipse"]
+        crop_border: bool
 
     def __init__(
         self,
-        limit: ScaleFloatType = (-90, 90),
+        limit: ScaleType[float] = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
@@ -285,7 +282,7 @@ class SafeRotate(Affine):
 
     def __init__(
         self,
-        limit: ScaleFloatType = (-90, 90),
+        limit: ScaleType[float] = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,

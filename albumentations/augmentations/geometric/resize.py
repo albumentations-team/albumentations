@@ -9,10 +9,7 @@ from pydantic import Field, ValidationInfo, field_validator
 
 from albumentations.core.pydantic import InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import (
-    ScaleFloatType,
-    Targets,
-)
+from albumentations.core.types import ScaleType, Targets
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
@@ -44,20 +41,17 @@ class RandomScale(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale_limit: ScaleFloatType = Field(
-            default=0.1,
-            description="Scaling factor range. If a single float value => (1-scale_limit, 1 + scale_limit).",
-        )
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        scale_limit: ScaleType[float]
+        interpolation: InterpolationType
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, v: ScaleFloatType) -> tuple[float, float]:
+        def check_scale_limit(cls, v: ScaleType[float]) -> tuple[float, float]:
             return to_tuple(v, bias=1.0)
 
     def __init__(
         self,
-        scale_limit: ScaleFloatType = 0.1,
+        scale_limit: ScaleType[float] = 0.1,
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -104,7 +98,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
 
     @field_validator("max_size")
     @classmethod
-    def check_scale_limit(cls, v: ScaleFloatType, info: ValidationInfo) -> int | list[int]:
+    def check_scale_limit(cls, v: ScaleType[int], info: ValidationInfo) -> int | list[int]:
         result = v if isinstance(v, (list, tuple)) else [v]
         for value in result:
             if not value >= 1:

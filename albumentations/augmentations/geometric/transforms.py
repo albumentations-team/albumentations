@@ -32,8 +32,7 @@ from albumentations.core.types import (
     ColorType,
     D4Type,
     ScalarType,
-    ScaleFloatType,
-    ScaleIntType,
+    ScaleType,
     Targets,
     d4_group_elements,
 )
@@ -260,7 +259,7 @@ class Perspective(DualTransform):
 
     def __init__(
         self,
-        scale: ScaleFloatType = (0.05, 0.1),
+        scale: ScaleType[float] = (0.05, 0.1),
         keep_size: bool = True,
         pad_mode: int = cv2.BORDER_CONSTANT,
         pad_val: ColorType = 0,
@@ -553,20 +552,20 @@ class Affine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: ScaleFloatType | dict[str, Any] | None = Field(
+        scale: ScaleType[float] | dict[str, Any] | None = Field(
             default=None,
             description="Scaling factor or dictionary for independent axis scaling.",
         )
-        translate_percent: ScaleFloatType | dict[str, Any] | None = Field(
+        translate_percent: ScaleType[float] | dict[str, Any] | None = Field(
             default=None,
             description="Translation as a fraction of the image dimension.",
         )
-        translate_px: ScaleIntType | dict[str, Any] | None = Field(
+        translate_px: ScaleType[int] | dict[str, Any] | None = Field(
             default=None,
             description="Translation in pixels.",
         )
-        rotate: ScaleFloatType | None = Field(default=None, description="Rotation angle in degrees.")
-        shear: ScaleFloatType | dict[str, Any] | None = Field(
+        rotate: ScaleType[float] | None = Field(default=None, description="Rotation angle in degrees.")
+        shear: ScaleType[float] | dict[str, Any] | None = Field(
             default=None,
             description="Shear angle in degrees.",
         )
@@ -583,11 +582,11 @@ class Affine(DualTransform):
 
     def __init__(
         self,
-        scale: ScaleFloatType | dict[str, Any] | None = None,
-        translate_percent: ScaleFloatType | dict[str, Any] | None = None,
-        translate_px: ScaleIntType | dict[str, Any] | None = None,
-        rotate: ScaleFloatType | None = None,
-        shear: ScaleFloatType | dict[str, Any] | None = None,
+        scale: ScaleType[float] | dict[str, Any] | None = None,
+        translate_percent: ScaleType[float] | dict[str, Any] | None = None,
+        translate_px: ScaleType[int] | dict[str, Any] | None = None,
+        rotate: ScaleType[float] | None = None,
+        shear: ScaleType[float] | dict[str, Any] | None = None,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: ColorType = 0,
@@ -667,8 +666,8 @@ class Affine(DualTransform):
     @classmethod
     def _handle_translate_arg(
         cls,
-        translate_px: ScaleFloatType | dict[str, Any] | None,
-        translate_percent: ScaleFloatType | dict[str, Any] | None,
+        translate_px: ScaleType[float] | dict[str, Any] | None,
+        translate_percent: ScaleType[float] | dict[str, Any] | None,
     ) -> Any:
         if translate_percent is None and translate_px is None:
             translate_px = 0
@@ -871,8 +870,8 @@ class ShiftScaleRotate(Affine):
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: ColorType = 0
         mask_value: ColorType = 0
-        shift_limit_x: ScaleFloatType | None = Field(default=None)
-        shift_limit_y: ScaleFloatType | None = Field(default=None)
+        shift_limit_x: ScaleType[float] | None = Field(default=None)
+        shift_limit_y: ScaleType[float] | None = Field(default=None)
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
 
         @model_validator(mode="after")
@@ -886,7 +885,7 @@ class ShiftScaleRotate(Affine):
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, value: ScaleFloatType, info: ValidationInfo) -> ScaleFloatType:
+        def check_scale_limit(cls, value: ScaleType[float], info: ValidationInfo) -> ScaleType[float]:
             bounds = 0, float("inf")
             result = to_tuple(value, bias=1.0)
             check_range(result, *bounds, str(info.field_name))
@@ -894,15 +893,15 @@ class ShiftScaleRotate(Affine):
 
     def __init__(
         self,
-        shift_limit: ScaleFloatType = (-0.0625, 0.0625),
-        scale_limit: ScaleFloatType = (-0.1, 0.1),
-        rotate_limit: ScaleFloatType = (-45, 45),
+        shift_limit: ScaleType[float] = (-0.0625, 0.0625),
+        scale_limit: ScaleType[float] = (-0.1, 0.1),
+        rotate_limit: ScaleType[float] = (-45, 45),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType = 0,
         mask_value: ColorType = 0,
-        shift_limit_x: ScaleFloatType | None = None,
-        shift_limit_y: ScaleFloatType | None = None,
+        shift_limit_x: ScaleType[float] | None = None,
+        shift_limit_y: ScaleType[float] | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -1014,8 +1013,8 @@ class PiecewiseAffine(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType = (0.03, 0.05)
-        nb_rows: ScaleIntType = Field(default=4, description="Number of rows in the regular grid.")
-        nb_cols: ScaleIntType = Field(default=4, description="Number of columns in the regular grid.")
+        nb_rows: ScaleType[int] = Field(default=4, description="Number of rows in the regular grid.")
+        nb_cols: ScaleType[int] = Field(default=4, description="Number of columns in the regular grid.")
         interpolation: InterpolationType = cv2.INTER_LINEAR
         mask_interpolation: InterpolationType = cv2.INTER_NEAREST
         cval: int = Field(default=0, description="Constant value used for newly created pixels.")
@@ -1032,7 +1031,7 @@ class PiecewiseAffine(DualTransform):
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
-        def process_range(cls, value: ScaleFloatType, info: ValidationInfo) -> tuple[float, float]:
+        def process_range(cls, value: ScaleType[float], info: ValidationInfo) -> tuple[float, float]:
             bounds = 2, BIG_INTEGER
             result = to_tuple(value, value)
             check_range(result, *bounds, info.field_name)
@@ -1040,9 +1039,9 @@ class PiecewiseAffine(DualTransform):
 
     def __init__(
         self,
-        scale: ScaleFloatType = (0.03, 0.05),
-        nb_rows: ScaleIntType = 4,
-        nb_cols: ScaleIntType = 4,
+        scale: ScaleType[float] = (0.03, 0.05),
+        nb_rows: ScaleType[int] = 4,
+        nb_cols: ScaleType[int] = 4,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: int = 0,
@@ -1640,8 +1639,8 @@ class OpticalDistortion(DualTransform):
 
     def __init__(
         self,
-        distort_limit: ScaleFloatType = (-0.05, 0.05),
-        shift_limit: ScaleFloatType = (-0.05, 0.05),
+        distort_limit: ScaleType[float] = (-0.05, 0.05),
+        shift_limit: ScaleType[float] = (-0.05, 0.05),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
@@ -1766,7 +1765,7 @@ class GridDistortion(DualTransform):
     def __init__(
         self,
         num_steps: int = 5,
-        distort_limit: ScaleFloatType = (-0.3, 0.3),
+        distort_limit: ScaleType[float] = (-0.3, 0.3),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,

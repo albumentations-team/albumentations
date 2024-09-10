@@ -19,7 +19,7 @@ from albumentations.core.pydantic import (
     SymmetricRangeType,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import ScaleFloatType, ScaleIntType
+from albumentations.core.types import ScaleType
 from albumentations.core.utils import to_tuple
 
 from . import functional as fblur
@@ -31,7 +31,7 @@ HALF = 0.5
 TWO = 2
 
 
-def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: float = 0) -> tuple[int, int]:
+def process_blur_limit(value: ScaleType[int], info: ValidationInfo, min_value: float = 0) -> tuple[int, int]:
     bounds = 0, float("inf")
     result = to_tuple(value, min_value)
     check_range(result, *bounds, info.field_name)
@@ -43,11 +43,11 @@ def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: flo
 
 
 class BlurInitSchema(BaseTransformInitSchema):
-    blur_limit: ScaleIntType = Field(default=(3, 7), description="Maximum kernel size for blurring the input image.")
+    blur_limit: ScaleType[int]
 
     @field_validator("blur_limit")
     @classmethod
-    def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
+    def process_blur(cls, value: ScaleType[int], info: ValidationInfo) -> tuple[int, int]:
         return process_blur_limit(value, info, min_value=3)
 
 
@@ -95,7 +95,7 @@ class Blur(ImageOnlyTransform):
     class InitSchema(BlurInitSchema):
         pass
 
-    def __init__(self, blur_limit: ScaleIntType = (3, 7), p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, blur_limit: ScaleType[int] = (3, 7), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
@@ -132,10 +132,7 @@ class MotionBlur(Blur):
             default=True,
             description="If set to true creates non-shifted kernels only, otherwise creates randomly shifted kernels.",
         )
-        blur_limit: ScaleIntType = Field(
-            default=(3, 7),
-            description="Maximum kernel size for blurring the input image.",
-        )
+        blur_limit: ScaleType[int]
 
         @model_validator(mode="after")
         def process_blur(self) -> Self:
@@ -148,7 +145,7 @@ class MotionBlur(Blur):
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = 7,
+        blur_limit: ScaleType[int] = 7,
         allow_shifted: bool = True,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -218,7 +215,7 @@ class MedianBlur(Blur):
 
     """
 
-    def __init__(self, blur_limit: ScaleIntType = 7, p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, blur_limit: ScaleType[int] = 7, p: float = 0.5, always_apply: bool | None = None):
         super().__init__(blur_limit, p, always_apply)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
@@ -252,7 +249,7 @@ class GaussianBlur(ImageOnlyTransform):
 
         @field_validator("blur_limit")
         @classmethod
-        def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
+        def process_blur(cls, value: ScaleType[int], info: ValidationInfo) -> tuple[int, int]:
             return process_blur_limit(value, info, min_value=0)
 
         @model_validator(mode="after")
@@ -279,8 +276,8 @@ class GaussianBlur(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (3, 7),
-        sigma_limit: ScaleFloatType = 0,
+        blur_limit: ScaleType[int] = (3, 7),
+        sigma_limit: ScaleType[float] = 0,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -460,7 +457,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
         @field_validator("beta_limit")
         @classmethod
-        def check_beta_limit(cls, value: ScaleFloatType) -> tuple[float, float]:
+        def check_beta_limit(cls, value: ScaleType[float]) -> tuple[float, float]:
             result = to_tuple(value, low=0)
             if not (result[0] < 1.0 < result[1]):
                 msg = "beta_limit is expected to include 1.0."
@@ -481,14 +478,14 @@ class AdvancedBlur(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (3, 7),
-        sigma_x_limit: ScaleFloatType = (0.2, 1.0),
-        sigma_y_limit: ScaleFloatType = (0.2, 1.0),
-        sigmaX_limit: ScaleFloatType | None = None,  # noqa: N803
-        sigmaY_limit: ScaleFloatType | None = None,  # noqa: N803
-        rotate_limit: ScaleIntType = (-90, 90),
-        beta_limit: ScaleFloatType = (0.5, 8.0),
-        noise_limit: ScaleFloatType = (0.9, 1.1),
+        blur_limit: ScaleType[int] = (3, 7),
+        sigma_x_limit: ScaleType[float] = (0.2, 1.0),
+        sigma_y_limit: ScaleType[float] = (0.2, 1.0),
+        sigmaX_limit: ScaleType[float] | None = None,  # noqa: N803
+        sigmaY_limit: ScaleType[float] | None = None,  # noqa: N803
+        rotate_limit: ScaleType[int] = (-90, 90),
+        beta_limit: ScaleType[float] = (0.5, 8.0),
+        noise_limit: ScaleType[float] = (0.9, 1.1),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -557,33 +554,62 @@ class AdvancedBlur(ImageOnlyTransform):
 
 
 class Defocus(ImageOnlyTransform):
-    """Apply defocus transform.
+    """Apply defocus blur to the input image.
+
+    This transform simulates the effect of an out-of-focus camera by applying a defocus blur
+    to the image. It uses a combination of disc kernels and Gaussian blur to create a realistic
+    defocus effect.
 
     Args:
-        radius ((int, int) or int): range for radius of defocusing.
-            If limit is a single int, the range will be [1, limit]. Default: (3, 10).
-        alias_blur ((float, float) or float): range for alias_blur of defocusing (sigma of gaussian blur).
-            If limit is a single float, the range will be (0, limit). Default: (0.1, 0.5).
-        p (float): probability of applying the transform. Default: 0.5.
+        radius (tuple[int, int] | int): Range for the radius of the defocus blur.
+            If a single int is provided, the range will be [1, radius].
+            Larger values create a stronger blur effect.
+            Default: (3, 10)
+
+        alias_blur (tuple[float, float] | float): Range for the standard deviation of the Gaussian blur
+            applied after the main defocus blur. This helps to reduce aliasing artifacts.
+            If a single float is provided, the range will be (0, alias_blur).
+            Larger values create a smoother, more aliased effect.
+            Default: (0.1, 0.5)
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
         image
 
     Image types:
-        unit8, float32
+        uint8, float32
 
-    Reference:
-        https://arxiv.org/abs/1903.12261
+    Note:
+        - The defocus effect is created using a disc kernel, which simulates the shape of a camera's aperture.
+        - The additional Gaussian blur (alias_blur) helps to soften the edges of the disc kernel, creating a
+          more natural-looking defocus effect.
+        - Larger radius values will create a stronger, more noticeable defocus effect.
+        - The alias_blur parameter can be used to fine-tune the appearance of the defocus, with larger values
+          creating a smoother, potentially more realistic effect.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Defocus(radius=(4, 8), alias_blur=(0.2, 0.4), always_apply=True)
+        >>> result = transform(image=image)
+        >>> defocused_image = result['image']
+
+    References:
+        - https://en.wikipedia.org/wiki/Defocus_aberration
+        - https://www.researchgate.net/publication/261311609_Realistic_Defocus_Blur_for_Multiplane_Computer-Generated_Holography
     """
 
     class InitSchema(BaseTransformInitSchema):
-        radius: OnePlusIntRangeType = (3, 10)
-        alias_blur: NonNegativeFloatRangeType = (0.1, 0.5)
+        radius: OnePlusIntRangeType
+        alias_blur: NonNegativeFloatRangeType
 
     def __init__(
         self,
-        radius: ScaleIntType = (3, 10),
-        alias_blur: ScaleFloatType = (0.1, 0.5),
+        radius: ScaleType[int] = (3, 10),
+        alias_blur: ScaleType[float] = (0.1, 0.5),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -596,8 +622,8 @@ class Defocus(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, Any]:
         return {
-            "radius": random.randint(self.radius[0], self.radius[1]),
-            "alias_blur": random.uniform(self.alias_blur[0], self.alias_blur[1]),
+            "radius": random.randint(*self.radius),
+            "alias_blur": random.uniform(*self.alias_blur),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
@@ -632,8 +658,8 @@ class ZoomBlur(ImageOnlyTransform):
 
     def __init__(
         self,
-        max_factor: ScaleFloatType = (1, 1.31),
-        step_factor: ScaleFloatType = (0.01, 0.03),
+        max_factor: ScaleType[float] = (1, 1.31),
+        step_factor: ScaleType[float] = (0.01, 0.03),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
