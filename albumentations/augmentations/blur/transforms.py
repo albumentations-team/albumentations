@@ -66,7 +66,7 @@ class Blur(ImageOnlyTransform):
               of possible kernel sizes.
             The kernel size must be odd and greater than or equal to 3.
             Larger kernel sizes produce stronger blur effects.
-            Default: 7 (which means a range of 3 to 7)
+            Default: (3, 7)
 
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -95,8 +95,8 @@ class Blur(ImageOnlyTransform):
     class InitSchema(BlurInitSchema):
         pass
 
-    def __init__(self, blur_limit: ScaleIntType = 7, p: float = 0.5, always_apply: bool | None = None):
-        super().__init__(p, always_apply)
+    def __init__(self, blur_limit: ScaleIntType = (3, 7), p: float = 0.5, always_apply: bool | None = None):
+        super().__init__(p=p, always_apply=always_apply)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:

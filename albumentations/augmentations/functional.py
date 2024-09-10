@@ -384,19 +384,56 @@ def linear_transformation_rgb(img: np.ndarray, transformation_matrix: np.ndarray
 
 
 @preserve_channel_dim
-def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: tuple[int, int] = (8, 8)) -> np.ndarray:
-    if img.dtype != np.uint8:
-        msg = "clahe supports only uint8 inputs"
-        raise TypeError(msg)
+def clahe(img: np.ndarray, clip_limit: float, tile_grid_size: tuple[int, int]) -> np.ndarray:
+    """Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
 
-    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=[int(x) for x in tile_grid_size])
+    This function enhances the contrast of the input image using CLAHE. For color images,
+    it converts the image to the LAB color space, applies CLAHE to the L channel, and then
+    converts the image back to RGB.
+
+    Args:
+        img (np.ndarray): Input image. Can be grayscale (2D array) or RGB (3D array).
+        clip_limit (float): Threshold for contrast limiting. Higher values give more contrast.
+        tile_grid_size (tuple[int, int]): Size of grid for histogram equalization.
+            Width and height of the grid.
+
+    Returns:
+        np.ndarray: Image with CLAHE applied. The output has the same dtype as the input.
+
+    Note:
+        - If the input image is float32, it's temporarily converted to uint8 for processing
+          and then converted back to float32.
+        - For color images, CLAHE is applied only to the luminance channel in the LAB color space.
+
+    Raises:
+        ValueError: If the input image is not 2D or 3D.
+
+    Example:
+        >>> import numpy as np
+        >>> img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> result = clahe(img, clip_limit=2.0, tile_grid_size=(8, 8))
+        >>> assert result.shape == img.shape
+        >>> assert result.dtype == img.dtype
+    """
+    img = img.copy()
+    original_dtype = img.dtype
+
+    if img.dtype == np.float32:
+        img = from_float(img, dtype=np.uint8)
+
+    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
     if is_grayscale_image(img):
-        return clahe_mat.apply(img)
+        result = clahe_mat.apply(img)
+        return to_float(result, max_value=255) if original_dtype == np.float32 else result
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+
     img[:, :, 0] = clahe_mat.apply(img[:, :, 0])
-    return cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
+
+    result = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
+
+    return to_float(result, max_value=255) if original_dtype == np.float32 else result
 
 
 @preserve_channel_dim
