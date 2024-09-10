@@ -1819,25 +1819,58 @@ class ISONoise(ImageOnlyTransform):
 
 
 class CLAHE(ImageOnlyTransform):
-    """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
+    """Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
+
+    CLAHE is an advanced method of improving the contrast in an image. Unlike regular histogram
+    equalization, which operates on the entire image, CLAHE operates on small regions (tiles)
+    in the image. This results in a more balanced equalization, preventing over-amplification
+    of contrast in areas with initially low contrast.
 
     Args:
-        clip_limit: upper threshold value for contrast limiting.
-            If clip_limit is a single float value, the range will be (1, clip_limit). Default: (1, 4).
-        tile_grid_size: size of grid for histogram equalization. Default: (8, 8).
-        p: probability of applying the transform. Default: 0.5.
+        clip_limit (tuple[float, float] | float): Controls the contrast enhancement limit.
+            - If a single float is provided, the range will be (1, clip_limit).
+            - If a tuple of two floats is provided, it defines the range for random selection.
+            Higher values allow for more contrast enhancement, but may also increase noise.
+            Default: (1, 4)
+
+        tile_grid_size (tuple[int, int]): Defines the number of tiles in the row and column directions.
+            Format is (rows, columns). Smaller tile sizes can lead to more localized enhancements,
+            while larger sizes give results closer to global histogram equalization.
+            Default: (8, 8)
+
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Notes:
+        - Supports only RGB or grayscale images.
+        - For color images, CLAHE is applied to the L channel in the LAB color space.
+        - The clip limit determines the maximum slope of the cumulative histogram. A lower
+          clip limit will result in more contrast limiting.
+        - Tile grid size affects the adaptiveness of the method. More tiles increase local
+          adaptiveness but can lead to an unnatural look if set too high.
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
 
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.CLAHE(clip_limit=(1, 4), tile_grid_size=(8, 8), p=1.0)
+        >>> result = transform(image=image)
+        >>> clahe_image = result["image"]
+
+    References:
+        - https://docs.opencv.org/master/d5/daf/tutorial_py_histogram_equalization.html
+        - Zuiderveld, Karel. "Contrast Limited Adaptive Histogram Equalization."
+          Graphic Gems IV. Academic Press Professional, Inc., 1994.
     """
 
     class InitSchema(BaseTransformInitSchema):
-        clip_limit: OnePlusFloatRangeType = (1.0, 4.0)
-        tile_grid_size: OnePlusIntRangeType = (8, 8)
+        clip_limit: OnePlusFloatRangeType
+        tile_grid_size: Annotated[tuple[int, int], AfterValidator(check_1plus)]
 
     def __init__(
         self,
@@ -1858,7 +1891,7 @@ class CLAHE(ImageOnlyTransform):
         return fmain.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self) -> dict[str, float]:
-        return {"clip_limit": random.uniform(self.clip_limit[0], self.clip_limit[1])}
+        return {"clip_limit": random.uniform(*self.clip_limit)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("clip_limit", "tile_grid_size")

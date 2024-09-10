@@ -10,7 +10,7 @@ import albumentations.augmentations.geometric.functional as fgeometric
 from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels, clip
 
 from albumentations.core.types import d4_group_elements
-from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
 
 
@@ -1111,3 +1111,26 @@ def test_float32_uint8_consistency(func):
     result_float32 = func(img_float32)
 
     np.testing.assert_allclose(result_uint8 / 255.0, result_float32, rtol=1e-5, atol=1e-2)
+
+
+
+@pytest.mark.parametrize(
+    "shape, dtype, clip_limit, tile_grid_size",
+    [
+        ((100, 100), np.uint8, 2.0, (8, 8)),  # Grayscale uint8
+        ((100, 100, 3), np.uint8, 2.0, (8, 8)),  # RGB uint8
+        ((50, 50), np.float32, 3.0, (4, 4)),  # Grayscale float32
+        ((50, 50, 3), np.float32, 3.0, (4, 4)),  # RGB float32
+    ]
+)
+def test_clahe(shape, dtype, clip_limit, tile_grid_size):
+    if dtype == np.uint8:
+        img = np.random.randint(0, 256, shape, dtype=dtype)
+    else:
+        img = np.random.rand(*shape).astype(dtype)
+
+    result = F.clahe(img, clip_limit, tile_grid_size)
+
+    assert result.shape == img.shape
+    assert result.dtype == img.dtype
+    assert np.any(result != img)  # Ensure the image has changed
