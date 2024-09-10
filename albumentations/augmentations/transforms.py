@@ -2222,16 +2222,29 @@ class InterpolationPydantic(BaseModel):
 
 
 class Downscale(ImageOnlyTransform):
-    """Decreases image quality by downscaling and then upscaling it back to its original size.
+    """Decrease image quality by downscaling and upscaling back.
+
+    This transform simulates the effect of a low-resolution image by first downscaling
+    the image to a lower resolution and then upscaling it back to its original size.
+    This process introduces loss of detail and can be used to simulate low-quality
+    images or to test the robustness of models to different image resolutions.
 
     Args:
-        scale_range (tuple[float, float]): A tuple defining the minimum and maximum scale to which the image
-            will be downscaled. The range should be between 0 and 1, inclusive at minimum and exclusive at maximum.
-            The first value should be less than or equal to the second value.
+        scale_range (tuple[float, float]): Range for the downscaling factor.
+            Should be two float values between 0 and 1, where the first value is less than or equal to the second.
+            The actual downscaling factor will be randomly chosen from this range for each image.
+            Lower values result in more aggressive downscaling.
+            Default: (0.25, 0.25)
+
         interpolation_pair (InterpolationDict): A dictionary specifying the interpolation methods to use for
-            downscaling and upscaling. Should include keys 'downscale' and 'upscale' with cv2 interpolation
-                flags as values.
-            Example: {"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_LINEAR}.
+            downscaling and upscaling. Should contain two keys:
+            - 'downscale': Interpolation method for downscaling
+            - 'upscale': Interpolation method for upscaling
+            Values should be OpenCV interpolation flags (e.g., cv2.INTER_NEAREST, cv2.INTER_LINEAR, etc.)
+            Default: {'downscale': cv2.INTER_NEAREST, 'upscale': cv2.INTER_NEAREST}
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
         image
@@ -2239,35 +2252,37 @@ class Downscale(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - The actual downscaling factor is randomly chosen for each image from the range
+          specified in scale_range.
+        - Using different interpolation methods for downscaling and upscaling can produce
+          various effects. For example, using INTER_NEAREST for both can create a pixelated look,
+          while using INTER_LINEAR or INTER_CUBIC can produce smoother results.
+        - This transform can be useful for data augmentation, especially when training models
+          that need to be robust to variations in image quality or resolution.
+
     Example:
-        >>> transform = Downscale(scale_range=(0.5, 0.9), interpolation_pair={"downscale": cv2.INTER_AREA,
-                                                          "upscale": cv2.INTER_CUBIC})
-        >>> transformed = transform(image=img)
+        >>> import albumentations as A
+        >>> import cv2
+        >>> transform = A.Downscale(
+        ...     scale_range=(0.5, 0.75),
+        ...     interpolation_pair={'downscale': cv2.INTER_NEAREST, 'upscale': cv2.INTER_LINEAR},
+        ...     p=0.5
+        ... )
+        >>> transformed = transform(image=image)
+        >>> downscaled_image = transformed['image']
     """
 
     class InitSchema(BaseTransformInitSchema):
-        scale_min: float | None = Field(
-            default=None,
-            ge=0,
-            le=1,
-            description="Lower bound on the image scale.",
-        )
-        scale_max: float | None = Field(
-            default=None,
-            ge=0,
-            lt=1,
-            description="Upper bound on the image scale.",
-        )
+        scale_min: float | None
+        scale_max: float | None
 
         interpolation: int | Interpolation | InterpolationDict | None = Field(
             default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
         )
         interpolation_pair: InterpolationPydantic
 
-        scale_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
-            0.25,
-            0.25,
-        )
+        scale_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
 
         @model_validator(mode="after")
         def validate_params(self) -> Self:
