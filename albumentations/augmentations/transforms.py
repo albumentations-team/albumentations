@@ -2788,22 +2788,59 @@ class Sharpen(ImageOnlyTransform):
 
 
 class Emboss(ImageOnlyTransform):
-    """Emboss the input image and overlays the result with the original image.
+    """Apply embossing effect to the input image.
+
+    This transform creates an emboss effect by highlighting edges and creating a 3D-like texture
+    in the image. It works by applying a specific convolution kernel to the image that emphasizes
+    differences in adjacent pixel values.
 
     Args:
-        alpha: range to choose the visibility of the embossed image. At 0, only the original image is
-            visible,at 1.0 only its embossed version is visible. Default: (0.2, 0.5).
-        strength: strength range of the embossing. Default: (0.2, 0.7).
-        p: probability of applying the transform. Default: 0.5.
+        alpha (tuple[float, float]): Range to choose the visibility of the embossed image.
+            At 0, only the original image is visible, at 1.0 only its embossed version is visible.
+            Values should be in the range [0, 1].
+            Alpha will be randomly selected from this range for each image.
+            Default: (0.2, 0.5)
+
+        strength (tuple[float, float]): Range to choose the strength of the embossing effect.
+            Higher values create a more pronounced 3D effect.
+            Values should be non-negative.
+            Strength will be randomly selected from this range for each image.
+            Default: (0.2, 0.7)
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Note:
+        - The emboss effect is created using a 3x3 convolution kernel.
+        - The 'alpha' parameter controls the blend between the original image and the embossed version.
+          A higher alpha value will result in a more pronounced emboss effect.
+        - The 'strength' parameter affects the intensity of the embossing. Higher strength values
+          will create more contrast in the embossed areas, resulting in a stronger 3D-like effect.
+        - This transform can be useful for creating artistic effects or for data augmentation
+          in tasks where edge information is important.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Emboss(alpha=(0.2, 0.5), strength=(0.2, 0.7), p=0.5)
+        >>> result = transform(image=image)
+        >>> embossed_image = result['image']
+
+    References:
+        - https://en.wikipedia.org/wiki/Image_embossing
+        - https://www.researchgate.net/publication/303412455_Application_of_Emboss_Filtering_in_Image_Processing
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: ZeroOneRangeType = (0.2, 0.5)
-        strength: NonNegativeFloatRangeType = (0.2, 0.7)
+        alpha: Annotated[tuple[float, float], AfterValidator(check_01)]
+        strength: Annotated[tuple[float, float], AfterValidator(check_0plus)]
 
     def __init__(
         self,
