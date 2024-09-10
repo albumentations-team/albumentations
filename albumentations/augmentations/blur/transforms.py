@@ -52,12 +52,30 @@ class BlurInitSchema(BaseTransformInitSchema):
 
 
 class Blur(ImageOnlyTransform):
-    """Blur the input image using a random-sized kernel.
+    """Apply uniform box blur to the input image using a randomly sized square kernel.
+
+    This transform uses OpenCV's cv2.blur function, which performs a simple box filter blur.
+    The size of the blur kernel is randomly selected for each application, allowing for
+    varying degrees of blur intensity.
 
     Args:
-        blur_limit: maximum kernel size for blurring the input image.
-            Should be in range [3, inf). Default: (3, 7).
-        p: probability of applying the transform. Default: 0.5.
+        blur_limit (tuple[int, int] | int): Controls the range of the blur kernel size.
+            - If a single int is provided, the kernel size will be randomly chosen
+              between 3 and that value.
+            - If a tuple of two ints is provided, it defines the inclusive range
+              of possible kernel sizes.
+            The kernel size must be odd and greater than or equal to 3.
+            Larger kernel sizes produce stronger blur effects.
+            Default: 7 (which means a range of 3 to 7)
+
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Notes:
+        - The blur kernel is always square (same width and height).
+        - Only odd kernel sizes are used to ensure the blur has a clear center pixel.
+        - Box blur is faster than Gaussian blur but may produce less natural results.
+        - This blur method averages all pixels under the kernel area, which can
+          reduce noise but also reduce image detail.
 
     Targets:
         image
@@ -65,6 +83,13 @@ class Blur(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Blur(blur_limit=(3, 7), p=1.0)
+        >>> result = transform(image=image)
+        >>> blurred_image = result["image"]
     """
 
     class InitSchema(BlurInitSchema):
