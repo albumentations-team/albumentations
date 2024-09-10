@@ -23,7 +23,7 @@ from typing_extensions import Literal
 from albumentations import random_utils
 from albumentations.augmentations.utils import (
     PCA,
-    non_rgb_warning,
+    non_rgb_error,
 )
 from albumentations.core.types import (
     EIGHT,
@@ -491,7 +491,7 @@ def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     """
-    non_rgb_warning(img)
+    non_rgb_error(img)
 
     input_dtype = img.dtype
     needs_float = False
@@ -547,7 +547,7 @@ def add_rain(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_warning(img)
+    non_rgb_error(img)
 
     input_dtype = img.dtype
     needs_float = False
@@ -599,7 +599,7 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: list
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_warning(img)
+    non_rgb_error(img)
 
     input_dtype = img.dtype
     needs_float = False
@@ -655,7 +655,7 @@ def add_sun_flare(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_warning(img)
+    non_rgb_error(img)
 
     input_dtype = img.dtype
     needs_float = False
@@ -749,7 +749,7 @@ def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_warning(img)
+    non_rgb_error(img)
     input_dtype = img.dtype
     needs_float = False
 
@@ -1454,7 +1454,7 @@ def spatter(
     rain: np.ndarray | None,
     mode: SpatterMode,
 ) -> np.ndarray:
-    non_rgb_warning(img)
+    non_rgb_error(img)
 
     dtype = img.dtype
 
@@ -1606,8 +1606,6 @@ def chromatic_aberration(
     secondary_distortion_blue: float,
     interpolation: int,
 ) -> np.ndarray:
-    non_rgb_warning(img)
-
     height, width = img.shape[:2]
 
     # Build camera matrix

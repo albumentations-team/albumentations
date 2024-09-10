@@ -21,7 +21,7 @@ from typing_extensions import Annotated, Literal, Self, TypedDict
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
-from albumentations.augmentations.utils import check_range
+from albumentations.augmentations.utils import check_range, non_rgb_error
 from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
@@ -2558,36 +2558,76 @@ class FancyPCA(ImageOnlyTransform):
 
 
 class ColorJitter(ImageOnlyTransform):
-    """Randomly changes the brightness, contrast, and saturation of an image. Compared to ColorJitter from torchvision,
-    this transform gives a little bit different results because Pillow (used in torchvision) and OpenCV (used in
-    Albumentations) transform an image to HSV format by different formulas. Another difference - Pillow uses uint8
-    overflow, but we use value saturation.
+    """Randomly changes the brightness, contrast, saturation, and hue of an image.
+
+    This transform is similar to torchvision's ColorJitter but with some differences due to the use of OpenCV
+    instead of Pillow. The main differences are:
+    1. OpenCV and Pillow use different formulas to convert images to HSV format.
+    2. This implementation uses value saturation instead of uint8 overflow as in Pillow.
+
+    These differences may result in slightly different output compared to torchvision's ColorJitter.
 
     Args:
-        brightness (float or tuple of float (min, max)): How much to jitter brightness.
+        brightness (tuple[float, float] | float): How much to jitter brightness.
             If float:
-                brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            If tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
-        contrast (float or tuple of float (min, max)): How much to jitter contrast.
+                The brightness factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness].
+            If tuple:
+                The brightness factor is sampled from the range specified.
+            Should be non-negative numbers.
+            Default: (0.8, 1.2)
+
+        contrast (tuple[float, float] | float): How much to jitter contrast.
             If float:
-                contrast_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            If tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
-        saturation (float or tuple of float (min, max)): How much to jitter saturation.
+                The contrast factor is chosen uniformly from [max(0, 1 - contrast), 1 + contrast].
+            If tuple:
+                The contrast factor is sampled from the range specified.
+            Should be non-negative numbers.
+            Default: (0.8, 1.2)
+
+        saturation (tuple[float, float] | float): How much to jitter saturation.
             If float:
-               saturation_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            If tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
+                The saturation factor is chosen uniformly from [max(0, 1 - saturation), 1 + saturation].
+            If tuple:
+                The saturation factor is sampled from the range specified.
+            Should be non-negative numbers.
+            Default: (0.8, 1.2)
+
         hue (float or tuple of float (min, max)): How much to jitter hue.
             If float:
-               saturation_factor is chosen uniformly from [-hue, hue]. Should have 0 <= hue <= 0.5.
-            If tuple[float, float]] will be sampled from that range. Both values should be in range [-0.5, 0.5].
+                The hue factor is chosen uniformly from [-hue, hue]. Should have 0 <= hue <= 0.5.
+            If tuple:
+                The hue factor is sampled from the range specified. Values should be in range [-0.5, 0.5].
+            Default: (-0.5, 0.5)
 
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The order of application for these color transformations is random for each image.
+        - The ranges for brightness, contrast, and saturation are applied as multiplicative factors.
+        - The range for hue is applied as an additive factor.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, p=1.0)
+        >>> result = transform(image=image)
+        >>> jittered_image = result['image']
+
+    References:
+        - https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.ColorJitter
+        - https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering brightness.")]
-        contrast: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering contrast.")]
-        saturation: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering saturation.")]
-        hue: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering hue.")]
+        brightness: ScaleFloatType
+        contrast: ScaleFloatType
+        saturation: ScaleFloatType
+        hue: ScaleFloatType
 
         @field_validator("brightness", "contrast", "saturation", "hue")
         @classmethod
@@ -2615,9 +2655,9 @@ class ColorJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness: ScaleFloatType = (0.8, 1),
-        contrast: ScaleFloatType = (0.8, 1),
-        saturation: ScaleFloatType = (0.8, 1),
+        brightness: ScaleFloatType = (0.8, 1.2),
+        contrast: ScaleFloatType = (0.8, 1.2),
+        saturation: ScaleFloatType = (0.8, 1.2),
         hue: ScaleFloatType = (-0.5, 0.5),
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -2637,10 +2677,10 @@ class ColorJitter(ImageOnlyTransform):
         ]
 
     def get_params(self) -> dict[str, Any]:
-        brightness = random.uniform(self.brightness[0], self.brightness[1])
-        contrast = random.uniform(self.contrast[0], self.contrast[1])
-        saturation = random.uniform(self.saturation[0], self.saturation[1])
-        hue = random.uniform(self.hue[0], self.hue[1])
+        brightness = random.uniform(*self.brightness)
+        contrast = random.uniform(*self.contrast)
+        saturation = random.uniform(*self.saturation)
+        hue = random.uniform(*self.hue)
 
         order = [0, 1, 2, 3]
         order = random_utils.shuffle(order)
@@ -2674,7 +2714,7 @@ class ColorJitter(ImageOnlyTransform):
         return img
 
     def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        return ("brightness", "contrast", "saturation", "hue")
+        return "brightness", "contrast", "saturation", "hue"
 
 
 class Sharpen(ImageOnlyTransform):
@@ -3428,27 +3468,38 @@ class Spatter(ImageOnlyTransform):
 class ChromaticAberration(ImageOnlyTransform):
     """Add lateral chromatic aberration by distorting the red and blue channels of the input image.
 
+    Chromatic aberration is an optical effect that occurs when a lens fails to focus all colors to the same point.
+    This transform simulates this effect by applying different radial distortions to the red and blue channels
+    of the image, while leaving the green channel unchanged.
+
     Args:
-        primary_distortion_limit: range of the primary radial distortion coefficient.
-            If primary_distortion_limit is a single float value, the range will be
-            (-primary_distortion_limit, primary_distortion_limit).
-            Controls the distortion in the center of the image (positive values result in pincushion distortion,
-            negative values result in barrel distortion).
-            Default: 0.02.
-        secondary_distortion_limit: range of the secondary radial distortion coefficient.
-            If secondary_distortion_limit is a single float value, the range will be
-            (-secondary_distortion_limit, secondary_distortion_limit).
-            Controls the distortion in the corners of the image (positive values result in pincushion distortion,
-            negative values result in barrel distortion).
-            Default: 0.05.
-        mode: type of color fringing.
-            Supported modes are 'green_purple', 'red_blue' and 'random'.
-            'random' will choose one of the modes 'green_purple' or 'red_blue' randomly.
+        primary_distortion_limit (tuple[float, float] | float): Range of the primary radial distortion coefficient.
+            If a single float value is provided, the range
+            will be (-primary_distortion_limit, primary_distortion_limit).
+            This parameter controls the distortion in the center of the image:
+            - Positive values result in pincushion distortion (edges bend inward)
+            - Negative values result in barrel distortion (edges bend outward)
+            Default: (-0.02, 0.02).
+
+        secondary_distortion_limit (tuple[float, float] | float): Range of the secondary radial distortion coefficient.
+            If a single float value is provided, the range
+            will be (-secondary_distortion_limit, secondary_distortion_limit).
+            This parameter controls the distortion in the corners of the image:
+            - Positive values enhance pincushion distortion
+            - Negative values enhance barrel distortion
+            Default: (-0.05, 0.05).
+
+        mode (Literal["green_purple", "red_blue", "random"]): Type of color fringing to apply. Options are:
+            - 'green_purple': Distorts red and blue channels in opposite directions, creating green-purple fringing.
+            - 'red_blue': Distorts red and blue channels in the same direction, creating red-blue fringing.
+            - 'random': Randomly chooses between 'green_purple' and 'red_blue' modes for each application.
             Default: 'green_purple'.
-        interpolation: flag that is used to specify the interpolation algorithm. Should be one of:
+
+        interpolation (InterpolationType): Flag specifying the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p: probability of applying the transform.
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
             Default: 0.5.
 
     Targets:
@@ -3457,20 +3508,42 @@ class ChromaticAberration(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - This transform only affects RGB images. Grayscale images will raise an error.
+        - The strength of the effect depends on both primary and secondary distortion limits.
+        - Higher absolute values for distortion limits will result in more pronounced chromatic aberration.
+        - The 'green_purple' mode tends to produce more noticeable effects than 'red_blue'.
+
+    Example:
+        >>> import albumentations as A
+        >>> import cv2
+        >>> transform = A.ChromaticAberration(
+        ...     primary_distortion_limit=0.05,
+        ...     secondary_distortion_limit=0.1,
+        ...     mode='green_purple',
+        ...     interpolation=cv2.INTER_LINEAR,
+        ...     p=1.0
+        ... )
+        >>> transformed = transform(image=image)
+        >>> aberrated_image = transformed['image']
+
+    References:
+        - https://en.wikipedia.org/wiki/Chromatic_aberration
+        - https://www.researchgate.net/publication/320691320_Chromatic_Aberration_in_Digital_Images
     """
 
     class InitSchema(BaseTransformInitSchema):
-        primary_distortion_limit: SymmetricRangeType = (-0.02, 0.02)
-        secondary_distortion_limit: SymmetricRangeType = (-0.05, 0.05)
-        mode: ChromaticAberrationMode = Field(default="green_purple", description="Type of color fringing.")
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        primary_distortion_limit: SymmetricRangeType
+        secondary_distortion_limit: SymmetricRangeType
+        mode: ChromaticAberrationMode
+        interpolation: InterpolationType
 
     def __init__(
         self,
         primary_distortion_limit: ScaleFloatType = (-0.02, 0.02),
         secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
         mode: ChromaticAberrationMode = "green_purple",
-        interpolation: int = cv2.INTER_LINEAR,
+        interpolation: InterpolationType = cv2.INTER_LINEAR,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -3489,6 +3562,7 @@ class ChromaticAberration(ImageOnlyTransform):
         secondary_distortion_blue: float,
         **params: Any,
     ) -> np.ndarray:
+        non_rgb_error(img)
         return fmain.chromatic_aberration(
             img,
             primary_distortion_red,
