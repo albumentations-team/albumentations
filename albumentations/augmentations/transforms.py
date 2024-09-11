@@ -1507,31 +1507,85 @@ class Posterize(ImageOnlyTransform):
 class Equalize(ImageOnlyTransform):
     """Equalize the image histogram.
 
+    This transform applies histogram equalization to the input image. Histogram equalization
+    is a method in image processing of contrast adjustment using the image's histogram.
+
     Args:
-        mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
+        mode (Literal['cv', 'pil']): Use OpenCV or Pillow equalization method.
+            Default: 'cv'
         by_channels (bool): If True, use equalization by channels separately,
             else convert image to YCbCr representation and use equalization by `Y` channel.
+            Default: True
         mask (np.ndarray, callable): If given, only the pixels selected by
-            the mask are included in the analysis. Maybe 1 channel or 3 channel array or callable.
-            Function signature must include `image` argument.
-        mask_params (list of str): Params for mask function.
+            the mask are included in the analysis. Can be:
+            - A 1-channel or 3-channel numpy array of the same size as the input image.
+            - A callable (function) that generates a mask. The function should accept 'image'
+              as its first argument, and can accept additional arguments specified in mask_params.
+            Default: None
+        mask_params (list[str]): Additional parameters to pass to the mask function.
+            These parameters will be taken from the data dict passed to __call__.
+            Default: ()
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
 
+    Note:
+        - When mode='cv', OpenCV's equalizeHist() function is used.
+        - When mode='pil', Pillow's equalize() function is used.
+        - The 'by_channels' parameter determines whether equalization is applied to each color channel
+          independently (True) or to the luminance channel only (False).
+        - If a mask is provided as a numpy array, it should have the same height and width as the input image.
+        - If a mask is provided as a function, it allows for dynamic mask generation based on the input image
+          and additional parameters. This is useful for scenarios where the mask depends on the image content
+          or external data (e.g., bounding boxes, segmentation masks).
+
+    Mask Function:
+        When mask is a callable, it should have the following signature:
+        mask_func(image, *args) -> np.ndarray
+
+        - image: The input image (numpy array)
+        - *args: Additional arguments as specified in mask_params
+
+        The function should return a numpy array of the same height and width as the input image,
+        where non-zero pixels indicate areas to be equalized.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>>
+        >>> # Using a static mask
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> transform = A.Equalize(mask=mask, p=1.0)
+        >>> result = transform(image=image)
+        >>>
+        >>> # Using a dynamic mask function
+        >>> def mask_func(image, bboxes):
+        ...     mask = np.ones_like(image[:, :, 0], dtype=np.uint8)
+        ...     for bbox in bboxes:
+        ...         x1, y1, x2, y2 = map(int, bbox)
+        ...         mask[y1:y2, x1:x2] = 0  # Exclude areas inside bounding boxes
+        ...     return mask
+        >>>
+        >>> transform = A.Equalize(mask=mask_func, mask_params=['bboxes'], p=1.0)
+        >>> bboxes = [(10, 10, 50, 50), (60, 60, 90, 90)]  # Example bounding boxes
+        >>> result = transform(image=image, bboxes=bboxes)
+
+    References:
+        - OpenCV equalizeHist: https://docs.opencv.org/3.4/d6/dc7/group__imgproc__hist.html#ga7e54091f0c937d49bf84152a16f76d6e
+        - Pillow ImageOps.equalize: https://pillow.readthedocs.io/en/stable/reference/ImageOps.html#PIL.ImageOps.equalize
+        - Histogram Equalization: https://en.wikipedia.org/wiki/Histogram_equalization
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mode: ImageMode = "cv"
-        by_channels: Annotated[bool, Field(default=True, description="Equalize channels separately if True")]
-        mask: Annotated[
-            np.ndarray | Callable[..., Any] | None,
-            Field(default=None, description="Mask to apply for equalization"),
-        ]
-        mask_params: Annotated[Sequence[str], Field(default=[], description="Parameters for mask function")]
+        mode: ImageMode
+        by_channels: bool
+        mask: np.ndarray | Callable[..., Any] | None
+        mask_params: Sequence[str]
 
     def __init__(
         self,
@@ -1552,18 +1606,24 @@ class Equalize(ImageOnlyTransform):
     def apply(self, img: np.ndarray, mask: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.equalize(img, mode=self.mode, by_channels=self.by_channels, mask=mask)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         if not callable(self.mask):
             return {"mask": self.mask}
 
-        return {"mask": self.mask(**params)}
+        mask_params = {"image": data["image"]}
+        for key in self.mask_params:
+            if key not in data:
+                raise KeyError(f"Required parameter '{key}' for mask function is missing in data.")
+            mask_params[key] = data[key]
+
+        return {"mask": self.mask(**mask_params)}
 
     @property
     def targets_as_params(self) -> list[str]:
         return ["image", *list(self.mask_params)]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("mode", "by_channels", "mask", "mask_params")
+        return "mode", "by_channels", "mask", "mask_params"
 
 
 class RGBShift(ImageOnlyTransform):

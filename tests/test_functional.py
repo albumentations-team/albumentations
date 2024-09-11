@@ -605,32 +605,35 @@ def test_posterize_checks():
     assert str(exc_info.value) == "If bits is iterable image must be RGB"
 
 
-def test_equalize_checks():
-    img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
+@pytest.mark.parametrize(
+    "img_shape, img_dtype, mask_shape, by_channels, expected_error, expected_message",
+    [
+        (
+            (256, 256), np.uint8, (256, 256, 3), True,
+            ValueError, "Wrong mask shape. Image shape: (256, 256). Mask shape: (256, 256, 3)"
+        ),
+        (
+            (256, 256, 3), np.uint8, (256, 256, 3), False,
+            ValueError, "When by_channels=False only 1-channel mask supports. Mask shape: (256, 256, 3)"
+        ),
+    ]
+)
+def test_equalize_checks(img_shape, img_dtype, mask_shape, by_channels, expected_error, expected_message):
+    img = np.random.randint(0, 255, img_shape).astype(img_dtype) if img_dtype == np.uint8 else np.random.random(img_shape).astype(img_dtype)
+    mask = np.random.randint(0, 2, mask_shape).astype(bool)
 
-    mask = np.random.randint(0, 1, [256, 256, 3], dtype=bool)
-    with pytest.raises(ValueError) as exc_info:
-        F.equalize(img, mask=mask)
-    assert str(exc_info.value) == f"Wrong mask shape. Image shape: {img.shape}. Mask shape: {mask.shape}"
-
-    img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        F.equalize(img, mask=mask, by_channels=False)
-    assert str(exc_info.value) == f"When by_channels=False only 1-channel mask supports. Mask shape: {mask.shape}"
-
-    img = np.random.random([256, 256, 3])
-    with pytest.raises(TypeError) as exc_info:
-        F.equalize(img, mask=mask, by_channels=False)
-    assert str(exc_info.value) == "Image must have uint8 channel type"
+    with pytest.raises(expected_error) as exc_info:
+        F.equalize(img, mask=mask, by_channels=by_channels)
+    assert str(exc_info.value) == expected_message
 
 
 def test_equalize_grayscale():
-    img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
+    img = np.random.randint(0, 255, (256, 256), dtype=np.uint8)
     assert np.all(cv2.equalizeHist(img) == F.equalize(img, mode="cv"))
 
 
 def test_equalize_rgb():
-    img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
+    img = SQUARE_UINT8_IMAGE
 
     _img = img.copy()
     for i in range(3):

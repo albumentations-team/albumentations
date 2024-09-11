@@ -29,6 +29,7 @@ from albumentations.core.types import (
     EIGHT,
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    NUM_RGB_CHANNELS,
     ColorType,
     ImageMode,
     PlanckianJitterMode,
@@ -281,10 +282,6 @@ def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
 
 
 def _check_preconditions(img: np.ndarray, mask: np.ndarray | None, by_channels: bool) -> None:
-    if img.dtype != np.uint8:
-        msg = "Image must have uint8 channel type"
-        raise TypeError(msg)
-
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
             raise ValueError(f"Wrong mask shape. Image shape: {img.shape}. Mask shape: {mask.shape}")
@@ -313,6 +310,48 @@ def equalize(
     mode: ImageMode = "cv",
     by_channels: bool = True,
 ) -> np.ndarray:
+    """Apply histogram equalization to the input image.
+
+    This function enhances the contrast of the input image by equalizing its histogram.
+    It supports both grayscale and color images, and can operate on individual channels
+    or on the luminance channel of the image.
+
+    Args:
+        img (np.ndarray): Input image. Can be grayscale (2D array) or RGB (3D array).
+        mask (np.ndarray | None): Optional mask to apply the equalization selectively.
+            If provided, must have the same shape as the input image. Default: None.
+        mode (ImageMode): The backend to use for equalization. Can be either "cv" for
+            OpenCV or "pil" for Pillow-style equalization. Default: "cv".
+        by_channels (bool): If True, applies equalization to each channel independently.
+            If False, converts the image to YCrCb color space and equalizes only the
+            luminance channel. Only applicable to color images. Default: True.
+
+    Returns:
+        np.ndarray: Equalized image. The output has the same dtype as the input.
+
+    Raises:
+        ValueError: If the input image or mask have invalid shapes or types.
+
+    Note:
+        - If the input image is not uint8, it will be temporarily converted to uint8
+          for processing and then converted back to its original dtype.
+        - For color images, when by_channels=False, the image is converted to YCrCb
+          color space, equalized on the Y channel, and then converted back to RGB.
+        - The function preserves the original number of channels in the image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> equalized = A.equalize(image, mode="cv", by_channels=True)
+        >>> assert equalized.shape == image.shape
+        >>> assert equalized.dtype == image.dtype
+    """
+    original_dtype = img.dtype
+
+    if original_dtype != np.uint8:
+        img = from_float(img, dtype=np.uint8)
+
     _check_preconditions(img, mask, by_channels)
 
     function = _equalize_pil if mode == "pil" else _equalize_cv
@@ -326,11 +365,11 @@ def equalize(
         return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
 
     result_img = np.empty_like(img)
-    for i in range(3):
+    for i in range(NUM_RGB_CHANNELS):
         _mask = _handle_mask(mask, i)
         result_img[..., i] = function(img[..., i], _mask)
 
-    return result_img
+    return to_float(result_img, max_value=255) if original_dtype == np.float32 else result_img
 
 
 @preserve_channel_dim
