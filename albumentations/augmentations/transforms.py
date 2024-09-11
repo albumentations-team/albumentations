@@ -12,7 +12,14 @@ import albucore
 import cv2
 import numpy as np
 from albucore.functions import add_weighted, multiply, normalize, normalize_per_image
-from albucore.utils import MAX_VALUES_BY_DTYPE, clip, get_num_channels, is_grayscale_image, is_rgb_image
+from albucore.utils import (
+    MAX_VALUES_BY_DTYPE,
+    NUM_MULTI_CHANNEL_DIMENSIONS,
+    clip,
+    get_num_channels,
+    is_grayscale_image,
+    is_rgb_image,
+)
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
@@ -2605,7 +2612,7 @@ class FancyPCA(ImageOnlyTransform):
         image
 
     Image types:
-        3-channel uint8 images only
+        float32, uint8
 
     Credit:
         http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
@@ -2615,17 +2622,20 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: float = Field(default=0.1, description="Scale for perturbing the eigen vectors and values", ge=0)
+        alpha: float = Field(ge=0)
 
     def __init__(self, alpha: float = 0.1, p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
 
-    def apply(self, img: np.ndarray, alpha: float, **params: Any) -> np.ndarray:
-        return fmain.fancy_pca(img, alpha)
+    def apply(self, img: np.ndarray, alpha_vector: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.fancy_pca(img, alpha_vector)
 
-    def get_params(self) -> dict[str, float]:
-        return {"alpha": random.gauss(0, self.alpha)}
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        shape = params["shape"]
+        num_channels = shape[-1] if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS else 1
+        alpha_vector = random_utils.normal(0, self.alpha, num_channels).astype(np.float32)
+        return {"alpha_vector": alpha_vector}
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("alpha",)

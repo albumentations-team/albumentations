@@ -1241,67 +1241,71 @@ def mask_from_bbox(img: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarr
 
 
 @clipped
-def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
-    """Perform 'Fancy PCA' augmentation
+@preserve_channel_dim
+def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
+    """Perform 'Fancy PCA' augmentation on an image with any number of channels.
 
     Args:
-        img: numpy array with (h, w, rgb) shape, as ints between 0-255
-        alpha: how much to perturb/scale the eigen vectors and values
-                the paper used std=0.1
+        img (np.ndarray): Input image of shape (height, width, channels) or (height, width).
+                          Can be uint8 ([0, 255] range) or float32 ([0, 1] range).
+        alpha_vector (np.ndarray): Vector of scale factors for each principal component.
+                                   Should have the same length as the number of channels in the image.
 
     Returns:
-        numpy image-like array as uint8 range(0, 255)
+        np.ndarray: Augmented image of the same shape, type, and range as the input.
+
+    Note:
+        - This function generalizes the Fancy PCA augmentation to work with any number of channels.
+        - It preserves the original range of the image ([0, 255] for uint8, [0, 1] for float32).
+        - For single-channel images, the augmentation is applied directly.
+        - For multi-channel images, PCA is performed on the entire image, treating each pixel
+          as a point in N-dimensional space (where N is the number of channels).
+        - The augmentation preserves the correlation between channels while adding controlled noise.
+        - Computation time may increase significantly for images with a large number of channels.
 
     Reference:
-        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+        Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012).
+        ImageNet classification with deep convolutional neural networks.
+        In Advances in neural information processing systems (pp. 1097-1105).
     """
-    if not is_rgb_image(img) or img.dtype != np.uint8:
-        msg = "Image must be RGB image in uint8 format."
-        raise TypeError(msg)
+    orig_shape = img.shape
+    num_channels = get_num_channels(img)
 
-    orig_img = img.astype(float).copy()
+    # Convert to float32 and scale to [0, 1] if necessary
+    if img.dtype == np.uint8:
+        img = to_float(img)
 
-    img = to_float(img)  # rescale to 0 to 1 range
+    # Reshape image to 2D array of pixels
+    img_reshaped = img.reshape(-1, num_channels)
 
-    # flatten image to columns of RGB
-    img_rs = img.reshape(-1, 3)
-    # img_rs shape (640000, 3)
+    # Center the pixel values
+    img_mean = np.mean(img_reshaped, axis=0)
+    img_centered = img_reshaped - img_mean
 
-    # center mean
-    img_centered = img_rs - np.mean(img_rs, axis=0)
-
-    # paper says 3x3 covariance matrix
+    # Compute covariance matrix
     img_cov = np.cov(img_centered, rowvar=False)
 
-    # eigen values and eigen vectors
+    # Compute eigenvectors & eigenvalues of the covariance matrix
     eig_vals, eig_vecs = np.linalg.eigh(img_cov)
 
-    # sort values and vector
+    # Sort eigenvectors by eigenvalues in descending order
     sort_perm = eig_vals[::-1].argsort()
-    eig_vals[::-1].sort()
+    eig_vals = eig_vals[sort_perm]
     eig_vecs = eig_vecs[:, sort_perm]
 
-    # > get [p1, p2, p3]
-    m1 = np.column_stack(eig_vecs)
+    # Create noise vector
+    noise = np.dot(eig_vecs, alpha_vector * eig_vals)
 
-    # get 3x1 matrix of eigen values multiplied by random variable draw from normal
-    # distribution with mean of 0 and standard deviation of 0.1
-    m2 = np.zeros((3, 1))
-    # according to the paper alpha should only be draw once per augmentation (not once per channel)
-    # > alpha = np.random.normal(0, alpha_std)
+    # Add noise to the image
+    img_pca = img_reshaped + noise
 
-    # broad cast to speed things up
-    m2[:, 0] = alpha * eig_vals[:]
+    # Reshape back to original shape
+    img_pca = img_pca.reshape(orig_shape)
 
-    # this is the vector that we're going to add to each pixel in a moment
-    add_vect = np.array(m1) @ np.array(m2)
+    # Clip values to [0, 1] range
+    img_pca = np.clip(img_pca, 0, 1)
 
-    for idx in range(3):  # RGB
-        orig_img[..., idx] += add_vect[idx] * 255
-
-    # for image processing it was found that working with float 0.0 to 1.0
-    # was easier than integers between 0-255
-    return orig_img
+    return from_float(img_pca, dtype=img.dtype) if img.dtype == np.uint8 else img_pca
 
 
 @preserve_channel_dim
