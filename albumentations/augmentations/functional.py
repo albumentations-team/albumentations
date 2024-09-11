@@ -1274,10 +1274,11 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
         In Advances in neural information processing systems (pp. 1097-1105).
     """
     orig_shape = img.shape
+    orig_dtype = img.dtype
     num_channels = get_num_channels(img)
 
     # Convert to float32 and scale to [0, 1] if necessary
-    if img.dtype == np.uint8:
+    if orig_dtype == np.uint8:
         img = to_float(img)
 
     # Reshape image to 2D array of pixels
@@ -1315,7 +1316,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     # Clip values to [0, 1] range
     img_pca = np.clip(img_pca, 0, 1)
 
-    return from_float(img_pca, dtype=img.dtype) if img.dtype == np.uint8 else img_pca
+    return from_float(img_pca, dtype=orig_dtype) if orig_dtype == np.uint8 else img_pca
 
 
 @preserve_channel_dim
