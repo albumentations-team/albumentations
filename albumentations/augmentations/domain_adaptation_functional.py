@@ -200,6 +200,57 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
 @clipped
 @preserve_channel_dim
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
+    """Apply Fourier Domain Adaptation to the input image using a target image.
+
+    This function performs domain adaptation in the frequency domain by modifying the amplitude
+    spectrum of the source image based on the target image's amplitude spectrum. It preserves
+    the phase information of the source image, which helps maintain its content while adapting
+    its style to match the target image.
+
+    Args:
+        img (np.ndarray): The source image to be adapted. Can be grayscale or RGB.
+        target_img (np.ndarray): The target image used as a reference for adaptation.
+            Should have the same dimensions as the source image.
+        beta (float): The adaptation strength, typically in the range [0, 1].
+            Higher values result in stronger adaptation towards the target image's style.
+
+    Returns:
+        np.ndarray: The adapted image with the same shape and type as the input image.
+
+    Raises:
+        ValueError: If the source and target images have different shapes.
+
+    Note:
+        - Both input images are converted to float32 for processing.
+        - The function handles both grayscale (2D) and color (3D) images.
+        - For grayscale images, an extra dimension is added to facilitate uniform processing.
+        - The adaptation is performed channel-wise for color images.
+        - The output is clipped to the valid range and preserves the original number of channels.
+
+    The adaptation process involves the following steps for each channel:
+    1. Compute the 2D Fourier Transform of both source and target images.
+    2. Shift the zero frequency component to the center of the spectrum.
+    3. Extract amplitude and phase information from the source image's spectrum.
+    4. Mutate the source amplitude using the target amplitude and the beta parameter.
+    5. Combine the mutated amplitude with the original phase.
+    6. Perform the inverse Fourier Transform to obtain the adapted channel.
+
+    The `low_freq_mutate` function (not shown here) is responsible for the actual
+    amplitude mutation, focusing on low-frequency components which carry style information.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> source_img = np.random.rand(100, 100, 3).astype(np.float32)
+        >>> target_img = np.random.rand(100, 100, 3).astype(np.float32)
+        >>> adapted_img = A.fourier_domain_adaptation(source_img, target_img, beta=0.5)
+        >>> assert adapted_img.shape == source_img.shape
+
+    References:
+        - "FDA: Fourier Domain Adaptation for Semantic Segmentation"
+          (Yang and Soatto, 2020, CVPR)
+          https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+    """
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
 
@@ -227,7 +278,6 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
         amp_trg = np.abs(fft_trg_shifted)
 
         # Mutate the amplitude part of the source with the target
-
         mutated_amp = low_freq_mutate(amp_src.copy(), amp_trg, beta)
 
         # Combine the mutated amplitude with the original phase
