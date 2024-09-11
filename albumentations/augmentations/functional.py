@@ -1246,18 +1246,23 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     """Perform 'Fancy PCA' augmentation on an image with any number of channels.
 
     Args:
-        img (np.ndarray): Input image of shape (height, width, channels) or (height, width).
-                          Can be uint8 ([0, 255] range) or float32 ([0, 1] range).
+        img (np.ndarray): Input image
         alpha_vector (np.ndarray): Vector of scale factors for each principal component.
                                    Should have the same length as the number of channels in the image.
 
     Returns:
         np.ndarray: Augmented image of the same shape, type, and range as the input.
 
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        any
+
     Note:
         - This function generalizes the Fancy PCA augmentation to work with any number of channels.
         - It preserves the original range of the image ([0, 255] for uint8, [0, 1] for float32).
-        - For single-channel images, the augmentation is applied directly.
+        - For single-channel images, the augmentation is applied as a simple scaling of pixel intensity variation.
         - For multi-channel images, PCA is performed on the entire image, treating each pixel
           as a point in N-dimensional space (where N is the number of channels).
         - The augmentation preserves the correlation between channels while adding controlled noise.
@@ -1282,19 +1287,24 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     img_mean = np.mean(img_reshaped, axis=0)
     img_centered = img_reshaped - img_mean
 
-    # Compute covariance matrix
-    img_cov = np.cov(img_centered, rowvar=False)
+    if num_channels == 1:
+        # For grayscale images, apply a simple scaling
+        std_dev = np.std(img_centered)
+        noise = alpha_vector[0] * std_dev * img_centered
+    else:
+        # Compute covariance matrix
+        img_cov = np.cov(img_centered, rowvar=False)
 
-    # Compute eigenvectors & eigenvalues of the covariance matrix
-    eig_vals, eig_vecs = np.linalg.eigh(img_cov)
+        # Compute eigenvectors & eigenvalues of the covariance matrix
+        eig_vals, eig_vecs = np.linalg.eigh(img_cov)
 
-    # Sort eigenvectors by eigenvalues in descending order
-    sort_perm = eig_vals[::-1].argsort()
-    eig_vals = eig_vals[sort_perm]
-    eig_vecs = eig_vecs[:, sort_perm]
+        # Sort eigenvectors by eigenvalues in descending order
+        sort_perm = eig_vals[::-1].argsort()
+        eig_vals = eig_vals[sort_perm]
+        eig_vecs = eig_vecs[:, sort_perm]
 
-    # Create noise vector
-    noise = np.dot(eig_vecs, alpha_vector * eig_vals)
+        # Create noise vector
+        noise = np.dot(np.dot(eig_vecs, np.diag(alpha_vector * eig_vals)), img_centered.T).T
 
     # Add noise to the image
     img_pca = img_reshaped + noise
