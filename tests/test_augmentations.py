@@ -85,7 +85,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
-            A.FancyPCA,
             A.FromFloat,
             A.Posterize,
         },
@@ -311,7 +310,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
-            A.FancyPCA,
             A.Posterize,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -374,7 +372,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
         except_augmentations={
             A.ChannelDropout,
             A.ChannelShuffle,
-            A.FancyPCA,
             A.ISONoise,
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
@@ -618,7 +615,6 @@ def test_mask_fill_value(augmentation_cls, params):
             A.ToFloat,
             A.ToRGB,
             A.ToSepia,
-            A.FancyPCA,
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
@@ -707,7 +703,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.ToRGB,
             A.ToSepia,
             A.Equalize,
-            A.FancyPCA,
             A.Posterize,
             A.PixelDistributionAdaptation,
             A.Spatter,
@@ -873,7 +868,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.ToRGB,
             A.ToSepia,
             A.Equalize,
-            A.FancyPCA,
             A.Posterize,
             A.FDA,
             A.HistogramMatching,

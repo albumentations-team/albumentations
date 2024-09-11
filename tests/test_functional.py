@@ -1137,3 +1137,29 @@ def test_clahe(shape, dtype, clip_limit, tile_grid_size):
     assert result.shape == img.shape
     assert result.dtype == img.dtype
     assert np.any(result != img)  # Ensure the image has changed
+
+
+@pytest.mark.parametrize("shape", [(100, 100, 3), (100, 100, 1), (100, 100, 5)])
+def test_fancy_pca_mean_preservation(shape):
+    image = np.random.rand(*shape).astype(np.float32)
+    alpha_vector = np.random.uniform(-0.1, 0.1, shape[-1])
+    result = F.fancy_pca(image, alpha_vector)
+    np.testing.assert_almost_equal(np.mean(image), np.mean(result), decimal=5)
+
+
+@pytest.mark.parametrize("shape, dtype", [
+    ((100, 100, 3), np.uint8),
+    ((100, 100, 3), np.float32),
+    ((100, 100, 1), np.uint8),
+    ((100, 100, 1), np.float32),
+    ((100, 100, 5), np.float32),
+])
+def test_fancy_pca_zero_alpha(shape, dtype):
+    image = np.random.randint(0, 256, shape).astype(dtype)
+    if dtype == np.float32:
+        image = image / 255.0
+
+    alpha_vector = np.zeros(shape[-1])
+    result = F.fancy_pca(image, alpha_vector)
+
+    np.testing.assert_array_equal(image, result)

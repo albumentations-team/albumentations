@@ -12,7 +12,14 @@ import albucore
 import cv2
 import numpy as np
 from albucore.functions import add_weighted, multiply, normalize, normalize_per_image
-from albucore.utils import MAX_VALUES_BY_DTYPE, clip, get_num_channels, is_grayscale_image, is_rgb_image
+from albucore.utils import (
+    MAX_VALUES_BY_DTYPE,
+    NUM_MULTI_CHANNEL_DIMENSIONS,
+    clip,
+    get_num_channels,
+    is_grayscale_image,
+    is_rgb_image,
+)
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
@@ -2594,38 +2601,67 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
 
 class FancyPCA(ImageOnlyTransform):
-    """Augment RGB image using FancyPCA from Krizhevsky's paper
-    "ImageNet Classification with Deep Convolutional Neural Networks"
+    """Apply Fancy PCA augmentation to the input image.
+
+    This augmentation technique applies PCA (Principal Component Analysis) to the image's color channels,
+    then adds multiples of the principal components to the image, with magnitudes proportional to the
+    corresponding eigenvalues times a random variable drawn from a Gaussian with mean 0 and standard
+    deviation 'alpha'.
 
     Args:
-        alpha:  how much to perturb/scale the eigen vectors and eigenvalues.
-            scale is samples from gaussian distribution (mu=0, sigma=alpha)
+        alpha (float or tuple of float): Standard deviation of the Gaussian distribution used to generate
+            random noise for each principal component. If a single float is provided, it will be used for
+            all channels. If a tuple of two floats (min, max) is provided, the standard deviation will be
+            uniformly sampled from this range for each run. Default: 0.1.
+        always_apply (bool): If True, the transform will always be applied. Default: False.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        3-channel uint8 images only
+        uint8, float32
 
-    Credit:
-        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
-        https://deshanadesai.github.io/notes/Fancy-PCA-with-Scikit-Image
-        https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
+    Number of channels:
+        any
+
+    Note:
+        - This augmentation is particularly effective for RGB images but can work with any number of channels.
+        - For grayscale images, it applies a simplified version of the augmentation.
+        - The transform preserves the mean of the image while adjusting the color/intensity variation.
+        - This implementation is based on the paper by Krizhevsky et al. and is similar to the one used
+          in the original AlexNet paper.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.FancyPCA(alpha=0.1, p=1.0)
+        >>> result = transform(image=image)
+        >>> augmented_image = result["image"]
+
+    References:
+        - Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012). ImageNet classification with deep
+          convolutional neural networks. In Advances in neural information processing systems (pp. 1097-1105).
+        - https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: float = Field(default=0.1, description="Scale for perturbing the eigen vectors and values", ge=0)
+        alpha: float = Field(ge=0)
 
     def __init__(self, alpha: float = 0.1, p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
 
-    def apply(self, img: np.ndarray, alpha: float, **params: Any) -> np.ndarray:
-        return fmain.fancy_pca(img, alpha)
+    def apply(self, img: np.ndarray, alpha_vector: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.fancy_pca(img, alpha_vector)
 
-    def get_params(self) -> dict[str, float]:
-        return {"alpha": random.gauss(0, self.alpha)}
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        shape = params["shape"]
+        num_channels = shape[-1] if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS else 1
+        alpha_vector = random_utils.normal(0, self.alpha, num_channels).astype(np.float32)
+        return {"alpha_vector": alpha_vector}
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("alpha",)

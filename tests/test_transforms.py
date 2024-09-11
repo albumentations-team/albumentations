@@ -1566,7 +1566,6 @@ def test_change_image(augmentation_cls, params):
             A.OverlayElements,
             A.FromFloat,
             A.TextImage,
-            A.FancyPCA
         },
     ),
 )
