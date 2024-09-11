@@ -4,7 +4,7 @@ import random
 from typing import Any, Callable, Tuple, cast
 
 import numpy as np
-from pydantic import Field, model_validator
+from pydantic import model_validator
 from typing_extensions import Self
 
 from albumentations.core.pydantic import NonNegativeIntRangeType
@@ -56,13 +56,13 @@ class XYMasking(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        num_masks_x: NonNegativeIntRangeType = 0
-        num_masks_y: NonNegativeIntRangeType = 0
-        mask_x_length: NonNegativeIntRangeType = 0
-        mask_y_length: NonNegativeIntRangeType = 0
+        num_masks_x: NonNegativeIntRangeType
+        num_masks_y: NonNegativeIntRangeType
+        mask_x_length: NonNegativeIntRangeType
+        mask_y_length: NonNegativeIntRangeType
 
-        fill_value: ColorType = Field(default=0, description="Value to fill image masks.")
-        mask_fill_value: ColorType = Field(default=0, description="Value to fill masks in the mask.")
+        fill_value: ColorType
+        mask_fill_value: ColorType
 
         @model_validator(mode="after")
         def check_mask_length(self) -> Self:

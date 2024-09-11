@@ -669,7 +669,7 @@ class RandomCropNearBBox(_BaseCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        max_part_shift: ZeroOneRangeType = (0, 0.3)
+        max_part_shift: ZeroOneRangeType
         cropping_bbox_key: str = Field(default="cropping_bbox", description="Additional target key for cropping box.")
         p: ProbabilityType = 1
 

@@ -244,19 +244,13 @@ class Perspective(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: NonNegativeFloatRangeType = (0.05, 0.1)
+        scale: NonNegativeFloatRangeType
         keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
-        pad_mode: BorderModeType = cv2.BORDER_CONSTANT
-        pad_val: ColorType | None = Field(
-            default=0,
-            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
-        )
-        mask_pad_val: ColorType | None = Field(
-            default=0,
-            description="Mask padding value if border_mode is cv2.BORDER_CONSTANT.",
-        )
+        pad_mode: BorderModeType
+        pad_val: ColorType | None
+        mask_pad_val: ColorType | None
         fit_output: Annotated[bool, Field(default=False, description="Adjust image plane to capture whole image.")]
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        interpolation: InterpolationType
 
     def __init__(
         self,
@@ -1013,22 +1007,16 @@ class PiecewiseAffine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: NonNegativeFloatRangeType = (0.03, 0.05)
-        nb_rows: ScaleIntType = Field(default=4, description="Number of rows in the regular grid.")
-        nb_cols: ScaleIntType = Field(default=4, description="Number of columns in the regular grid.")
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        mask_interpolation: InterpolationType = cv2.INTER_NEAREST
-        cval: int = Field(default=0, description="Constant value used for newly created pixels.")
-        cval_mask: int = Field(default=0, description="Constant value used for newly created mask pixels.")
+        scale: NonNegativeFloatRangeType
+        nb_rows: ScaleIntType
+        nb_cols: ScaleIntType
+        interpolation: InterpolationType
+        mask_interpolation: InterpolationType
+        cval: int
+        cval_mask: int
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant"
-        absolute_scale: bool = Field(
-            default=False,
-            description="Whether scale is an absolute value rather than relative.",
-        )
-        keypoints_threshold: float = Field(
-            default=0.01,
-            description="Threshold for conversion from distance maps to keypoints.",
-        )
+        absolute_scale: bool
+        keypoints_threshold: float
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod

@@ -24,7 +24,7 @@ __all__ = [
     "read_rgb_image",
     "read_grayscale",
     "angle_2pi_range",
-    "non_rgb_warning",
+    "non_rgb_error",
 ]
 
 P = ParamSpec("P")
@@ -58,7 +58,37 @@ def angle_2pi_range(
     return wrapped_function
 
 
-def non_rgb_warning(image: np.ndarray) -> None:
+def non_rgb_error(image: np.ndarray) -> None:
+    """Check if the input image is RGB and raise a ValueError if it's not.
+
+    This function is used to ensure that certain transformations are only applied to
+    RGB images. It provides helpful error messages for grayscale and multi-spectral images.
+
+    Args:
+        image (np.ndarray): The input image to check. Expected to be a numpy array
+                            representing an image.
+
+    Raises:
+        ValueError: If the input image is not an RGB image (i.e., does not have exactly 3 channels).
+                    The error message includes specific instructions for grayscale images
+                    and a note about incompatibility with multi-spectral images.
+
+    Note:
+        - RGB images are expected to have exactly 3 channels.
+        - Grayscale images (1 channel) will trigger an error with conversion instructions.
+        - Multi-spectral images (more than 3 channels) will trigger an error stating incompatibility.
+
+    Example:
+        >>> import numpy as np
+        >>> rgb_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> non_rgb_error(rgb_image)  # No error raised
+        >>>
+        >>> grayscale_image = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+        >>> non_rgb_error(grayscale_image)  # Raises ValueError with conversion instructions
+        >>>
+        >>> multispectral_image = np.random.randint(0, 256, (100, 100, 5), dtype=np.uint8)
+        >>> non_rgb_error(multispectral_image)  # Raises ValueError stating incompatibility
+    """
     if not is_rgb_image(image):
         message = "This transformation expects 3-channel images"
         if is_grayscale_image(image):

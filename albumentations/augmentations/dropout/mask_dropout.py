@@ -43,7 +43,7 @@ class MaskDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        max_objects: OnePlusIntRangeType = (1, 1)
+        max_objects: OnePlusIntRangeType
 
         image_fill_value: float | Literal["inpaint"] = Field(
             default=0,

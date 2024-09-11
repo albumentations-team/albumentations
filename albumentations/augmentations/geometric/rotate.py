@@ -6,7 +6,6 @@ from typing import Any, Tuple, cast
 
 import cv2
 import numpy as np
-from pydantic import Field
 from skimage.transform import ProjectiveTransform
 from typing_extensions import Literal
 
@@ -62,16 +61,13 @@ class RandomRotate90(DualTransform):
 
 
 class RotateInitSchema(BaseTransformInitSchema):
-    limit: SymmetricRangeType = (-90, 90)
+    limit: SymmetricRangeType
 
-    interpolation: InterpolationType = cv2.INTER_LINEAR
-    border_mode: BorderModeType = cv2.BORDER_CONSTANT
+    interpolation: InterpolationType
+    border_mode: BorderModeType
 
-    value: ColorType | None = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
-    mask_value: ColorType | None = Field(
-        default=None,
-        description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
-    )
+    value: ColorType | None
+    mask_value: ColorType | None
 
 
 class Rotate(DualTransform):
@@ -106,11 +102,8 @@ class Rotate(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(RotateInitSchema):
-        rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
-        crop_border: bool = Field(
-            default=False,
-            description="If True, makes a largest possible crop within the rotated image.",
-        )
+        rotate_method: Literal["largest_box", "ellipse"]
+        crop_border: bool
 
     def __init__(
         self,

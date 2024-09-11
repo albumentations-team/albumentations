@@ -43,7 +43,7 @@ def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: flo
 
 
 class BlurInitSchema(BaseTransformInitSchema):
-    blur_limit: ScaleIntType = Field(default=(3, 7), description="Maximum kernel size for blurring the input image.")
+    blur_limit: ScaleIntType
 
     @field_validator("blur_limit")
     @classmethod
@@ -132,10 +132,7 @@ class MotionBlur(Blur):
             default=True,
             description="If set to true creates non-shifted kernels only, otherwise creates randomly shifted kernels.",
         )
-        blur_limit: ScaleIntType = Field(
-            default=(3, 7),
-            description="Maximum kernel size for blurring the input image.",
-        )
+        blur_limit: ScaleIntType
 
         @model_validator(mode="after")
         def process_blur(self) -> Self:
@@ -557,28 +554,57 @@ class AdvancedBlur(ImageOnlyTransform):
 
 
 class Defocus(ImageOnlyTransform):
-    """Apply defocus transform.
+    """Apply defocus blur to the input image.
+
+    This transform simulates the effect of an out-of-focus camera by applying a defocus blur
+    to the image. It uses a combination of disc kernels and Gaussian blur to create a realistic
+    defocus effect.
 
     Args:
-        radius ((int, int) or int): range for radius of defocusing.
-            If limit is a single int, the range will be [1, limit]. Default: (3, 10).
-        alias_blur ((float, float) or float): range for alias_blur of defocusing (sigma of gaussian blur).
-            If limit is a single float, the range will be (0, limit). Default: (0.1, 0.5).
-        p (float): probability of applying the transform. Default: 0.5.
+        radius (tuple[int, int] | int): Range for the radius of the defocus blur.
+            If a single int is provided, the range will be [1, radius].
+            Larger values create a stronger blur effect.
+            Default: (3, 10)
+
+        alias_blur (tuple[float, float] | float): Range for the standard deviation of the Gaussian blur
+            applied after the main defocus blur. This helps to reduce aliasing artifacts.
+            If a single float is provided, the range will be (0, alias_blur).
+            Larger values create a smoother, more aliased effect.
+            Default: (0.1, 0.5)
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
         image
 
     Image types:
-        unit8, float32
+        uint8, float32
 
-    Reference:
-        https://arxiv.org/abs/1903.12261
+    Note:
+        - The defocus effect is created using a disc kernel, which simulates the shape of a camera's aperture.
+        - The additional Gaussian blur (alias_blur) helps to soften the edges of the disc kernel, creating a
+          more natural-looking defocus effect.
+        - Larger radius values will create a stronger, more noticeable defocus effect.
+        - The alias_blur parameter can be used to fine-tune the appearance of the defocus, with larger values
+          creating a smoother, potentially more realistic effect.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Defocus(radius=(4, 8), alias_blur=(0.2, 0.4), always_apply=True)
+        >>> result = transform(image=image)
+        >>> defocused_image = result['image']
+
+    References:
+        - https://en.wikipedia.org/wiki/Defocus_aberration
+        - https://www.researchgate.net/publication/261311609_Realistic_Defocus_Blur_for_Multiplane_Computer-Generated_Holography
     """
 
     class InitSchema(BaseTransformInitSchema):
-        radius: OnePlusIntRangeType = (3, 10)
-        alias_blur: NonNegativeFloatRangeType = (0.1, 0.5)
+        radius: OnePlusIntRangeType
+        alias_blur: NonNegativeFloatRangeType
 
     def __init__(
         self,
@@ -596,8 +622,8 @@ class Defocus(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, Any]:
         return {
-            "radius": random.randint(self.radius[0], self.radius[1]),
-            "alias_blur": random.uniform(self.alias_blur[0], self.alias_blur[1]),
+            "radius": random.randint(*self.radius),
+            "alias_blur": random.uniform(*self.alias_blur),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:

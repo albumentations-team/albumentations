@@ -85,8 +85,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
-            A.CLAHE,
-            A.Equalize,
             A.FancyPCA,
             A.FromFloat,
             A.Posterize,
@@ -313,8 +311,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
-            A.CLAHE,
-            A.Equalize,
             A.FancyPCA,
             A.Posterize,
             A.RandomSizedBBoxSafeCrop,
