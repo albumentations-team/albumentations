@@ -16,7 +16,7 @@ from albumentations.augmentations.domain_adaptation_functional import (
     fourier_domain_adaptation,
 )
 from albumentations.augmentations.utils import read_rgb_image
-from albumentations.core.pydantic import NonNegativeFloatRangeType, check_01, nondecreasing
+from albumentations.core.pydantic import ZeroOneRangeType, check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
 
@@ -138,8 +138,9 @@ class FDA(ImageOnlyTransform):
     Args:
         reference_images (Sequence[Any]): Sequence of objects to be converted into images by `read_fn`. This typically
             involves paths to images that serve as target domain examples for adaptation.
-        beta_limit (float or tuple of float): Coefficient beta from the paper, controlling the swapping extent of
-            frequency components. Values should be less than 0.5.
+        beta_limit (tuple[float, float] | float): Coefficient beta from the paper, controlling the swapping extent of
+            frequency components. If one value is provided beta will be sampled from uniform
+            distribution [0, beta_limit]. Values should be less than 0.5.
         read_fn (Callable): User-defined function for reading images. It takes an element from `reference_images` and
             returns a numpy array of image pixels. By default, it is expected to take a path to an image and return a
             numpy array.
@@ -171,7 +172,7 @@ class FDA(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
         read_fn: Callable[[Any], np.ndarray]
-        beta_limit: NonNegativeFloatRangeType
+        beta_limit: ZeroOneRangeType
 
         @field_validator("beta_limit")
         @classmethod
@@ -210,7 +211,7 @@ class FDA(ImageOnlyTransform):
         return {"target_image": target_img}
 
     def get_params(self) -> dict[str, float]:
-        return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
+        return {"beta": random.uniform(*self.beta_limit)}
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
         return "reference_images", "beta_limit", "read_fn"
