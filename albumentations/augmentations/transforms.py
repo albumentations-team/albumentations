@@ -1736,8 +1736,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, float]:
         return {
-            "alpha": 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
-            "beta": 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1]),
+            "alpha": 1.0 + random.uniform(*self.contrast_limit),
+            "beta": 0.0 + random.uniform(*self.brightness_limit),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
@@ -1748,13 +1748,11 @@ class GaussNoise(ImageOnlyTransform):
     """Apply Gaussian noise to the input image.
 
     Args:
-        var_limit (Union[float, tuple[float, float]]): Variance range for noise.
-            If var_limit is a single float, the range will be (0, var_limit). Default: (10.0, 50.0).
-        mean (float): Mean of the noise. Default: 0
-        per_channel (bool): If set to True, noise will be sampled for each channel independently.
-            Otherwise, the noise will be sampled once for all channels.
-            Faster when `per_channel = False`.
-            Default: True
+        var_limit (tuple[float, float] | float): Variance range for noise. If var_limit is a single float value,
+            the range will be (0, var_limit). Default: (10.0, 50.0).
+        mean (float): Mean of the noise. Default: 0.
+        per_channel (bool): If True, noise will be sampled for each channel independently.
+            Otherwise, the noise will be sampled once for all channels. Default: True.
         noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
             When set to 1, noise is sampled for each pixel independently. If less, noise is sampled for a smaller size
             and resized to fit the shape of the image. Smaller values make the transform faster. Default: 1.0.
@@ -1766,12 +1764,47 @@ class GaussNoise(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Returns:
+        numpy.ndarray: Image with applied Gaussian noise.
+
+    Note:
+        - The noise is generated in the same range as the input image.
+        - For uint8 input images, the noise is generated in the range [0, 255].
+        - For float32 input images, the noise is generated in the range [0, 1].
+        - The resulting image is clipped to keep its values in the input range.
+        - Setting per_channel=False is faster but applies the same noise to all channels.
+        - The noise_scale_factor parameter allows for a trade-off between transform speed and noise granularity.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+        >>>
+        >>> # Apply Gaussian noise with default parameters
+        >>> transform = A.GaussNoise(p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+        >>>
+        >>> # Apply Gaussian noise with custom variance range and mean
+        >>> transform = A.GaussNoise(var_limit=(50.0, 100.0), mean=10, p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+        >>>
+        >>> # Apply the same noise to all channels
+        >>> transform = A.GaussNoise(per_channel=False, p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+        >>>
+        >>> # Apply noise with reduced granularity for faster processing
+        >>> transform = A.GaussNoise(noise_scale_factor=0.5, p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
-        var_limit: NonNegativeFloatRangeType = Field(default=(10.0, 50.0), description="Variance range for noise.")
-        mean: float = Field(default=0, description="Mean of the noise.")
-        per_channel: bool = Field(default=True, description="Apply noise per channel.")
+        var_limit: NonNegativeFloatRangeType
+        mean: float
+        per_channel: bool
         noise_scale_factor: float = Field(gt=0, le=1)
 
     def __init__(
@@ -1794,7 +1827,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         image = data["image"] if "image" in data else data["images"][0]
-        var = random.uniform(self.var_limit[0], self.var_limit[1])
+        var = random.uniform(*self.var_limit)
         sigma = math.sqrt(var)
 
         if self.per_channel:
