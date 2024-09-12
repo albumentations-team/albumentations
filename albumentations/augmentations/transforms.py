@@ -1363,14 +1363,24 @@ class RandomToneCurve(ImageOnlyTransform):
 class HueSaturationValue(ImageOnlyTransform):
     """Randomly change hue, saturation and value of the input image.
 
+    This transform adjusts the HSV (Hue, Saturation, Value) channels of an input RGB image.
+    It allows for independent control over each channel, providing a wide range of color
+    and brightness modifications.
+
     Args:
-        hue_shift_limit: range for changing hue. If hue_shift_limit is a single int, the range
-            will be (-hue_shift_limit, hue_shift_limit). Default: (-20, 20).
-        sat_shift_limit: range for changing saturation. If sat_shift_limit is a single int,
-            the range will be (-sat_shift_limit, sat_shift_limit). Default: (-30, 30).
-        val_shift_limit: range for changing value. If val_shift_limit is a single int, the range
-            will be (-val_shift_limit, val_shift_limit). Default: (-20, 20).
-        p (float): probability of applying the transform. Default: 0.5.
+        hue_shift_limit (float | tuple[float, float]): Range for changing hue.
+            If a single float value is provided, the range will be (-hue_shift_limit, hue_shift_limit).
+            Values should be in the range [-180, 180]. Default: (-20, 20).
+
+        sat_shift_limit (float | tuple[float, float]): Range for changing saturation.
+            If a single float value is provided, the range will be (-sat_shift_limit, sat_shift_limit).
+            Values should be in the range [-255, 255]. Default: (-30, 30).
+
+        val_shift_limit (float | tuple[float, float]): Range for changing value (brightness).
+            If a single float value is provided, the range will be (-val_shift_limit, val_shift_limit).
+            Values should be in the range [-255, 255]. Default: (-20, 20).
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1378,18 +1388,41 @@ class HueSaturationValue(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - The transform first converts the input RGB image to the HSV color space.
+        - Each channel (Hue, Saturation, Value) is adjusted independently.
+        - Hue is circular, so it wraps around at 180 degrees.
+        - For float32 images, the shift values are applied as percentages of the full range.
+        - This transform is particularly useful for color augmentation and simulating
+          different lighting conditions.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.HueSaturationValue(
+        ...     hue_shift_limit=20,
+        ...     sat_shift_limit=30,
+        ...     val_shift_limit=20,
+        ...     p=0.7
+        ... )
+        >>> result = transform(image=image)
+        >>> augmented_image = result["image"]
+
+    References:
+        - HSV color space: https://en.wikipedia.org/wiki/HSL_and_HSV
     """
 
     class InitSchema(BaseTransformInitSchema):
-        hue_shift_limit: SymmetricRangeType = (-20, 20)
-        sat_shift_limit: SymmetricRangeType = (-30, 30)
-        val_shift_limit: SymmetricRangeType = (-20, 20)
+        hue_shift_limit: SymmetricRangeType
+        sat_shift_limit: SymmetricRangeType
+        val_shift_limit: SymmetricRangeType
 
     def __init__(
         self,
-        hue_shift_limit: ScaleFloatType = 20,
-        sat_shift_limit: ScaleFloatType = 30,
-        val_shift_limit: ScaleFloatType = 20,
+        hue_shift_limit: ScaleFloatType = (-20, 20),
+        sat_shift_limit: ScaleFloatType = (-30, 30),
+        val_shift_limit: ScaleFloatType = (-20, 20),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):

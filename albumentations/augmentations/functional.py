@@ -151,10 +151,7 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
     else:
         img = _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
 
-    if is_gray:
-        return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
-    return img
+    return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if is_gray else img
 
 
 def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
