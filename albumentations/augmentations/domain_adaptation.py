@@ -30,27 +30,32 @@ MAX_BETA_LIMIT = 0.5
 
 
 class HistogramMatching(ImageOnlyTransform):
-    """Implements histogram matching, a technique that adjusts the pixel values of an input image
-    to match the histogram of a reference image. This adjustment ensures that the output image
-    has a similar tone and contrast to the reference. The process is applied independently to
-    each channel of multi-channel images, provided both the input and reference images have the
-    same number of channels.
+    """Adjust the pixel values of an input image to match the histogram of a reference image.
 
-    Histogram matching serves as an effective normalization method in image processing tasks such
-    as feature matching. It is particularly useful when images originate from varied sources or are
-    captured under different lighting conditions, helping to standardize the images' appearance
-    before further processing.
+    This transform applies histogram matching, a technique that modifies the distribution of pixel
+    intensities in the input image to closely resemble that of a reference image. This process is
+    performed independently for each channel in multi-channel images, provided both the input and
+    reference images have the same number of channels.
+
+    Histogram matching is particularly useful for:
+    - Normalizing images from different sources or captured under varying conditions.
+    - Preparing images for feature matching or other computer vision tasks where consistent
+      tone and contrast are important.
+    - Simulating different lighting or camera conditions in a controlled manner.
 
     Args:
-        reference_images (Sequence[Any]): A sequence of objects to be converted into images by `read_fn`.
-            Typically, this is a sequence of image paths.
-        blend_ratio (tuple[float, float]): Specifies the minimum and maximum blend ratio for blending the matched
-            image with the original image. A random blend factor within this range is chosen for each image to
-            increase the diversity of the output images.
-        read_fn (Callable[[Any], np.ndarray]): A user-defined function for reading images, which accepts an
-            element from `reference_images` and returns a numpy array of image pixels. By default, this is expected
-            to take a file path and return an image as a numpy array.
-        p (float): The probability of applying the transform to any given image. Defaults to 0.5.
+        reference_images (Sequence[Any]): A sequence of reference image sources. These can be
+            file paths, URLs, or any objects that can be converted to images by the `read_fn`.
+        blend_ratio (tuple[float, float]): Range for the blending factor between the original
+            and the matched image. Must be two floats between 0 and 1, where:
+            - 0 means no blending (original image is returned)
+            - 1 means full histogram matching
+            A random value within this range is chosen for each application.
+            Default: (0.5, 1.0)
+        read_fn (Callable[[Any], np.ndarray]): A function that takes an element from
+            `reference_images` and returns a numpy array representing the image.
+            Default: read_rgb_image (reads image file from disk)
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
@@ -59,27 +64,32 @@ class HistogramMatching(ImageOnlyTransform):
         uint8, float32
 
     Note:
-        This class cannot be serialized directly due to its dynamic nature and dependency on external image data.
-        An attempt to serialize it will raise a NotImplementedError.
-
-    Reference:
-        https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
+        - This transform cannot be directly serialized due to its dependency on external image data.
+        - The effectiveness of the matching depends on the similarity between the input and reference images.
+        - For best results, choose reference images that represent the desired tone and contrast.
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> target_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> aug = A.Compose([A.HistogramMatching([target_image], p=1, read_fn=lambda x: x)])
-        >>> result = aug(image=image)
+        >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> transform = A.HistogramMatching(
+        ...     reference_images=[reference_image],
+        ...     blend_ratio=(0.5, 1.0),
+        ...     read_fn=lambda x: x,
+        ...     p=1
+        ... )
+        >>> result = transform(image=image)
+        >>> matched_image = result["image"]
+
+    References:
+        - Histogram Matching in scikit-image:
+          https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
     """
 
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
-        blend_ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)] = (
-            0.5,
-            1.0,
-        )
+        blend_ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
         read_fn: Callable[[Any], np.ndarray]
 
     def __init__(
@@ -107,7 +117,7 @@ class HistogramMatching(ImageOnlyTransform):
     def get_params(self) -> dict[str, np.ndarray]:
         return {
             "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
+            "blend_ratio": random.uniform(*self.blend_ratio),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
