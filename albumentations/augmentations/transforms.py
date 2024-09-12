@@ -2667,40 +2667,66 @@ class Lambda(NoOp):
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
-    """Multiply image by a random number or array of numbers.
+    """Apply multiplicative noise to the input image.
+
+    This transform multiplies each pixel in the image by a random value or array of values,
+    effectively creating a noise pattern that scales with the image intensity.
 
     Args:
-        multiplier: If a single float, the image will be multiplied by this number.
-            If a tuple of floats, the multiplier will be a random number in the range `[multiplier[0], multiplier[1])`.
-            Default: (0.9, 1.1).
-        elementwise: If `False`, multiply all pixels in the image by a single random value sampled once.
-            If `True`, multiply image pixels by values that are pixelwise randomly sampled. Default: False.
-        p: Probability of applying the transform. Default: 0.5.
+        multiplier (tuple[float, float]): The range for the random multiplier.
+            Defines the range from which the multiplier is sampled.
+            Default: (0.9, 1.1)
+
+        per_channel (bool): If True, use a different random multiplier for each channel.
+            If False, use the same multiplier for all channels.
+            Setting this to False is slightly faster.
+            Default: False
+
+        elementwise (bool): If True, generates a unique multiplier for each pixel.
+            If False, generates a single multiplier (or one per channel if per_channel=True).
+            Default: False
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
 
     Image types:
-        uint8, np.float32
+        uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - When elementwise=False and per_channel=False, a single multiplier is applied to the entire image.
+        - When elementwise=False and per_channel=True, each channel gets a different multiplier.
+        - When elementwise=True and per_channel=False, each pixel gets the same multiplier across all channels.
+        - When elementwise=True and per_channel=True, each pixel in each channel gets a unique multiplier.
+        - Setting per_channel=False is slightly faster, especially for larger images.
+        - This transform can be used to simulate various lighting conditions or to create noise that
+          scales with image intensity.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.MultiplicativeNoise(multiplier=(0.9, 1.1), per_channel=True, p=1.0)
+        >>> result = transform(image=image)
+        >>> noisy_image = result["image"]
+
+    References:
+        - Multiplicative noise: https://en.wikipedia.org/wiki/Multiplicative_noise
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (
-            0.9,
-            1.1,
-        )
-        per_channel: bool | None = Field(
-            default=False,
-            description="Apply multiplier per channel.",
-            deprecated="Does not have any effect. Will be removed in future releases.",
-        )
-        elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
+        multiplier: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
+        per_channel: bool
+        elementwise: bool
 
     def __init__(
         self,
         multiplier: ScaleFloatType = (0.9, 1.1),
-        per_channel: bool | None = None,
+        per_channel: bool = False,
         elementwise: bool = False,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -2708,6 +2734,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
         self.multiplier = cast(Tuple[float, float], multiplier)
         self.elementwise = elementwise
+        self.per_channel = per_channel
 
     def apply(
         self,
@@ -2718,18 +2745,31 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return multiply(img, multiplier)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        if self.multiplier[0] == self.multiplier[1]:
-            return {"multiplier": self.multiplier[0]}
-
         img = data["image"] if "image" in data else data["images"][0]
-        shape = img.shape if self.elementwise else get_num_channels(img)
+        num_channels = get_num_channels(img)
+
+        if self.elementwise:
+            shape = img.shape if self.per_channel else (*img.shape[:2], 1)
+        else:
+            shape = (num_channels,) if self.per_channel else (1,)
 
         multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
+        if not self.per_channel and num_channels > 1:
+            # Replicate the multiplier for all channels if not per_channel
+            multiplier = np.repeat(multiplier, num_channels, axis=-1)
+
+        if not self.elementwise and self.per_channel:
+            # Reshape to broadcast correctly when not elementwise but per_channel
+            multiplier = multiplier.reshape(1, 1, -1)
+
+        if multiplier.shape != img.shape:
+            multiplier = multiplier.squeeze()
+
         return {"multiplier": multiplier}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "multiplier", "elementwise"
+    def get_transform_init_args_names(self) -> tuple[str, str, str]:
+        return "multiplier", "elementwise", "per_channel"
 
 
 class FancyPCA(ImageOnlyTransform):
