@@ -11,7 +11,7 @@ from warnings import warn
 import albucore
 import cv2
 import numpy as np
-from albucore.functions import add_weighted, multiply, normalize, normalize_per_image
+from albucore.functions import add_weighted, from_float, multiply, normalize, normalize_per_image, to_float
 from albucore.utils import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
@@ -2226,44 +2226,61 @@ class ToFloat(ImageOnlyTransform):
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.to_float(img, self.max_value)
+        return to_float(img, self.max_value)
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("max_value",)
 
 
 class FromFloat(ImageOnlyTransform):
-    """Take an input array where all values should lie in the range [0, 1.0], multiply them by `max_value` and then
-    cast the resulted value to a type specified by `dtype`. If `max_value` is None the transform will try to infer
-    the maximum value for the data type from the `dtype` argument.
+    """Convert an image from floating point representation to the specified data type.
 
-    This is the inverse transform for :class:`~albumentations.augmentations.transforms.ToFloat`.
+    This transform is designed to convert images from a normalized floating-point representation
+    (typically with values in the range [0, 1]) to other data types, scaling the values appropriately.
 
     Args:
-        max_value: maximum possible input value. Default: None.
-        dtype: data type of the output. See the `'Data types' page from the NumPy docs`_.
-            Default: 'uint16'.
-        p: probability of applying the transform. Default: 1.0.
+        dtype (str): The desired output data type. Supported types include 'uint8', 'uint16',
+                     'uint32'. Default: 'uint8'.
+        max_value (float | None): The maximum value for the output dtype. If None, the transform
+                                  will attempt to infer the maximum value based on the dtype.
+                                  Default: None.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image
 
     Image types:
-        float32
+        float32, float64
 
-    .. _'Data types' page from the NumPy docs:
-       https://docs.scipy.org/doc/numpy/user/basics.types.html
+    Note:
+        - This is the inverse transform for ToFloat.
+        - Input images are expected to be in floating point format with values in the range [0, 1].
+        - For integer output types (uint8, uint16, uint32), the function will scale the values
+          to the appropriate range (e.g., 0-255 for uint8).
+        - For float output types (float32, float64), the values will remain in the [0, 1] range.
+        - The transform uses the `from_float` function internally, which ensures output values
+          are within the valid range for the specified dtype.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> transform = A.FromFloat(dtype='uint8', max_value=None, p=1.0)
+        >>> image = np.random.rand(100, 100, 3).astype(np.float32)  # Float image in [0, 1] range
+        >>> result = transform(image=image)
+        >>> uint8_image = result['image']
+        >>> assert uint8_image.dtype == np.uint8
+        >>> assert uint8_image.min() >= 0 and uint8_image.max() <= 255
 
     """
 
     class InitSchema(BaseTransformInitSchema):
         dtype: Literal["uint8", "uint16", "float32", "float64"]
-        max_value: float | None = Field(default=None, description="Maximum possible input value.")
+        max_value: float | None
         p: ProbabilityType = 1
 
     def __init__(
         self,
-        dtype: Literal["uint8", "uint16", "float32", "float64"] = "uint16",
+        dtype: Literal["uint8", "uint16", "float32", "float64"] = "uint8",
         max_value: float | None = None,
         always_apply: bool | None = None,
         p: float = 1.0,
@@ -2273,7 +2290,7 @@ class FromFloat(ImageOnlyTransform):
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.from_float(img, self.dtype, self.max_value)
+        return from_float(img, self.dtype, self.max_value)
 
     def get_transform_init_args(self) -> dict[str, Any]:
         return {"dtype": self.dtype.name, "max_value": self.max_value}

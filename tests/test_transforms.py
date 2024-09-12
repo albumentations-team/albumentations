@@ -12,6 +12,7 @@ from torchvision import transforms as torch_transforms
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 
 from albucore.utils import clip
+from albucore.functions import to_float
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
@@ -359,10 +360,10 @@ def test_image_invert():
     for _ in range(10):
         # test for np.uint8 dtype
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-        image2 = A.to_float(image1)
+        image2 = to_float(image1)
         r_int = F.invert(F.invert(image1))
         r_float = F.invert(F.invert(image2))
-        r_to_float = A.to_float(r_int)
+        r_to_float = to_float(r_int)
         assert np.allclose(r_float, r_to_float, atol=0.01)
 
 
@@ -819,7 +820,7 @@ def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
     diff = np.abs(usm_uint8 - usm_float32 * 255)
 
     # The difference between the results of float32 and uint8 will be at most 2.
-    assert np.all(diff <= 2.0)
+    assert np.all(diff <= 2.0), f"Max difference: {diff.max()}"
 
 
 @pytest.mark.parametrize(
@@ -2050,6 +2051,7 @@ def test_rot90(bboxes, angle, keypoints):
 )
 def test_return_nonzero(augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
+    set_seed(42)
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = A.Compose([augmentation_cls(p=1, **params)])
 

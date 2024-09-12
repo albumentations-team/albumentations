@@ -7,7 +7,16 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import add, add_array, add_weighted, multiply, multiply_add, normalize_per_image
+from albucore.functions import (
+    add,
+    add_array,
+    add_weighted,
+    from_float,
+    multiply,
+    multiply_add,
+    normalize_per_image,
+    to_float,
+)
 from albucore.utils import (
     MAX_VALUES_BY_DTYPE,
     clip,
@@ -56,7 +65,6 @@ __all__ = [
     "downscale",
     "equalize",
     "fancy_pca",
-    "from_float",
     "gamma_transform",
     "image_compression",
     "invert",
@@ -69,7 +77,6 @@ __all__ = [
     "solarize",
     "superpixels",
     "swap_tiles_on_image",
-    "to_float",
     "to_gray",
     "unsharp_mask",
     "split_uniform_grid",
@@ -391,7 +398,7 @@ def move_tone_curve(
     input_dtype = img.dtype
     needs_float = False
 
-    if input_dtype in [np.float32, np.float64, np.float16]:
+    if input_dtype == np.float32:
         img = from_float(img, dtype=np.uint8)
         needs_float = True
 
@@ -1153,27 +1160,6 @@ def downscale(
     return from_float(upscaled, dtype=np.uint8) if need_cast else upscaled
 
 
-def to_float(img: np.ndarray, max_value: float | None = None) -> np.ndarray:
-    if max_value is None:
-        if img.dtype not in MAX_VALUES_BY_DTYPE:
-            raise RuntimeError(f"Unsupported dtype {img.dtype}. Specify 'max_value' manually.")
-        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
-
-    return (img / max_value).astype(np.float32)
-
-
-def from_float(img: np.ndarray, dtype: np.dtype, max_value: float | None = None) -> np.ndarray:
-    if max_value is None:
-        if dtype not in MAX_VALUES_BY_DTYPE:
-            msg = (
-                f"Can't infer the maximum value for dtype {dtype}. "
-                "You need to specify the maximum value manually by passing the max_value argument."
-            )
-            raise RuntimeError(msg)
-        max_value = MAX_VALUES_BY_DTYPE[dtype]
-    return (img * max_value).astype(dtype)
-
-
 def noop(input_obj: Any, **params: Any) -> Any:
     return input_obj
 
@@ -1469,10 +1455,9 @@ def unsharp_mask(
     blur_fn = maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
 
     input_dtype = image.dtype
+
     if input_dtype == np.uint8:
         image = to_float(image)
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for UnsharpMask augmentation")
 
     blur = blur_fn(image)
     residual = image - blur
@@ -1488,7 +1473,7 @@ def unsharp_mask(
     soft_mask = blur_fn(mask)
     output = add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
 
-    return from_float(output, dtype=input_dtype)
+    return from_float(output, dtype=input_dtype) if input_dtype == np.uint8 else output
 
 
 @preserve_channel_dim
