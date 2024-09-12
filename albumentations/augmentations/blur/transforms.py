@@ -223,18 +223,35 @@ class MedianBlur(Blur):
 
 
 class GaussianBlur(ImageOnlyTransform):
-    """Blur the input image using a Gaussian filter with a random kernel size.
+    """Apply Gaussian blur to the input image using a randomly sized kernel.
+
+    This transform blurs the input image using a Gaussian filter with a random kernel size
+    and sigma value. Gaussian blur is a widely used image processing technique that reduces
+    image noise and detail, creating a smoothing effect.
 
     Args:
-        blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
-            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
-            as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
-            If set single value `blur_limit` will be in range (0, blur_limit).
-            Default: (3, 7).
-        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be in range [0, inf).
-            If set single value `sigma_limit` will be in range (0, sigma_limit).
-            If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
-        p (float): probability of applying the transform. Default: 0.5.
+        blur_limit (tuple[int, int] | int): Controls the range of the Gaussian kernel size.
+            - If a single int is provided, the kernel size will be randomly chosen
+              between 0 and that value.
+            - If a tuple of two ints is provided, it defines the inclusive range
+              of possible kernel sizes.
+            Must be zero or odd and in range [0, inf). If set to 0, it will be computed
+            from sigma as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
+            Larger kernel sizes produce stronger blur effects.
+            Default: (3, 7)
+
+        sigma_limit (tuple[float, float] | float): Range for the Gaussian kernel standard
+            deviation (sigma). Must be in range [0, inf).
+            - If a single float is provided, sigma will be randomly chosen
+              between 0 and that value.
+            - If a tuple of two floats is provided, it defines the inclusive range
+              of possible sigma values.
+            If set to 0, sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`.
+            Larger sigma values produce stronger blur effects.
+            Default: 0
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
         image
@@ -242,10 +259,27 @@ class GaussianBlur(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The relationship between kernel size and sigma affects the blur strength:
+          larger kernel sizes allow for stronger blurring effects.
+        - When both blur_limit and sigma_limit are set to ranges starting from 0,
+          the blur_limit minimum is automatically set to 3 to ensure a valid kernel size.
+        - For uint8 images, the computation might be faster than for floating-point images.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.1, 2), p=1)
+        >>> result = transform(image=image)
+        >>> blurred_image = result["image"]
     """
 
     class InitSchema(BlurInitSchema):
-        sigma_limit: NonNegativeFloatRangeType = 0
+        sigma_limit: NonNegativeFloatRangeType
 
         @field_validator("blur_limit")
         @classmethod
@@ -296,7 +330,7 @@ class GaussianBlur(ImageOnlyTransform):
         return {"ksize": ksize, "sigma": random.uniform(*self.sigma_limit)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
-        return ("blur_limit", "sigma_limit")
+        return "blur_limit", "sigma_limit"
 
 
 class GlassBlur(ImageOnlyTransform):
