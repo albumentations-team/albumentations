@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum, IntEnum
+from enum import Enum
 from typing import List, Literal, Sequence, Tuple, TypeVar, Union
 
 import cv2
@@ -49,21 +49,6 @@ class Targets(Enum):
     BBOXES = "BBoxes"
     KEYPOINTS = "Keypoints"
     GLOBAL_LABEL = "Global Label"
-
-
-class ImageCompressionType(IntEnum):
-    """Defines the types of image compression.
-
-    This Enum class is used to specify the image compression format.
-
-    Attributes:
-        JPEG (int): Represents the JPEG image compression format.
-        WEBP (int): Represents the WEBP image compression format.
-
-    """
-
-    JPEG = 0
-    WEBP = 1
 
 
 NUM_MULTI_CHANNEL_DIMENSIONS = 3

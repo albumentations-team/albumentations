@@ -16,9 +16,7 @@ from albucore.functions import to_float
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.transforms import ImageCompression, RandomRain
 from albumentations.core.transforms_interface import BasicTransform
-from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
@@ -1386,15 +1384,15 @@ def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_righ
 
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
-    ({}, {"quality_range": (99, 100), "compression_type": ImageCompressionType.JPEG}),
+    ({}, {"quality_range": (99, 100), "compression_type": "jpeg"}),
     # Test custom quality range and compression type
-    ({"quality_range": (10, 90), "compression_type": ImageCompressionType.WEBP},
-     {"quality_range": (10, 90), "compression_type": ImageCompressionType.WEBP}),
+    ({"quality_range": (10, 90), "compression_type": "webp"},
+     {"quality_range": (10, 90), "compression_type": "webp"}),
     # Deprecated quality values handling
     ({"quality_lower": 75}, {"quality_range": (75, 100)}),
 ])
 def test_image_compression_initialization(params, expected):
-    img_comp = ImageCompression(**params)
+    img_comp = A.ImageCompression(**params)
     for key, value in expected.items():
         assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
 
@@ -1405,7 +1403,7 @@ def test_image_compression_initialization(params, expected):
 ])
 def test_image_compression_invalid_input(params):
     with pytest.raises(Exception):
-        ImageCompression(**params)
+        A.ImageCompression(**params)
 
 
 @pytest.mark.parametrize("params, expected", [
@@ -1652,7 +1650,7 @@ def test_pad_if_needed_functionality(params, expected):
     ({"slant_upper": 2}, {"slant_range": (-10, 2)}),
 ])
 def test_random_rain_initialization(params, expected):
-    img_rain = RandomRain(**params)
+    img_rain = A.RandomRain(**params)
     for key, value in expected.items():
         assert getattr(img_rain, key) == value, f"Failed on {key} with value {value}"
 
@@ -1662,7 +1660,7 @@ def test_random_rain_initialization(params, expected):
 ])
 def test_random_rain_invalid_input(params):
     with pytest.raises(Exception):
-        RandomRain(**params)
+        A.RandomRain(**params)
 
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values

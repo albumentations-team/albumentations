@@ -56,7 +56,6 @@ from albumentations.core.types import (
     PAIR,
     ChromaticAberrationMode,
     ColorType,
-    ImageCompressionType,
     ImageMode,
     MorphologyMode,
     PlanckianJitterMode,
@@ -312,13 +311,25 @@ class Normalize(ImageOnlyTransform):
 
 
 class ImageCompression(ImageOnlyTransform):
-    """Decreases image quality by Jpeg, WebP compression of an image.
+    """Decrease image quality by applying JPEG or WebP compression.
+
+    This transform simulates the effect of saving an image with lower quality settings,
+    which can introduce compression artifacts. It's useful for data augmentation and
+    for testing model robustness against varying image qualities.
 
     Args:
-        quality_range: tuple of bounds on the image quality i.e. (quality_lower, quality_upper).
-            Both values should be in [1, 100] range.
-        compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
-            Default: ImageCompressionType.JPEG
+        quality_range (tuple[int, int]): Range for the compression quality.
+            The values should be in [1, 100] range, where:
+            - 1 is the lowest quality (maximum compression)
+            - 100 is the highest quality (minimum compression)
+            Default: (99, 100)
+
+        compression_type (Literal["jpeg", "webp"]): Type of compression to apply.
+            - "jpeg": JPEG compression
+            - "webp": WebP compression
+            Default: "jpeg"
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -326,30 +337,45 @@ class ImageCompression(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - This transform expects images with 1, 3, or 4 channels.
+        - For JPEG compression, alpha channels (4th channel) will be ignored.
+        - WebP compression supports transparency (4 channels).
+        - The actual file is not saved to disk; the compression is simulated in memory.
+        - Lower quality values result in smaller file sizes but may introduce visible artifacts.
+        - This transform can be useful for:
+          * Data augmentation to improve model robustness
+          * Testing how models perform on images of varying quality
+          * Simulating images transmitted over low-bandwidth connections
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ImageCompression(quality_range=(50, 90), compression_type=0, p=1.0)
+        >>> result = transform(image=image)
+        >>> compressed_image = result["image"]
+
+    References:
+        - JPEG compression: https://en.wikipedia.org/wiki/JPEG
+        - WebP compression: https://developers.google.com/speed/webp
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
-            99,
-            100,
-        )
+        quality_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
 
         quality_lower: int | None = Field(
-            default=None,
-            description="Lower bound on the image quality",
             ge=1,
             le=100,
         )
         quality_upper: int | None = Field(
-            default=None,
-            description="Upper bound on the image quality",
             ge=1,
             le=100,
         )
-        compression_type: ImageCompressionType = Field(
-            default=ImageCompressionType.JPEG,
-            description="Image compression format",
-        )
+        compression_type: Literal["jpeg", "webp"]
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
@@ -386,38 +412,35 @@ class ImageCompression(ImageOnlyTransform):
         self,
         quality_lower: int | None = None,
         quality_upper: int | None = None,
-        compression_type: ImageCompressionType = ImageCompressionType.JPEG,
+        compression_type: Literal["jpeg", "webp"] = "jpeg",
         quality_range: tuple[int, int] = (99, 100),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.quality_range = quality_range
         self.compression_type = compression_type
 
     def apply(self, img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"], **params: Any) -> np.ndarray:
-        if img.ndim != MONO_CHANNEL_DIMENSIONS and img.shape[-1] not in (1, 3, 4):
-            msg = "ImageCompression transformation expects 1, 3 or 4 channel images."
-            raise TypeError(msg)
         return fmain.image_compression(img, quality, image_type)
 
     def get_params(self) -> dict[str, int | str]:
-        if self.compression_type == ImageCompressionType.JPEG:
+        if self.compression_type == "jpeg":
             image_type = ".jpg"
-        elif self.compression_type == ImageCompressionType.WEBP:
+        elif self.compression_type == "webp":
             image_type = ".webp"
         else:
             raise ValueError(f"Unknown image compression type: {self.compression_type}")
 
         return {
-            "quality": random.randint(self.quality_range[0], self.quality_range[1]),
+            "quality": random.randint(*self.quality_range),
             "image_type": image_type,
         }
 
     def get_transform_init_args(self) -> dict[str, Any]:
         return {
             "quality_range": self.quality_range,
-            "compression_type": self.compression_type.value,
+            "compression_type": self.compression_type,
         }
 
 
