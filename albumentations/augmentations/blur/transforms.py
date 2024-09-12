@@ -334,15 +334,33 @@ class GaussianBlur(ImageOnlyTransform):
 
 
 class GlassBlur(ImageOnlyTransform):
-    """Apply glass noise to the input image.
+    """Apply a glass blur effect to the input image.
+
+    This transform simulates the effect of looking through textured glass by locally
+    shuffling pixels in the image. It creates a distorted, frosted glass-like appearance.
 
     Args:
-        sigma (float): standard deviation for Gaussian kernel.
-        max_delta (int): max distance between pixels which are swapped.
-        iterations (int): number of repeats.
-            Should be in range [1, inf). Default: (2).
-        mode (str): mode of computation: fast or exact. Default: "fast".
-        p (float): probability of applying the transform. Default: 0.5.
+        sigma (float): Standard deviation for the Gaussian kernel used in the process.
+            Higher values increase the blur effect. Must be non-negative.
+            Default: 0.7
+
+        max_delta (int): Maximum distance in pixels for shuffling.
+            Determines how far pixels can be moved. Larger values create more distortion.
+            Must be a positive integer.
+            Default: 4
+
+        iterations (int): Number of times to apply the glass blur effect.
+            More iterations create a stronger effect but increase computation time.
+            Must be a positive integer.
+            Default: 2
+
+        mode (Literal["fast", "exact"]): Mode of computation. Options are:
+            - "fast": Uses a faster but potentially less accurate method.
+            - "exact": Uses a slower but more precise method.
+            Default: "fast"
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
         image
@@ -350,17 +368,38 @@ class GlassBlur(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://arxiv.org/abs/1903.12261
-        https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    Number of channels:
+        Any
 
+    Note:
+        - This transform is particularly effective for creating a 'looking through
+          glass' effect or simulating the view through a frosted window.
+        - The 'fast' mode is recommended for most use cases as it provides a good
+          balance between effect quality and computation speed.
+        - Increasing 'iterations' will strengthen the effect but also increase the
+          processing time linearly.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.GlassBlur(sigma=0.7, max_delta=4, iterations=3, mode="fast", p=1)
+        >>> result = transform(image=image)
+        >>> glass_blurred_image = result["image"]
+
+    References:
+        - This implementation is based on the technique described in:
+          "ImageNet-trained CNNs are biased towards texture; increasing shape bias improves accuracy and robustness"
+          https://arxiv.org/abs/1903.12261
+        - Original implementation:
+          https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
     """
 
     class InitSchema(BaseTransformInitSchema):
-        sigma: float = Field(default=0.7, ge=0, description="Standard deviation for the Gaussian kernel.")
-        max_delta: int = Field(default=4, ge=1, description="Maximum distance between pixels that are swapped.")
-        iterations: int = Field(default=2, ge=1, description="Number of times the glass noise effect is applied.")
-        mode: Literal["fast", "exact"] = "fast"
+        sigma: float = Field(ge=0)
+        max_delta: int = Field(ge=1)
+        iterations: int = Field(ge=1)
+        mode: Literal["fast", "exact"]
 
     def __init__(
         self,
@@ -378,10 +417,6 @@ class GlassBlur(ImageOnlyTransform):
         self.mode = mode
 
     def apply(self, img: np.ndarray, *args: Any, dxy: np.ndarray, **params: Any) -> np.ndarray:
-        if dxy is None:
-            msg = "dxy is None"
-            raise ValueError(msg)
-
         return fblur.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
@@ -396,7 +431,7 @@ class GlassBlur(ImageOnlyTransform):
         return {"dxy": dxy}
 
     def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        return ("sigma", "max_delta", "iterations", "mode")
+        return "sigma", "max_delta", "iterations", "mode"
 
 
 class AdvancedBlur(ImageOnlyTransform):
