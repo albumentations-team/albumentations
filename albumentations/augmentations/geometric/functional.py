@@ -894,7 +894,12 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
     # change matrix.params.T to matrix.T if matrix is np.ndarray and no longer skimage.transform.ProjectiveTransform
     transformed_points = points @ matrix.params.T
 
-    # normalize and get x, y
+    # set zero to very small number before homogeneous divide
+    transformed_points[:, -1:] = np.where(
+        transformed_points[:, -1:] == 0,
+        np.finfo(float).eps,
+        transformed_points[:, -1:],
+    )
     transformed_points = (transformed_points / transformed_points[:, -1:])[:, :2]
 
     transformed_points = transformed_points.reshape(len(bboxes), -1, 2)
