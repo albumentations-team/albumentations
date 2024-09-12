@@ -242,28 +242,46 @@ class Normalize(ImageOnlyTransform):
         uint8, float32
 
     Note:
-        For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
-        For other normalization types, these parameters are ignored.
+        - For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
+        - For other normalization types, these parameters are ignored.
+        - For inception normalization, use mean values of (0.5, 0.5, 0.5).
+        - For YOLO normalization, use mean values of (0.5, 0.5, 0.5) and std values of (0, 0, 0).
+        - This transform is often used as a final step in image preprocessing pipelines to
+          prepare images for neural network input.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> # Standard ImageNet normalization
+        >>> transform = A.Normalize(
+        ...     mean=(0.485, 0.456, 0.406),
+        ...     std=(0.229, 0.224, 0.225),
+        ...     max_pixel_value=255.0,
+        ...     p=1.0
+        ... )
+        >>> normalized_image = transform(image=image)["image"]
+        >>>
+        >>> # Min-max normalization
+        >>> transform_minmax = A.Normalize(normalization="min_max", p=1.0)
+        >>> normalized_image_minmax = transform_minmax(image=image)["image"]
+
+    References:
+        - ImageNet mean and std: https://pytorch.org/vision/stable/models.html
+        - Inception preprocessing: https://keras.io/api/applications/inceptionv3/
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ColorType | None = Field(
-            default=(0.485, 0.456, 0.406),
-            description="Mean values for normalization, defaulting to ImageNet mean values.",
-        )
-        std: ColorType | None = Field(
-            default=(0.229, 0.224, 0.225),
-            description="Standard deviation values for normalization, defaulting to ImageNet std values.",
-        )
-        max_pixel_value: float | None = Field(default=255.0, description="Maximum possible pixel value.")
+        mean: ColorType | None
+        std: ColorType | None
+        max_pixel_value: float | None
         normalization: Literal[
             "standard",
             "image",
             "image_per_channel",
             "min_max",
             "min_max_per_channel",
-        ] = "standard"
-        p: ProbabilityType = 1
+        ]
 
         @model_validator(mode="after")
         def validate_normalization(self) -> Self:
