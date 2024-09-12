@@ -860,19 +860,18 @@ def iso_noise(
         color_shift (float): The amount of color shift to apply. Default is 0.05.
         intensity (float): Multiplication factor for noise values. Values of ~0.5 produce a noticeable,
                            yet acceptable level of noise. Default is 0.5.
-        random_state (Optional[np.random.RandomState]): If specified, this will be random state used
+        random_state (np.random.RandomState | None): If specified, this will be random state used
             for noise generation.
 
     Returns:
         np.ndarray: The noised image.
 
-    Raises:
-        TypeError: If the input image's dtype is not RGB.
-    """
-    if not is_rgb_image(image):
-        msg = "Image must be RGB"
-        raise TypeError(msg)
+    Image types:
+        uint8, float32
 
+    Number of channels:
+        3
+    """
     input_dtype = image.dtype
     factor = 1
 

@@ -1886,14 +1886,23 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class ISONoise(ImageOnlyTransform):
-    """Apply camera sensor noise.
+    """Applies camera sensor noise to the input image, simulating high ISO settings.
+
+    This transform adds random noise to an image, mimicking the effect of using high ISO settings
+    in digital photography. It simulates two main components of ISO noise:
+    1. Color noise: random shifts in color hue
+    2. Luminance noise: random variations in pixel intensity
 
     Args:
-        color_shift (float, float): variance range for color hue change.
-            Measured as a fraction of 360 degree Hue angle in HLS colorspace.
-        intensity ((float, float): Multiplicative factor that control strength
-            of color and luminace noise.
-        p (float): probability of applying the transform. Default: 0.5.
+        color_shift (tuple[float, float]): Range for changing color hue.
+            Values should be in the range [0, 1], where 1 represents a full 360° hue rotation.
+            Default: (0.01, 0.05)
+
+        intensity (tuple[float, float]): Range for the noise intensity.
+            Higher values increase the strength of both color and luminance noise.
+            Default: (0.1, 0.5)
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
@@ -1901,22 +1910,33 @@ class ISONoise(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Raises:
-        TypeError: If the input image is not RGB.
+    Number of channels:
+        3
 
+    Note:
+        - This transform only works with RGB images. It will raise a TypeError if applied to
+          non-RGB images.
+        - The color shift is applied in the HSV color space, affecting the hue channel.
+        - Luminance noise is added to all channels independently.
+        - This transform can be useful for data augmentation in low-light scenarios or when
+          training models to be robust against noisy inputs.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1, 0.5), p=0.5)
+        >>> result = transform(image=image)
+        >>> noisy_image = result["image"]
+
+    References:
+        - ISO noise in digital photography:
+          https://en.wikipedia.org/wiki/Image_noise#In_digital_cameras
     """
 
     class InitSchema(BaseTransformInitSchema):
-        color_shift: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
-            default=(0.01, 0.05),
-            description=(
-                "Variance range for color hue change. Measured as a fraction of 360 degree Hue angle in HLS colorspace."
-            ),
-        )
-        intensity: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = Field(
-            default=(0.1, 0.5),
-            description="Multiplicative factor that control strength of color and luminance noise.",
-        )
+        color_shift: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
+        intensity: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
 
     def __init__(
         self,
@@ -1937,12 +1957,15 @@ class ISONoise(ImageOnlyTransform):
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
+        if not is_rgb_image(img):
+            msg = "Image must be RGB"
+            raise TypeError(msg)
         return fmain.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         return {
-            "color_shift": random.uniform(self.color_shift[0], self.color_shift[1]),
-            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
+            "color_shift": random.uniform(*self.color_shift),
+            "intensity": random.uniform(*self.intensity),
             "random_seed": random_utils.get_random_seed(),
         }
 
