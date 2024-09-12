@@ -4,6 +4,11 @@ import sys
 import numpy as np
 import pytest
 
+from tests.utils import set_seed
+
+
+set_seed(42)
+
 @pytest.fixture
 def global_label():
     return np.array([1, 0, 0])

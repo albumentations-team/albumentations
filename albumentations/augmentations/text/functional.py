@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 import cv2
 import numpy as np
+from albucore.functions import from_float, to_float
 from albucore.utils import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS, preserve_channel_dim
 
-import albumentations.augmentations.functional as fmain
 from albumentations.core.types import PAIR
 
 # Importing wordnet and other dependencies only for type checking
@@ -115,7 +115,7 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg
     original_dtype = image.dtype
 
     if original_dtype == np.float32:
-        image = fmain.from_float(image, dtype=np.uint8)
+        image = from_float(image, dtype=np.uint8)
 
     # First clean background under boxes using seamless clone if clear_bg is True
     if clear_bg:
@@ -130,7 +130,7 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg
     else:
         result = draw_text_on_multi_channel_image(image, metadata_list)
 
-    return fmain.to_float(result) if original_dtype == np.float32 else result
+    return to_float(result) if original_dtype == np.float32 else result
 
 
 def inpaint_text_background(

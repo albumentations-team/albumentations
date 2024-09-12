@@ -5,11 +5,11 @@ from typing import Any, Callable, Literal, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
+from albucore.functions import to_float
 from albucore.utils import clip, is_grayscale_image, is_multispectral_image
 from pydantic import AfterValidator, field_validator
 from typing_extensions import Annotated
 
-from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.domain_adaptation_functional import (
     adapt_pixel_distribution,
     apply_histogram,
@@ -320,7 +320,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             transform_type=self.transform_type,
         )
 
-        return fmain.to_float(adapted) if needs_reconvert else adapted
+        return to_float(adapted) if needs_reconvert else adapted
 
     def get_params(self) -> dict[str, Any]:
         return {

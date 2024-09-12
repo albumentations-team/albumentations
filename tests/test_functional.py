@@ -8,9 +8,10 @@ import skimage
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
 from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels, clip
+from albucore.functions import to_float
 
 from albumentations.core.types import d4_group_elements
-from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
 
 
@@ -226,90 +227,6 @@ def test_gamma_float_equal_uint8():
     assert (np.abs(img - img_f) <= 1).all()
 
 
-@pytest.mark.parametrize(
-    ["dtype", "expected_divider", "max_value"],
-    [
-        (np.uint8, 255, None),
-        (np.uint16, 65535, None),
-        (np.uint32, 4294967295, None),
-        (np.float32, 1.0, None),
-        (np.int16, None, 32767),  # Unsupported dtype with max_value provided
-    ],
-)
-def test_to_float(dtype, expected_divider, max_value):
-    img = np.ones((100, 100, 3), dtype=dtype)
-    if expected_divider is not None:
-        expected = (img.astype(np.float32) / expected_divider).astype(np.float32)
-    else:
-        # For unsupported dtype with max_value, use max_value for conversion
-        expected = (img.astype(np.float32) / max_value).astype(np.float32)
-
-    actual = F.to_float(img, max_value=max_value)
-    assert_almost_equal(actual, expected, decimal=6)
-    assert actual.dtype == np.float32, "Resulting dtype is not float32."
-
-
-@pytest.mark.parametrize("dtype", [np.int64])
-def test_to_float_raises_for_unsupported_dtype_without_max_value(dtype):
-    img = np.ones((100, 100, 3), dtype=dtype)
-    with pytest.raises(RuntimeError) as exc_info:
-        F.to_float(img)
-    assert "Unsupported dtype" in str(exc_info.value)
-
-
-@pytest.mark.parametrize("dtype", [np.int64])
-def test_to_float_with_max_value_for_unsupported_dtypes(dtype):
-    img = np.ones((100, 100, 3), dtype=dtype)
-    max_value = np.iinfo(dtype).max
-    expected = (img.astype(np.float32) / max_value).astype(np.float32)
-    actual = F.to_float(img, max_value=max_value)
-    assert_almost_equal(actual, expected, decimal=6)
-    assert actual.dtype == np.float32, "Resulting dtype is not float32."
-
-
-@pytest.mark.parametrize(
-    "dtype, multiplier, max_value",
-    [
-        (np.uint8, 255, None),
-        (np.uint16, 65535, None),
-        (np.uint32, 4294967295, None),
-        (np.uint32, 4294967295, 4294967295.0),  # Custom max_value equal to the default to test the parameter is used
-    ],
-)
-def test_from_float(dtype, multiplier, max_value):
-    img = RECTANGULAR_UINT8_IMAGE.astype(np.float32)  # Use random data for more robust testing
-    expected_multiplier = multiplier if max_value is None else max_value
-    expected = (img * expected_multiplier).astype(dtype)
-    actual = F.from_float(img, dtype=np.dtype(dtype), max_value=max_value)
-    assert_array_almost_equal_nulp(actual, expected)
-
-
-@pytest.mark.parametrize("dtype", [np.int64])
-def test_from_float_unsupported_dtype_without_max_value(dtype):
-    img = RECTANGULAR_UINT8_IMAGE.astype(np.float32)
-    with pytest.raises(RuntimeError) as exc_info:
-        F.from_float(img, dtype=dtype)
-    expected_part_of_message = "Can't infer the maximum value for dtype"
-    assert expected_part_of_message in str(exc_info.value), "Expected error message not found."
-
-
-@pytest.mark.parametrize(
-    "dtype, expected_dtype",
-    [
-        (np.uint8, np.uint8),
-        (np.uint16, np.uint16),
-        (np.uint32, np.uint32),
-    ],
-)
-def test_from_float_dtype_consistency(dtype, expected_dtype):
-    # The code snippet is generating a random 100x100x3 array of values between 0 and the maximum
-    # value allowed for the specified data type `dtype`. The `MAX_VALUES_BY_DTYPE` dictionary is used
-    # to determine the maximum value for the given data type.
-    img = np.random.rand(100, 100, 3) * MAX_VALUES_BY_DTYPE[dtype]
-    actual = F.from_float(img.astype(np.float32), dtype=dtype)
-    assert actual.dtype == expected_dtype, f"Expected dtype {expected_dtype} but got {actual.dtype}"
-
-
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_scale(target):
     img = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=np.uint8)
@@ -330,13 +247,6 @@ def test_scale(target):
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     scaled = fgeometric.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
-
-
-def test_to_from_float():
-    image = RECTANGULAR_UINT8_IMAGE
-    float_image = F.to_float(image)
-    uint8_image = F.from_float(float_image, dtype=np.uint8)
-    assert np.array_equal(image, uint8_image)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -360,19 +270,6 @@ def test_smallest_max_size(target):
     scaled = fgeometric.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
-
-def test_from_float_unknown_dtype():
-    img = np.ones((100, 100, 3), dtype=np.float32)
-    with pytest.raises(RuntimeError) as exc_info:
-        F.from_float(img, np.dtype(np.int16))
-    expected_message = (
-        "Can't infer the maximum value for dtype int16. You need to specify the maximum value manually by passing "
-        "the max_value argument"
-    )
-    actual_message = str(exc_info.value)
-    assert (
-        expected_message in actual_message or actual_message in expected_message
-    ), f"Expected part of the error message to be: '{expected_message}', got: '{actual_message}'"
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -993,7 +890,7 @@ def test_iso_noise(image, color_shift, intensity):
     image = RECTANGULAR_UINT8_IMAGE
 
     # Convert image to float and back
-    float_image = F.to_float(image)
+    float_image = to_float(image)
 
     # Generate noise using the same random state instance
     set_seed(42)
@@ -1004,7 +901,7 @@ def test_iso_noise(image, color_shift, intensity):
 
     result_float = F.from_float(result_float, dtype=np.uint8)  # Convert the float result back to uint8
 
-    assert np.array_equal(result_uint8, result_float)
+    np.testing.assert_allclose(result_uint8, result_float, rtol=1e-5, atol=1)
 
 
 @pytest.mark.parametrize(

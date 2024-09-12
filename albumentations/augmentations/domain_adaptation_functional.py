@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import cv2
 import numpy as np
-from albucore.functions import add_weighted
+from albucore.functions import add_weighted, to_float
 from albucore.utils import clip, clipped, preserve_channel_dim
 from skimage.exposure import match_histograms
 from typing_extensions import Protocol
@@ -139,7 +139,7 @@ class DomainAdapter:
 
     def flatten(self, img: np.ndarray) -> np.ndarray:
         img = self.to_colorspace(img)
-        img = fmain.to_float(img)
+        img = to_float(img)
         return img.reshape(-1, 3)
 
     def reconstruct(self, pixels: np.ndarray, height: int, width: int) -> np.ndarray:
