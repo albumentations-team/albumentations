@@ -2114,6 +2114,9 @@ class InvertImg(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
