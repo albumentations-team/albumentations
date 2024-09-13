@@ -1757,16 +1757,23 @@ class Equalize(ImageOnlyTransform):
 
 
 class RGBShift(ImageOnlyTransform):
-    """Randomly shift values for each channel of the input RGB image.
+    """Randomly shifts the values of each RGB channel independently.
+
+    This transform adjusts the intensity of the red, green, and blue channels of an image
+    by adding a random value within a specified range to each channel. This can be used to
+    simulate color variations caused by different lighting conditions or camera sensors.
 
     Args:
-        r_shift_limit: range for changing values for the red channel. If r_shift_limit is a single
-            int, the range will be (-r_shift_limit, r_shift_limit). Default: (-20, 20).
-        g_shift_limit: range for changing values for the green channel. If g_shift_limit is a
-            single int, the range  will be (-g_shift_limit, g_shift_limit). Default: (-20, 20).
-        b_shift_limit: range for changing values for the blue channel. If b_shift_limit is a single
-            int, the range will be (-b_shift_limit, b_shift_limit). Default: (-20, 20).
-        p: probability of applying the transform. Default: 0.5.
+        r_shift_limit (float | tuple[float, float]): Range for changing values for the red channel.
+            If r_shift_limit is a single int or float, the range will be (-r_shift_limit, r_shift_limit).
+            Default: (-20, 20).
+        g_shift_limit (float | tuple[float, float]): Range for changing values for the green channel.
+            If g_shift_limit is a single int or float, the range will be (-g_shift_limit, g_shift_limit).
+            Default: (-20, 20).
+        b_shift_limit (float | tuple[float, float]): Range for changing values for the blue channel.
+            If b_shift_limit is a single int or float, the range will be (-b_shift_limit, b_shift_limit).
+            Default: (-20, 20).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1774,12 +1781,50 @@ class RGBShift(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The shift values are sampled independently for each channel.
+        - Positive shifts increase the intensity of a color channel, while negative shifts decrease it.
+        - For uint8 images, the resulting pixel values are clipped to the [0, 255] range.
+        - For float32 images, the values are typically in the [0, 1] range but may exceed it after shifting.
+        - This transform can be used to:
+          * Simulate variations in color balance
+          * Create subtle color casts
+          * Augment data for improving model robustness to color variations
+
+    Mathematical formula:
+        For each channel c in [r, g, b]:
+        output_c = input_c + shift_c
+        where shift_c is randomly sampled from the corresponding shift_limit range.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RGBShift(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom shift ranges for each channel
+        >>> transform = A.RGBShift(r_shift_limit=30, g_shift_limit=(-20, 20), b_shift_limit=(-10, 10), p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Using float values for more precise control
+        >>> transform = A.RGBShift(r_shift_limit=(-0.1, 0.1), g_shift_limit=0.2, b_shift_limit=(-0.3, 0.3), p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Color balance: https://en.wikipedia.org/wiki/Color_balance
+        - Color cast: https://en.wikipedia.org/wiki/Color_cast
     """
 
     class InitSchema(BaseTransformInitSchema):
-        r_shift_limit: SymmetricRangeType = (-20, 20)
-        g_shift_limit: SymmetricRangeType = (-20, 20)
-        b_shift_limit: SymmetricRangeType = (-20, 20)
+        r_shift_limit: SymmetricRangeType
+        g_shift_limit: SymmetricRangeType
+        b_shift_limit: SymmetricRangeType
 
     def __init__(
         self,
@@ -1817,16 +1862,30 @@ class RGBShift(ImageOnlyTransform):
 
 
 class RandomBrightnessContrast(ImageOnlyTransform):
-    """Randomly change brightness and contrast of the input image.
+    """Randomly changes the brightness and contrast of the input image.
+
+    This transform adjusts the brightness and contrast of an image simultaneously, allowing for
+    a wide range of lighting and contrast variations. It's particularly useful for data augmentation
+    in computer vision tasks, helping models become more robust to different lighting conditions.
 
     Args:
-        brightness_limit: factor range for changing brightness.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        contrast_limit: factor range for changing contrast.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        brightness_by_max: If True adjust contrast by image dtype maximum,
-            else adjust contrast by image mean.
-        p: probability of applying the transform. Default: 0.5.
+        brightness_limit (float | tuple[float, float]): Factor range for changing brightness.
+            If a single float value is provided, the range will be (-brightness_limit, brightness_limit).
+            Values should typically be in the range [-1.0, 1.0], where 0 means no change,
+            1.0 means maximum brightness, and -1.0 means minimum brightness.
+            Default: (-0.2, 0.2).
+
+        contrast_limit (float | tuple[float, float]): Factor range for changing contrast.
+            If a single float value is provided, the range will be (-contrast_limit, contrast_limit).
+            Values should typically be in the range [-1.0, 1.0], where 0 means no change,
+            1.0 means maximum increase in contrast, and -1.0 means maximum decrease in contrast.
+            Default: (-0.2, 0.2).
+
+        brightness_by_max (bool): If True, adjusts brightness by scaling pixel values up to the
+            maximum value of the image's dtype. If False, uses the mean pixel value for adjustment.
+            Default: True.
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1834,12 +1893,65 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The order of operation is: contrast adjustment, then brightness adjustment.
+        - For uint8 images, the output is clipped to [0, 255] range.
+        - For float32 images, the output may exceed the [0, 1] range.
+        - The `brightness_by_max` parameter affects how brightness is adjusted:
+          * If True, brightness adjustment is more pronounced and can lead to more saturated results.
+          * If False, brightness adjustment is more subtle and preserves the overall lighting better.
+        - This transform is useful for:
+          * Simulating different lighting conditions
+          * Enhancing low-light or overexposed images
+          * Data augmentation to improve model robustness
+
+    Mathematical Formulation:
+        Let a be the contrast adjustment factor and β be the brightness adjustment factor.
+        For each pixel value x:
+        1. Contrast adjustment: x' = clip((x - mean) * (1 + a) + mean)
+        2. Brightness adjustment:
+           If brightness_by_max is True:  x'' = clip(x' * (1 + β))
+           If brightness_by_max is False: x'' = clip(x' + β * max_value)
+        Where clip() ensures values stay within the valid range for the image dtype.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomBrightnessContrast(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom brightness and contrast limits
+        >>> transform = A.RandomBrightnessContrast(
+        ...     brightness_limit=0.3,
+        ...     contrast_limit=0.3,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Adjust brightness based on mean value
+        >>> transform = A.RandomBrightnessContrast(
+        ...     brightness_limit=0.2,
+        ...     contrast_limit=0.2,
+        ...     brightness_by_max=False,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Brightness: https://en.wikipedia.org/wiki/Brightness
+        - Contrast: https://en.wikipedia.org/wiki/Contrast_(vision)
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness_limit: SymmetricRangeType = (-0.2, 0.2)
-        contrast_limit: SymmetricRangeType = (-0.2, 0.2)
-        brightness_by_max: bool = Field(default=True, description="Adjust brightness by image dtype maximum if True.")
+        brightness_limit: SymmetricRangeType
+        contrast_limit: SymmetricRangeType
+        brightness_by_max: bool
 
     def __init__(
         self,
@@ -1864,7 +1976,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return ("brightness_limit", "contrast_limit", "brightness_by_max")
+        return "brightness_limit", "contrast_limit", "brightness_by_max"
 
 
 class GaussNoise(ImageOnlyTransform):
