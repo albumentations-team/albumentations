@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from collections import defaultdict
 from typing import Any, Sequence
 from warnings import warn
@@ -625,56 +626,62 @@ def add_rain(
     return to_float(image_rgb, max_value=255) if needs_float else image_rgb
 
 
+@clipped
 @preserve_channel_dim
-def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: list[tuple[int, int]]) -> np.ndarray:
-    """Add fog to an image using the provided coefficients and haze points.
+def add_fog(
+    img: np.ndarray,
+    fog_intensity: float,
+    alpha_coef: float,
+    fog_particle_positions: list[tuple[int, int]],
+) -> np.ndarray:
+    """Add fog to the input image.
 
     Args:
-        img (np.ndarray): The input image, expected to be a numpy array.
-        fog_coef (float): The fog coefficient, used to determine the intensity of the fog.
-        alpha_coef (float): The alpha coefficient, used to determine the transparency of the fog.
-        haze_list (list[tuple[int, int]]): A list of tuples, where each tuple represents the x and y
-            coordinates of a haze point.
+        img (np.ndarray): Input image.
+        fog_intensity (float): Intensity of the fog effect, between 0 and 1.
+        alpha_coef (float): Base alpha (transparency) value for fog particles.
+        fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
 
     Returns:
-        np.ndarray: The output image with added fog, as a numpy array.
-
-    Raises:
-        ValueError: If the input image's dtype is not uint8 or float32.
-
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+        np.ndarray: Image with added fog effect.
     """
-    non_rgb_error(img)
-
     input_dtype = img.dtype
     needs_float = False
 
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for RandomFog augmentation")
 
-    width = img.shape[1]
+    height, width = img.shape[:2]
+    num_channels = get_num_channels(img)
 
-    hw = max(int(width // 3 * fog_coef), 10)
+    fog_layer = np.zeros((height, width, num_channels), dtype=np.uint8)
 
-    for haze_points in haze_list:
-        x, y = haze_points
-        overlay = img.copy()
-        output = img.copy()
-        alpha = alpha_coef * fog_coef
-        rad = hw // 2
-        point = (x + hw // 2, y + hw // 2)
-        cv2.circle(overlay, point, int(rad), (255, 255, 255), -1)
-        output = add_weighted(overlay, alpha, output, 1 - alpha)
+    max_fog_radius = int(
+        min(height, width) * 0.1 * fog_intensity,
+    )  # Maximum radius scales with image size and intensity
 
-        img = output.copy()
+    for x, y in fog_particle_positions:
+        radius = random.randint(max_fog_radius // 2, max_fog_radius)
+        color = 255 if num_channels == 1 else (255,) * num_channels
+        cv2.circle(
+            fog_layer,
+            center=(x, y),
+            radius=radius,
+            color=color,
+            thickness=-1,
+        )
 
-    image_rgb = cv2.blur(img, (hw // 10, hw // 10))
+    # Apply gaussian blur to the fog layer
+    fog_layer = cv2.GaussianBlur(fog_layer, (25, 25), 0)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    # Blend the fog layer with the original image
+    alpha = np.mean(fog_layer, axis=2, keepdims=True) / 255 * alpha_coef * fog_intensity
+    fog_image = img * (1 - alpha) + fog_layer * alpha
+
+    fog_image = fog_image.astype(np.uint8)
+
+    return to_float(fog_image, max_value=255) if needs_float else fog_image
 
 
 @preserve_channel_dim

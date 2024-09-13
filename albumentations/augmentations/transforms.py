@@ -833,11 +833,14 @@ class RandomRain(ImageOnlyTransform):
 
 
 class RandomFog(ImageOnlyTransform):
-    """Simulates fog for the image.
+    """Simulates fog for the image by adding random fog-like artifacts.
+
+    This transform creates a fog effect by generating semi-transparent overlays
+    that mimic the visual characteristics of fog. The fog intensity and distribution
+    can be controlled to create various fog-like conditions.
 
     Args:
-        fog_coef_range (tuple): tuple of bounds on the fog intensity coefficient (fog_coef_lower, fog_coef_upper).
-            Default: (0.3, 1).
+        fog_coef_range (tuple[float, float]): Range for fog intensity coefficient. Should be in [0, 1] range.
         alpha_coef (float): Transparency of the fog circles. Should be in [0, 1] range. Default: 0.08.
         p (float): Probability of applying the transform. Default: 0.5.
 
@@ -847,29 +850,64 @@ class RandomFog(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        Any
+
+    Note:
+        - The fog effect is created by overlaying semi-transparent circles on the image.
+        - Higher fog coefficient values result in denser fog effects.
+        - The fog is typically denser in the center of the image and gradually decreases towards the edges.
+        - This transform is useful for:
+          * Simulating various weather conditions in outdoor scenes
+          * Data augmentation for improving model robustness to foggy conditions
+          * Creating atmospheric effects in image editing
+
+    Mathematical Formulation:
+        For each fog particle:
+        1. A position (x, y) is randomly generated within the image.
+        2. A circle with random radius is drawn at this position.
+        3. The circle's alpha (transparency) is determined by the alpha_coef.
+        4. These circles are overlaid on the original image to create the fog effect.
+
+        The final pixel value is calculated as:
+        output = (1 - alpha) * original_pixel + alpha * fog_color
+
+        where alpha is influenced by the fog_coef and alpha_coef parameters.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomFog(p=1.0)
+        >>> foggy_image = transform(image=image)["image"]
+
+        # Custom fog intensity range
+        >>> transform = A.RandomFog(fog_coef_lower=0.3, fog_coef_upper=0.8, p=1.0)
+        >>> foggy_image = transform(image=image)["image"]
+
+        # Adjust fog transparency
+        >>> transform = A.RandomFog(fog_coef_lower=0.2, fog_coef_upper=0.5, alpha_coef=0.1, p=1.0)
+        >>> foggy_image = transform(image=image)["image"]
+
+    References:
+        - Fog: https://en.wikipedia.org/wiki/Fog
+        - Atmospheric perspective: https://en.wikipedia.org/wiki/Aerial_perspective
     """
 
     class InitSchema(BaseTransformInitSchema):
         fog_coef_lower: float | None = Field(
-            default=None,
-            description="Lower limit for fog intensity coefficient",
             ge=0,
             le=1,
         )
         fog_coef_upper: float | None = Field(
-            default=None,
-            description="Upper limit for fog intensity coefficient",
             ge=0,
             le=1,
         )
-        fog_coef_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
-            0.3,
-            1,
-        )
+        fog_coef_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
 
-        alpha_coef: float = Field(default=0.08, description="Transparency of the fog circles", ge=0, le=1)
+        alpha_coef: float = Field(ge=0, le=1)
 
         @model_validator(mode="after")
         def validate_fog_coefficients(self) -> Self:
@@ -903,35 +941,56 @@ class RandomFog(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        fog_coef: np.ndarray,
-        haze_list: list[tuple[int, int]],
+        particle_positions: np.ndarray,
+        intensity: float,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_fog(img, fog_coef, self.alpha_coef, haze_list)
+        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        fog_coef = random.uniform(*self.fog_coef_range)
+        # Select a random fog intensity within the specified range
+        intensity = random.uniform(*self.fog_coef_range)
 
-        height, width = imshape = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
-        hw = max(1, int(width // 3 * fog_coef))
+        image_height, image_width = image_shape
 
-        haze_list = []
-        midx = width // 2 - 2 * hw
-        midy = height // 2 - hw
-        index = 1
+        # Calculate the size of the fog effect region based on image width and fog intensity
+        fog_region_size = max(1, int(image_width // 3 * intensity))
 
-        while midx > -hw or midy > -hw:
-            for _ in range(hw // 10 * index):
-                x = random.randint(midx, width - midx - hw)
-                y = random.randint(midy, height - midy - hw)
-                haze_list.append((x, y))
+        particle_positions = []
 
-            midx -= 3 * hw * width // sum(imshape)
-            midy -= 3 * hw * height // sum(imshape)
-            index += 1
+        # Initialize the central region where fog will be most dense
+        center_x, center_y = (int(x) for x in fmain.center(image_shape))
 
-        return {"haze_list": haze_list, "fog_coef": fog_coef}
+        # Define the initial size of the foggy area
+        current_width = image_width
+        current_height = image_height
+
+        # Define shrink factor for reducing the foggy area each iteration
+        shrink_factor = 0.1
+
+        max_iterations = 10  # Prevent infinite loop
+        iteration = 0
+
+        while current_width > fog_region_size and current_height > fog_region_size and iteration < max_iterations:
+            # Calculate the number of particles for this region
+            area = current_width * current_height
+            particles_in_region = int(area / (fog_region_size * fog_region_size) * intensity * 10)
+
+            for _ in range(particles_in_region):
+                # Generate random positions within the current region
+                x = random.randint(center_x - current_width // 2, center_x + current_width // 2)
+                y = random.randint(center_y - current_height // 2, center_y + current_height // 2)
+                particle_positions.append((x, y))
+
+            # Shrink the region for the next iteration
+            current_width = int(current_width * (1 - shrink_factor))
+            current_height = int(current_height * (1 - shrink_factor))
+
+            iteration += 1
+
+        return {"particle_positions": particle_positions, "intensity": intensity}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "fog_coef_range", "alpha_coef"
