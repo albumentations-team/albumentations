@@ -1937,7 +1937,7 @@ class D4(DualTransform):
 
 
 class GridElasticDeform(DualTransform):
-    """Grid-based Elastic deformation Albumentation implementation
+    """Grid-based Elastic deformation Albumentations implementation
 
     This class applies elastic transformations using a grid-based approach.
     The granularity and intensity of the distortions can be controlled using

@@ -235,7 +235,6 @@ class Rotate(DualTransform):
         return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border"
 
 
-# class SafeRotate(DualTransform):
 class SafeRotate(Affine):
     """Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
 
