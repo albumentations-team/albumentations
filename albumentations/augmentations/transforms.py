@@ -555,12 +555,19 @@ class RandomSnow(ImageOnlyTransform):
 
 
 class RandomGravel(ImageOnlyTransform):
-    """Add gravels.
+    """Adds gravel-like artifacts to the input image.
+
+    This transform simulates the appearance of gravel or small stones scattered across
+    specific regions of an image. It's particularly useful for augmenting datasets of
+    road or terrain images, adding realistic texture variations.
 
     Args:
-        gravel_roi: (top-left x, top-left y,
-            bottom-right x, bottom right y). Should be in [0, 1] range
-        number_of_patches: no. of gravel patches required
+        gravel_roi (tuple[float, float, float, float]): Region of interest where gravel
+            will be added, specified as (x_min, y_min, x_max, y_max) in relative coordinates
+            [0, 1]. Default: (0.1, 0.4, 0.9, 0.9).
+        number_of_patches (int): Number of gravel patch regions to generate within the ROI.
+            Each patch will contain multiple gravel particles. Default: 2.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -568,17 +575,60 @@ class RandomGravel(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        3
 
+    Note:
+        - The gravel effect is created by modifying the saturation channel in the HLS color space.
+        - Gravel particles are distributed within randomly generated patches inside the specified ROI.
+        - This transform is particularly useful for:
+          * Augmenting datasets for road condition analysis
+          * Simulating variations in terrain for computer vision tasks
+          * Adding realistic texture to synthetic images of outdoor scenes
+
+    Mathematical Formulation:
+        For each gravel patch:
+        1. A rectangular region is randomly generated within the specified ROI.
+        2. Within this region, multiple gravel particles are placed.
+        3. For each particle:
+           - Random (x, y) coordinates are generated within the patch.
+           - A random radius (r) between 1 and 3 pixels is assigned.
+           - A random saturation value (sat) between 0 and 255 is assigned.
+        4. The saturation channel of the image is modified for each particle:
+           image_hls[y-r:y+r, x-r:x+r, 1] = sat
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomGravel(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom ROI and number of patches
+        >>> transform = A.RandomGravel(
+        ...     gravel_roi=(0.2, 0.2, 0.8, 0.8),
+        ...     number_of_patches=5,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Combining with other transforms
+        >>> transform = A.Compose([
+        ...     A.RandomGravel(p=0.7),
+        ...     A.RandomBrightnessContrast(p=0.5),
+        ... ])
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Road surface textures: https://en.wikipedia.org/wiki/Road_surface
+        - HLS color space: https://en.wikipedia.org/wiki/HSL_and_HSV
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gravel_roi: tuple[float, float, float, float] = Field(
-            default=(0.1, 0.4, 0.9, 0.9),
-            description="Region of interest for gravel placement",
-        )
-        number_of_patches: int = Field(default=2, description="Number of gravel patches", ge=1)
+        gravel_roi: tuple[float, float, float, float]
+        number_of_patches: int = Field(ge=1)
 
         @model_validator(mode="after")
         def validate_gravel_roi(self) -> Self:
@@ -599,71 +649,58 @@ class RandomGravel(ImageOnlyTransform):
         self.number_of_patches = number_of_patches
 
     def generate_gravel_patch(self, rectangular_roi: tuple[int, int, int, int]) -> np.ndarray:
-        x1, y1, x2, y2 = rectangular_roi
-        area = abs((x2 - x1) * (y2 - y1))
+        x_min, y_min, x_max, y_max = rectangular_roi
+        area = abs((x_max - x_min) * (y_max - y_min))
         count = area // 10
         gravels = np.empty([count, 2], dtype=np.int64)
-        gravels[:, 0] = random_utils.randint(x1, x2, count)
-        gravels[:, 1] = random_utils.randint(y1, y2, count)
+        gravels[:, 0] = random_utils.randint(x_min, x_max, count)
+        gravels[:, 1] = random_utils.randint(y_min, y_max, count)
         return gravels
 
     def apply(self, img: np.ndarray, gravels_infos: list[Any], **params: Any) -> np.ndarray:
-        if gravels_infos is None:
-            gravels_infos = []
         return fmain.add_gravel(img, gravels_infos)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
 
-        x_min, y_min, x_max, y_max = self.gravel_roi
-        x_min = int(x_min * width)
-        x_max = int(x_max * width)
-        y_min = int(y_min * height)
-        y_max = int(y_max * height)
+        # Calculate ROI in pixels
+        x_min, y_min, x_max, y_max = (
+            int(coord * dim) for coord, dim in zip(self.gravel_roi, [width, height, width, height])
+        )
 
-        max_height = 200
-        max_width = 30
+        roi_width = x_max - x_min
+        roi_height = y_max - y_min
 
-        rectangular_rois = np.zeros([self.number_of_patches, 4], dtype=np.int64)
-        xx1 = random_utils.randint(x_min + 1, x_max, self.number_of_patches)  # xmax
-        xx2 = random_utils.randint(x_min, xx1)  # xmin
-        yy1 = random_utils.randint(y_min + 1, y_max, self.number_of_patches)  # ymax
-        yy2 = random_utils.randint(y_min, yy1)  # ymin
+        gravels_info = []
 
-        rectangular_rois[:, 0] = xx2
-        rectangular_rois[:, 1] = yy2
-        rectangular_rois[:, 2] = [min(tup) for tup in zip(xx1, xx2 + max_height)]
-        rectangular_rois[:, 3] = [min(tup) for tup in zip(yy1, yy2 + max_width)]
+        for _ in range(self.number_of_patches):
+            # Generate a random rectangular region within the ROI
+            patch_width = random.randint(roi_width // 10, roi_width // 5)
+            patch_height = random.randint(roi_height // 10, roi_height // 5)
 
-        minx = []
-        maxx = []
-        miny = []
-        maxy = []
-        val = []
-        for roi in rectangular_rois:
-            gravels = self.generate_gravel_patch(roi)
-            x = gravels[:, 0]
-            y = gravels[:, 1]
-            r = random_utils.randint(1, 4, len(gravels))
-            sat = random_utils.randint(0, 255, len(gravels))
-            miny.append(np.maximum(y - r, 0))
-            maxy.append(np.minimum(y + r, y))
-            minx.append(np.maximum(x - r, 0))
-            maxx.append(np.minimum(x + r, x))
-            val.append(sat)
+            patch_x = random.randint(x_min, x_max - patch_width)
+            patch_y = random.randint(y_min, y_max - patch_height)
 
-        return {
-            "gravels_infos": np.stack(
-                [
-                    np.concatenate(miny),
-                    np.concatenate(maxy),
-                    np.concatenate(minx),
-                    np.concatenate(maxx),
-                    np.concatenate(val),
-                ],
-                1,
-            ),
-        }
+            # Generate gravel particles within this patch
+            num_particles = (patch_width * patch_height) // 100  # Adjust this divisor to control density
+
+            for _ in range(num_particles):
+                x = random.randint(patch_x, patch_x + patch_width)
+                y = random.randint(patch_y, patch_y + patch_height)
+                r = random.randint(1, 3)
+                sat = random.randint(0, 255)
+
+                gravels_info.append(
+                    [
+                        max(y - r, 0),  # min_y
+                        min(y + r, height - 1),  # max_y
+                        max(x - r, 0),  # min_x
+                        min(x + r, width - 1),  # max_x
+                        sat,  # saturation
+                    ],
+                )
+
+        return {"gravels_infos": np.array(gravels_info, dtype=np.int64)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "gravel_roi", "number_of_patches"

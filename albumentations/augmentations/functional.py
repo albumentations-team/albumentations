@@ -787,40 +787,24 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
     return img_shadowed
 
 
+@clipped
 @preserve_channel_dim
 def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
-    """Add gravel to the image.
-
-    Args:
-        img (numpy.ndarray): image to add gravel to
-        gravels (list): list of gravel parameters. (float, float, float, float):
-            (top-left x, top-left y, bottom-right x, bottom right y)
-
-    Returns:
-        numpy.ndarray:
-
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-    """
     non_rgb_error(img)
     input_dtype = img.dtype
-    needs_float = False
 
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for AddGravel augmentation")
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     for gravel in gravels:
-        y1, y2, x1, x2, sat = gravel
-        image_hls[x1:x2, y1:y2, 1] = sat
+        min_y, max_y, min_x, max_x, sat = gravel
+        image_hls[min_y:max_y, min_x:max_x, 1] = sat
 
-    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+    image = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    return to_float(image, max_value=255) if input_dtype == np.float32 else image
 
 
 def invert(img: np.ndarray) -> np.ndarray:
