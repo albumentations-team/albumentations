@@ -171,7 +171,7 @@
                 "p": 0.5,
                 "quality_lower": 99,
                 "quality_upper": 100,
-                "compression_type": 0
+                "compression_type": "webp"
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.InvertImg",

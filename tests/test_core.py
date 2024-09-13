@@ -738,7 +738,6 @@ def test_single_transform_compose(
         except_augmentations={
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
             A.MixUp,
@@ -777,7 +776,6 @@ def test_contiguous_output_dual(augmentation_cls, params):
         except_augmentations={
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
             A.MixUp,
@@ -786,6 +784,13 @@ def test_contiguous_output_dual(augmentation_cls, params):
             A.OverlayElements,
             A.TextImage,
             A.FromFloat,
+        },
+        custom_arguments={
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
     ),
 )
@@ -1091,11 +1096,15 @@ def test_transform_always_apply_warning() -> None:
                 "position": "top_left"
             },
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
             A.MixUp,
@@ -1135,7 +1144,7 @@ def test_images_as_target(augmentation_cls, params):
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },

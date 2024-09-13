@@ -56,7 +56,6 @@ from albumentations.core.types import (
     PAIR,
     ChromaticAberrationMode,
     ColorType,
-    ImageCompressionType,
     ImageMode,
     MorphologyMode,
     PlanckianJitterMode,
@@ -243,28 +242,46 @@ class Normalize(ImageOnlyTransform):
         uint8, float32
 
     Note:
-        For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
-        For other normalization types, these parameters are ignored.
+        - For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
+        - For other normalization types, these parameters are ignored.
+        - For inception normalization, use mean values of (0.5, 0.5, 0.5).
+        - For YOLO normalization, use mean values of (0.5, 0.5, 0.5) and std values of (0, 0, 0).
+        - This transform is often used as a final step in image preprocessing pipelines to
+          prepare images for neural network input.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> # Standard ImageNet normalization
+        >>> transform = A.Normalize(
+        ...     mean=(0.485, 0.456, 0.406),
+        ...     std=(0.229, 0.224, 0.225),
+        ...     max_pixel_value=255.0,
+        ...     p=1.0
+        ... )
+        >>> normalized_image = transform(image=image)["image"]
+        >>>
+        >>> # Min-max normalization
+        >>> transform_minmax = A.Normalize(normalization="min_max", p=1.0)
+        >>> normalized_image_minmax = transform_minmax(image=image)["image"]
+
+    References:
+        - ImageNet mean and std: https://pytorch.org/vision/stable/models.html
+        - Inception preprocessing: https://keras.io/api/applications/inceptionv3/
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ColorType | None = Field(
-            default=(0.485, 0.456, 0.406),
-            description="Mean values for normalization, defaulting to ImageNet mean values.",
-        )
-        std: ColorType | None = Field(
-            default=(0.229, 0.224, 0.225),
-            description="Standard deviation values for normalization, defaulting to ImageNet std values.",
-        )
-        max_pixel_value: float | None = Field(default=255.0, description="Maximum possible pixel value.")
+        mean: ColorType | None
+        std: ColorType | None
+        max_pixel_value: float | None
         normalization: Literal[
             "standard",
             "image",
             "image_per_channel",
             "min_max",
             "min_max_per_channel",
-        ] = "standard"
-        p: ProbabilityType = 1
+        ]
 
         @model_validator(mode="after")
         def validate_normalization(self) -> Self:
@@ -292,10 +309,6 @@ class Normalize(ImageOnlyTransform):
         self.std = std
         self.denominator = np.reciprocal(np.array(std, dtype=np.float32) * max_pixel_value)
         self.max_pixel_value = max_pixel_value
-        if normalization not in {"standard", "image", "image_per_channel", "min_max", "min_max_per_channel"}:
-            raise ValueError(
-                f"Error during Normalize initialization. Unknown normalization type: {normalization}",
-            )
         self.normalization = normalization
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -312,13 +325,25 @@ class Normalize(ImageOnlyTransform):
 
 
 class ImageCompression(ImageOnlyTransform):
-    """Decreases image quality by Jpeg, WebP compression of an image.
+    """Decrease image quality by applying JPEG or WebP compression.
+
+    This transform simulates the effect of saving an image with lower quality settings,
+    which can introduce compression artifacts. It's useful for data augmentation and
+    for testing model robustness against varying image qualities.
 
     Args:
-        quality_range: tuple of bounds on the image quality i.e. (quality_lower, quality_upper).
-            Both values should be in [1, 100] range.
-        compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
-            Default: ImageCompressionType.JPEG
+        quality_range (tuple[int, int]): Range for the compression quality.
+            The values should be in [1, 100] range, where:
+            - 1 is the lowest quality (maximum compression)
+            - 100 is the highest quality (minimum compression)
+            Default: (99, 100)
+
+        compression_type (Literal["jpeg", "webp"]): Type of compression to apply.
+            - "jpeg": JPEG compression
+            - "webp": WebP compression
+            Default: "jpeg"
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -326,30 +351,45 @@ class ImageCompression(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - This transform expects images with 1, 3, or 4 channels.
+        - For JPEG compression, alpha channels (4th channel) will be ignored.
+        - WebP compression supports transparency (4 channels).
+        - The actual file is not saved to disk; the compression is simulated in memory.
+        - Lower quality values result in smaller file sizes but may introduce visible artifacts.
+        - This transform can be useful for:
+          * Data augmentation to improve model robustness
+          * Testing how models perform on images of varying quality
+          * Simulating images transmitted over low-bandwidth connections
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ImageCompression(quality_range=(50, 90), compression_type=0, p=1.0)
+        >>> result = transform(image=image)
+        >>> compressed_image = result["image"]
+
+    References:
+        - JPEG compression: https://en.wikipedia.org/wiki/JPEG
+        - WebP compression: https://developers.google.com/speed/webp
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
-            99,
-            100,
-        )
+        quality_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
 
         quality_lower: int | None = Field(
-            default=None,
-            description="Lower bound on the image quality",
             ge=1,
             le=100,
         )
         quality_upper: int | None = Field(
-            default=None,
-            description="Upper bound on the image quality",
             ge=1,
             le=100,
         )
-        compression_type: ImageCompressionType = Field(
-            default=ImageCompressionType.JPEG,
-            description="Image compression format",
-        )
+        compression_type: Literal["jpeg", "webp"]
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
@@ -386,38 +426,35 @@ class ImageCompression(ImageOnlyTransform):
         self,
         quality_lower: int | None = None,
         quality_upper: int | None = None,
-        compression_type: ImageCompressionType = ImageCompressionType.JPEG,
+        compression_type: Literal["jpeg", "webp"] = "jpeg",
         quality_range: tuple[int, int] = (99, 100),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.quality_range = quality_range
         self.compression_type = compression_type
 
     def apply(self, img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"], **params: Any) -> np.ndarray:
-        if img.ndim != MONO_CHANNEL_DIMENSIONS and img.shape[-1] not in (1, 3, 4):
-            msg = "ImageCompression transformation expects 1, 3 or 4 channel images."
-            raise TypeError(msg)
         return fmain.image_compression(img, quality, image_type)
 
     def get_params(self) -> dict[str, int | str]:
-        if self.compression_type == ImageCompressionType.JPEG:
+        if self.compression_type == "jpeg":
             image_type = ".jpg"
-        elif self.compression_type == ImageCompressionType.WEBP:
+        elif self.compression_type == "webp":
             image_type = ".webp"
         else:
             raise ValueError(f"Unknown image compression type: {self.compression_type}")
 
         return {
-            "quality": random.randint(self.quality_range[0], self.quality_range[1]),
+            "quality": random.randint(*self.quality_range),
             "image_type": image_type,
         }
 
     def get_transform_init_args(self) -> dict[str, Any]:
         return {
             "quality_range": self.quality_range,
-            "compression_type": self.compression_type.value,
+            "compression_type": self.compression_type,
         }
 
 
@@ -1363,14 +1400,24 @@ class RandomToneCurve(ImageOnlyTransform):
 class HueSaturationValue(ImageOnlyTransform):
     """Randomly change hue, saturation and value of the input image.
 
+    This transform adjusts the HSV (Hue, Saturation, Value) channels of an input RGB image.
+    It allows for independent control over each channel, providing a wide range of color
+    and brightness modifications.
+
     Args:
-        hue_shift_limit: range for changing hue. If hue_shift_limit is a single int, the range
-            will be (-hue_shift_limit, hue_shift_limit). Default: (-20, 20).
-        sat_shift_limit: range for changing saturation. If sat_shift_limit is a single int,
-            the range will be (-sat_shift_limit, sat_shift_limit). Default: (-30, 30).
-        val_shift_limit: range for changing value. If val_shift_limit is a single int, the range
-            will be (-val_shift_limit, val_shift_limit). Default: (-20, 20).
-        p (float): probability of applying the transform. Default: 0.5.
+        hue_shift_limit (float | tuple[float, float]): Range for changing hue.
+            If a single float value is provided, the range will be (-hue_shift_limit, hue_shift_limit).
+            Values should be in the range [-180, 180]. Default: (-20, 20).
+
+        sat_shift_limit (float | tuple[float, float]): Range for changing saturation.
+            If a single float value is provided, the range will be (-sat_shift_limit, sat_shift_limit).
+            Values should be in the range [-255, 255]. Default: (-30, 30).
+
+        val_shift_limit (float | tuple[float, float]): Range for changing value (brightness).
+            If a single float value is provided, the range will be (-val_shift_limit, val_shift_limit).
+            Values should be in the range [-255, 255]. Default: (-20, 20).
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1378,18 +1425,44 @@ class HueSaturationValue(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        3
+
+    Note:
+        - The transform first converts the input RGB image to the HSV color space.
+        - Each channel (Hue, Saturation, Value) is adjusted independently.
+        - Hue is circular, so it wraps around at 180 degrees.
+        - For float32 images, the shift values are applied as percentages of the full range.
+        - This transform is particularly useful for color augmentation and simulating
+          different lighting conditions.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.HueSaturationValue(
+        ...     hue_shift_limit=20,
+        ...     sat_shift_limit=30,
+        ...     val_shift_limit=20,
+        ...     p=0.7
+        ... )
+        >>> result = transform(image=image)
+        >>> augmented_image = result["image"]
+
+    References:
+        - HSV color space: https://en.wikipedia.org/wiki/HSL_and_HSV
     """
 
     class InitSchema(BaseTransformInitSchema):
-        hue_shift_limit: SymmetricRangeType = (-20, 20)
-        sat_shift_limit: SymmetricRangeType = (-30, 30)
-        val_shift_limit: SymmetricRangeType = (-20, 20)
+        hue_shift_limit: SymmetricRangeType
+        sat_shift_limit: SymmetricRangeType
+        val_shift_limit: SymmetricRangeType
 
     def __init__(
         self,
-        hue_shift_limit: ScaleFloatType = 20,
-        sat_shift_limit: ScaleFloatType = 30,
-        val_shift_limit: ScaleFloatType = 20,
+        hue_shift_limit: ScaleFloatType = (-20, 20),
+        sat_shift_limit: ScaleFloatType = (-30, 30),
+        val_shift_limit: ScaleFloatType = (-20, 20),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1736,8 +1809,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, float]:
         return {
-            "alpha": 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
-            "beta": 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1]),
+            "alpha": 1.0 + random.uniform(*self.contrast_limit),
+            "beta": 0.0 + random.uniform(*self.brightness_limit),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
@@ -1748,13 +1821,11 @@ class GaussNoise(ImageOnlyTransform):
     """Apply Gaussian noise to the input image.
 
     Args:
-        var_limit (Union[float, tuple[float, float]]): Variance range for noise.
-            If var_limit is a single float, the range will be (0, var_limit). Default: (10.0, 50.0).
-        mean (float): Mean of the noise. Default: 0
-        per_channel (bool): If set to True, noise will be sampled for each channel independently.
-            Otherwise, the noise will be sampled once for all channels.
-            Faster when `per_channel = False`.
-            Default: True
+        var_limit (tuple[float, float] | float): Variance range for noise. If var_limit is a single float value,
+            the range will be (0, var_limit). Default: (10.0, 50.0).
+        mean (float): Mean of the noise. Default: 0.
+        per_channel (bool): If True, noise will be sampled for each channel independently.
+            Otherwise, the noise will be sampled once for all channels. Default: True.
         noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
             When set to 1, noise is sampled for each pixel independently. If less, noise is sampled for a smaller size
             and resized to fit the shape of the image. Smaller values make the transform faster. Default: 1.0.
@@ -1766,12 +1837,47 @@ class GaussNoise(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Returns:
+        numpy.ndarray: Image with applied Gaussian noise.
+
+    Note:
+        - The noise is generated in the same range as the input image.
+        - For uint8 input images, the noise is generated in the range [0, 255].
+        - For float32 input images, the noise is generated in the range [0, 1].
+        - The resulting image is clipped to keep its values in the input range.
+        - Setting per_channel=False is faster but applies the same noise to all channels.
+        - The noise_scale_factor parameter allows for a trade-off between transform speed and noise granularity.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+        >>>
+        >>> # Apply Gaussian noise with default parameters
+        >>> transform = A.GaussNoise(p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+        >>>
+        >>> # Apply Gaussian noise with custom variance range and mean
+        >>> transform = A.GaussNoise(var_limit=(50.0, 100.0), mean=10, p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+        >>>
+        >>> # Apply the same noise to all channels
+        >>> transform = A.GaussNoise(per_channel=False, p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+        >>>
+        >>> # Apply noise with reduced granularity for faster processing
+        >>> transform = A.GaussNoise(noise_scale_factor=0.5, p=1.0)
+        >>> noisy_image = transform(image=image)['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
-        var_limit: NonNegativeFloatRangeType = Field(default=(10.0, 50.0), description="Variance range for noise.")
-        mean: float = Field(default=0, description="Mean of the noise.")
-        per_channel: bool = Field(default=True, description="Apply noise per channel.")
+        var_limit: NonNegativeFloatRangeType
+        mean: float
+        per_channel: bool
         noise_scale_factor: float = Field(gt=0, le=1)
 
     def __init__(
@@ -1794,7 +1900,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         image = data["image"] if "image" in data else data["images"][0]
-        var = random.uniform(self.var_limit[0], self.var_limit[1])
+        var = random.uniform(*self.var_limit)
         sigma = math.sqrt(var)
 
         if self.per_channel:
@@ -1820,14 +1926,23 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class ISONoise(ImageOnlyTransform):
-    """Apply camera sensor noise.
+    """Applies camera sensor noise to the input image, simulating high ISO settings.
+
+    This transform adds random noise to an image, mimicking the effect of using high ISO settings
+    in digital photography. It simulates two main components of ISO noise:
+    1. Color noise: random shifts in color hue
+    2. Luminance noise: random variations in pixel intensity
 
     Args:
-        color_shift (float, float): variance range for color hue change.
-            Measured as a fraction of 360 degree Hue angle in HLS colorspace.
-        intensity ((float, float): Multiplicative factor that control strength
-            of color and luminace noise.
-        p (float): probability of applying the transform. Default: 0.5.
+        color_shift (tuple[float, float]): Range for changing color hue.
+            Values should be in the range [0, 1], where 1 represents a full 360° hue rotation.
+            Default: (0.01, 0.05)
+
+        intensity (tuple[float, float]): Range for the noise intensity.
+            Higher values increase the strength of both color and luminance noise.
+            Default: (0.1, 0.5)
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
@@ -1835,22 +1950,33 @@ class ISONoise(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Raises:
-        TypeError: If the input image is not RGB.
+    Number of channels:
+        3
 
+    Note:
+        - This transform only works with RGB images. It will raise a TypeError if applied to
+          non-RGB images.
+        - The color shift is applied in the HSV color space, affecting the hue channel.
+        - Luminance noise is added to all channels independently.
+        - This transform can be useful for data augmentation in low-light scenarios or when
+          training models to be robust against noisy inputs.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1, 0.5), p=0.5)
+        >>> result = transform(image=image)
+        >>> noisy_image = result["image"]
+
+    References:
+        - ISO noise in digital photography:
+          https://en.wikipedia.org/wiki/Image_noise#In_digital_cameras
     """
 
     class InitSchema(BaseTransformInitSchema):
-        color_shift: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
-            default=(0.01, 0.05),
-            description=(
-                "Variance range for color hue change. Measured as a fraction of 360 degree Hue angle in HLS colorspace."
-            ),
-        )
-        intensity: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = Field(
-            default=(0.1, 0.5),
-            description="Multiplicative factor that control strength of color and luminance noise.",
-        )
+        color_shift: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
+        intensity: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
 
     def __init__(
         self,
@@ -1871,12 +1997,15 @@ class ISONoise(ImageOnlyTransform):
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
+        if not is_rgb_image(img):
+            msg = "Image must be RGB"
+            raise TypeError(msg)
         return fmain.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         return {
-            "color_shift": random.uniform(self.color_shift[0], self.color_shift[1]),
-            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
+            "color_shift": random.uniform(*self.color_shift),
+            "intensity": random.uniform(*self.intensity),
             "random_seed": random_utils.get_random_seed(),
         }
 
@@ -2001,6 +2130,9 @@ class InvertImg(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
+    Number of channels:
+        Any
 
     """
 
@@ -2552,40 +2684,66 @@ class Lambda(NoOp):
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
-    """Multiply image by a random number or array of numbers.
+    """Apply multiplicative noise to the input image.
+
+    This transform multiplies each pixel in the image by a random value or array of values,
+    effectively creating a noise pattern that scales with the image intensity.
 
     Args:
-        multiplier: If a single float, the image will be multiplied by this number.
-            If a tuple of floats, the multiplier will be a random number in the range `[multiplier[0], multiplier[1])`.
-            Default: (0.9, 1.1).
-        elementwise: If `False`, multiply all pixels in the image by a single random value sampled once.
-            If `True`, multiply image pixels by values that are pixelwise randomly sampled. Default: False.
-        p: Probability of applying the transform. Default: 0.5.
+        multiplier (tuple[float, float]): The range for the random multiplier.
+            Defines the range from which the multiplier is sampled.
+            Default: (0.9, 1.1)
+
+        per_channel (bool): If True, use a different random multiplier for each channel.
+            If False, use the same multiplier for all channels.
+            Setting this to False is slightly faster.
+            Default: False
+
+        elementwise (bool): If True, generates a unique multiplier for each pixel.
+            If False, generates a single multiplier (or one per channel if per_channel=True).
+            Default: False
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
 
     Image types:
-        uint8, np.float32
+        uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - When elementwise=False and per_channel=False, a single multiplier is applied to the entire image.
+        - When elementwise=False and per_channel=True, each channel gets a different multiplier.
+        - When elementwise=True and per_channel=False, each pixel gets the same multiplier across all channels.
+        - When elementwise=True and per_channel=True, each pixel in each channel gets a unique multiplier.
+        - Setting per_channel=False is slightly faster, especially for larger images.
+        - This transform can be used to simulate various lighting conditions or to create noise that
+          scales with image intensity.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.MultiplicativeNoise(multiplier=(0.9, 1.1), per_channel=True, p=1.0)
+        >>> result = transform(image=image)
+        >>> noisy_image = result["image"]
+
+    References:
+        - Multiplicative noise: https://en.wikipedia.org/wiki/Multiplicative_noise
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (
-            0.9,
-            1.1,
-        )
-        per_channel: bool | None = Field(
-            default=False,
-            description="Apply multiplier per channel.",
-            deprecated="Does not have any effect. Will be removed in future releases.",
-        )
-        elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
+        multiplier: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
+        per_channel: bool
+        elementwise: bool
 
     def __init__(
         self,
         multiplier: ScaleFloatType = (0.9, 1.1),
-        per_channel: bool | None = None,
+        per_channel: bool = False,
         elementwise: bool = False,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -2593,6 +2751,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
         self.multiplier = cast(Tuple[float, float], multiplier)
         self.elementwise = elementwise
+        self.per_channel = per_channel
 
     def apply(
         self,
@@ -2603,18 +2762,31 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return multiply(img, multiplier)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        if self.multiplier[0] == self.multiplier[1]:
-            return {"multiplier": self.multiplier[0]}
-
         img = data["image"] if "image" in data else data["images"][0]
-        shape = img.shape if self.elementwise else get_num_channels(img)
+        num_channels = get_num_channels(img)
+
+        if self.elementwise:
+            shape = img.shape if self.per_channel else (*img.shape[:2], 1)
+        else:
+            shape = (num_channels,) if self.per_channel else (1,)
 
         multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
+        if not self.per_channel and num_channels > 1:
+            # Replicate the multiplier for all channels if not per_channel
+            multiplier = np.repeat(multiplier, num_channels, axis=-1)
+
+        if not self.elementwise and self.per_channel:
+            # Reshape to broadcast correctly when not elementwise but per_channel
+            multiplier = multiplier.reshape(1, 1, -1)
+
+        if multiplier.shape != img.shape:
+            multiplier = multiplier.squeeze()
+
         return {"multiplier": multiplier}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "multiplier", "elementwise"
+    def get_transform_init_args_names(self) -> tuple[str, str, str]:
+        return "multiplier", "elementwise", "per_channel"
 
 
 class FancyPCA(ImageOnlyTransform):
