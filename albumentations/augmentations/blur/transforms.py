@@ -137,6 +137,9 @@ class MotionBlur(Blur):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
     Note:
         - The blur kernel is always a straight line, simulating linear motion.
         - The angle of the motion blur is randomly chosen for each application.

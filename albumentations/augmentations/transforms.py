@@ -1425,6 +1425,9 @@ class HueSaturationValue(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        3
+
     Note:
         - The transform first converts the input RGB image to the HSV color space.
         - Each channel (Hue, Saturation, Value) is adjusted independently.
