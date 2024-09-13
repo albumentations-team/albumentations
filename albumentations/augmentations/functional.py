@@ -184,6 +184,7 @@ def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
     return result_img
 
 
+@clipped
 @preserve_channel_dim
 def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """Reduce the number of bits for each color channel.
@@ -198,9 +199,11 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """
     bits_array = np.uint8(bits)
 
-    if img.dtype != np.uint8:
-        msg = "Image must have uint8 channel type"
-        raise TypeError(msg)
+    original_dtype = img.dtype
+
+    if original_dtype != np.uint8:
+        img = from_float(img, dtype=np.uint8)
+
     if np.any((bits_array < 0) | (bits_array > EIGHT)):
         msg = "bits must be in range [0, 8]"
         raise ValueError(msg)
@@ -234,7 +237,7 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
 
             result_img[..., i] = cv2.LUT(img[..., i], lut)
 
-    return result_img
+    return to_float(result_img) if original_dtype == np.float32 else result_img
 
 
 def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:

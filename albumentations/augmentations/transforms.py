@@ -1529,27 +1529,77 @@ class Solarize(ImageOnlyTransform):
 
 
 class Posterize(ImageOnlyTransform):
-    """Reduce the number of bits for each color channel.
+    """Reduces the number of bits for each color channel in the image.
+
+    This transform applies color posterization, a technique that reduces the number of distinct
+    colors used in an image. It works by lowering the number of bits used to represent each
+    color channel, effectively creating a "poster-like" effect with fewer color gradations.
 
     Args:
-        num_bits ((int, int) or int,
-                  or list of ints [r, g, b],
-                  or list of ints [[r1, r1], [g1, g2], [b1, b2]]): number of high bits.
-            If num_bits is a single value, the range will be [num_bits, num_bits].
-            Must be in range [0, 8]. Default: 4.
-        p: probability of applying the transform. Default: 0.5.
+        num_bits (int | tuple[int, int] | list[int] | list[tuple[int, int]]):
+            Defines the number of bits to keep for each color channel. Can be specified in several ways:
+            - Single int: Same number of bits for all channels. Range: [0, 8].
+            - Tuple of two ints: (min_bits, max_bits) to randomly choose from. Range for each: [0, 8].
+            - List of three ints: Specific number of bits for each channel [r_bits, g_bits, b_bits].
+            - List of three tuples: Ranges for each channel [(r_min, r_max), (g_min, g_max), (b_min, b_max)].
+            Default: 4
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-    image
+        image
 
     Image types:
-        uint8
+        uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The effect becomes more pronounced as the number of bits is reduced.
+        - Using 0 bits for a channel will reduce it to a single color (usually black).
+        - Using 8 bits leaves the channel unchanged.
+        - This transform can create interesting artistic effects or be used for image compression simulation.
+        - Posterization is particularly useful for:
+          * Creating stylized or retro-looking images
+          * Reducing the color palette for specific artistic effects
+          * Simulating the look of older or lower-quality digital images
+          * Data augmentation in scenarios where color depth might vary
+
+    Mathematical Background:
+        For an 8-bit color channel, posterization to n bits can be expressed as:
+        new_value = (old_value >> (8 - n)) << (8 - n)
+        This operation keeps the n most significant bits and sets the rest to zero.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Posterize all channels to 3 bits
+        >>> transform = A.Posterize(num_bits=3, p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+        # Randomly posterize between 2 and 5 bits
+        >>> transform = A.Posterize(num_bits=(2, 5), p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+        # Different bits for each channel
+        >>> transform = A.Posterize(num_bits=[3, 5, 2], p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+        # Range of bits for each channel
+        >>> transform = A.Posterize(num_bits=[(1, 3), (3, 5), (2, 4)], p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+    References:
+        - Color Quantization: https://en.wikipedia.org/wiki/Color_quantization
+        - Posterization: https://en.wikipedia.org/wiki/Posterization
     """
 
     class InitSchema(BaseTransformInitSchema):
         num_bits: Annotated[
-            int | tuple[int, int] | tuple[int, int, int],
+            int | tuple[int, int] | list[tuple[int, int]],
             Field(default=4, description="Number of high bits"),
         ]
 
@@ -1564,7 +1614,7 @@ class Posterize(ImageOnlyTransform):
 
     def __init__(
         self,
-        num_bits: int | tuple[int, int] | tuple[int, int, int] = 4,
+        num_bits: int | tuple[int, int] | list[tuple[int, int]] = 4,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):

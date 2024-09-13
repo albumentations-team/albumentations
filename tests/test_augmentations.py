@@ -86,7 +86,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
         },
         except_augmentations={
             A.FromFloat,
-            A.Posterize,
         },
     ),
 )
@@ -310,7 +309,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
-            A.Posterize,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
@@ -719,7 +717,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.ToRGB,
             A.ToSepia,
             A.Equalize,
-            A.Posterize,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -890,7 +887,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.ToRGB,
             A.ToSepia,
             A.Equalize,
-            A.Posterize,
             A.FDA,
             A.HistogramMatching,
             A.Spatter,
