@@ -4039,28 +4039,55 @@ PLANKIAN_JITTER_CONST = {
 
 
 class PlanckianJitter(ImageOnlyTransform):
-    r"""Randomly jitter the image illuminant along the Planckian locus.
+    """Applies Planckian Jitter to the input image, simulating color temperature variations in illumination.
 
-    Physics-based color augmentation creates realistic variations in chromaticity, simulating illumination changes
-    in a scene.
+    This transform adjusts the color of an image to mimic the effect of different color temperatures
+    of light sources, based on Planck's law of black body radiation. It can simulate the appearance
+    of an image under various lighting conditions, from warm (reddish) to cool (bluish) color casts.
+
+    PlanckianJitter vs. ColorJitter:
+    PlanckianJitter is fundamentally different from ColorJitter in its approach and use cases:
+    1. Physics-based: PlanckianJitter is grounded in the physics of light, simulating real-world
+       color temperature changes. ColorJitter applies arbitrary color adjustments.
+    2. Natural effects: This transform produces color shifts that correspond to natural lighting
+       variations, making it ideal for outdoor scene simulation or color constancy problems.
+    3. Single parameter: Color changes are controlled by a single, physically meaningful parameter
+       (color temperature), unlike ColorJitter's multiple abstract parameters.
+    4. Correlated changes: Color shifts are correlated across channels in a way that mimics natural
+       light, whereas ColorJitter can make independent channel adjustments.
+
+    When to use PlanckianJitter:
+    - Simulating different times of day or lighting conditions in outdoor scenes
+    - Augmenting data for computer vision tasks that need to be robust to natural lighting changes
+    - Preparing synthetic data to better match real-world lighting variations
+    - Color constancy research or applications
+    - When you need physically plausible color variations rather than arbitrary color changes
+
+    The logic behind PlanckianJitter:
+    As the color temperature increases:
+    1. Lower temperatures (around 3000K) produce warm, reddish tones, simulating sunset or incandescent lighting.
+    2. Mid-range temperatures (around 5500K) correspond to daylight.
+    3. Higher temperatures (above 7000K) result in cool, bluish tones, similar to overcast sky or shade.
+    This progression mimics the natural variation of sunlight throughout the day and in different weather conditions.
 
     Args:
-        mode (Literal["blackbody", "cied"]): The mode of the transformation. `blackbody` simulates blackbody radiation,
-            and `cied` uses the CIED illuminant series.
-        temperature_limit (tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
-            be within `[3000K, 15000K]`. For "cied" mode, the range should be within `[4000K, 15000K]`. Range should
-            include white temperature `6000`
-            Higher temperatures produce cooler (bluish) images. If not defined, it defaults to:
-            - `[3000, 15000]` for `blackbody` mode
-            - `[4000, 15000]` for `cied` mode
-        p (float): Probability of applying the transform. Defaults to 0.5.
-        sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
-            "uniform" samples uniformly across the range, while "gaussian" samples from a Gaussian distribution.
-        p (float): Probability of applying the transform. Defaults to 0.5.
+        mode (Literal["blackbody", "cied"]): The mode of the transformation.
+            - "blackbody": Simulates blackbody radiation color changes.
+            - "cied": Uses the CIE D illuminant series for color temperature simulation.
+            Default: "blackbody"
 
-    If `temperature_limit` is not defined, it defaults to:
-        - `[3000, 15000]` for `blackbody` mode
-        - `[4000, 15000]` for `cied` mode
+        temperature_range (tuple[int, int] | None): The range of color temperatures (in Kelvin) to sample from.
+            - For "blackbody" mode: Should be within [3000K, 15000K]. Default: (3000, 15000)
+            - For "cied" mode: Should be within [4000K, 15000K]. Default: (4000, 15000)
+            If None, the default ranges will be used based on the selected mode.
+            Higher temperatures produce cooler (bluish) images, lower temperatures produce warmer (reddish) images.
+
+        sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
+            - "uniform": Samples uniformly across the specified range.
+            - "gaussian": Samples from a Gaussian distribution centered at 6500K (approximate daylight).
+            Default: "uniform"
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
@@ -4068,16 +4095,39 @@ class PlanckianJitter(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    References:
-        - https://github.com/TheZino/PlanckianJitter
-        - https://arxiv.org/pdf/2202.07993.pdf
+    Number of channels:
+        Any
 
+    Note:
+        - The transform preserves the overall brightness of the image while shifting its color.
+        - The "blackbody" mode provides a wider range of color shifts, especially in the lower (warmer) temperatures.
+        - The "cied" mode is based on standard illuminants and may provide more realistic daylight variations.
+        - The Gaussian sampling method tends to produce more subtle variations, as it's centered around daylight.
+        - Unlike ColorJitter, this transform ensures that color changes are physically plausible and correlated
+          across channels, maintaining the natural appearance of the scene under different lighting conditions.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> transform = A.PlanckianJitter(mode="blackbody",
+        ...                               temperature_range=(3000, 9000),
+        ...                               sampling_method="uniform",
+        ...                               p=1.0)
+        >>> result = transform(image=image)
+        >>> jittered_image = result["image"]
+
+    References:
+        - Planck's law: https://en.wikipedia.org/wiki/Planck%27s_law
+        - CIE Standard Illuminants: https://en.wikipedia.org/wiki/Standard_illuminant
+        - Color temperature: https://en.wikipedia.org/wiki/Color_temperature
+        - Implementation inspired by: https://github.com/TheZino/PlanckianJitter
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mode: PlanckianJitterMode = "blackbody"
-        temperature_limit: Annotated[tuple[int, int], AfterValidator(nondecreasing)] | None = None
-        sampling_method: Literal["uniform", "gaussian"] = "uniform"
+        mode: PlanckianJitterMode
+        temperature_limit: Annotated[tuple[int, int], AfterValidator(nondecreasing)] | None
+        sampling_method: Literal["uniform", "gaussian"]
 
         @model_validator(mode="after")
         def validate_temperature(self) -> Self:
