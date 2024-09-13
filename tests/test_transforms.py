@@ -1468,6 +1468,11 @@ def test_coarse_dropout_invalid_input(params):
                             },
             A.ZoomBlur: {"max_factor": (1.05, 3)},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1476,7 +1481,6 @@ def test_coarse_dropout_invalid_input(params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
             A.NoOp,
@@ -1546,7 +1550,6 @@ def test_change_image(augmentation_cls, params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
             A.NoOp,
@@ -1565,6 +1568,7 @@ def test_change_image(augmentation_cls, params):
             A.OverlayElements,
             A.FromFloat,
             A.TextImage,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -1711,6 +1715,11 @@ def test_random_snow_invalid_input(params):
                 "fill_value": 0,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.PixelDistributionAdaptation: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1719,7 +1728,6 @@ def test_random_snow_invalid_input(params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
             A.OverlayElements,
@@ -2031,6 +2039,11 @@ def test_rot90(bboxes, angle, keypoints):
                 "fill_value": 0,
             },
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -2039,7 +2052,6 @@ def test_rot90(bboxes, angle, keypoints):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
             A.OverlayElements,

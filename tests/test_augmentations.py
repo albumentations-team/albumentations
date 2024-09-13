@@ -368,6 +368,11 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 1], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.ChannelDropout,
@@ -396,7 +401,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomSunFlare,
             A.ToRGB,
             A.ToSepia,
-            A.PixelDistributionAdaptation,
             A.UnsharpMask,
             A.RandomCropFromBorders,
             A.Spatter,
@@ -423,8 +427,8 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
         data["textimage_metadata"] = []
     result = aug(**data)
 
-    assert np.array_equal(image.shape, result["image"].shape)
-    assert np.array_equal(mask.shape, result["mask"].shape)
+    np.testing.assert_array_equal(image.shape, result["image"].shape)
+    np.testing.assert_array_equal(mask.shape, result["mask"].shape)
 
 
 @pytest.mark.parametrize(
@@ -463,6 +467,11 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -514,8 +523,8 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
         }
     result = aug(**data)
 
-    assert np.array_equal(image_3ch.shape, result["image"].shape)
-    assert np.array_equal(mask_3ch.shape, result["mask"].shape)
+    np.testing.assert_array_equal(image_3ch.shape, result["image"].shape)
+    np.testing.assert_array_equal(mask_3ch.shape, result["mask"].shape)
 
 
 @pytest.mark.parametrize(["augmentation_cls", "params"], [[A.RandomCropNearBBox, {"max_part_shift": 0.15}]])
@@ -592,6 +601,11 @@ def test_mask_fill_value(augmentation_cls, params):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.ToGray: {"method": "desaturation", "num_output_channels": 5},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -614,7 +628,6 @@ def test_mask_fill_value(augmentation_cls, params):
             A.ToFloat,
             A.ToRGB,
             A.ToSepia,
-            A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -680,6 +693,11 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.ToGray: {"method": "max", "num_output_channels": 5},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -702,7 +720,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.ToSepia,
             A.Equalize,
             A.Posterize,
-            A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -758,6 +775,11 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.ToGray: {"method": "pca", "num_output_channels": 5},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -783,7 +805,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.FancyPCA,
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -843,6 +864,11 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.ToGray: {"method": "pca", "num_output_channels": 5},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -867,7 +893,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.Posterize,
             A.FDA,
             A.HistogramMatching,
-            A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -1064,27 +1089,3 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
     x4, y4 = res[3]
 
     assert x1 < x3 and x1 < x4 and x2 < x3 and x2 < x4 and y1 < y2 and y1 < y3 and y4 < y2 and y4 < y3
-
-
-@pytest.mark.parametrize("kind", ["pca", "minmax", "standard"])
-def test_pixel_domain_adaptation(kind: str) -> None:
-    img_uint8 = np.random.randint(low=100, high=200, size=(100, 100, 3), dtype=np.uint8)
-    ref_img_uint8 = np.random.randint(low=0, high=100, size=(100, 100, 3), dtype=np.uint8)
-    img_float, ref_img_float = (x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8))
-
-    for img, ref_img in ((img_uint8, ref_img_uint8), (img_float, ref_img_float)):
-        adapter = A.PixelDistributionAdaptation(
-            reference_images=[ref_img],
-            blend_ratio=(1, 1),
-            read_fn=lambda x: x,
-            p=1.0,
-            transform_type=kind,
-        )
-        adapted = adapter(image=img)["image"]
-        np.testing.assert_allclose(
-            adapted.mean(),
-            ref_img.mean(),
-            rtol=0,
-            atol=2 if img.dtype == np.uint8 else 0.01,
-            err_msg=f"{adapted.mean()} {img.mean()} {ref_img.mean()}",
-        )

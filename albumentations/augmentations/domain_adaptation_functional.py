@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import abc
 from copy import deepcopy
+from typing import Literal
 
 import cv2
 import numpy as np
-from albucore.functions import add_weighted, to_float
-from albucore.utils import clip, clipped, preserve_channel_dim
+from albucore.functions import add_weighted, from_float, to_float
+from albucore.utils import clip, clipped, get_num_channels, preserve_channel_dim
 from skimage.exposure import match_histograms
 from typing_extensions import Protocol
 
@@ -116,8 +117,6 @@ class TransformerInterface(Protocol):
 
 
 class DomainAdapter:
-    """Source: https://github.com/arsenyinfo/qudida by Arseny Kravchenko"""
-
     def __init__(
         self,
         transformer: TransformerInterface,
@@ -127,6 +126,7 @@ class DomainAdapter:
         self.color_in, self.color_out = color_conversions
         self.source_transformer = deepcopy(transformer)
         self.target_transformer = transformer
+        self.num_channels = get_num_channels(ref_img)
         self.target_transformer.fit(self.flatten(ref_img))
 
     def to_colorspace(self, img: np.ndarray) -> np.ndarray:
@@ -140,11 +140,13 @@ class DomainAdapter:
     def flatten(self, img: np.ndarray) -> np.ndarray:
         img = self.to_colorspace(img)
         img = to_float(img)
-        return img.reshape(-1, 3)
+        return img.reshape(-1, self.num_channels)
 
     def reconstruct(self, pixels: np.ndarray, height: int, width: int) -> np.ndarray:
         pixels = (np.clip(pixels, 0, 1) * 255).astype("uint8")
-        return self.from_colorspace(pixels.reshape(height, width, 3))
+        if self.num_channels == 1:
+            return self.from_colorspace(pixels.reshape(height, width))
+        return self.from_colorspace(pixels.reshape(height, width, self.num_channels))
 
     @staticmethod
     def _pca_sign(x: np.ndarray) -> np.ndarray:
@@ -155,7 +157,6 @@ class DomainAdapter:
         pixels = self.flatten(image)
         self.source_transformer.fit(pixels)
 
-        # dirty hack to make sure colors are not inverted
         if (
             hasattr(self.target_transformer, "components_")
             and hasattr(self.source_transformer, "components_")
@@ -173,13 +174,37 @@ class DomainAdapter:
 def adapt_pixel_distribution(
     img: np.ndarray,
     ref: np.ndarray,
-    transform_type: str = "pca",
-    weight: float = 0.5,
+    transform_type: Literal["pca", "standard", "minmax"],
+    weight: float,
 ) -> np.ndarray:
+    if img.dtype != ref.dtype:
+        raise ValueError("Input image and reference image must have the same dtype.")
+    img_num_channels = get_num_channels(img)
+    ref_num_channels = get_num_channels(ref)
+
+    if img_num_channels != ref_num_channels:
+        raise ValueError("Input image and reference image must have the same number of channels.")
+
+    if img_num_channels == 1:
+        img = np.squeeze(img)
+        ref = np.squeeze(ref)
+
+    if img.shape != ref.shape:
+        ref = cv2.resize(ref, dsize=img.shape[:2], interpolation=cv2.INTER_AREA)
+
+    original_dtype = img.dtype
+
+    if original_dtype == np.float32:
+        img = from_float(img, np.uint8)
+        ref = from_float(ref, np.uint8)
+
     transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
-    result = adapter(img).astype(np.float32)
-    return img.astype(np.float32) * (1 - weight) + result * weight
+    transformed = adapter(img).astype(np.float32)
+
+    result = img.astype(np.float32) * (1 - weight) + transformed * weight
+
+    return result if original_dtype == np.uint8 else to_float(result)
 
 
 def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np.ndarray:
