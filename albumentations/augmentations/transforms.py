@@ -2365,18 +2365,22 @@ class InvertImg(ImageOnlyTransform):
 
 
 class RandomGamma(ImageOnlyTransform):
-    """Applies random gamma correction to an image as a form of data augmentation.
+    """Applies random gamma correction to the input image.
 
-    This class adjusts the luminance of an image by applying gamma correction with a randomly
-    selected gamma value from a specified range. Gamma correction can simulate various lighting
-    conditions, potentially enhancing model generalization.
+    Gamma correction, or simply gamma, is a nonlinear operation used to encode and decode luminance
+    or tristimulus values in imaging systems. This transform can adjust the brightness of an image
+    while preserving the relative differences between darker and lighter areas, making it useful
+    for simulating different lighting conditions or correcting for display characteristics.
 
-    Attributes:
-        gamma_limit (Union[int, tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
-            int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
-            to adjust the image's gamma. Default is (80, 120).
-        always_apply: Depreciated. Use `p=1` instead.
-        p (float): The probability that the transform will be applied. Default is 0.5.
+    Args:
+        gamma_limit (float | tuple[float, float]): If gamma_limit is a single float value, the range
+            will be (1, gamma_limit). If it's a tuple of two floats, they will serve as
+            the lower and upper bounds for gamma adjustment. Values are in terms of percentage change,
+            e.g., (80, 120) means the gamma will be between 80% and 120% of the original.
+            Default: (80, 120).
+        eps: A small value added to the gamma to avoid division by zero or log of zero errors.
+            Default: 1e-7.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -2384,13 +2388,55 @@ class RandomGamma(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-         https://en.wikipedia.org/wiki/Gamma_correction
+    Number of channels:
+        Any
 
+    Note:
+        - The gamma correction is applied using the formula: output = input^gamma
+        - Gamma values > 1 will make the image darker, while values < 1 will make it brighter
+        - This transform is particularly useful for:
+          * Simulating different lighting conditions
+          * Correcting for non-linear display characteristics
+          * Enhancing contrast in certain regions of the image
+          * Data augmentation in computer vision tasks
+
+    Mathematical Formulation:
+        Let I be the input image and G (gamma) be the correction factor.
+        The gamma correction is applied as follows:
+        1. Normalize the image to [0, 1] range: I_norm = I / 255 (for uint8 images)
+        2. Apply gamma correction: I_corrected = I_norm ^ (1 / G)
+        3. Scale back to original range: output = I_corrected * 255 (for uint8 images)
+
+        The actual gamma value used is calculated as:
+        G = 1 + (random_value / 100), where random_value is sampled from gamma_limit range.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomGamma(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom gamma range
+        >>> transform = A.RandomGamma(gamma_limit=(50, 150), p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Applying with other transforms
+        >>> transform = A.Compose([
+        ...     A.RandomGamma(gamma_limit=(80, 120), p=0.5),
+        ...     A.RandomBrightnessContrast(p=0.5),
+        ... ])
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Gamma correction: https://en.wikipedia.org/wiki/Gamma_correction
+        - Power law (Gamma) encoding: https://www.cambridgeincolour.com/tutorials/gamma-correction.htm
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gamma_limit: OnePlusFloatRangeType = (80, 120)
+        gamma_limit: OnePlusFloatRangeType
 
     def __init__(
         self,
