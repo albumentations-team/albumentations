@@ -555,12 +555,19 @@ class RandomSnow(ImageOnlyTransform):
 
 
 class RandomGravel(ImageOnlyTransform):
-    """Add gravels.
+    """Adds gravel-like artifacts to the input image.
+
+    This transform simulates the appearance of gravel or small stones scattered across
+    specific regions of an image. It's particularly useful for augmenting datasets of
+    road or terrain images, adding realistic texture variations.
 
     Args:
-        gravel_roi: (top-left x, top-left y,
-            bottom-right x, bottom right y). Should be in [0, 1] range
-        number_of_patches: no. of gravel patches required
+        gravel_roi (tuple[float, float, float, float]): Region of interest where gravel
+            will be added, specified as (x_min, y_min, x_max, y_max) in relative coordinates
+            [0, 1]. Default: (0.1, 0.4, 0.9, 0.9).
+        number_of_patches (int): Number of gravel patch regions to generate within the ROI.
+            Each patch will contain multiple gravel particles. Default: 2.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -568,17 +575,60 @@ class RandomGravel(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        3
 
+    Note:
+        - The gravel effect is created by modifying the saturation channel in the HLS color space.
+        - Gravel particles are distributed within randomly generated patches inside the specified ROI.
+        - This transform is particularly useful for:
+          * Augmenting datasets for road condition analysis
+          * Simulating variations in terrain for computer vision tasks
+          * Adding realistic texture to synthetic images of outdoor scenes
+
+    Mathematical Formulation:
+        For each gravel patch:
+        1. A rectangular region is randomly generated within the specified ROI.
+        2. Within this region, multiple gravel particles are placed.
+        3. For each particle:
+           - Random (x, y) coordinates are generated within the patch.
+           - A random radius (r) between 1 and 3 pixels is assigned.
+           - A random saturation value (sat) between 0 and 255 is assigned.
+        4. The saturation channel of the image is modified for each particle:
+           image_hls[y-r:y+r, x-r:x+r, 1] = sat
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomGravel(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom ROI and number of patches
+        >>> transform = A.RandomGravel(
+        ...     gravel_roi=(0.2, 0.2, 0.8, 0.8),
+        ...     number_of_patches=5,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Combining with other transforms
+        >>> transform = A.Compose([
+        ...     A.RandomGravel(p=0.7),
+        ...     A.RandomBrightnessContrast(p=0.5),
+        ... ])
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Road surface textures: https://en.wikipedia.org/wiki/Road_surface
+        - HLS color space: https://en.wikipedia.org/wiki/HSL_and_HSV
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gravel_roi: tuple[float, float, float, float] = Field(
-            default=(0.1, 0.4, 0.9, 0.9),
-            description="Region of interest for gravel placement",
-        )
-        number_of_patches: int = Field(default=2, description="Number of gravel patches", ge=1)
+        gravel_roi: tuple[float, float, float, float]
+        number_of_patches: int = Field(ge=1)
 
         @model_validator(mode="after")
         def validate_gravel_roi(self) -> Self:
@@ -599,71 +649,58 @@ class RandomGravel(ImageOnlyTransform):
         self.number_of_patches = number_of_patches
 
     def generate_gravel_patch(self, rectangular_roi: tuple[int, int, int, int]) -> np.ndarray:
-        x1, y1, x2, y2 = rectangular_roi
-        area = abs((x2 - x1) * (y2 - y1))
+        x_min, y_min, x_max, y_max = rectangular_roi
+        area = abs((x_max - x_min) * (y_max - y_min))
         count = area // 10
         gravels = np.empty([count, 2], dtype=np.int64)
-        gravels[:, 0] = random_utils.randint(x1, x2, count)
-        gravels[:, 1] = random_utils.randint(y1, y2, count)
+        gravels[:, 0] = random_utils.randint(x_min, x_max, count)
+        gravels[:, 1] = random_utils.randint(y_min, y_max, count)
         return gravels
 
     def apply(self, img: np.ndarray, gravels_infos: list[Any], **params: Any) -> np.ndarray:
-        if gravels_infos is None:
-            gravels_infos = []
         return fmain.add_gravel(img, gravels_infos)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
 
-        x_min, y_min, x_max, y_max = self.gravel_roi
-        x_min = int(x_min * width)
-        x_max = int(x_max * width)
-        y_min = int(y_min * height)
-        y_max = int(y_max * height)
+        # Calculate ROI in pixels
+        x_min, y_min, x_max, y_max = (
+            int(coord * dim) for coord, dim in zip(self.gravel_roi, [width, height, width, height])
+        )
 
-        max_height = 200
-        max_width = 30
+        roi_width = x_max - x_min
+        roi_height = y_max - y_min
 
-        rectangular_rois = np.zeros([self.number_of_patches, 4], dtype=np.int64)
-        xx1 = random_utils.randint(x_min + 1, x_max, self.number_of_patches)  # xmax
-        xx2 = random_utils.randint(x_min, xx1)  # xmin
-        yy1 = random_utils.randint(y_min + 1, y_max, self.number_of_patches)  # ymax
-        yy2 = random_utils.randint(y_min, yy1)  # ymin
+        gravels_info = []
 
-        rectangular_rois[:, 0] = xx2
-        rectangular_rois[:, 1] = yy2
-        rectangular_rois[:, 2] = [min(tup) for tup in zip(xx1, xx2 + max_height)]
-        rectangular_rois[:, 3] = [min(tup) for tup in zip(yy1, yy2 + max_width)]
+        for _ in range(self.number_of_patches):
+            # Generate a random rectangular region within the ROI
+            patch_width = random.randint(roi_width // 10, roi_width // 5)
+            patch_height = random.randint(roi_height // 10, roi_height // 5)
 
-        minx = []
-        maxx = []
-        miny = []
-        maxy = []
-        val = []
-        for roi in rectangular_rois:
-            gravels = self.generate_gravel_patch(roi)
-            x = gravels[:, 0]
-            y = gravels[:, 1]
-            r = random_utils.randint(1, 4, len(gravels))
-            sat = random_utils.randint(0, 255, len(gravels))
-            miny.append(np.maximum(y - r, 0))
-            maxy.append(np.minimum(y + r, y))
-            minx.append(np.maximum(x - r, 0))
-            maxx.append(np.minimum(x + r, x))
-            val.append(sat)
+            patch_x = random.randint(x_min, x_max - patch_width)
+            patch_y = random.randint(y_min, y_max - patch_height)
 
-        return {
-            "gravels_infos": np.stack(
-                [
-                    np.concatenate(miny),
-                    np.concatenate(maxy),
-                    np.concatenate(minx),
-                    np.concatenate(maxx),
-                    np.concatenate(val),
-                ],
-                1,
-            ),
-        }
+            # Generate gravel particles within this patch
+            num_particles = (patch_width * patch_height) // 100  # Adjust this divisor to control density
+
+            for _ in range(num_particles):
+                x = random.randint(patch_x, patch_x + patch_width)
+                y = random.randint(patch_y, patch_y + patch_height)
+                r = random.randint(1, 3)
+                sat = random.randint(0, 255)
+
+                gravels_info.append(
+                    [
+                        max(y - r, 0),  # min_y
+                        min(y + r, height - 1),  # max_y
+                        max(x - r, 0),  # min_x
+                        min(x + r, width - 1),  # max_x
+                        sat,  # saturation
+                    ],
+                )
+
+        return {"gravels_infos": np.array(gravels_info, dtype=np.int64)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "gravel_roi", "number_of_patches"
@@ -672,17 +709,21 @@ class RandomGravel(ImageOnlyTransform):
 class RandomRain(ImageOnlyTransform):
     """Adds rain effects to an image.
 
-    Args:
-        slant_range (tuple[int, int]): tuple of type (slant_lower, slant_upper) representing the range for
-            rain slant angle.
-        drop_length (int): Length of the raindrops.
-        drop_width (int): Width of the raindrops.
-        drop_color (tuple[int, int, int]): Color of the rain drops in RGB format.
-        blur_value (int): Blur value for simulating rain effect. Rainy views are blurry.
-        brightness_coefficient (float): Coefficient to adjust the brightness of the image.
-            Rainy days are usually shady. Should be in the range (0, 1].
-        rain_type (Optional[str]): Type of rain to simulate. One of [None, "drizzle", "heavy", "torrential"].
+    This transform simulates rainfall by overlaying semi-transparent streaks onto the image,
+    creating a realistic rain effect. It can be used to augment datasets for computer vision
+    tasks that need to perform well in rainy conditions.
 
+    Args:
+        slant_range (tuple[int, int]): Range for the rain slant angle in degrees.
+            Negative values slant to the left, positive to the right. Default: (-10, 10).
+        drop_length (int): Length of the rain drops in pixels. Default: 20.
+        drop_width (int): Width of the rain drops in pixels. Default: 1.
+        drop_color (tuple[int, int, int]): Color of the rain drops in RGB format. Default: (200, 200, 200).
+        blur_value (int): Blur value for simulating rain effect. Rainy views are typically blurry. Default: 7.
+        brightness_coefficient (float): Coefficient to adjust the brightness of the image.
+            Rainy scenes are usually darker. Should be in the range (0, 1]. Default: 0.7.
+        rain_type (Literal["drizzle", "heavy", "torrential", "default"]): Type of rain to simulate.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -690,35 +731,68 @@ class RandomRain(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        3
 
+    Note:
+        - The rain effect is created by drawing semi-transparent lines on the image.
+        - The slant of the rain can be controlled to simulate wind effects.
+        - Different rain types (drizzle, heavy, torrential) adjust the density and appearance of the rain.
+        - The transform also adjusts image brightness and applies a blur to simulate the visual effects of rain.
+        - This transform is particularly useful for:
+          * Augmenting datasets for autonomous driving in rainy conditions
+          * Testing the robustness of computer vision models to weather effects
+          * Creating realistic rainy scenes for image editing or film production
+
+    Mathematical Formulation:
+        For each raindrop:
+        1. Start position (x1, y1) is randomly generated within the image.
+        2. End position (x2, y2) is calculated based on drop_length and slant:
+           x2 = x1 + drop_length * sin(slant)
+           y2 = y1 + drop_length * cos(slant)
+        3. A line is drawn from (x1, y1) to (x2, y2) with the specified drop_color and drop_width.
+        4. The image is then blurred and its brightness is adjusted.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomRain(p=1.0)
+        >>> rainy_image = transform(image=image)["image"]
+
+        # Custom rain parameters
+        >>> transform = A.RandomRain(
+        ...     slant_range=(-15, 15),
+        ...     drop_length=30,
+        ...     drop_width=2,
+        ...     drop_color=(180, 180, 180),
+        ...     blur_value=5,
+        ...     brightness_coefficient=0.8,
+        ...     p=1.0
+        ... )
+        >>> rainy_image = transform(image=image)["image"]
+
+        # Simulating heavy rain
+        >>> transform = A.RandomRain(rain_type="heavy", p=1.0)
+        >>> heavy_rain_image = transform(image=image)["image"]
+
+    References:
+        - Rain visualization techniques: https://developer.nvidia.com/gpugems/gpugems3/part-iv-image-effects/chapter-27-real-time-rain-rendering
+        - Weather effects in computer vision: https://www.sciencedirect.com/science/article/pii/S1077314220300692
     """
 
     class InitSchema(BaseTransformInitSchema):
-        slant_lower: int | None = Field(
-            default=None,
-            description="Lower bound for rain slant angle",
-        )
-        slant_upper: int | None = Field(
-            default=None,
-            description="Upper bound for rain slant angle",
-        )
-        slant_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)] = Field(
-            default=(-10, 10),
-            description="tuple like (slant_lower, slant_upper) for rain slant angle",
-        )
-        drop_length: int = Field(default=20, description="Length of raindrops", ge=1)
-        drop_width: int = Field(default=1, description="Width of raindrops", ge=1)
-        drop_color: tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
-        blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=1)
-        brightness_coefficient: float = Field(
-            default=0.7,
-            description="Brightness coefficient for rainy effect",
-            gt=0,
-            le=1,
-        )
-        rain_type: RainMode | None = Field(default=None, description="Type of rain to simulate")
+        slant_lower: int | None = Field(default=None)
+        slant_upper: int | None = Field(default=None)
+        slant_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
+        drop_length: int = Field(ge=1)
+        drop_width: int = Field(ge=1)
+        drop_color: tuple[int, int, int]
+        blur_value: int = Field(ge=1)
+        brightness_coefficient: float = Field(gt=0, le=1)
+        rain_type: RainMode
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
@@ -758,7 +832,7 @@ class RandomRain(ImageOnlyTransform):
         drop_color: tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: RainMode | None = None,
+        rain_type: RainMode = "default",
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -779,6 +853,8 @@ class RandomRain(ImageOnlyTransform):
         rain_drops: list[tuple[int, int]],
         **params: Any,
     ) -> np.ndarray:
+        non_rgb_error(img)
+
         return fmain.add_rain(
             img,
             slant,
@@ -812,9 +888,8 @@ class RandomRain(ImageOnlyTransform):
         rain_drops = []
 
         for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = random.randint(slant, width) if slant < 0 else random.randint(0, width - slant)
-
-            y = random.randint(0, height - drop_length)
+            x = random.randint(slant, width) if slant < 0 else random.randint(0, max(width - slant, 0))
+            y = random.randint(0, max(height - drop_length, 0))
 
             rain_drops.append((x, y))
 
@@ -833,11 +908,14 @@ class RandomRain(ImageOnlyTransform):
 
 
 class RandomFog(ImageOnlyTransform):
-    """Simulates fog for the image.
+    """Simulates fog for the image by adding random fog-like artifacts.
+
+    This transform creates a fog effect by generating semi-transparent overlays
+    that mimic the visual characteristics of fog. The fog intensity and distribution
+    can be controlled to create various fog-like conditions.
 
     Args:
-        fog_coef_range (tuple): tuple of bounds on the fog intensity coefficient (fog_coef_lower, fog_coef_upper).
-            Default: (0.3, 1).
+        fog_coef_range (tuple[float, float]): Range for fog intensity coefficient. Should be in [0, 1] range.
         alpha_coef (float): Transparency of the fog circles. Should be in [0, 1] range. Default: 0.08.
         p (float): Probability of applying the transform. Default: 0.5.
 
@@ -847,29 +925,64 @@ class RandomFog(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        Any
+
+    Note:
+        - The fog effect is created by overlaying semi-transparent circles on the image.
+        - Higher fog coefficient values result in denser fog effects.
+        - The fog is typically denser in the center of the image and gradually decreases towards the edges.
+        - This transform is useful for:
+          * Simulating various weather conditions in outdoor scenes
+          * Data augmentation for improving model robustness to foggy conditions
+          * Creating atmospheric effects in image editing
+
+    Mathematical Formulation:
+        For each fog particle:
+        1. A position (x, y) is randomly generated within the image.
+        2. A circle with random radius is drawn at this position.
+        3. The circle's alpha (transparency) is determined by the alpha_coef.
+        4. These circles are overlaid on the original image to create the fog effect.
+
+        The final pixel value is calculated as:
+        output = (1 - alpha) * original_pixel + alpha * fog_color
+
+        where alpha is influenced by the fog_coef and alpha_coef parameters.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomFog(p=1.0)
+        >>> foggy_image = transform(image=image)["image"]
+
+        # Custom fog intensity range
+        >>> transform = A.RandomFog(fog_coef_lower=0.3, fog_coef_upper=0.8, p=1.0)
+        >>> foggy_image = transform(image=image)["image"]
+
+        # Adjust fog transparency
+        >>> transform = A.RandomFog(fog_coef_lower=0.2, fog_coef_upper=0.5, alpha_coef=0.1, p=1.0)
+        >>> foggy_image = transform(image=image)["image"]
+
+    References:
+        - Fog: https://en.wikipedia.org/wiki/Fog
+        - Atmospheric perspective: https://en.wikipedia.org/wiki/Aerial_perspective
     """
 
     class InitSchema(BaseTransformInitSchema):
         fog_coef_lower: float | None = Field(
-            default=None,
-            description="Lower limit for fog intensity coefficient",
             ge=0,
             le=1,
         )
         fog_coef_upper: float | None = Field(
-            default=None,
-            description="Upper limit for fog intensity coefficient",
             ge=0,
             le=1,
         )
-        fog_coef_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
-            0.3,
-            1,
-        )
+        fog_coef_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
 
-        alpha_coef: float = Field(default=0.08, description="Transparency of the fog circles", ge=0, le=1)
+        alpha_coef: float = Field(ge=0, le=1)
 
         @model_validator(mode="after")
         def validate_fog_coefficients(self) -> Self:
@@ -903,35 +1016,61 @@ class RandomFog(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        fog_coef: np.ndarray,
-        haze_list: list[tuple[int, int]],
+        particle_positions: np.ndarray,
+        intensity: float,
+        random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_fog(img, fog_coef, self.alpha_coef, haze_list)
+        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions, np.random.RandomState(random_seed))
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        fog_coef = random.uniform(*self.fog_coef_range)
+        # Select a random fog intensity within the specified range
+        intensity = random.uniform(*self.fog_coef_range)
 
-        height, width = imshape = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
-        hw = max(1, int(width // 3 * fog_coef))
+        image_height, image_width = image_shape
 
-        haze_list = []
-        midx = width // 2 - 2 * hw
-        midy = height // 2 - hw
-        index = 1
+        # Calculate the size of the fog effect region based on image width and fog intensity
+        fog_region_size = max(1, int(image_width // 3 * intensity))
 
-        while midx > -hw or midy > -hw:
-            for _ in range(hw // 10 * index):
-                x = random.randint(midx, width - midx - hw)
-                y = random.randint(midy, height - midy - hw)
-                haze_list.append((x, y))
+        particle_positions = []
 
-            midx -= 3 * hw * width // sum(imshape)
-            midy -= 3 * hw * height // sum(imshape)
-            index += 1
+        # Initialize the central region where fog will be most dense
+        center_x, center_y = (int(x) for x in fmain.center(image_shape))
 
-        return {"haze_list": haze_list, "fog_coef": fog_coef}
+        # Define the initial size of the foggy area
+        current_width = image_width
+        current_height = image_height
+
+        # Define shrink factor for reducing the foggy area each iteration
+        shrink_factor = 0.1
+
+        max_iterations = 10  # Prevent infinite loop
+        iteration = 0
+
+        while current_width > fog_region_size and current_height > fog_region_size and iteration < max_iterations:
+            # Calculate the number of particles for this region
+            area = current_width * current_height
+            particles_in_region = int(area / (fog_region_size * fog_region_size) * intensity * 10)
+
+            for _ in range(particles_in_region):
+                # Generate random positions within the current region
+                x = random.randint(center_x - current_width // 2, center_x + current_width // 2)
+                y = random.randint(center_y - current_height // 2, center_y + current_height // 2)
+                particle_positions.append((x, y))
+
+            # Shrink the region for the next iteration
+            current_width = int(current_width * (1 - shrink_factor))
+            current_height = int(current_height * (1 - shrink_factor))
+
+            iteration += 1
+
+        return {
+            "particle_positions": particle_positions,
+            "intensity": intensity,
+            "random_seed": random_utils.get_random_seed(),
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "fog_coef_range", "alpha_coef"
@@ -1529,27 +1668,77 @@ class Solarize(ImageOnlyTransform):
 
 
 class Posterize(ImageOnlyTransform):
-    """Reduce the number of bits for each color channel.
+    """Reduces the number of bits for each color channel in the image.
+
+    This transform applies color posterization, a technique that reduces the number of distinct
+    colors used in an image. It works by lowering the number of bits used to represent each
+    color channel, effectively creating a "poster-like" effect with fewer color gradations.
 
     Args:
-        num_bits ((int, int) or int,
-                  or list of ints [r, g, b],
-                  or list of ints [[r1, r1], [g1, g2], [b1, b2]]): number of high bits.
-            If num_bits is a single value, the range will be [num_bits, num_bits].
-            Must be in range [0, 8]. Default: 4.
-        p: probability of applying the transform. Default: 0.5.
+        num_bits (int | tuple[int, int] | list[int] | list[tuple[int, int]]):
+            Defines the number of bits to keep for each color channel. Can be specified in several ways:
+            - Single int: Same number of bits for all channels. Range: [0, 8].
+            - Tuple of two ints: (min_bits, max_bits) to randomly choose from. Range for each: [0, 8].
+            - List of three ints: Specific number of bits for each channel [r_bits, g_bits, b_bits].
+            - List of three tuples: Ranges for each channel [(r_min, r_max), (g_min, g_max), (b_min, b_max)].
+            Default: 4
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-    image
+        image
 
     Image types:
-        uint8
+        uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The effect becomes more pronounced as the number of bits is reduced.
+        - Using 0 bits for a channel will reduce it to a single color (usually black).
+        - Using 8 bits leaves the channel unchanged.
+        - This transform can create interesting artistic effects or be used for image compression simulation.
+        - Posterization is particularly useful for:
+          * Creating stylized or retro-looking images
+          * Reducing the color palette for specific artistic effects
+          * Simulating the look of older or lower-quality digital images
+          * Data augmentation in scenarios where color depth might vary
+
+    Mathematical Background:
+        For an 8-bit color channel, posterization to n bits can be expressed as:
+        new_value = (old_value >> (8 - n)) << (8 - n)
+        This operation keeps the n most significant bits and sets the rest to zero.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Posterize all channels to 3 bits
+        >>> transform = A.Posterize(num_bits=3, p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+        # Randomly posterize between 2 and 5 bits
+        >>> transform = A.Posterize(num_bits=(2, 5), p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+        # Different bits for each channel
+        >>> transform = A.Posterize(num_bits=[3, 5, 2], p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+        # Range of bits for each channel
+        >>> transform = A.Posterize(num_bits=[(1, 3), (3, 5), (2, 4)], p=1.0)
+        >>> posterized_image = transform(image=image)["image"]
+
+    References:
+        - Color Quantization: https://en.wikipedia.org/wiki/Color_quantization
+        - Posterization: https://en.wikipedia.org/wiki/Posterization
     """
 
     class InitSchema(BaseTransformInitSchema):
         num_bits: Annotated[
-            int | tuple[int, int] | tuple[int, int, int],
+            int | tuple[int, int] | list[tuple[int, int]],
             Field(default=4, description="Number of high bits"),
         ]
 
@@ -1564,7 +1753,7 @@ class Posterize(ImageOnlyTransform):
 
     def __init__(
         self,
-        num_bits: int | tuple[int, int] | tuple[int, int, int] = 4,
+        num_bits: int | tuple[int, int] | list[tuple[int, int]] = 4,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1707,16 +1896,23 @@ class Equalize(ImageOnlyTransform):
 
 
 class RGBShift(ImageOnlyTransform):
-    """Randomly shift values for each channel of the input RGB image.
+    """Randomly shifts the values of each RGB channel independently.
+
+    This transform adjusts the intensity of the red, green, and blue channels of an image
+    by adding a random value within a specified range to each channel. This can be used to
+    simulate color variations caused by different lighting conditions or camera sensors.
 
     Args:
-        r_shift_limit: range for changing values for the red channel. If r_shift_limit is a single
-            int, the range will be (-r_shift_limit, r_shift_limit). Default: (-20, 20).
-        g_shift_limit: range for changing values for the green channel. If g_shift_limit is a
-            single int, the range  will be (-g_shift_limit, g_shift_limit). Default: (-20, 20).
-        b_shift_limit: range for changing values for the blue channel. If b_shift_limit is a single
-            int, the range will be (-b_shift_limit, b_shift_limit). Default: (-20, 20).
-        p: probability of applying the transform. Default: 0.5.
+        r_shift_limit (float | tuple[float, float]): Range for changing values for the red channel.
+            If r_shift_limit is a single int or float, the range will be (-r_shift_limit, r_shift_limit).
+            Default: (-20, 20).
+        g_shift_limit (float | tuple[float, float]): Range for changing values for the green channel.
+            If g_shift_limit is a single int or float, the range will be (-g_shift_limit, g_shift_limit).
+            Default: (-20, 20).
+        b_shift_limit (float | tuple[float, float]): Range for changing values for the blue channel.
+            If b_shift_limit is a single int or float, the range will be (-b_shift_limit, b_shift_limit).
+            Default: (-20, 20).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1724,12 +1920,50 @@ class RGBShift(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The shift values are sampled independently for each channel.
+        - Positive shifts increase the intensity of a color channel, while negative shifts decrease it.
+        - For uint8 images, the resulting pixel values are clipped to the [0, 255] range.
+        - For float32 images, the values are typically in the [0, 1] range but may exceed it after shifting.
+        - This transform can be used to:
+          * Simulate variations in color balance
+          * Create subtle color casts
+          * Augment data for improving model robustness to color variations
+
+    Mathematical formula:
+        For each channel c in [r, g, b]:
+        output_c = input_c + shift_c
+        where shift_c is randomly sampled from the corresponding shift_limit range.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RGBShift(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom shift ranges for each channel
+        >>> transform = A.RGBShift(r_shift_limit=30, g_shift_limit=(-20, 20), b_shift_limit=(-10, 10), p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Using float values for more precise control
+        >>> transform = A.RGBShift(r_shift_limit=(-0.1, 0.1), g_shift_limit=0.2, b_shift_limit=(-0.3, 0.3), p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Color balance: https://en.wikipedia.org/wiki/Color_balance
+        - Color cast: https://en.wikipedia.org/wiki/Color_cast
     """
 
     class InitSchema(BaseTransformInitSchema):
-        r_shift_limit: SymmetricRangeType = (-20, 20)
-        g_shift_limit: SymmetricRangeType = (-20, 20)
-        b_shift_limit: SymmetricRangeType = (-20, 20)
+        r_shift_limit: SymmetricRangeType
+        g_shift_limit: SymmetricRangeType
+        b_shift_limit: SymmetricRangeType
 
     def __init__(
         self,
@@ -1767,16 +2001,30 @@ class RGBShift(ImageOnlyTransform):
 
 
 class RandomBrightnessContrast(ImageOnlyTransform):
-    """Randomly change brightness and contrast of the input image.
+    """Randomly changes the brightness and contrast of the input image.
+
+    This transform adjusts the brightness and contrast of an image simultaneously, allowing for
+    a wide range of lighting and contrast variations. It's particularly useful for data augmentation
+    in computer vision tasks, helping models become more robust to different lighting conditions.
 
     Args:
-        brightness_limit: factor range for changing brightness.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        contrast_limit: factor range for changing contrast.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        brightness_by_max: If True adjust contrast by image dtype maximum,
-            else adjust contrast by image mean.
-        p: probability of applying the transform. Default: 0.5.
+        brightness_limit (float | tuple[float, float]): Factor range for changing brightness.
+            If a single float value is provided, the range will be (-brightness_limit, brightness_limit).
+            Values should typically be in the range [-1.0, 1.0], where 0 means no change,
+            1.0 means maximum brightness, and -1.0 means minimum brightness.
+            Default: (-0.2, 0.2).
+
+        contrast_limit (float | tuple[float, float]): Factor range for changing contrast.
+            If a single float value is provided, the range will be (-contrast_limit, contrast_limit).
+            Values should typically be in the range [-1.0, 1.0], where 0 means no change,
+            1.0 means maximum increase in contrast, and -1.0 means maximum decrease in contrast.
+            Default: (-0.2, 0.2).
+
+        brightness_by_max (bool): If True, adjusts brightness by scaling pixel values up to the
+            maximum value of the image's dtype. If False, uses the mean pixel value for adjustment.
+            Default: True.
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1784,12 +2032,65 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
+    Note:
+        - The order of operation is: contrast adjustment, then brightness adjustment.
+        - For uint8 images, the output is clipped to [0, 255] range.
+        - For float32 images, the output may exceed the [0, 1] range.
+        - The `brightness_by_max` parameter affects how brightness is adjusted:
+          * If True, brightness adjustment is more pronounced and can lead to more saturated results.
+          * If False, brightness adjustment is more subtle and preserves the overall lighting better.
+        - This transform is useful for:
+          * Simulating different lighting conditions
+          * Enhancing low-light or overexposed images
+          * Data augmentation to improve model robustness
+
+    Mathematical Formulation:
+        Let a be the contrast adjustment factor and β be the brightness adjustment factor.
+        For each pixel value x:
+        1. Contrast adjustment: x' = clip((x - mean) * (1 + a) + mean)
+        2. Brightness adjustment:
+           If brightness_by_max is True:  x'' = clip(x' * (1 + β))
+           If brightness_by_max is False: x'' = clip(x' + β * max_value)
+        Where clip() ensures values stay within the valid range for the image dtype.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomBrightnessContrast(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom brightness and contrast limits
+        >>> transform = A.RandomBrightnessContrast(
+        ...     brightness_limit=0.3,
+        ...     contrast_limit=0.3,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Adjust brightness based on mean value
+        >>> transform = A.RandomBrightnessContrast(
+        ...     brightness_limit=0.2,
+        ...     contrast_limit=0.2,
+        ...     brightness_by_max=False,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Brightness: https://en.wikipedia.org/wiki/Brightness
+        - Contrast: https://en.wikipedia.org/wiki/Contrast_(vision)
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness_limit: SymmetricRangeType = (-0.2, 0.2)
-        contrast_limit: SymmetricRangeType = (-0.2, 0.2)
-        brightness_by_max: bool = Field(default=True, description="Adjust brightness by image dtype maximum if True.")
+        brightness_limit: SymmetricRangeType
+        contrast_limit: SymmetricRangeType
+        brightness_by_max: bool
 
     def __init__(
         self,
@@ -1814,7 +2115,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return ("brightness_limit", "contrast_limit", "brightness_by_max")
+        return "brightness_limit", "contrast_limit", "brightness_by_max"
 
 
 class GaussNoise(ImageOnlyTransform):
@@ -1997,9 +2298,7 @@ class ISONoise(ImageOnlyTransform):
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        if not is_rgb_image(img):
-            msg = "Image must be RGB"
-            raise TypeError(msg)
+        non_rgb_error(img)
         return fmain.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -2144,18 +2443,22 @@ class InvertImg(ImageOnlyTransform):
 
 
 class RandomGamma(ImageOnlyTransform):
-    """Applies random gamma correction to an image as a form of data augmentation.
+    """Applies random gamma correction to the input image.
 
-    This class adjusts the luminance of an image by applying gamma correction with a randomly
-    selected gamma value from a specified range. Gamma correction can simulate various lighting
-    conditions, potentially enhancing model generalization.
+    Gamma correction, or simply gamma, is a nonlinear operation used to encode and decode luminance
+    or tristimulus values in imaging systems. This transform can adjust the brightness of an image
+    while preserving the relative differences between darker and lighter areas, making it useful
+    for simulating different lighting conditions or correcting for display characteristics.
 
-    Attributes:
-        gamma_limit (Union[int, tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
-            int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
-            to adjust the image's gamma. Default is (80, 120).
-        always_apply: Depreciated. Use `p=1` instead.
-        p (float): The probability that the transform will be applied. Default is 0.5.
+    Args:
+        gamma_limit (float | tuple[float, float]): If gamma_limit is a single float value, the range
+            will be (1, gamma_limit). If it's a tuple of two floats, they will serve as
+            the lower and upper bounds for gamma adjustment. Values are in terms of percentage change,
+            e.g., (80, 120) means the gamma will be between 80% and 120% of the original.
+            Default: (80, 120).
+        eps: A small value added to the gamma to avoid division by zero or log of zero errors.
+            Default: 1e-7.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -2163,13 +2466,55 @@ class RandomGamma(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-         https://en.wikipedia.org/wiki/Gamma_correction
+    Number of channels:
+        Any
 
+    Note:
+        - The gamma correction is applied using the formula: output = input^gamma
+        - Gamma values > 1 will make the image darker, while values < 1 will make it brighter
+        - This transform is particularly useful for:
+          * Simulating different lighting conditions
+          * Correcting for non-linear display characteristics
+          * Enhancing contrast in certain regions of the image
+          * Data augmentation in computer vision tasks
+
+    Mathematical Formulation:
+        Let I be the input image and G (gamma) be the correction factor.
+        The gamma correction is applied as follows:
+        1. Normalize the image to [0, 1] range: I_norm = I / 255 (for uint8 images)
+        2. Apply gamma correction: I_corrected = I_norm ^ (1 / G)
+        3. Scale back to original range: output = I_corrected * 255 (for uint8 images)
+
+        The actual gamma value used is calculated as:
+        G = 1 + (random_value / 100), where random_value is sampled from gamma_limit range.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomGamma(p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Custom gamma range
+        >>> transform = A.RandomGamma(gamma_limit=(50, 150), p=1.0)
+        >>> augmented_image = transform(image=image)["image"]
+
+        # Applying with other transforms
+        >>> transform = A.Compose([
+        ...     A.RandomGamma(gamma_limit=(80, 120), p=0.5),
+        ...     A.RandomBrightnessContrast(p=0.5),
+        ... ])
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Gamma correction: https://en.wikipedia.org/wiki/Gamma_correction
+        - Power law (Gamma) encoding: https://www.cambridgeincolour.com/tutorials/gamma-correction.htm
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gamma_limit: OnePlusFloatRangeType = (80, 120)
+        gamma_limit: OnePlusFloatRangeType
 
     def __init__(
         self,
@@ -4039,28 +4384,55 @@ PLANKIAN_JITTER_CONST = {
 
 
 class PlanckianJitter(ImageOnlyTransform):
-    r"""Randomly jitter the image illuminant along the Planckian locus.
+    """Applies Planckian Jitter to the input image, simulating color temperature variations in illumination.
 
-    Physics-based color augmentation creates realistic variations in chromaticity, simulating illumination changes
-    in a scene.
+    This transform adjusts the color of an image to mimic the effect of different color temperatures
+    of light sources, based on Planck's law of black body radiation. It can simulate the appearance
+    of an image under various lighting conditions, from warm (reddish) to cool (bluish) color casts.
+
+    PlanckianJitter vs. ColorJitter:
+    PlanckianJitter is fundamentally different from ColorJitter in its approach and use cases:
+    1. Physics-based: PlanckianJitter is grounded in the physics of light, simulating real-world
+       color temperature changes. ColorJitter applies arbitrary color adjustments.
+    2. Natural effects: This transform produces color shifts that correspond to natural lighting
+       variations, making it ideal for outdoor scene simulation or color constancy problems.
+    3. Single parameter: Color changes are controlled by a single, physically meaningful parameter
+       (color temperature), unlike ColorJitter's multiple abstract parameters.
+    4. Correlated changes: Color shifts are correlated across channels in a way that mimics natural
+       light, whereas ColorJitter can make independent channel adjustments.
+
+    When to use PlanckianJitter:
+    - Simulating different times of day or lighting conditions in outdoor scenes
+    - Augmenting data for computer vision tasks that need to be robust to natural lighting changes
+    - Preparing synthetic data to better match real-world lighting variations
+    - Color constancy research or applications
+    - When you need physically plausible color variations rather than arbitrary color changes
+
+    The logic behind PlanckianJitter:
+    As the color temperature increases:
+    1. Lower temperatures (around 3000K) produce warm, reddish tones, simulating sunset or incandescent lighting.
+    2. Mid-range temperatures (around 5500K) correspond to daylight.
+    3. Higher temperatures (above 7000K) result in cool, bluish tones, similar to overcast sky or shade.
+    This progression mimics the natural variation of sunlight throughout the day and in different weather conditions.
 
     Args:
-        mode (Literal["blackbody", "cied"]): The mode of the transformation. `blackbody` simulates blackbody radiation,
-            and `cied` uses the CIED illuminant series.
-        temperature_limit (tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
-            be within `[3000K, 15000K]`. For "cied" mode, the range should be within `[4000K, 15000K]`. Range should
-            include white temperature `6000`
-            Higher temperatures produce cooler (bluish) images. If not defined, it defaults to:
-            - `[3000, 15000]` for `blackbody` mode
-            - `[4000, 15000]` for `cied` mode
-        p (float): Probability of applying the transform. Defaults to 0.5.
-        sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
-            "uniform" samples uniformly across the range, while "gaussian" samples from a Gaussian distribution.
-        p (float): Probability of applying the transform. Defaults to 0.5.
+        mode (Literal["blackbody", "cied"]): The mode of the transformation.
+            - "blackbody": Simulates blackbody radiation color changes.
+            - "cied": Uses the CIE D illuminant series for color temperature simulation.
+            Default: "blackbody"
 
-    If `temperature_limit` is not defined, it defaults to:
-        - `[3000, 15000]` for `blackbody` mode
-        - `[4000, 15000]` for `cied` mode
+        temperature_range (tuple[int, int] | None): The range of color temperatures (in Kelvin) to sample from.
+            - For "blackbody" mode: Should be within [3000K, 15000K]. Default: (3000, 15000)
+            - For "cied" mode: Should be within [4000K, 15000K]. Default: (4000, 15000)
+            If None, the default ranges will be used based on the selected mode.
+            Higher temperatures produce cooler (bluish) images, lower temperatures produce warmer (reddish) images.
+
+        sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
+            - "uniform": Samples uniformly across the specified range.
+            - "gaussian": Samples from a Gaussian distribution centered at 6500K (approximate daylight).
+            Default: "uniform"
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
@@ -4068,16 +4440,39 @@ class PlanckianJitter(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    References:
-        - https://github.com/TheZino/PlanckianJitter
-        - https://arxiv.org/pdf/2202.07993.pdf
+    Number of channels:
+        Any
 
+    Note:
+        - The transform preserves the overall brightness of the image while shifting its color.
+        - The "blackbody" mode provides a wider range of color shifts, especially in the lower (warmer) temperatures.
+        - The "cied" mode is based on standard illuminants and may provide more realistic daylight variations.
+        - The Gaussian sampling method tends to produce more subtle variations, as it's centered around daylight.
+        - Unlike ColorJitter, this transform ensures that color changes are physically plausible and correlated
+          across channels, maintaining the natural appearance of the scene under different lighting conditions.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> transform = A.PlanckianJitter(mode="blackbody",
+        ...                               temperature_range=(3000, 9000),
+        ...                               sampling_method="uniform",
+        ...                               p=1.0)
+        >>> result = transform(image=image)
+        >>> jittered_image = result["image"]
+
+    References:
+        - Planck's law: https://en.wikipedia.org/wiki/Planck%27s_law
+        - CIE Standard Illuminants: https://en.wikipedia.org/wiki/Standard_illuminant
+        - Color temperature: https://en.wikipedia.org/wiki/Color_temperature
+        - Implementation inspired by: https://github.com/TheZino/PlanckianJitter
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mode: PlanckianJitterMode = "blackbody"
-        temperature_limit: Annotated[tuple[int, int], AfterValidator(nondecreasing)] | None = None
-        sampling_method: Literal["uniform", "gaussian"] = "uniform"
+        mode: PlanckianJitterMode
+        temperature_limit: Annotated[tuple[int, int], AfterValidator(nondecreasing)] | None
+        sampling_method: Literal["uniform", "gaussian"]
 
         @model_validator(mode="after")
         def validate_temperature(self) -> Self:

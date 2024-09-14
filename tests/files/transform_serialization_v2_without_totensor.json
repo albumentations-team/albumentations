@@ -337,7 +337,7 @@
                 ],
                 "blur_value": 7,
                 "brightness_coefficient": 0.7,
-                "rain_type": null
+                "rain_type": "default"
             },
             {
                 "__class_fullname__": "RandomRotate90",

@@ -490,18 +490,6 @@ def test_solarize(dtype):
         assert np.max(result_img) <= max_value
 
 
-def test_posterize_checks():
-    img = np.random.random([256, 256, 3])
-    with pytest.raises(TypeError) as exc_info:
-        F.posterize(img, 4)
-    assert str(exc_info.value) == "Image must have uint8 channel type"
-
-    img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
-    with pytest.raises(TypeError) as exc_info:
-        F.posterize(img, [1, 2, 3])
-    assert str(exc_info.value) == "If bits is iterable image must be RGB"
-
-
 @pytest.mark.parametrize(
     "img_shape, img_dtype, mask_shape, by_channels, expected_error, expected_message",
     [

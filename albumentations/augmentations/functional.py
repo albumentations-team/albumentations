@@ -184,6 +184,7 @@ def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
     return result_img
 
 
+@clipped
 @preserve_channel_dim
 def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """Reduce the number of bits for each color channel.
@@ -198,9 +199,11 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """
     bits_array = np.uint8(bits)
 
-    if img.dtype != np.uint8:
-        msg = "Image must have uint8 channel type"
-        raise TypeError(msg)
+    original_dtype = img.dtype
+
+    if original_dtype != np.uint8:
+        img = from_float(img, dtype=np.uint8)
+
     if np.any((bits_array < 0) | (bits_array > EIGHT)):
         msg = "bits must be in range [0, 8]"
         raise ValueError(msg)
@@ -234,7 +237,7 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
 
             result_img[..., i] = cv2.LUT(img[..., i], lut)
 
-    return result_img
+    return to_float(result_img) if original_dtype == np.float32 else result_img
 
 
 def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
@@ -590,16 +593,9 @@ def add_rain(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_error(img)
-
     input_dtype = img.dtype
-    needs_float = False
 
-    if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
-
-    image = img.copy()
+    image = from_float(img, dtype=np.uint8) if input_dtype == np.float32 else img.astype(np.uint8)
 
     for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
@@ -619,59 +615,64 @@ def add_rain(
 
     image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    return to_float(image_rgb) if input_dtype == np.float32 else image_rgb
 
 
+@clipped
 @preserve_channel_dim
-def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: list[tuple[int, int]]) -> np.ndarray:
-    """Add fog to an image using the provided coefficients and haze points.
+def add_fog(
+    img: np.ndarray,
+    fog_intensity: float,
+    alpha_coef: float,
+    fog_particle_positions: list[tuple[int, int]],
+    random_state: np.random.RandomState | None = None,
+) -> np.ndarray:
+    """Add fog to the input image.
 
     Args:
-        img (np.ndarray): The input image, expected to be a numpy array.
-        fog_coef (float): The fog coefficient, used to determine the intensity of the fog.
-        alpha_coef (float): The alpha coefficient, used to determine the transparency of the fog.
-        haze_list (list[tuple[int, int]]): A list of tuples, where each tuple represents the x and y
-            coordinates of a haze point.
-
+        img (np.ndarray): Input image.
+        fog_intensity (float): Intensity of the fog effect, between 0 and 1.
+        alpha_coef (float): Base alpha (transparency) value for fog particles.
+        fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
+        random_state (np.random.RandomState | None): If specified, this will be random state used
     Returns:
-        np.ndarray: The output image with added fog, as a numpy array.
-
-    Raises:
-        ValueError: If the input image's dtype is not uint8 or float32.
-
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+        np.ndarray: Image with added fog effect.
     """
-    non_rgb_error(img)
-
     input_dtype = img.dtype
-    needs_float = False
 
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for RandomFog augmentation")
 
-    width = img.shape[1]
+    height, width = img.shape[:2]
+    num_channels = get_num_channels(img)
 
-    hw = max(int(width // 3 * fog_coef), 10)
+    fog_layer = np.zeros((height, width, num_channels), dtype=np.uint8)
 
-    for haze_points in haze_list:
-        x, y = haze_points
-        overlay = img.copy()
-        output = img.copy()
-        alpha = alpha_coef * fog_coef
-        rad = hw // 2
-        point = (x + hw // 2, y + hw // 2)
-        cv2.circle(overlay, point, int(rad), (255, 255, 255), -1)
-        output = add_weighted(overlay, alpha, output, 1 - alpha)
+    max_fog_radius = int(
+        min(height, width) * 0.1 * fog_intensity,
+    )  # Maximum radius scales with image size and intensity
 
-        img = output.copy()
+    for x, y in fog_particle_positions:
+        radius = random_utils.randint(max_fog_radius // 2, max_fog_radius, random_state=random_state)
+        color = 255 if num_channels == 1 else (255,) * num_channels
+        cv2.circle(
+            fog_layer,
+            center=(x, y),
+            radius=radius,
+            color=color,
+            thickness=-1,
+        )
 
-    image_rgb = cv2.blur(img, (hw // 10, hw // 10))
+    # Apply gaussian blur to the fog layer
+    fog_layer = cv2.GaussianBlur(fog_layer, (25, 25), 0)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    # Blend the fog layer with the original image
+    alpha = np.mean(fog_layer, axis=2, keepdims=True) / 255 * alpha_coef * fog_intensity
+    fog_image = img * (1 - alpha) + fog_layer * alpha
+
+    fog_image = fog_image.astype(np.uint8)
+
+    return to_float(fog_image, max_value=255) if input_dtype == np.float32 else fog_image
 
 
 @preserve_channel_dim
@@ -777,40 +778,24 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
     return img_shadowed
 
 
+@clipped
 @preserve_channel_dim
 def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
-    """Add gravel to the image.
-
-    Args:
-        img (numpy.ndarray): image to add gravel to
-        gravels (list): list of gravel parameters. (float, float, float, float):
-            (top-left x, top-left y, bottom-right x, bottom right y)
-
-    Returns:
-        numpy.ndarray:
-
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-    """
     non_rgb_error(img)
     input_dtype = img.dtype
-    needs_float = False
 
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for AddGravel augmentation")
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     for gravel in gravels:
-        y1, y2, x1, x2, sat = gravel
-        image_hls[x1:x2, y1:y2, 1] = sat
+        min_y, max_y, min_x, max_x, sat = gravel
+        image_hls[min_y:max_y, min_x:max_x, 1] = sat
 
-    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+    image = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    return to_float(image, max_value=255) if input_dtype == np.float32 else image
 
 
 def invert(img: np.ndarray) -> np.ndarray:
