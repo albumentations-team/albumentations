@@ -145,6 +145,7 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 <a href="https://opensource.alibaba.com/" target="_blank"><img src="https://raw.githubusercontent.com/albumentations-team/albumentations.ai/main/html/assets/img/industry/alibaba.png" width="100"/></a>
 <a href="https://opensource.tencent.com/" target="_blank"><img src="https://raw.githubusercontent.com/albumentations-team/albumentations.ai/main/html/assets/img/industry/tencent.png" width="100"/></a>
 <a href="https://h2o.ai/" target="_blank"><img src="https://raw.githubusercontent.com/albumentations-team/albumentations.ai/main/html/assets/img/industry/h2o_ai.png" width="100"/></a>
+<a href="https://devitjobs.com/" target="_blank"><img src="https://static.devitjobs.com/logo-images/devitjobs-com-logo-square.png" width="100"/></a>
 
 ### See also
 
