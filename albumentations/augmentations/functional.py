@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from collections import defaultdict
 from typing import Any, Sequence
 from warnings import warn
@@ -626,6 +625,7 @@ def add_fog(
     fog_intensity: float,
     alpha_coef: float,
     fog_particle_positions: list[tuple[int, int]],
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Add fog to the input image.
 
@@ -634,16 +634,14 @@ def add_fog(
         fog_intensity (float): Intensity of the fog effect, between 0 and 1.
         alpha_coef (float): Base alpha (transparency) value for fog particles.
         fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
-
+        random_state (np.random.RandomState | None): If specified, this will be random state used
     Returns:
         np.ndarray: Image with added fog effect.
     """
     input_dtype = img.dtype
-    needs_float = False
 
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
 
     height, width = img.shape[:2]
     num_channels = get_num_channels(img)
@@ -655,7 +653,7 @@ def add_fog(
     )  # Maximum radius scales with image size and intensity
 
     for x, y in fog_particle_positions:
-        radius = random.randint(max_fog_radius // 2, max_fog_radius)
+        radius = random_utils.randint(max_fog_radius // 2, max_fog_radius, random_state=random_state)
         color = 255 if num_channels == 1 else (255,) * num_channels
         cv2.circle(
             fog_layer,
@@ -674,7 +672,7 @@ def add_fog(
 
     fog_image = fog_image.astype(np.uint8)
 
-    return to_float(fog_image, max_value=255) if needs_float else fog_image
+    return to_float(fog_image, max_value=255) if input_dtype == np.float32 else fog_image
 
 
 @preserve_channel_dim

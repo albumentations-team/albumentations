@@ -1018,9 +1018,10 @@ class RandomFog(ImageOnlyTransform):
         img: np.ndarray,
         particle_positions: np.ndarray,
         intensity: float,
+        random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions)
+        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions, np.random.RandomState(random_seed))
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         # Select a random fog intensity within the specified range
@@ -1065,7 +1066,11 @@ class RandomFog(ImageOnlyTransform):
 
             iteration += 1
 
-        return {"particle_positions": particle_positions, "intensity": intensity}
+        return {
+            "particle_positions": particle_positions,
+            "intensity": intensity,
+            "random_seed": random_utils.get_random_seed(),
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "fog_coef_range", "alpha_coef"
@@ -2293,9 +2298,7 @@ class ISONoise(ImageOnlyTransform):
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        if not is_rgb_image(img):
-            msg = "Image must be RGB"
-            raise TypeError(msg)
+        non_rgb_error(img)
         return fmain.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
