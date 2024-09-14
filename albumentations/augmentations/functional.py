@@ -594,16 +594,9 @@ def add_rain(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_error(img)
-
     input_dtype = img.dtype
-    needs_float = False
 
-    if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
-
-    image = img.copy()
+    image = from_float(img, dtype=np.uint8) if input_dtype == np.float32 else img.astype(np.uint8)
 
     for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
@@ -623,7 +616,7 @@ def add_rain(
 
     image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    return to_float(image_rgb) if input_dtype == np.float32 else image_rgb
 
 
 @clipped

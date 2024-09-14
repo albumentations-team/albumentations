@@ -391,8 +391,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.SmallestMaxSize,
             A.PadIfNeeded,
             A.RGBShift,
-            A.RandomGravel,
-            A.RandomRain,
             A.RandomScale,
             A.RandomSnow,
             A.RandomSunFlare,
@@ -402,7 +400,9 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomCropFromBorders,
             A.Spatter,
             A.ChromaticAberration,
-            A.PlanckianJitter
+            A.PlanckianJitter,
+            A.RandomRain,
+            A.RandomGravel,
         },
     ),
 )

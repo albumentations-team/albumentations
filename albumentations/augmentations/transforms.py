@@ -709,17 +709,21 @@ class RandomGravel(ImageOnlyTransform):
 class RandomRain(ImageOnlyTransform):
     """Adds rain effects to an image.
 
-    Args:
-        slant_range (tuple[int, int]): tuple of type (slant_lower, slant_upper) representing the range for
-            rain slant angle.
-        drop_length (int): Length of the raindrops.
-        drop_width (int): Width of the raindrops.
-        drop_color (tuple[int, int, int]): Color of the rain drops in RGB format.
-        blur_value (int): Blur value for simulating rain effect. Rainy views are blurry.
-        brightness_coefficient (float): Coefficient to adjust the brightness of the image.
-            Rainy days are usually shady. Should be in the range (0, 1].
-        rain_type (Optional[str]): Type of rain to simulate. One of [None, "drizzle", "heavy", "torrential"].
+    This transform simulates rainfall by overlaying semi-transparent streaks onto the image,
+    creating a realistic rain effect. It can be used to augment datasets for computer vision
+    tasks that need to perform well in rainy conditions.
 
+    Args:
+        slant_range (tuple[int, int]): Range for the rain slant angle in degrees.
+            Negative values slant to the left, positive to the right. Default: (-10, 10).
+        drop_length (int): Length of the rain drops in pixels. Default: 20.
+        drop_width (int): Width of the rain drops in pixels. Default: 1.
+        drop_color (tuple[int, int, int]): Color of the rain drops in RGB format. Default: (200, 200, 200).
+        blur_value (int): Blur value for simulating rain effect. Rainy views are typically blurry. Default: 7.
+        brightness_coefficient (float): Coefficient to adjust the brightness of the image.
+            Rainy scenes are usually darker. Should be in the range (0, 1]. Default: 0.7.
+        rain_type (Literal["drizzle", "heavy", "torrential", "default"]): Type of rain to simulate.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -727,35 +731,68 @@ class RandomRain(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        3
 
+    Note:
+        - The rain effect is created by drawing semi-transparent lines on the image.
+        - The slant of the rain can be controlled to simulate wind effects.
+        - Different rain types (drizzle, heavy, torrential) adjust the density and appearance of the rain.
+        - The transform also adjusts image brightness and applies a blur to simulate the visual effects of rain.
+        - This transform is particularly useful for:
+          * Augmenting datasets for autonomous driving in rainy conditions
+          * Testing the robustness of computer vision models to weather effects
+          * Creating realistic rainy scenes for image editing or film production
+
+    Mathematical Formulation:
+        For each raindrop:
+        1. Start position (x1, y1) is randomly generated within the image.
+        2. End position (x2, y2) is calculated based on drop_length and slant:
+           x2 = x1 + drop_length * sin(slant)
+           y2 = y1 + drop_length * cos(slant)
+        3. A line is drawn from (x1, y1) to (x2, y2) with the specified drop_color and drop_width.
+        4. The image is then blurred and its brightness is adjusted.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomRain(p=1.0)
+        >>> rainy_image = transform(image=image)["image"]
+
+        # Custom rain parameters
+        >>> transform = A.RandomRain(
+        ...     slant_range=(-15, 15),
+        ...     drop_length=30,
+        ...     drop_width=2,
+        ...     drop_color=(180, 180, 180),
+        ...     blur_value=5,
+        ...     brightness_coefficient=0.8,
+        ...     p=1.0
+        ... )
+        >>> rainy_image = transform(image=image)["image"]
+
+        # Simulating heavy rain
+        >>> transform = A.RandomRain(rain_type="heavy", p=1.0)
+        >>> heavy_rain_image = transform(image=image)["image"]
+
+    References:
+        - Rain visualization techniques: https://developer.nvidia.com/gpugems/gpugems3/part-iv-image-effects/chapter-27-real-time-rain-rendering
+        - Weather effects in computer vision: https://www.sciencedirect.com/science/article/pii/S1077314220300692
     """
 
     class InitSchema(BaseTransformInitSchema):
-        slant_lower: int | None = Field(
-            default=None,
-            description="Lower bound for rain slant angle",
-        )
-        slant_upper: int | None = Field(
-            default=None,
-            description="Upper bound for rain slant angle",
-        )
-        slant_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)] = Field(
-            default=(-10, 10),
-            description="tuple like (slant_lower, slant_upper) for rain slant angle",
-        )
-        drop_length: int = Field(default=20, description="Length of raindrops", ge=1)
-        drop_width: int = Field(default=1, description="Width of raindrops", ge=1)
-        drop_color: tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
-        blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=1)
-        brightness_coefficient: float = Field(
-            default=0.7,
-            description="Brightness coefficient for rainy effect",
-            gt=0,
-            le=1,
-        )
-        rain_type: RainMode | None = Field(default=None, description="Type of rain to simulate")
+        slant_lower: int | None = Field(default=None)
+        slant_upper: int | None = Field(default=None)
+        slant_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
+        drop_length: int = Field(ge=1)
+        drop_width: int = Field(ge=1)
+        drop_color: tuple[int, int, int]
+        blur_value: int = Field(ge=1)
+        brightness_coefficient: float = Field(gt=0, le=1)
+        rain_type: RainMode
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
@@ -795,7 +832,7 @@ class RandomRain(ImageOnlyTransform):
         drop_color: tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: RainMode | None = None,
+        rain_type: RainMode = "default",
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -816,6 +853,8 @@ class RandomRain(ImageOnlyTransform):
         rain_drops: list[tuple[int, int]],
         **params: Any,
     ) -> np.ndarray:
+        non_rgb_error(img)
+
         return fmain.add_rain(
             img,
             slant,
@@ -849,9 +888,8 @@ class RandomRain(ImageOnlyTransform):
         rain_drops = []
 
         for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = random.randint(slant, width) if slant < 0 else random.randint(0, width - slant)
-
-            y = random.randint(0, height - drop_length)
+            x = random.randint(slant, width) if slant < 0 else random.randint(0, max(width - slant, 0))
+            y = random.randint(0, max(height - drop_length, 0))
 
             rain_drops.append((x, y))
 
