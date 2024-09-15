@@ -884,7 +884,7 @@ def add_sun_flare_overlay(
 
     return to_float(output) if input_dtype == np.float32 else output
 
-  
+
 @clipped
 def add_sun_flare_physics_based(
     img: np.ndarray,
@@ -1000,6 +1000,7 @@ def add_sun_flare_physics_based(
     output = 255 - ((255 - output) * (255 - flare_layer) / 255)
 
     return to_float(output) if input_dtype == np.float32 else output
+
 
 @preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np.ndarray) -> np.ndarray:
