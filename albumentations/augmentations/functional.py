@@ -539,9 +539,6 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
     Returns:
         np.ndarray: Image with simulated snow effect. The output has the same dtype as the input.
 
-    Raises:
-        ValueError: If the input image is not in RGB format or if parameters are out of range.
-
     Note:
         - This function converts the image to the HLS color space to modify the lightness channel.
         - The snow effect is created by selectively increasing the brightness of pixels.
@@ -611,9 +608,6 @@ def add_snow_texture(img: np.ndarray, snow_coeff: float, brightness_coeff: float
 
     Returns:
         np.ndarray: Image with added snow effect. The output has the same dtype as the input.
-
-    Raises:
-        ValueError: If the input image is not in RGB format or if coefficients are out of range.
 
     Note:
         - The function first converts the image to HSV color space for better control over
