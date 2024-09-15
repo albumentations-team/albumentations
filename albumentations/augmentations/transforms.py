@@ -1152,6 +1152,7 @@ class RandomSunFlare(ImageOnlyTransform):
         method (Literal["overlay", "physics_based"]): Method to use for generating the sun flare.
             "overlay" uses a simple alpha blending technique, while "physics_based" simulates
             more realistic optical phenomena. Default: "physics_based".
+
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1211,6 +1212,9 @@ class RandomSunFlare(ImageOnlyTransform):
         Physics-based method blending:
         new_pixel = 255 - ((255 - original_pixel) * (255 - flare_pixel) / 255)
 
+        4. Each flare circle is blended with the image using alpha compositing:
+           new_pixel = (1 - alpha_i) * original_pixel + alpha_i * flare_color_i
+
     Examples:
         >>> import numpy as np
         >>> import albumentations as A
@@ -1221,6 +1225,13 @@ class RandomSunFlare(ImageOnlyTransform):
         >>> flared_image = transform(image=image)["image"]
 
         # Physics-based sun flare with custom parameters
+
+        # Default sun flare
+        >>> transform = A.RandomSunFlare(p=1.0)
+        >>> flared_image = transform(image=image)["image"]
+
+        # Custom sun flare parameters
+
         >>> transform = A.RandomSunFlare(
         ...     flare_roi=(0.1, 0, 0.9, 0.3),
         ...     angle_range=(0.25, 0.75),
