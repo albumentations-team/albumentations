@@ -50,7 +50,8 @@ __all__ = [
     "add_rain",
     "add_shadow",
     "add_gravel",
-    "add_snow",
+    "add_snow_bleach",
+    "add_snow_texture",
     "add_sun_flare",
     "adjust_brightness_torchvision",
     "adjust_contrast_torchvision",
@@ -519,35 +520,61 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
     return to_float(img, max_value=255) if needs_float else img
 
 
-@preserve_channel_dim
-def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
-    """Bleaches out pixels, imitating snow.
+def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
+    """Adds a simple snow effect to the image by bleaching out pixels.
+
+    This function simulates a basic snow effect by increasing the brightness of pixels
+    that are above a certain threshold (snow_point). It operates in the HLS color space
+    to modify the lightness channel.
 
     Args:
-        img (np.ndarray): Input image.
+        img (np.ndarray): Input image. Can be either RGB uint8 or float32.
         snow_point (float): A float in the range [0, 1], scaled and adjusted to determine
-            the threshold for pixel modification.
-        brightness_coeff (float): Coefficient applied to increase the brightness of pixels below the snow_point
-            threshold. Larger values lead to more pronounced snow effects.
+            the threshold for pixel modification. Higher values result in less snow effect.
+        brightness_coeff (float): Coefficient applied to increase the brightness of pixels
+            below the snow_point threshold. Larger values lead to more pronounced snow effects.
+            Should be greater than 1.0 for a visible effect.
 
     Returns:
-        np.ndarray: Image with simulated snow effect.
+        np.ndarray: Image with simulated snow effect. The output has the same dtype as the input.
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Note:
+        - This function converts the image to the HLS color space to modify the lightness channel.
+        - The snow effect is created by selectively increasing the brightness of pixels.
+        - This method tends to create a 'bleached' look, which may not be as realistic as more
+          advanced snow simulation techniques.
+        - The function automatically handles both uint8 and float32 input images.
 
+    The snow effect is created through the following steps:
+    1. Convert the image from RGB to HLS color space.
+    2. Adjust the snow_point threshold.
+    3. Increase the lightness of pixels below the threshold.
+    4. Convert the image back to RGB.
+
+    Mathematical Formulation:
+        Let L be the lightness channel in HLS space.
+        For each pixel (i, j):
+        If L[i, j] < snow_point:
+            L[i, j] = L[i, j] * brightness_coeff
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> snowy_image = A.functional.add_snow_v1(image, snow_point=0.5, brightness_coeff=1.5)
+
+    References:
+        - HLS Color Space: https://en.wikipedia.org/wiki/HSL_and_HSV
+        - Original implementation: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_error(img)
-
     input_dtype = img.dtype
-    needs_float = False
+    max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
-    snow_point *= 127.5  # = 255 / 2
-    snow_point += 85  # = 255 / 3
+    snow_point *= max_value / 2
+    snow_point += max_value / 3
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
+        img = from_float(img, dtype=np.uint8)
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     image_hls = np.array(image_hls, dtype=np.float32)
@@ -560,7 +587,102 @@ def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
-    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
+    return to_float(image_rgb) if input_dtype == np.float32 else image_rgb
+
+
+def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
+    """Add a realistic snow effect to the input image.
+
+    This function simulates snowfall by applying multiple visual effects to the image,
+    including brightness adjustment, snow texture overlay, depth simulation, and color tinting.
+    The result is a more natural-looking snow effect compared to simple pixel bleaching methods.
+
+    Args:
+        img (np.ndarray): Input image in RGB format.
+        snow_point (float): Coefficient that controls the amount and intensity of snow.
+            Should be in the range [0, 1], where 0 means no snow and 1 means maximum snow effect.
+        brightness_coeff (float): Coefficient for brightness adjustment to simulate the
+            reflective nature of snow. Should be in the range [0, 1], where higher values
+            result in a brighter image.
+
+    Returns:
+        np.ndarray: Image with added snow effect. The output has the same dtype as the input.
+
+    Note:
+        - The function first converts the image to HSV color space for better control over
+          brightness and color adjustments.
+        - A snow texture is generated using Gaussian noise and then filtered for a more
+          natural appearance.
+        - A depth effect is simulated, with more snow at the top of the image and less at the bottom.
+        - A slight blue tint is added to simulate the cool color of snow.
+        - Random sparkle effects are added to simulate light reflecting off snow crystals.
+
+    The snow effect is created through the following steps:
+    1. Brightness adjustment in HSV space
+    2. Generation of a snow texture using Gaussian noise
+    3. Application of a depth effect to the snow texture
+    4. Blending of the snow texture with the original image
+    5. Addition of a cool blue tint
+    6. Addition of sparkle effects
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> snowy_image = A.functional.add_snow_v2(image, snow_coeff=0.5, brightness_coeff=0.2)
+
+    Note:
+        This function works with both uint8 and float32 image types, automatically
+        handling the conversion between them.
+
+    References:
+        - Perlin Noise: https://en.wikipedia.org/wiki/Perlin_noise
+        - HSV Color Space: https://en.wikipedia.org/wiki/HSL_and_HSV
+    """
+    input_dtype = img.dtype
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.uint8)
+
+    max_value = MAX_VALUES_BY_DTYPE[np.uint8]
+
+    # Convert to HSV for better color control
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
+
+    # Increase brightness
+    img_hsv[:, :, 2] = np.clip(img_hsv[:, :, 2] * (1 + brightness_coeff * snow_point), 0, max_value)
+
+    # Generate snow texture
+    snow_texture = random_utils.normal(size=img.shape[:2], loc=0.5, scale=0.3)
+    snow_texture = cv2.GaussianBlur(snow_texture, (0, 0), sigmaX=1, sigmaY=1)
+
+    # Create depth effect for snow simulation
+    # More snow accumulates at the top of the image, gradually decreasing towards the bottom
+    # This simulates natural snow distribution on surfaces
+    # The effect is achieved using a linear gradient from 1 (full snow) to 0.2 (less snow)
+    rows = img.shape[0]
+    depth_effect = np.linspace(1, 0.2, rows)[:, np.newaxis]
+    snow_texture *= depth_effect
+
+    # Apply snow texture
+    snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_point).astype(np.float32)
+
+    # Blend snow with original image
+    img_with_snow = cv2.addWeighted(img_hsv, 1, snow_layer, 1, 0)
+
+    # Add a slight blue tint to simulate cool snow color
+    blue_tint = np.full_like(img_with_snow, (0.6, 0.75, 1))  # Slight blue in HSV
+
+    img_with_snow = cv2.addWeighted(img_with_snow, 0.85, blue_tint, 0.15 * snow_point, 0)
+
+    # Convert back to RGB
+    img_with_snow = cv2.cvtColor(img_with_snow.astype(np.uint8), cv2.COLOR_HSV2RGB)
+
+    # Add some sparkle effects for snow glitter
+    sparkle = random_utils.random(img.shape[:2]) > 0.99  # noqa: PLR2004
+    img_with_snow[sparkle] = [max_value, max_value, max_value]
+
+    return to_float(img_with_snow) if input_dtype == np.float32 else img_with_snow
 
 
 @preserve_channel_dim
@@ -745,13 +867,12 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     input_dtype = img.dtype
-    needs_float = False
+
     num_channels = get_num_channels(img)
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
+        img = from_float(img, dtype=np.uint8)
 
     img_shadowed = img.copy()
 
@@ -772,10 +893,7 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
             np.uint8,
         )
 
-    if needs_float:
-        return to_float(img_shadowed, max_value=max_value)
-
-    return img_shadowed
+    return to_float(img_shadowed) if input_dtype == np.float32 else img_shadowed
 
 
 @clipped

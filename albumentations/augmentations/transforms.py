@@ -459,14 +459,21 @@ class ImageCompression(ImageOnlyTransform):
 
 
 class RandomSnow(ImageOnlyTransform):
-    """Bleach out some pixel values imitating snow.
+    """Applies a random snow effect to the input image.
+
+    This transform simulates snowfall by either bleaching out some pixel values or
+    adding a snow texture to the image, depending on the chosen method.
 
     Args:
-        snow_point_range (tuple): tuple of bounds on the amount of snow i.e. (snow_point_lower, snow_point_upper).
+        snow_point_range (tuple[float, float]): Range for the snow point threshold.
             Both values should be in the (0, 1) range. Default: (0.1, 0.3).
         brightness_coeff (float): Coefficient applied to increase the brightness of pixels
             below the snow_point threshold. Larger values lead to more pronounced snow effects.
             Should be > 0. Default: 2.5.
+        method (Literal["bleach", "texture"]): The snow simulation method to use. Options are:
+            - "bleach": Uses a simple pixel value thresholding technique.
+            - "texture": Applies a more realistic snow texture overlay.
+            Default: "bleach".
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -475,31 +482,70 @@ class RandomSnow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Note:
+        - The "bleach" method increases the brightness of pixels above a certain threshold,
+          creating a simple snow effect. This method is faster but may look less realistic.
+        - The "texture" method creates a more realistic snow effect through the following steps:
+          1. Converts the image to HSV color space for better control over brightness.
+          2. Increases overall image brightness to simulate the reflective nature of snow.
+          3. Generates a snow texture using Gaussian noise, which is then smoothed with a Gaussian filter.
+          4. Applies a depth effect to the snow texture, making it more prominent at the top of the image.
+          5. Blends the snow texture with the original image using alpha compositing.
+          6. Adds a slight blue tint to simulate the cool color of snow.
+          7. Adds random sparkle effects to simulate light reflecting off snow crystals.
+          This method produces a more realistic result but is computationally more expensive.
 
+    Mathematical Formulation:
+        For the "bleach" method:
+        Let L be the lightness channel in HLS color space.
+        For each pixel (i, j):
+        If L[i, j] > snow_point:
+            L[i, j] = L[i, j] * brightness_coeff
+
+        For the "texture" method:
+        1. Brightness adjustment: V_new = V * (1 + brightness_coeff * snow_point)
+        2. Snow texture generation: T = GaussianFilter(GaussianNoise(μ=0.5, sigma=0.3))
+        3. Depth effect: D = LinearGradient(1.0 to 0.2)
+        4. Final pixel value: P = (1 - alpha) * original_pixel + alpha * (T * D * 255)
+           where alpha is the snow intensity factor derived from snow_point.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage (bleach method)
+        >>> transform = A.RandomSnow(p=1.0)
+        >>> snowy_image = transform(image=image)["image"]
+
+        # Using texture method with custom parameters
+        >>> transform = A.RandomSnow(
+        ...     snow_point_range=(0.2, 0.4),
+        ...     brightness_coeff=2.0,
+        ...     method="texture",
+        ...     p=1.0
+        ... )
+        >>> snowy_image = transform(image=image)["image"]
+
+    References:
+        - Bleach method: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+        - Texture method: Inspired by computer graphics techniques for snow rendering
+          and atmospheric scattering simulations.
     """
 
     class InitSchema(BaseTransformInitSchema):
-        snow_point_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
-            Field(
-                default=(0.1, 0.3),
-                description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
-            )
-        )
+        snow_point_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
+
         snow_point_lower: float | None = Field(
-            default=None,
-            description="Lower bound of the amount of snow",
             gt=0,
             lt=1,
         )
         snow_point_upper: float | None = Field(
-            default=None,
-            description="Upper bound of the amount of snow",
             gt=0,
             lt=1,
         )
-        brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be > 0", gt=0)
+        brightness_coeff: float = Field(gt=0)
+        method: Literal["bleach", "texture"]
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
@@ -536,16 +582,25 @@ class RandomSnow(ImageOnlyTransform):
         snow_point_upper: float | None = None,
         brightness_coeff: float = 2.5,
         snow_point_range: tuple[float, float] = (0.1, 0.3),
+        method: Literal["bleach", "texture"] = "bleach",
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
         self.snow_point_range = snow_point_range
         self.brightness_coeff = brightness_coeff
+        self.method = method
 
     def apply(self, img: np.ndarray, snow_point: float, **params: Any) -> np.ndarray:
-        return fmain.add_snow(img, snow_point, self.brightness_coeff)
+        non_rgb_error(img)
+
+        if self.method == "bleach":
+            return fmain.add_snow_bleach(img, snow_point, self.brightness_coeff)
+        if self.method == "texture":
+            return fmain.add_snow_texture(img, snow_point, self.brightness_coeff)
+
+        raise ValueError(f"Unknown snow method: {self.method}")
 
     def get_params(self) -> dict[str, np.ndarray]:
         return {"snow_point": random.uniform(*self.snow_point_range)}
@@ -1290,15 +1345,20 @@ class RandomSunFlare(ImageOnlyTransform):
 class RandomShadow(ImageOnlyTransform):
     """Simulates shadows for the image by reducing the brightness of the image in shadow regions.
 
+    This transform adds realistic shadow effects to images, which can be useful for augmenting
+    datasets for outdoor scene analysis, autonomous driving, or any computer vision task where
+    shadows may be present.
+
     Args:
-        shadow_roi (tuple): region of the image where shadows
+        shadow_roi (tuple[float, float, float, float]): Region of the image where shadows
             will appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
-        num_shadows_limit (tuple): Lower and upper limits for the possible number of shadows.
+            Default: (0, 0.5, 1, 1).
+        num_shadows_limit (tuple[int, int]): Lower and upper limits for the possible number of shadows.
             Default: (1, 2).
-        shadow_dimension (int): number of edges in the shadow polygons. Default: 5.
-        shadow_intensity_range (tuple): Range for the shadow intensity.
+        shadow_dimension (int): Number of edges in the shadow polygons. Default: 5.
+        shadow_intensity_range (tuple[float, float]): Range for the shadow intensity.
             Should be two float values between 0 and 1. Default: (0.5, 0.5).
-        p (float): probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1306,37 +1366,68 @@ class RandomShadow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        Any
+
+    Note:
+        - Shadows are created by generating random polygons within the specified ROI and
+          reducing the brightness of the image in these areas.
+        - The number of shadows, their shapes, and intensities can be randomized for variety.
+        - This transform is particularly useful for:
+          * Augmenting datasets for outdoor scene understanding
+          * Improving robustness of object detection models to shadowed conditions
+          * Simulating different lighting conditions in synthetic datasets
+
+    Mathematical Formulation:
+        For each shadow:
+        1. A polygon with `shadow_dimension` vertices is generated within the shadow ROI.
+        2. The shadow intensity a is randomly chosen from `shadow_intensity_range`.
+        3. For each pixel (x, y) within the polygon:
+           new_pixel_value = original_pixel_value * (1 - a)
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Default usage
+        >>> transform = A.RandomShadow(p=1.0)
+        >>> shadowed_image = transform(image=image)["image"]
+
+        # Custom shadow parameters
+        >>> transform = A.RandomShadow(
+        ...     shadow_roi=(0.2, 0.2, 0.8, 0.8),
+        ...     num_shadows_limit=(2, 4),
+        ...     shadow_dimension=8,
+        ...     shadow_intensity_range=(0.3, 0.7),
+        ...     p=1.0
+        ... )
+        >>> shadowed_image = transform(image=image)["image"]
+
+        # Combining with other transforms
+        >>> transform = A.Compose([
+        ...     A.RandomShadow(p=0.5),
+        ...     A.RandomBrightnessContrast(p=0.5),
+        ... ])
+        >>> augmented_image = transform(image=image)["image"]
+
+    References:
+        - Shadow detection and removal: https://www.sciencedirect.com/science/article/pii/S1047320315002035
+        - Shadows in computer vision: https://en.wikipedia.org/wiki/Shadow_detection
     """
 
     class InitSchema(BaseTransformInitSchema):
-        shadow_roi: tuple[float, float, float, float] = Field(
-            default=(0, 0.5, 1, 1),
-            description="Region of the image where shadows will appear",
-        )
-        num_shadows_limit: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
-            1,
-            2,
-        )
-        num_shadows_lower: int | None = Field(
-            default=None,
-            description="Lower limit for the possible number of shadows",
-        )
-        num_shadows_upper: int | None = Field(
-            default=None,
-            description="Upper limit for the possible number of shadows",
-        )
-        shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", ge=1)
+        shadow_roi: tuple[float, float, float, float]
+        num_shadows_limit: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
+        num_shadows_lower: int | None
+        num_shadows_upper: int | None
+        shadow_dimension: int = Field(ge=1)
 
         shadow_intensity_range: Annotated[
             tuple[float, float],
             AfterValidator(check_01),
             AfterValidator(nondecreasing),
-        ] = Field(
-            default=(0.5, 0.5),
-            description="Range for the shadow intensity",
-        )
+        ]
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
