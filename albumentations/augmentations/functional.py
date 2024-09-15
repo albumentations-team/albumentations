@@ -27,7 +27,6 @@ from albucore.utils import (
     maybe_process_in_chunks,
     preserve_channel_dim,
 )
-from scipy.ndimage import gaussian_filter
 from typing_extensions import Literal
 
 from albumentations import random_utils
@@ -591,7 +590,7 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
     return to_float(image_rgb) if input_dtype == np.float32 else image_rgb
 
 
-def add_snow_texture(img: np.ndarray, snow_coeff: float, brightness_coeff: float) -> np.ndarray:
+def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
     """Add a realistic snow effect to the input image.
 
     This function simulates snowfall by applying multiple visual effects to the image,
@@ -600,7 +599,7 @@ def add_snow_texture(img: np.ndarray, snow_coeff: float, brightness_coeff: float
 
     Args:
         img (np.ndarray): Input image in RGB format.
-        snow_coeff (float): Coefficient that controls the amount and intensity of snow.
+        snow_point (float): Coefficient that controls the amount and intensity of snow.
             Should be in the range [0, 1], where 0 means no snow and 1 means maximum snow effect.
         brightness_coeff (float): Coefficient for brightness adjustment to simulate the
             reflective nature of snow. Should be in the range [0, 1], where higher values
@@ -651,20 +650,22 @@ def add_snow_texture(img: np.ndarray, snow_coeff: float, brightness_coeff: float
     img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
 
     # Increase brightness
-    img_hsv[:, :, 2] = np.clip(img_hsv[:, :, 2] * (1 + brightness_coeff * snow_coeff), 0, max_value)
+    img_hsv[:, :, 2] = np.clip(img_hsv[:, :, 2] * (1 + brightness_coeff * snow_point), 0, max_value)
 
     # Generate snow texture
     snow_texture = random_utils.normal(size=img.shape[:2], loc=0.5, scale=0.3)
-    snow_texture = gaussian_filter(snow_texture, sigma=1)
-    snow_texture = np.clip(snow_texture, 0, 1)
+    snow_texture = cv2.GaussianBlur(snow_texture, (0, 0), sigmaX=1, sigmaY=1)
 
-    # Create depth effect (more snow at the top, less at the bottom)
-    rows, cols = img.shape[:2]
+    # Create depth effect for snow simulation
+    # More snow accumulates at the top of the image, gradually decreasing towards the bottom
+    # This simulates natural snow distribution on surfaces
+    # The effect is achieved using a linear gradient from 1 (full snow) to 0.2 (less snow)
+    rows = img.shape[0]
     depth_effect = np.linspace(1, 0.2, rows)[:, np.newaxis]
     snow_texture *= depth_effect
 
     # Apply snow texture
-    snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_coeff).astype(np.float32)
+    snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_point).astype(np.float32)
 
     # Blend snow with original image
     img_with_snow = cv2.addWeighted(img_hsv, 1, snow_layer, 1, 0)
@@ -672,7 +673,7 @@ def add_snow_texture(img: np.ndarray, snow_coeff: float, brightness_coeff: float
     # Add a slight blue tint to simulate cool snow color
     blue_tint = np.full_like(img_with_snow, (0.6, 0.75, 1))  # Slight blue in HSV
 
-    img_with_snow = cv2.addWeighted(img_with_snow, 0.85, blue_tint, 0.15 * snow_coeff, 0)
+    img_with_snow = cv2.addWeighted(img_with_snow, 0.85, blue_tint, 0.15 * snow_point, 0)
 
     # Convert back to RGB
     img_with_snow = cv2.cvtColor(img_with_snow.astype(np.uint8), cv2.COLOR_HSV2RGB)

@@ -470,7 +470,7 @@ class RandomSnow(ImageOnlyTransform):
         brightness_coeff (float): Coefficient applied to increase the brightness of pixels
             below the snow_point threshold. Larger values lead to more pronounced snow effects.
             Should be > 0. Default: 2.5.
-        method (str): The snow simulation method to use. Options are:
+        method (Literal["bleach", "texture"]): The snow simulation method to use. Options are:
             - "bleach": Uses a simple pixel value thresholding technique.
             - "texture": Applies a more realistic snow texture overlay.
             Default: "bleach".
@@ -482,15 +482,18 @@ class RandomSnow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Number of channels:
-        3
-
     Note:
         - The "bleach" method increases the brightness of pixels above a certain threshold,
           creating a simple snow effect. This method is faster but may look less realistic.
-        - The "texture" method generates and applies a snow-like texture to the image,
-          resulting in a more realistic snow effect but with higher computational cost.
-        - Both methods adjust the overall brightness to simulate the reflective nature of snow.
+        - The "texture" method creates a more realistic snow effect through the following steps:
+          1. Converts the image to HSV color space for better control over brightness.
+          2. Increases overall image brightness to simulate the reflective nature of snow.
+          3. Generates a snow texture using Gaussian noise, which is then smoothed with a Gaussian filter.
+          4. Applies a depth effect to the snow texture, making it more prominent at the top of the image.
+          5. Blends the snow texture with the original image using alpha compositing.
+          6. Adds a slight blue tint to simulate the cool color of snow.
+          7. Adds random sparkle effects to simulate light reflecting off snow crystals.
+          This method produces a more realistic result but is computationally more expensive.
 
     Mathematical Formulation:
         For the "bleach" method:
@@ -500,10 +503,11 @@ class RandomSnow(ImageOnlyTransform):
             L[i, j] = L[i, j] * brightness_coeff
 
         For the "texture" method:
-        A snow texture T is generated using Gaussian noise.
-        The final pixel value P is calculated as:
-        P = (1 - alpha) * original_pixel + alpha * snow_texture
-        where alpha is the snow intensity factor.
+        1. Brightness adjustment: V_new = V * (1 + brightness_coeff * snow_point)
+        2. Snow texture generation: T = GaussianFilter(GaussianNoise(μ=0.5, sigma=0.3))
+        3. Depth effect: D = LinearGradient(1.0 to 0.2)
+        4. Final pixel value: P = (1 - alpha) * original_pixel + alpha * (T * D * 255)
+           where alpha is the snow intensity factor derived from snow_point.
 
     Examples:
         >>> import numpy as np
@@ -525,7 +529,8 @@ class RandomSnow(ImageOnlyTransform):
 
     References:
         - Bleach method: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-        - Texture method: Inspired by various computer graphics techniques for snow rendering
+        - Texture method: Inspired by computer graphics techniques for snow rendering
+          and atmospheric scattering simulations.
     """
 
     class InitSchema(BaseTransformInitSchema):
