@@ -3582,20 +3582,82 @@ class ColorJitter(ImageOnlyTransform):
 class Sharpen(ImageOnlyTransform):
     """Sharpen the input image and overlays the result with the original image.
 
+    This transform applies a sharpening filter to the input image and then blends
+    the sharpened image with the original using a specified alpha value.
+
     Args:
-        alpha: range to choose the visibility of the sharpened image. At 0, only the original image is
-            visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
-        lightness: range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
-        p: probability of applying the transform. Default: 0.5.
+        alpha (tuple of float): Range to choose the visibility of the sharpened image.
+            At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
+            Values should be in the range [0, 1].
+            Default: (0.2, 0.5).
+
+        lightness (tuple of float): Range to choose the lightness of the sharpened image.
+            Larger values will create images with higher contrast.
+            Values should be greater than 0.
+            Default: (0.5, 1.0).
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        - The sharpening effect is achieved using a 3x3 sharpening kernel.
+        - The kernel is dynamically generated based on the 'alpha' and 'lightness' parameters.
+        - Higher 'alpha' values will result in a more pronounced sharpening effect.
+        - Higher 'lightness' values will increase the contrast of the sharpened areas.
+        - This transform can be useful for:
+          * Enhancing edge details in images
+          * Improving the perceived quality of slightly blurred images
+          * Creating a more crisp appearance in photographs
+
+    Mathematical Formulation:
+        The sharpening kernel K is defined as:
+
+        K = (1 - alpha) * I + alpha * L
+
+        where:
+        - alpha is the alpha value (from the 'alpha' parameter)
+        - I is the identity kernel [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
+        - L is the Laplacian kernel [[-1, -1, -1], [-1, 8+l, -1], [-1, -1, -1]]
+          (l is the lightness value from the 'lightness' parameter)
+
+        The sharpened image S is obtained by convolving the input image I with the kernel K:
+
+        S = I * K
+
+        The final output O is a blend of the original and sharpened images:
+
+        O = (1 - alpha) * I + alpha * S
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Apply sharpening with default parameters
+        >>> transform = A.Sharpen(p=1.0)
+        >>> sharpened_image = transform(image=image)['image']
+
+        # Apply sharpening with custom parameters
+        >>> transform = A.Sharpen(alpha=(0.4, 0.7), lightness=(0.8, 1.2), p=1.0)
+        >>> sharpened_image = transform(image=image)['image']
+
+    References:
+        - Image sharpening: https://en.wikipedia.org/wiki/Unsharp_masking
+        - Laplacian operator: https://en.wikipedia.org/wiki/Laplace_operator
+        - "Digital Image Processing" by Rafael C. Gonzalez and Richard E. Woods, 4th Edition
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: ZeroOneRangeType = (0.2, 0.5)
-        lightness: NonNegativeFloatRangeType = (0.5, 1.0)
+        alpha: Annotated[tuple[float, float], AfterValidator(check_01)]
+        lightness: Annotated[tuple[float, float], AfterValidator(check_0plus)]
 
     def __init__(
         self,
@@ -4093,8 +4155,7 @@ class UnsharpMask(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         sigma_limit: NonNegativeFloatRangeType
         alpha: ZeroOneRangeType
-        threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
-
+        threshold: int = Field(ge=0, le=255)
         blur_limit: ScaleIntType
 
         @field_validator("blur_limit")
