@@ -52,7 +52,8 @@ __all__ = [
     "add_gravel",
     "add_snow_bleach",
     "add_snow_texture",
-    "add_sun_flare",
+    "add_sun_flare_overlay",
+    "add_sun_flare_physics_based",
     "adjust_brightness_torchvision",
     "adjust_contrast_torchvision",
     "adjust_hue_torchvision",
@@ -798,28 +799,66 @@ def add_fog(
 
 
 @preserve_channel_dim
-def add_sun_flare(
+def add_sun_flare_overlay(
     img: np.ndarray,
     flare_center: tuple[float, float],
     src_radius: int,
     src_color: ColorType,
     circles: list[Any],
 ) -> np.ndarray:
-    """Add a sun flare effect to an image.
+    """Add a sun flare effect to an image using a simple overlay technique.
+
+    This function creates a basic sun flare effect by overlaying multiple semi-transparent
+    circles of varying sizes and intensities on the input image. The effect simulates
+    a simple lens flare caused by bright light sources.
 
     Args:
         img (np.ndarray): The input image.
         flare_center (tuple[float, float]): (x, y) coordinates of the flare center
-        src_radius (int): The radius of the source of the flare.
-        src_color (ColorType): The color of the flare, represented as a tuple of RGB values.
-        circles (list[Any]): A list of tuples, each representing a circle that contributes to the flare effect.
-            Each tuple contains the alpha value, the center coordinates, the radius, and the color of the circle.
+            in pixel coordinates.
+        src_radius (int): The radius of the main sun circle in pixels.
+        src_color (ColorType): The color of the sun, represented as a tuple of RGB values.
+        circles (list[Any]): A list of tuples, each representing a circle that contributes
+            to the flare effect. Each tuple contains:
+            - alpha (float): The transparency of the circle (0.0 to 1.0).
+            - center (tuple[int, int]): (x, y) coordinates of the circle center.
+            - radius (int): The radius of the circle.
+            - color (tuple[int, int, int]): RGB color of the circle.
 
     Returns:
         np.ndarray: The output image with the sun flare effect added.
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Note:
+        - This function uses a simple alpha blending technique to overlay flare elements.
+        - The main sun is created as a gradient circle, fading from the center outwards.
+        - Additional flare circles are added along an imaginary line from the sun's position.
+        - This method is computationally efficient but may produce less realistic results
+          compared to more advanced techniques.
+
+    The flare effect is created through the following steps:
+    1. Create an overlay image and output image as copies of the input.
+    2. Add smaller flare circles to the overlay.
+    3. Blend the overlay with the output image using alpha compositing.
+    4. Add the main sun circle with a radial gradient.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> flare_center = (50, 50)
+        >>> src_radius = 20
+        >>> src_color = (255, 255, 200)
+        >>> circles = [
+        ...     (0.1, (60, 60), 5, (255, 200, 200)),
+        ...     (0.2, (70, 70), 3, (200, 255, 200))
+        ... ]
+        >>> flared_image = A.functional.add_sun_flare_overlay(
+        ...     image, flare_center, src_radius, src_color, circles
+        ... )
+
+    References:
+        - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
+        - Lens flare: https://en.wikipedia.org/wiki/Lens_flare
     """
     input_dtype = img.dtype
     if input_dtype == np.float32:
@@ -842,6 +881,123 @@ def add_sun_flare(
         cv2.circle(overlay, point, int(rad[i]), src_color, -1)
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
         output = add_weighted(overlay, alp, output, 1 - alp)
+
+    return to_float(output) if input_dtype == np.float32 else output
+
+
+@clipped
+def add_sun_flare_physics_based(
+    img: np.ndarray,
+    flare_center: tuple[int, int],
+    src_radius: int,
+    src_color: tuple[int, int, int],
+    circles: list[Any],
+) -> np.ndarray:
+    """Add a more realistic sun flare effect to the image.
+
+    This function creates a complex sun flare effect by simulating various optical phenomena
+    that occur in real camera lenses when capturing bright light sources. The result is a
+    more realistic and physically plausible lens flare effect.
+
+    Args:
+        img (np.ndarray): Input image.
+        flare_center (tuple[int, int]): (x, y) coordinates of the sun's center in pixels.
+        src_radius (int): Radius of the main sun circle in pixels.
+        src_color (tuple[int, int, int]): Color of the sun in RGB format.
+        circles (list[Any]): List of tuples, each representing a flare circle with parameters:
+            (alpha, center, size, color)
+            - alpha (float): Transparency of the circle (0.0 to 1.0).
+            - center (tuple[int, int]): (x, y) coordinates of the circle center.
+            - size (float): Size factor for the circle radius.
+            - color (tuple[int, int, int]): RGB color of the circle.
+
+    Returns:
+        np.ndarray: Image with added sun flare effect.
+
+    Note:
+        This function implements several techniques to create a more realistic flare:
+        1. Separate flare layer: Allows for complex manipulations of the flare effect.
+        2. Lens diffraction spikes: Simulates light diffraction in camera aperture.
+        3. Radial gradient mask: Creates natural fading of the flare from the center.
+        4. Gaussian blur: Softens the flare for a more natural glow effect.
+        5. Chromatic aberration: Simulates color fringing often seen in real lens flares.
+        6. Screen blending: Provides a more realistic blending of the flare with the image.
+
+    The flare effect is created through the following steps:
+    1. Create a separate flare layer.
+    2. Add the main sun circle and diffraction spikes to the flare layer.
+    3. Add additional flare circles based on the input parameters.
+    4. Apply Gaussian blur to soften the flare.
+    5. Create and apply a radial gradient mask for natural fading.
+    6. Simulate chromatic aberration by applying different blurs to color channels.
+    7. Blend the flare with the original image using screen blending mode.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [1000, 1000, 3], dtype=np.uint8)
+        >>> flare_center = (500, 500)
+        >>> src_radius = 50
+        >>> src_color = (255, 255, 200)
+        >>> circles = [
+        ...     (0.1, (550, 550), 10, (255, 200, 200)),
+        ...     (0.2, (600, 600), 5, (200, 255, 200))
+        ... ]
+        >>> flared_image = A.functional.add_sun_flare_physics_based(
+        ...     image, flare_center, src_radius, src_color, circles
+        ... )
+
+    References:
+        - Lens flare: https://en.wikipedia.org/wiki/Lens_flare
+        - Diffraction: https://en.wikipedia.org/wiki/Diffraction
+        - Chromatic aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
+        - Screen blending: https://en.wikipedia.org/wiki/Blend_modes#Screen
+    """
+    input_dtype = img.dtype
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.uint8)
+
+    output = img.copy()
+    height, width = img.shape[:2]
+
+    # Create a separate flare layer
+    flare_layer = np.zeros_like(img, dtype=np.float32)
+
+    # Add the main sun
+    cv2.circle(flare_layer, flare_center, src_radius, src_color, -1)
+
+    # Add lens diffraction spikes
+    for angle in [0, 45, 90, 135]:
+        end_point = (
+            int(flare_center[0] + np.cos(np.radians(angle)) * max(width, height)),
+            int(flare_center[1] + np.sin(np.radians(angle)) * max(width, height)),
+        )
+        cv2.line(flare_layer, flare_center, end_point, src_color, 2)
+
+    # Add flare circles
+    for _, center, size, color in circles:
+        cv2.circle(flare_layer, center, int(size**0.33), color, -1)
+
+    # Apply gaussian blur to soften the flare
+    flare_layer = cv2.GaussianBlur(flare_layer, (0, 0), sigmaX=15, sigmaY=15)
+
+    # Create a radial gradient mask
+    y, x = np.ogrid[:height, :width]
+    mask = np.sqrt((x - flare_center[0]) ** 2 + (y - flare_center[1]) ** 2)
+    mask = 1 - np.clip(mask / (max(width, height) * 0.7), 0, 1)
+    mask = np.dstack([mask] * 3)
+
+    # Apply the mask to the flare layer
+    flare_layer *= mask
+
+    # Add chromatic aberration
+    channels = list(cv2.split(flare_layer))
+    channels[0] = cv2.GaussianBlur(channels[0], (0, 0), sigmaX=3, sigmaY=3)  # Blue channel
+    channels[2] = cv2.GaussianBlur(channels[2], (0, 0), sigmaX=5, sigmaY=5)  # Red channel
+    flare_layer = cv2.merge(channels)
+
+    # Blend the flare with the original image using screen blending
+    output = 255 - ((255 - output) * (255 - flare_layer) / 255)
 
     return to_float(output) if input_dtype == np.float32 else output
 
