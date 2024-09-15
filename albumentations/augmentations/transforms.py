@@ -3830,10 +3830,10 @@ class Superpixels(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        p_replace: ZeroOneRangeType = (0, 0.1)
-        n_segments: OnePlusIntRangeType = (100, 100)
-        max_size: int | None = Field(default=128, ge=1, description="Maximum image size for the transformation.")
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        p_replace: ZeroOneRangeType
+        n_segments: OnePlusIntRangeType
+        max_size: int | None = Field(ge=1)
+        interpolation: InterpolationType
 
     def __init__(
         self,
