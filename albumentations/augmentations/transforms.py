@@ -3929,27 +3929,90 @@ class TemplateTransform(ImageOnlyTransform):
 
 
 class RingingOvershoot(ImageOnlyTransform):
-    """Create ringing or overshoot artefacts by conlvolving image with 2D sinc filter.
+    """Create ringing or overshoot artifacts by convolving the image with a 2D sinc filter.
+
+    This transform simulates the ringing artifacts that can occur in digital image processing,
+    particularly after sharpening or edge enhancement operations. It creates oscillations
+    or overshoots near sharp transitions in the image.
 
     Args:
-        blur_limit: maximum kernel size for sinc filter.
-            Should be in range [3, inf). Default: (7, 15).
-        cutoff: range to choose the cutoff frequency in radians.
-            Should be in range (0, np.pi)
-            Default: (np.pi / 4, np.pi / 2).
-        p: probability of applying the transform. Default: 0.5.
-
-    Reference:
-        dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
-        https://arxiv.org/abs/2107.10833
+        blur_limit (int, tuple of int): Maximum kernel size for the sinc filter.
+            Must be an odd number in the range [3, inf).
+            If a single int is provided, the kernel size will be randomly chosen
+            from the range (3, blur_limit). If a tuple (min, max) is provided,
+            the kernel size will be randomly chosen from the range (min, max).
+            Default: (7, 15).
+        cutoff (tuple of float): Range to choose the cutoff frequency in radians.
+            Values should be in the range (0, π). A lower cutoff frequency will
+            result in more pronounced ringing effects.
+            Default: (π/4, π/2).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        - Ringing artifacts are oscillations of the image intensity function in the neighborhood
+          of sharp transitions, such as edges or object boundaries.
+        - This transform uses a 2D sinc filter (also known as a 2D cardinal sine function)
+          to introduce these artifacts.
+        - The severity of the ringing effect is controlled by both the kernel size (blur_limit)
+          and the cutoff frequency.
+        - Larger kernel sizes and lower cutoff frequencies will generally produce more
+          noticeable ringing effects.
+        - This transform can be useful for:
+          * Simulating imperfections in image processing or transmission systems
+          * Testing the robustness of computer vision models to ringing artifacts
+          * Creating artistic effects that emphasize edges and transitions in images
+
+    Mathematical Formulation:
+        The 2D sinc filter kernel is defined as:
+
+        K(x, y) = cutoff * J₁(cutoff * √(x² + y²)) / (2π * √(x² + y²))
+
+        where:
+        - J₁ is the Bessel function of the first kind of order 1
+        - cutoff is the chosen cutoff frequency
+        - x and y are the distances from the kernel center
+
+        The filtered image I' is obtained by convolving the input image I with the kernel K:
+
+        I'(x, y) = ∑∑ I(x-u, y-v) * K(u, v)
+
+        The convolution operation introduces the ringing artifacts near sharp transitions.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Apply ringing effect with default parameters
+        >>> transform = A.RingingOvershoot(p=1.0)
+        >>> ringing_image = transform(image=image)['image']
+
+        # Apply ringing effect with custom parameters
+        >>> transform = A.RingingOvershoot(
+        ...     blur_limit=(9, 17),
+        ...     cutoff=(np.pi/6, np.pi/3),
+        ...     p=1.0
+        ... )
+        >>> ringing_image = transform(image=image)['image']
+
+    References:
+        - Ringing artifacts: https://en.wikipedia.org/wiki/Ringing_artifacts
+        - Sinc filter: https://en.wikipedia.org/wiki/Sinc_filter
+        - "The Importance of Ringing Artifacts in Image Processing" by Jae S. Lim, 1981
+        - "Digital Image Processing" by Rafael C. Gonzalez and Richard E. Woods, 4th Edition
     """
 
     class InitSchema(BlurInitSchema):
-        blur_limit: ScaleIntType = Field(default=(7, 15), description="Maximum kernel size for sinc filter.")
+        blur_limit: ScaleIntType
         cutoff: Annotated[tuple[float, float], nondecreasing]
 
         @field_validator("cutoff")
