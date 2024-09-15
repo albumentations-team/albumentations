@@ -821,14 +821,9 @@ def add_sun_flare(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_error(img)
-
     input_dtype = img.dtype
-    needs_float = False
-
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
+        img = from_float(img, dtype=np.uint8)
 
     overlay = img.copy()
     output = img.copy()
@@ -848,7 +843,7 @@ def add_sun_flare(
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
         output = add_weighted(overlay, alp, output, 1 - alp)
 
-    return to_float(output, max_value=255) if needs_float else output
+    return to_float(output) if input_dtype == np.float32 else output
 
 
 @preserve_channel_dim

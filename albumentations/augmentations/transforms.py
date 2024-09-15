@@ -1132,59 +1132,101 @@ class RandomFog(ImageOnlyTransform):
 
 
 class RandomSunFlare(ImageOnlyTransform):
-    """Simulates Sun Flare for the image
+    """Simulates a sun flare effect on the image by adding circles of light.
+
+    This transform creates a realistic sun flare effect by overlaying multiple semi-transparent
+    circles of varying sizes and intensities along a line originating from a "sun" point.
 
     Args:
-        flare_roi (tuple[float, float, float, float]): Tuple specifying the region of the image where flare will
-            appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
-        src_radius (int): Radius of the source for the flare.
-        src_color (tuple[int, int, int]): Color of the flare as an (R, G, B) tuple.
-        angle_range (tuple[float, float]): tuple specifying the range of angles for the flare.
-            Both ends of the range are in the [0, 1] interval.
-        num_flare_circles_range (tuple[int, int]): tuple specifying the range for the number of flare circles.
-        p (float): Probability of applying the transform.
+        flare_roi (tuple[float, float, float, float]): Region of interest where the sun flare
+            can appear. Values are in the range [0, 1] and represent (x_min, y_min, x_max, y_max)
+            in relative coordinates. Default: (0, 0, 1, 0.5).
+        angle_range (tuple[float, float]): Range of angles (in radians) for the flare direction.
+            Values should be in the range [0, 1], where 0 represents 0 radians and 1 represents 2π radians.
+            Default: (0, 1).
+        num_flare_circles_range (tuple[int, int]): Range for the number of flare circles to generate.
+            Default: (6, 10).
+        src_radius (int): Radius of the sun circle in pixels. Default: 400.
+        src_color (tuple[int, int, int]): Color of the sun in RGB format. Default: (255, 255, 255).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    Number of channels:
+        Any
+
+    Note:
+        - The sun flare is composed of a main "sun" circle and multiple smaller circles
+          along a line emanating from the sun's position.
+        - The flare's position, angle, and intensity are randomized within the specified ranges.
+        - The number of flare circles, their sizes, and colors are also randomized for variety.
+        - This transform is particularly useful for:
+          * Simulating outdoor scenes with strong sunlight
+          * Adding dramatic lighting effects to images
+          * Testing the robustness of computer vision models to lens flare artifacts
+
+    Mathematical Formulation:
+        1. Sun position (x_s, y_s) is randomly chosen within the specified ROI.
+        2. Flare angle θ is randomly chosen from the angle_range.
+        3. For each flare circle i:
+           - Position (x_i, y_i) = (x_s + t_i * cos(θ), y_s + t_i * sin(θ))
+             where t_i is a random distance along the flare line.
+           - Radius r_i is randomly chosen, with larger circles closer to the sun.
+           - Alpha (transparency) alpha_i is randomly chosen in the range [0.05, 0.2].
+           - Color (R_i, G_i, B_i) is randomly chosen close to src_color.
+        4. Each flare circle is blended with the image using alpha compositing:
+           new_pixel = (1 - alpha_i) * original_pixel + alpha_i * flare_color_i
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [1000, 1000, 3], dtype=np.uint8)
+
+        # Default sun flare
+        >>> transform = A.RandomSunFlare(p=1.0)
+        >>> flared_image = transform(image=image)["image"]
+
+        # Custom sun flare parameters
+        >>> transform = A.RandomSunFlare(
+        ...     flare_roi=(0.1, 0, 0.9, 0.3),
+        ...     angle_range=(0.25, 0.75),
+        ...     num_flare_circles_range=(5, 15),
+        ...     src_radius=200,
+        ...     src_color=(255, 200, 100),
+        ...     p=1.0
+        ... )
+        >>> flared_image = transform(image=image)["image"]
+
+    References:
+        - Lens flare: https://en.wikipedia.org/wiki/Lens_flare
+        - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
     """
 
     class InitSchema(BaseTransformInitSchema):
-        flare_roi: tuple[float, float, float, float] = Field(
-            default=(0, 0, 1, 0.5),
-            description="Region of the image where flare will appear",
-        )
-        angle_lower: float | None = Field(default=None, description="Lower bound for the angle", ge=0, le=1)
-        angle_upper: float | None = Field(default=None, description="Upper bound for the angle", ge=0, le=1)
+        flare_roi: tuple[float, float, float, float]
+        angle_lower: float | None = Field(ge=0, le=1)
+        angle_upper: float | None = Field(ge=0, le=1)
 
         num_flare_circles_lower: int | None = Field(
-            default=6,
-            description="Lower limit for the number of flare circles",
             ge=0,
         )
         num_flare_circles_upper: int | None = Field(
-            default=10,
-            description="Upper limit for the number of flare circles",
             gt=0,
         )
-        src_radius: int = Field(default=400, description="Source radius for the flare")
-        src_color: tuple[int, ...] = Field(default=(255, 255, 255), description="Color of the flare")
+        src_radius: int = Field(gt=1)
+        src_color: tuple[int, ...]
 
-        angle_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
-            default=(0, 1),
-            description="Angle range",
-        )
+        angle_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
 
         num_flare_circles_range: Annotated[
             tuple[int, int],
             AfterValidator(check_1plus),
             AfterValidator(nondecreasing),
-        ] = Field(default=(6, 10), description="Number of flare circles range")
+        ]
 
         @model_validator(mode="after")
         def validate_parameters(self) -> Self:
@@ -1271,8 +1313,6 @@ class RandomSunFlare(ImageOnlyTransform):
         circles: list[Any],
         **params: Any,
     ) -> np.ndarray:
-        if circles is None:
-            circles = []
         return fmain.add_sun_flare(
             img,
             flare_center,
@@ -1283,49 +1323,45 @@ class RandomSunFlare(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
+        diagonal = math.sqrt(height**2 + width**2)
 
         angle = 2 * math.pi * random.uniform(*self.angle_range)
 
-        (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = self.flare_roi
-
-        flare_center_x = random.uniform(flare_center_lower_x, flare_center_upper_x)
-        flare_center_y = random.uniform(flare_center_lower_y, flare_center_upper_y)
-
-        flare_center_x = int(width * flare_center_x)
-        flare_center_y = int(height * flare_center_y)
+        # Calculate flare center in pixel coordinates
+        flare_center_x = int(width * random.uniform(*self.flare_roi[:2]))
+        flare_center_y = int(height * random.uniform(*self.flare_roi[2:]))
 
         num_circles = random.randint(*self.num_flare_circles_range)
 
-        circles = []
-
-        x = []
-        y = []
+        # Calculate parameters relative to image size
+        step_size = max(1, int(diagonal * 0.01))  # 1% of diagonal, minimum 1 pixel
+        max_radius = max(2, int(height * 0.01))  # 1% of height, minimum 2 pixels
+        color_range = int(max(self.src_color) * 0.2)  # 20% of max color value
 
         def line(t: float) -> tuple[float, float]:
             return (flare_center_x + t * math.cos(angle), flare_center_y + t * math.sin(angle))
 
-        for t_val in range(-flare_center_x, width - flare_center_x, 10):
-            rand_x, rand_y = line(t_val)
-            x.append(rand_x)
-            y.append(rand_y)
+        # Generate points along the flare line
+        t_range = range(-flare_center_x, width - flare_center_x, step_size)
+        points = [line(t) for t in t_range]
 
+        circles = []
         for _ in range(num_circles):
             alpha = random.uniform(0.05, 0.2)
-            r = random.randint(0, len(x) - 1)
-            rad = random.randint(1, max(height // 100 - 2, 2))
+            point = random.choice(points)
+            rad = random.randint(1, max_radius)
 
-            r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
-            g_color = random.randint(max(self.src_color[1] - 50, 0), self.src_color[1])
-            b_color = random.randint(max(self.src_color[2] - 50, 0), self.src_color[2])
+            # Generate colors relative to src_color
+            colors = [random.randint(max(c - color_range, 0), c) for c in self.src_color]
 
-            circles += [
+            circles.append(
                 (
                     alpha,
-                    (int(x[r]), int(y[r])),
+                    (int(point[0]), int(point[1])),
                     pow(rad, 3),
-                    (r_color, g_color, b_color),
+                    tuple(colors),
                 ),
-            ]
+            )
 
         return {
             "circles": circles,
