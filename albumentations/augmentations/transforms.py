@@ -473,7 +473,7 @@ class RandomSnow(ImageOnlyTransform):
         method (Literal["bleach", "texture"]): The snow simulation method to use. Options are:
             - "bleach": Uses a simple pixel value thresholding technique.
             - "texture": Applies a more realistic snow texture overlay.
-            Default: "bleach".
+            Default: "texture".
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1134,8 +1134,9 @@ class RandomFog(ImageOnlyTransform):
 class RandomSunFlare(ImageOnlyTransform):
     """Simulates a sun flare effect on the image by adding circles of light.
 
-    This transform creates a realistic sun flare effect by overlaying multiple semi-transparent
+    This transform creates a sun flare effect by overlaying multiple semi-transparent
     circles of varying sizes and intensities along a line originating from a "sun" point.
+    It offers two methods: a simple overlay technique and a more complex physics-based approach.
 
     Args:
         flare_roi (tuple[float, float, float, float]): Region of interest where the sun flare
@@ -1148,6 +1149,9 @@ class RandomSunFlare(ImageOnlyTransform):
             Default: (6, 10).
         src_radius (int): Radius of the sun circle in pixels. Default: 400.
         src_color (tuple[int, int, int]): Color of the sun in RGB format. Default: (255, 255, 255).
+        method (Literal["overlay", "physics_based"]): Method to use for generating the sun flare.
+            "overlay" uses a simple alpha blending technique, while "physics_based" simulates
+            more realistic optical phenomena. Default: "physics_based".
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1157,19 +1161,41 @@ class RandomSunFlare(ImageOnlyTransform):
         uint8, float32
 
     Number of channels:
-        Any
+        - overlay: Any
+        - physics_based: RGB
 
     Note:
-        - The sun flare is composed of a main "sun" circle and multiple smaller circles
-          along a line emanating from the sun's position.
-        - The flare's position, angle, and intensity are randomized within the specified ranges.
-        - The number of flare circles, their sizes, and colors are also randomized for variety.
-        - This transform is particularly useful for:
-          * Simulating outdoor scenes with strong sunlight
-          * Adding dramatic lighting effects to images
-          * Testing the robustness of computer vision models to lens flare artifacts
+        The transform offers two methods for generating sun flares:
+
+        1. Overlay Method ("overlay"):
+           - Creates a simple sun flare effect using basic alpha blending.
+           - Steps:
+             a. Generate the main sun circle with a radial gradient.
+             b. Create smaller flare circles along the flare line.
+             c. Blend these elements with the original image using alpha compositing.
+           - Characteristics:
+             * Faster computation
+             * Less realistic appearance
+             * Suitable for basic augmentation or when performance is a priority
+
+        2. Physics-based Method ("physics_based"):
+           - Simulates more realistic optical phenomena observed in actual lens flares.
+           - Steps:
+             a. Create a separate flare layer for complex manipulations.
+             b. Add the main sun circle and diffraction spikes to simulate light diffraction.
+             c. Generate and add multiple flare circles with varying properties.
+             d. Apply Gaussian blur to create a soft, glowing effect.
+             e. Create and apply a radial gradient mask for natural fading from the center.
+             f. Simulate chromatic aberration by applying different blurs to color channels.
+             g. Blend the flare with the original image using screen blending mode.
+           - Characteristics:
+             * More computationally intensive
+             * Produces more realistic and visually appealing results
+             * Includes effects like diffraction spikes and chromatic aberration
+             * Suitable for high-quality augmentation or realistic image synthesis
 
     Mathematical Formulation:
+        For both methods:
         1. Sun position (x_s, y_s) is randomly chosen within the specified ROI.
         2. Flare angle θ is randomly chosen from the angle_range.
         3. For each flare circle i:
@@ -1178,25 +1204,30 @@ class RandomSunFlare(ImageOnlyTransform):
            - Radius r_i is randomly chosen, with larger circles closer to the sun.
            - Alpha (transparency) alpha_i is randomly chosen in the range [0.05, 0.2].
            - Color (R_i, G_i, B_i) is randomly chosen close to src_color.
-        4. Each flare circle is blended with the image using alpha compositing:
-           new_pixel = (1 - alpha_i) * original_pixel + alpha_i * flare_color_i
+
+        Overlay method blending:
+        new_pixel = (1 - alpha_i) * original_pixel + alpha_i * flare_color_i
+
+        Physics-based method blending:
+        new_pixel = 255 - ((255 - original_pixel) * (255 - flare_pixel) / 255)
 
     Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [1000, 1000, 3], dtype=np.uint8)
 
-        # Default sun flare
+        # Default sun flare (overlay method)
         >>> transform = A.RandomSunFlare(p=1.0)
         >>> flared_image = transform(image=image)["image"]
 
-        # Custom sun flare parameters
+        # Physics-based sun flare with custom parameters
         >>> transform = A.RandomSunFlare(
         ...     flare_roi=(0.1, 0, 0.9, 0.3),
         ...     angle_range=(0.25, 0.75),
         ...     num_flare_circles_range=(5, 15),
         ...     src_radius=200,
         ...     src_color=(255, 200, 100),
+        ...     method="physics_based",
         ...     p=1.0
         ... )
         >>> flared_image = transform(image=image)["image"]
@@ -1204,6 +1235,9 @@ class RandomSunFlare(ImageOnlyTransform):
     References:
         - Lens flare: https://en.wikipedia.org/wiki/Lens_flare
         - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
+        - Diffraction: https://en.wikipedia.org/wiki/Diffraction
+        - Chromatic aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
+        - Screen blending: https://en.wikipedia.org/wiki/Blend_modes#Screen
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1227,6 +1261,7 @@ class RandomSunFlare(ImageOnlyTransform):
             AfterValidator(check_1plus),
             AfterValidator(nondecreasing),
         ]
+        method: Literal["overlay", "physics_based"]
 
         @model_validator(mode="after")
         def validate_parameters(self) -> Self:
@@ -1294,6 +1329,7 @@ class RandomSunFlare(ImageOnlyTransform):
         src_color: tuple[int, ...] = (255, 255, 255),
         angle_range: tuple[float, float] = (0, 1),
         num_flare_circles_range: tuple[int, int] = (6, 10),
+        method: Literal["overlay", "physics_based"] = "overlay",
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1305,6 +1341,7 @@ class RandomSunFlare(ImageOnlyTransform):
         self.src_radius = src_radius
         self.src_color = src_color
         self.flare_roi = flare_roi
+        self.method = method
 
     def apply(
         self,
@@ -1313,13 +1350,25 @@ class RandomSunFlare(ImageOnlyTransform):
         circles: list[Any],
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_sun_flare(
-            img,
-            flare_center,
-            self.src_radius,
-            self.src_color,
-            circles,
-        )
+        if self.method == "overlay":
+            return fmain.add_sun_flare_overlay(
+                img,
+                flare_center,
+                self.src_radius,
+                self.src_color,
+                circles,
+            )
+        if self.method == "physics_based":
+            non_rgb_error(img)
+            return fmain.add_sun_flare_physics_based(
+                img,
+                flare_center,
+                self.src_radius,
+                self.src_color,
+                circles,
+            )
+
+        raise ValueError(f"Invalid method: {self.method}")
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
@@ -1328,8 +1377,9 @@ class RandomSunFlare(ImageOnlyTransform):
         angle = 2 * math.pi * random.uniform(*self.angle_range)
 
         # Calculate flare center in pixel coordinates
-        flare_center_x = int(width * random.uniform(*self.flare_roi[:2]))
-        flare_center_y = int(height * random.uniform(*self.flare_roi[2:]))
+        x_min, y_min, x_max, y_max = self.flare_roi
+        flare_center_x = int(width * random.uniform(x_min, x_max))
+        flare_center_y = int(height * random.uniform(y_min, y_max))
 
         num_circles = random.randint(*self.num_flare_circles_range)
 
