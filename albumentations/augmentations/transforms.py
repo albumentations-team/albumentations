@@ -1646,11 +1646,16 @@ class RandomShadow(ImageOnlyTransform):
 class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
+    This transform applies a random S-curve to the image's tone curve, adjusting the brightness and contrast
+    in a non-linear manner. It can be applied to the entire image or to each channel separately.
+
     Args:
         scale (float): Standard deviation of the normal distribution used to sample random distances
-            to move two control points that modify the image's curve. Values should be in range [0, 1]. Default: 0.1
-        per_channel (bool): If `True`, the tone curve will be applied to each channel of the input image separately,
-            which can lead to color distortion. Default: False.
+            to move two control points that modify the image's curve. Values should be in range [0, 1].
+            Higher values will result in more dramatic changes to the image. Default: 0.1
+        per_channel (bool): If True, the tone curve will be applied to each channel of the input image separately,
+            which can lead to color distortion. If False, the same curve is applied to all channels,
+            preserving the original color relationships. Default: False
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -1659,31 +1664,52 @@ class RandomToneCurve(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
+    Number of channels:
+        Any
+
+    Note:
+        - This transform modifies the image's histogram by applying a smooth, S-shaped curve to it.
+        - The S-curve is defined by moving two control points of a quadratic Bézier curve.
+        - When per_channel is False, the same curve is applied to all channels, maintaining color balance.
+        - When per_channel is True, different curves are applied to each channel, which can create color shifts.
+        - This transform can be used to adjust image contrast and brightness in a more natural way than linear
+            transforms.
+        - The effect can range from subtle contrast adjustments to more dramatic "vintage" or "faded" looks.
+
+    Mathematical Formulation:
+        1. Two control points are randomly moved from their default positions (0.25, 0.25) and (0.75, 0.75).
+        2. The new positions are sampled from a normal distribution: N(μ, σ²), where μ is the original position
+        and alpha is the scale parameter.
+        3. These points, along with fixed points at (0, 0) and (1, 1), define a quadratic Bézier curve.
+        4. The curve is applied as a lookup table to the image intensities:
+           new_intensity = curve(original_intensity)
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+        # Apply a random tone curve to all channels together
+        >>> transform = A.RandomToneCurve(scale=0.1, per_channel=False, p=1.0)
+        >>> augmented_image = transform(image=image)['image']
+
+        # Apply random tone curves to each channel separately
+        >>> transform = A.RandomToneCurve(scale=0.2, per_channel=True, p=1.0)
+        >>> augmented_image = transform(image=image)['image']
+
+    References:
         - "What Else Can Fool Deep Learning? Addressing Color Constancy Errors on Deep Neural Network Performance"
           by Mahmoud Afifi and Michael S. Brown, ICCV 2019.
-        - GitHub repository: https://github.com/mahmoudnafifi/WB_color_augmenter
-
-    Example:
-        >>> import numpy as np
-        >>> from albumentations import RandomToneCurve
-        >>> img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = RandomToneCurve(scale=0.1, per_channel=True, p=1.0)
-        >>> transformed_img = transform(image=img)['image']
-
-    This transform applies a random tone curve to the input image by adjusting the relationship between bright and
-    dark areas. When `per_channel` is set to True, each channel is adjusted separately, potentially causing color
-    distortions. Otherwise, the same adjustment is applied to all channels, preserving the original color relationships.
+        - Bézier curve: https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
+        - Tone mapping: https://en.wikipedia.org/wiki/Tone_mapping
     """
 
     class InitSchema(BaseTransformInitSchema):
         scale: float = Field(
-            default=0.1,
-            description="Standard deviation of the normal distribution used to sample random distances",
             ge=0,
             le=1,
         )
-        per_channel: bool = Field(default=False, description="Apply the tone curve to each channel separately")
+        per_channel: bool
 
     def __init__(
         self,
