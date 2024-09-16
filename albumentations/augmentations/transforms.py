@@ -1646,11 +1646,16 @@ class RandomShadow(ImageOnlyTransform):
 class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
+    This transform applies a random S-curve to the image's tone curve, adjusting the brightness and contrast
+    in a non-linear manner. It can be applied to the entire image or to each channel separately.
+
     Args:
         scale (float): Standard deviation of the normal distribution used to sample random distances
-            to move two control points that modify the image's curve. Values should be in range [0, 1]. Default: 0.1
-        per_channel (bool): If `True`, the tone curve will be applied to each channel of the input image separately,
-            which can lead to color distortion. Default: False.
+            to move two control points that modify the image's curve. Values should be in range [0, 1].
+            Higher values will result in more dramatic changes to the image. Default: 0.1
+        per_channel (bool): If True, the tone curve will be applied to each channel of the input image separately,
+            which can lead to color distortion. If False, the same curve is applied to all channels,
+            preserving the original color relationships. Default: False
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -1659,31 +1664,52 @@ class RandomToneCurve(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
+    Number of channels:
+        Any
+
+    Note:
+        - This transform modifies the image's histogram by applying a smooth, S-shaped curve to it.
+        - The S-curve is defined by moving two control points of a quadratic Bézier curve.
+        - When per_channel is False, the same curve is applied to all channels, maintaining color balance.
+        - When per_channel is True, different curves are applied to each channel, which can create color shifts.
+        - This transform can be used to adjust image contrast and brightness in a more natural way than linear
+            transforms.
+        - The effect can range from subtle contrast adjustments to more dramatic "vintage" or "faded" looks.
+
+    Mathematical Formulation:
+        1. Two control points are randomly moved from their default positions (0.25, 0.25) and (0.75, 0.75).
+        2. The new positions are sampled from a normal distribution: N(μ, σ²), where μ is the original position
+        and alpha is the scale parameter.
+        3. These points, along with fixed points at (0, 0) and (1, 1), define a quadratic Bézier curve.
+        4. The curve is applied as a lookup table to the image intensities:
+           new_intensity = curve(original_intensity)
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+        # Apply a random tone curve to all channels together
+        >>> transform = A.RandomToneCurve(scale=0.1, per_channel=False, p=1.0)
+        >>> augmented_image = transform(image=image)['image']
+
+        # Apply random tone curves to each channel separately
+        >>> transform = A.RandomToneCurve(scale=0.2, per_channel=True, p=1.0)
+        >>> augmented_image = transform(image=image)['image']
+
+    References:
         - "What Else Can Fool Deep Learning? Addressing Color Constancy Errors on Deep Neural Network Performance"
           by Mahmoud Afifi and Michael S. Brown, ICCV 2019.
-        - GitHub repository: https://github.com/mahmoudnafifi/WB_color_augmenter
-
-    Example:
-        >>> import numpy as np
-        >>> from albumentations import RandomToneCurve
-        >>> img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = RandomToneCurve(scale=0.1, per_channel=True, p=1.0)
-        >>> transformed_img = transform(image=img)['image']
-
-    This transform applies a random tone curve to the input image by adjusting the relationship between bright and
-    dark areas. When `per_channel` is set to True, each channel is adjusted separately, potentially causing color
-    distortions. Otherwise, the same adjustment is applied to all channels, preserving the original color relationships.
+        - Bézier curve: https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
+        - Tone mapping: https://en.wikipedia.org/wiki/Tone_mapping
     """
 
     class InitSchema(BaseTransformInitSchema):
         scale: float = Field(
-            default=0.1,
-            description="Standard deviation of the normal distribution used to sample random distances",
             ge=0,
             le=1,
         )
-        per_channel: bool = Field(default=False, description="Apply the tone curve to each channel separately")
+        per_channel: bool
 
     def __init__(
         self,
@@ -3556,20 +3582,82 @@ class ColorJitter(ImageOnlyTransform):
 class Sharpen(ImageOnlyTransform):
     """Sharpen the input image and overlays the result with the original image.
 
+    This transform applies a sharpening filter to the input image and then blends
+    the sharpened image with the original using a specified alpha value.
+
     Args:
-        alpha: range to choose the visibility of the sharpened image. At 0, only the original image is
-            visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
-        lightness: range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
-        p: probability of applying the transform. Default: 0.5.
+        alpha (tuple of float): Range to choose the visibility of the sharpened image.
+            At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
+            Values should be in the range [0, 1].
+            Default: (0.2, 0.5).
+
+        lightness (tuple of float): Range to choose the lightness of the sharpened image.
+            Larger values will create images with higher contrast.
+            Values should be greater than 0.
+            Default: (0.5, 1.0).
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        - The sharpening effect is achieved using a 3x3 sharpening kernel.
+        - The kernel is dynamically generated based on the 'alpha' and 'lightness' parameters.
+        - Higher 'alpha' values will result in a more pronounced sharpening effect.
+        - Higher 'lightness' values will increase the contrast of the sharpened areas.
+        - This transform can be useful for:
+          * Enhancing edge details in images
+          * Improving the perceived quality of slightly blurred images
+          * Creating a more crisp appearance in photographs
+
+    Mathematical Formulation:
+        The sharpening kernel K is defined as:
+
+        K = (1 - alpha) * I + alpha * L
+
+        where:
+        - alpha is the alpha value (from the 'alpha' parameter)
+        - I is the identity kernel [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
+        - L is the Laplacian kernel [[-1, -1, -1], [-1, 8+l, -1], [-1, -1, -1]]
+          (l is the lightness value from the 'lightness' parameter)
+
+        The sharpened image S is obtained by convolving the input image I with the kernel K:
+
+        S = I * K
+
+        The final output O is a blend of the original and sharpened images:
+
+        O = (1 - alpha) * I + alpha * S
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Apply sharpening with default parameters
+        >>> transform = A.Sharpen(p=1.0)
+        >>> sharpened_image = transform(image=image)['image']
+
+        # Apply sharpening with custom parameters
+        >>> transform = A.Sharpen(alpha=(0.4, 0.7), lightness=(0.8, 1.2), p=1.0)
+        >>> sharpened_image = transform(image=image)['image']
+
+    References:
+        - Image sharpening: https://en.wikipedia.org/wiki/Unsharp_masking
+        - Laplacian operator: https://en.wikipedia.org/wiki/Laplace_operator
+        - "Digital Image Processing" by Rafael C. Gonzalez and Richard E. Woods, 4th Edition
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: ZeroOneRangeType = (0.2, 0.5)
-        lightness: NonNegativeFloatRangeType = (0.5, 1.0)
+        alpha: Annotated[tuple[float, float], AfterValidator(check_01)]
+        lightness: Annotated[tuple[float, float], AfterValidator(check_0plus)]
 
     def __init__(
         self,
@@ -3742,10 +3830,10 @@ class Superpixels(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        p_replace: ZeroOneRangeType = (0, 0.1)
-        n_segments: OnePlusIntRangeType = (100, 100)
-        max_size: int | None = Field(default=128, ge=1, description="Maximum image size for the transformation.")
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        p_replace: ZeroOneRangeType
+        n_segments: OnePlusIntRangeType
+        max_size: int | None = Field(ge=1)
+        interpolation: InterpolationType
 
     def __init__(
         self,
@@ -3903,27 +3991,90 @@ class TemplateTransform(ImageOnlyTransform):
 
 
 class RingingOvershoot(ImageOnlyTransform):
-    """Create ringing or overshoot artefacts by conlvolving image with 2D sinc filter.
+    """Create ringing or overshoot artifacts by convolving the image with a 2D sinc filter.
+
+    This transform simulates the ringing artifacts that can occur in digital image processing,
+    particularly after sharpening or edge enhancement operations. It creates oscillations
+    or overshoots near sharp transitions in the image.
 
     Args:
-        blur_limit: maximum kernel size for sinc filter.
-            Should be in range [3, inf). Default: (7, 15).
-        cutoff: range to choose the cutoff frequency in radians.
-            Should be in range (0, np.pi)
-            Default: (np.pi / 4, np.pi / 2).
-        p: probability of applying the transform. Default: 0.5.
-
-    Reference:
-        dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
-        https://arxiv.org/abs/2107.10833
+        blur_limit (int, tuple of int): Maximum kernel size for the sinc filter.
+            Must be an odd number in the range [3, inf).
+            If a single int is provided, the kernel size will be randomly chosen
+            from the range (3, blur_limit). If a tuple (min, max) is provided,
+            the kernel size will be randomly chosen from the range (min, max).
+            Default: (7, 15).
+        cutoff (tuple of float): Range to choose the cutoff frequency in radians.
+            Values should be in the range (0, π). A lower cutoff frequency will
+            result in more pronounced ringing effects.
+            Default: (π/4, π/2).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        - Ringing artifacts are oscillations of the image intensity function in the neighborhood
+          of sharp transitions, such as edges or object boundaries.
+        - This transform uses a 2D sinc filter (also known as a 2D cardinal sine function)
+          to introduce these artifacts.
+        - The severity of the ringing effect is controlled by both the kernel size (blur_limit)
+          and the cutoff frequency.
+        - Larger kernel sizes and lower cutoff frequencies will generally produce more
+          noticeable ringing effects.
+        - This transform can be useful for:
+          * Simulating imperfections in image processing or transmission systems
+          * Testing the robustness of computer vision models to ringing artifacts
+          * Creating artistic effects that emphasize edges and transitions in images
+
+    Mathematical Formulation:
+        The 2D sinc filter kernel is defined as:
+
+        K(x, y) = cutoff * J₁(cutoff * √(x² + y²)) / (2π * √(x² + y²))
+
+        where:
+        - J₁ is the Bessel function of the first kind of order 1
+        - cutoff is the chosen cutoff frequency
+        - x and y are the distances from the kernel center
+
+        The filtered image I' is obtained by convolving the input image I with the kernel K:
+
+        I'(x, y) = ∑∑ I(x-u, y-v) * K(u, v)
+
+        The convolution operation introduces the ringing artifacts near sharp transitions.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+        # Apply ringing effect with default parameters
+        >>> transform = A.RingingOvershoot(p=1.0)
+        >>> ringing_image = transform(image=image)['image']
+
+        # Apply ringing effect with custom parameters
+        >>> transform = A.RingingOvershoot(
+        ...     blur_limit=(9, 17),
+        ...     cutoff=(np.pi/6, np.pi/3),
+        ...     p=1.0
+        ... )
+        >>> ringing_image = transform(image=image)['image']
+
+    References:
+        - Ringing artifacts: https://en.wikipedia.org/wiki/Ringing_artifacts
+        - Sinc filter: https://en.wikipedia.org/wiki/Sinc_filter
+        - "The Importance of Ringing Artifacts in Image Processing" by Jae S. Lim, 1981
+        - "Digital Image Processing" by Rafael C. Gonzalez and Richard E. Woods, 4th Edition
     """
 
     class InitSchema(BlurInitSchema):
-        blur_limit: ScaleIntType = Field(default=(7, 15), description="Maximum kernel size for sinc filter.")
+        blur_limit: ScaleIntType
         cutoff: Annotated[tuple[float, float], nondecreasing]
 
         @field_validator("cutoff")
@@ -4004,8 +4155,7 @@ class UnsharpMask(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         sigma_limit: NonNegativeFloatRangeType
         alpha: ZeroOneRangeType
-        threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
-
+        threshold: int = Field(ge=0, le=255)
         blur_limit: ScaleIntType
 
         @field_validator("blur_limit")
