@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 from warnings import warn
 
 import cv2
@@ -27,9 +27,9 @@ from albucore.utils import (
     maybe_process_in_chunks,
     preserve_channel_dim,
 )
-from typing_extensions import Literal
 
 from albumentations import random_utils
+from albumentations.augmentations.geometric.functional import resize
 from albumentations.augmentations.utils import (
     PCA,
     non_rgb_error,
@@ -59,8 +59,6 @@ __all__ = [
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
     "brightness_contrast_adjust",
-    "center",
-    "center_bbox",
     "channel_shuffle",
     "clahe",
     "convolve",
@@ -1440,42 +1438,6 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: list[int]
     return new_image
 
 
-def bbox_from_mask(mask: np.ndarray) -> tuple[int, int, int, int]:
-    """Create bounding box from binary mask (fast version)
-
-    Args:
-        mask (numpy.ndarray): binary mask.
-
-    Returns:
-        tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
-
-    """
-    rows = np.any(mask, axis=1)
-    if not rows.any():
-        return -1, -1, -1, -1
-    cols = np.any(mask, axis=0)
-    y_min, y_max = np.where(rows)[0][[0, -1]]
-    x_min, x_max = np.where(cols)[0][[0, -1]]
-    return x_min, y_min, x_max + 1, y_max + 1
-
-
-def mask_from_bbox(img: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
-    """Create binary mask from bounding box
-
-    Args:
-        img: input image
-        bbox: A bounding box tuple `(x_min, y_min, x_max, y_max)`
-
-    Returns:
-        mask: binary mask
-
-    """
-    mask = np.zeros(img.shape[:2], dtype=np.uint8)
-    x_min, y_min, x_max, y_max = bbox
-    mask[y_min:y_max, x_min:x_max] = 1
-    return mask
-
-
 @clipped
 @preserve_channel_dim
 def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
@@ -1493,7 +1455,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
         uint8, float32
 
     Number of channels:
-        any
+        Any
 
     Note:
         - This function generalizes the Fancy PCA augmentation to work with any number of channels.
@@ -1644,8 +1606,7 @@ def superpixels(
             scale = max_size / size
             height, width = image.shape[:2]
             new_height, new_width = int(height * scale), int(width * scale)
-            resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(new_width, new_height), interpolation=interpolation)
-            image = resize_fn(image)
+            image = resize(image, (new_height, new_width), interpolation)
 
     segments = skimage.segmentation.slic(
         image,
@@ -1657,16 +1618,19 @@ def superpixels(
     min_value = 0
     max_value = MAX_VALUES_BY_DTYPE[image.dtype]
     image = np.copy(image)
+
     if image.ndim == MONO_CHANNEL_DIMENSIONS:
-        image = image.reshape(*image.shape, 1)
-    nb_channels = image.shape[2]
-    for c in range(nb_channels):
+        image = image.expand_dims(axis=-1)
+
+    num_channels = get_num_channels(image)
+
+    for c in range(num_channels):
         # segments+1 here because otherwise regionprops always misses the last label
         regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
-        for ridx, region in enumerate(regions):
+        for region_idx, region in enumerate(regions):
             # with mod here, because slic can sometimes create more superpixel than requested.
             # replace_samples then does not have enough values, so we just start over with the first one again.
-            if replace_samples[ridx % len(replace_samples)]:
+            if replace_samples[region_idx % len(replace_samples)]:
                 mean_intensity = region.mean_intensity
                 image_sp_c = image[..., c]
 
@@ -1680,17 +1644,9 @@ def superpixels(
                 else:
                     value = mean_intensity
 
-                image_sp_c[segments == ridx] = value
+                image_sp_c[segments == region_idx] = value
 
-    if orig_shape != image.shape:
-        resize_fn = maybe_process_in_chunks(
-            cv2.resize,
-            dsize=(orig_shape[1], orig_shape[0]),
-            interpolation=interpolation,
-        )
-        return resize_fn(image)
-
-    return image
+    return resize(image, orig_shape[:2], interpolation) if orig_shape != image.shape else image
 
 
 @clipped
@@ -1972,32 +1928,6 @@ def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarra
         return erode(img, kernel)
 
     raise ValueError(f"Unsupported operation: {operation}")
-
-
-def center(image_shape: tuple[int, int]) -> tuple[float, float]:
-    """Calculate the center coordinates if image. Used by images, masks and keypoints.
-
-    Args:
-        image_shape (tuple[int, int]): The shape of the image.
-
-    Returns:
-        tuple[float, float]: The center coordinates.
-    """
-    height, width = image_shape[:2]
-    return width / 2 - 0.5, height / 2 - 0.5
-
-
-def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
-    """Calculate the center coordinates for of image for bounding boxes.
-
-    Args:
-        image_shape (tuple[int, int]): The shape of the image.
-
-    Returns:
-        tuple[float, float]: The center coordinates.
-    """
-    height, width = image_shape[:2]
-    return width / 2, height / 2
 
 
 PLANCKIAN_COEFFS = {

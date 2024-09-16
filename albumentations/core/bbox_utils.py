@@ -519,3 +519,39 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
         return None
 
     return np.array([x_min, y_min, x_max, y_max], dtype=np.float32)
+
+
+def bbox_from_mask(mask: np.ndarray) -> tuple[int, int, int, int]:
+    """Create bounding box from binary mask (fast version)
+
+    Args:
+        mask (numpy.ndarray): binary mask.
+
+    Returns:
+        tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
+
+    """
+    rows = np.any(mask, axis=1)
+    if not rows.any():
+        return -1, -1, -1, -1
+    cols = np.any(mask, axis=0)
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+    return x_min, y_min, x_max + 1, y_max + 1
+
+
+def mask_from_bbox(img: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
+    """Create binary mask from bounding box
+
+    Args:
+        img: input image
+        bbox: A bounding box tuple `(x_min, y_min, x_max, y_max)`
+
+    Returns:
+        mask: binary mask
+
+    """
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    x_min, y_min, x_max, y_max = bbox
+    mask[y_min:y_max, x_min:x_max] = 1
+    return mask

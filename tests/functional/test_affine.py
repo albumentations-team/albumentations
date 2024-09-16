@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 import skimage.transform
 import cv2
-from albumentations.augmentations.functional import center_bbox
 import albumentations.augmentations.geometric.functional as fgeometric
 import albumentations as A
 
@@ -395,7 +394,7 @@ def test_create_affine_transformation_matrix_extreme_values():
     {"translate": {"x": 0, "y": 0}, "shear": {"x": 30, "y": 20}, "scale": {"x": 1.5, "y": 1.2}, "rotate": 45},
 ])
 def test_center_remains_stationary(image_shape, transform_params):
-    center = center_bbox(image_shape)
+    center = fgeometric.center_bbox(image_shape)
 
     transform = fgeometric.create_affine_transformation_matrix(**transform_params, shift=center)
 
@@ -467,7 +466,7 @@ def test_center_remains_stationary(image_shape, transform_params):
     ]
 )
 def test_calculate_affine_transform_padding(image_shape, transform_params, expected_padding):
-    bbox_shift = center_bbox(image_shape)
+    bbox_shift = fgeometric.center_bbox(image_shape)
 
     transform = fgeometric.create_affine_transformation_matrix(**transform_params, shift=(bbox_shift[0], bbox_shift[1]))
 

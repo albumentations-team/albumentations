@@ -9,9 +9,8 @@ import skimage.transform
 from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations import random_utils
-from albumentations.augmentations.functional import bbox_from_mask, center
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
-from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import bbox_from_mask, denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import (
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
@@ -59,6 +58,8 @@ __all__ = [
     "keypoints_vflip",
     "bboxes_hflip",
     "keypoints_hflip",
+    "center",
+    "center_bbox",
 ]
 
 PAIR = 2
@@ -2642,3 +2643,29 @@ def bboxes_grid_distortion(
 
     # Normalize the returned bboxes
     return normalize_bboxes(bboxes_returned, image_shape)
+
+
+def center(image_shape: tuple[int, int]) -> tuple[float, float]:
+    """Calculate the center coordinates if image. Used by images, masks and keypoints.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image.
+
+    Returns:
+        tuple[float, float]: The center coordinates.
+    """
+    height, width = image_shape[:2]
+    return width / 2 - 0.5, height / 2 - 0.5
+
+
+def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
+    """Calculate the center coordinates for of image for bounding boxes.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image.
+
+    Returns:
+        tuple[float, float]: The center coordinates.
+    """
+    height, width = image_shape[:2]
+    return width / 2, height / 2

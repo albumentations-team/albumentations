@@ -25,6 +25,7 @@ from scipy import special
 from scipy.ndimage import gaussian_filter
 from typing_extensions import Annotated, Literal, Self, TypedDict
 
+import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
@@ -1092,7 +1093,7 @@ class RandomFog(ImageOnlyTransform):
         particle_positions = []
 
         # Initialize the central region where fog will be most dense
-        center_x, center_y = (int(x) for x in fmain.center(image_shape))
+        center_x, center_y = (int(x) for x in fgeometric.center(image_shape))
 
         # Define the initial size of the foggy area
         current_width = image_width
@@ -3787,7 +3788,8 @@ class Emboss(ImageOnlyTransform):
 
 class Superpixels(ImageOnlyTransform):
     """Transform images partially/completely to their superpixel representation.
-    This implementation uses skimage's version of the SLIC algorithm.
+
+    This implementation uses skimage's version of the SLIC (Simple Linear Iterative Clustering) algorithm.
 
     Args:
         p_replace (float or tuple of float): Defines for any segment the probability that the pixels within that
@@ -3795,23 +3797,26 @@ class Superpixels(ImageOnlyTransform):
 
     Examples:
                 * A probability of ``0.0`` would mean, that the pixels in no
-                  segment are replaced by their average color (image is not
-                  changed at all).
+                segment are replaced by their average color (image is not
+                changed at all).
                 * A probability of ``0.5`` would mean, that around half of all
-                  segments are replaced by their average color.
+                segments are replaced by their average color.
                 * A probability of ``1.0`` would mean, that all segments are
-                  replaced by their average color (resulting in a Voronoi
-                  image).
+                replaced by their average color (resulting in a voronoi
+                image).
             Behavior based on chosen data types for this parameter:
-                * If a ``float``, then that ``flat`` will always be used.
+                * If a ``float``, then that ``float`` will always be used.
                 * If ``tuple`` ``(a, b)``, then a random probability will be
-                  sampled from the interval ``[a, b]`` per image.
-        n_segments (tuple of int): Rough target number of how many superpixels to generate (the algorithm
-            may deviate from this number). Lower value will lead to coarser superpixels.
-            Higher values are computationally more intensive and will hence lead to a slowdown
-            Then a value from the discrete interval ``[a..b]`` will be sampled per image.
-            If input is a single integer, the range will be ``(1, n_segments)``.
-            If interested in a fixed number of segments, use ``(n_segments, n_segments)``.
+                sampled from the interval ``[a, b]`` per image.
+            Default: (0.1, 0.3)
+
+        n_segments (int or tuple of int): Rough target number of how many superpixels to generate.
+            The algorithm may deviate from this number.
+            Lower value will lead to coarser superpixels.
+            Higher values are computationally more intensive and will hence lead to a slowdown.
+            If tuple ``(a, b)``, then a value from the discrete interval ``[a..b]`` will be sampled per image.
+            Default: (15, 120)
+
         max_size (int or None): Maximum image size at which the augmentation is performed.
             If the width or height of an image exceeds this value, it will be
             downscaled before the augmentation so that the longest side matches `max_size`.
@@ -3819,14 +3824,60 @@ class Superpixels(ImageOnlyTransform):
             Note that in case `p_replace` is below ``1.0``,
             the down-/upscaling will affect the not-replaced pixels too.
             Use ``None`` to apply no down-/upscaling.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            Default: 128
+
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 0.5.
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        - This transform can significantly change the visual appearance of the image.
+        - The transform makes use of a superpixel algorithm, which tends to be slow.
+        If performance is a concern, consider using `max_size` to limit the image size.
+        - The effect of this transform can vary greatly depending on the `p_replace` and `n_segments` parameters.
+        - When `p_replace` is high, the image can become highly abstracted, resembling a voronoi diagram.
+        - The transform preserves the original image type (uint8 or float32).
+
+    Mathematical Formulation:
+        1. The image is segmented into approximately `n_segments` superpixels using the SLIC algorithm.
+        2. For each superpixel:
+        - With probability `p_replace`, all pixels in the superpixel are replaced with their mean color.
+        - With probability `1 - p_replace`, the superpixel is left unchanged.
+        3. If the image was resized due to `max_size`, it is resized back to its original dimensions.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+        # Apply superpixels with default parameters
+        >>> transform = A.Superpixels(p=1.0)
+        >>> augmented_image = transform(image=image)['image']
+
+        # Apply superpixels with custom parameters
+        >>> transform = A.Superpixels(
+        ...     p_replace=(0.5, 0.7),
+        ...     n_segments=(50, 100),
+        ...     max_size=None,
+        ...     interpolation=cv2.INTER_NEAREST,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)['image']
+
+    References:
+        - SLIC Superpixels: https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.slic
+        - "SLIC Superpixels Compared to State-of-the-art Superpixel Methods" by Radhakrishna Achanta, et al.
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3854,7 +3905,7 @@ class Superpixels(ImageOnlyTransform):
         return "p_replace", "n_segments", "max_size", "interpolation"
 
     def get_params(self) -> dict[str, Any]:
-        n_segments = random.randint(self.n_segments[0], self.n_segments[1])
+        n_segments = random.randint(*self.n_segments)
         p = random.uniform(*self.p_replace)
         return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
 
