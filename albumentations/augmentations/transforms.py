@@ -2888,10 +2888,14 @@ class ToRGB(ImageOnlyTransform):
 
 
 class ToSepia(ImageOnlyTransform):
-    """Applies sepia filter to the input RGB image
+    """Apply a sepia filter to the input image.
+
+    This transform converts a color image to a sepia tone, giving it a warm, brownish tint
+    that is reminiscent of old photographs. The sepia effect is achieved by applying a
+    specific color transformation matrix to the RGB channels of the input image.
 
     Args:
-        p: probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -2899,6 +2903,50 @@ class ToSepia(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        3
+
+    Note:
+        - This transform only works with RGB images (3 channels).
+        - The sepia effect is created using a fixed color transformation matrix:
+          [[0.393, 0.769, 0.189],
+           [0.349, 0.686, 0.168],
+           [0.272, 0.534, 0.131]]
+        - The output image will have the same data type as the input image.
+        - For float32 images, ensure the input values are in the range [0, 1].
+
+    Raises:
+        TypeError: If the input image is not a 3-channel RGB image.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        # Apply sepia effect to a uint8 image
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ToSepia(p=1.0)
+        >>> sepia_image = transform(image=image)['image']
+        >>> assert sepia_image.shape == image.shape
+        >>> assert sepia_image.dtype == np.uint8
+        >>>
+        # Apply sepia effect to a float32 image
+        >>> image = np.random.rand(100, 100, 3).astype(np.float32)
+        >>> transform = A.ToSepia(p=1.0)
+        >>> sepia_image = transform(image=image)['image']
+        >>> assert sepia_image.shape == image.shape
+        >>> assert sepia_image.dtype == np.float32
+        >>> assert 0 <= sepia_image.min() <= sepia_image.max() <= 1.0
+
+    Mathematical Formulation:
+        Given an input pixel [R, G, B], the sepia tone is calculated as:
+        R_sepia = 0.393*R + 0.769*G + 0.189*B
+        G_sepia = 0.349*R + 0.686*G + 0.168*B
+        B_sepia = 0.272*R + 0.534*G + 0.131*B
+
+        The output values are then clipped to the valid range for the image's data type.
+
+    See Also:
+        ToGray: For converting images to grayscale instead of sepia.
     """
 
     def __init__(self, p: float = 0.5, always_apply: bool | None = None):
@@ -2908,9 +2956,7 @@ class ToSepia(ImageOnlyTransform):
         )
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        if not is_rgb_image(img):
-            msg = "ToSepia transformation expects 3-channel images."
-            raise TypeError(msg)
+        non_rgb_error(img)
         return fmain.linear_transformation_rgb(img, self.sepia_transformation_matrix)
 
     def get_transform_init_args_names(self) -> tuple[()]:
@@ -2918,27 +2964,65 @@ class ToSepia(ImageOnlyTransform):
 
 
 class ToFloat(ImageOnlyTransform):
-    """Divide pixel values by `max_value` to get a float32 output array where all values lie in the range [0, 1.0].
-    If `max_value` is None the transform will try to infer the maximum value by inspecting the data type of the input
-    image.
+    """Convert the input image to a floating-point representation.
 
-    See Also:
-        :class:`~albumentations.augmentations.transforms.FromFloat`
+    This transform divides pixel values by `max_value` to get a float32 output array
+    where all values lie in the range [0, 1.0]. It's useful for normalizing image data
+    before feeding it into neural networks or other algorithms that expect float input.
 
     Args:
-        max_value: maximum possible input value. Default: None.
-        p: probability of applying the transform. Default: 1.0.
+        max_value (float | None): The maximum possible input value. If None, the transform
+            will try to infer the maximum value by inspecting the data type of the input image:
+            - uint8: 255
+            - uint16: 65535
+            - uint32: 4294967295
+            - float32: 1.0
+            Default: None.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image
 
     Image types:
-        any type
+        uint8, uint16, uint32, float32
 
+    Returns:
+        np.ndarray: Image in floating point representation, with values in range [0, 1.0].
+
+    Note:
+        - If the input image is already float32 with values in [0, 1], it will be returned unchanged.
+        - For integer types (uint8, uint16, uint32), the function will scale the values to [0, 1] range.
+        - The output will always be float32, regardless of the input type.
+        - This transform is often used as a preprocessing step before applying other transformations
+          or feeding the image into a neural network.
+
+    Raises:
+        TypeError: If the input image data type is not supported.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        # Convert uint8 image to float
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.ToFloat(max_value=None)
+        >>> float_image = transform(image=image)['image']
+        >>> assert float_image.dtype == np.float32
+        >>> assert 0 <= float_image.min() <= float_image.max() <= 1.0
+        >>>
+        # Convert uint16 image to float with custom max_value
+        >>> image = np.random.randint(0, 4096, (100, 100, 3), dtype=np.uint16)
+        >>> transform = A.ToFloat(max_value=4095)
+        >>> float_image = transform(image=image)['image']
+        >>> assert float_image.dtype == np.float32
+        >>> assert 0 <= float_image.min() <= float_image.max() <= 1.0
+
+    See Also:
+        FromFloat: The inverse operation, converting from float back to the original data type.
     """
 
     class InitSchema(BaseTransformInitSchema):
-        max_value: float | None = Field(default=None, description="Maximum possible input value.")
+        max_value: float | None
         p: ProbabilityType = 1
 
     def __init__(self, max_value: float | None = None, p: float = 1.0, always_apply: bool | None = None):
