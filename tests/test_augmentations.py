@@ -46,7 +46,7 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     mask = image.copy()
     if augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
-        data= aug(image=image, mask=mask, textimage_metadata=[])
+        data= aug(image=image, mask=mask, textimage_metadata={"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     else:
         aug = A.Compose([augmentation_cls(p=1, **params)])
         data = aug(image=image, mask=mask)
@@ -94,7 +94,7 @@ def test_image_only_augmentations(augmentation_cls, params):
     mask = image[:, :, 0].copy().astype(np.uint8)
     if augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
-        data= aug(image=image, mask=mask, textimage_metadata=[])
+        data= aug(image=image, mask=mask, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     else:
         aug = augmentation_cls(p=1, **params)
         data = aug(image=image, mask=mask)
@@ -254,7 +254,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         aug(image=image, mask=mask, overlay_metadata=[])
     elif augmentation_cls == A.TextImage:
-        aug(image=image, mask=mask, textimage_metadata=[])
+        aug(image=image, mask=mask, textimage_metadata={"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     else:
         aug(image=image, mask=mask)
 
@@ -327,7 +327,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
-        data["textimage_metadata"] = []
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
 
     aug(**data)
 
@@ -395,7 +395,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomSnow,
             A.ToRGB,
             A.ToSepia,
-            A.UnsharpMask,
             A.RandomCropFromBorders,
             A.Spatter,
             A.ChromaticAberration,
@@ -420,7 +419,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
-        data["textimage_metadata"] = []
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
     result = aug(**data)
 
     np.testing.assert_array_equal(image.shape, result["image"].shape)
@@ -504,7 +503,7 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
     elif augmentation_cls == A.TextImage:
         data = {
             "image": image_3ch,
-            "textimage_metadata": [],
+            "textimage_metadata": {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)},
             "mask": mask_3ch,
         }
     elif augmentation_cls == A.FromFloat:
@@ -639,7 +638,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
-        data["textimage_metadata"] = []
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
 
     data = aug(**data)
     assert data["image"].dtype == np.uint8
@@ -727,7 +726,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
-        data["textimage_metadata"] = []
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
 
     data = aug(**data)
 
@@ -812,7 +811,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
-        data["textimage_metadata"] = []
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
 
     data = aug(**data)
 
@@ -887,7 +886,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 )
 def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
     image = SQUARE_MULTI_FLOAT_IMAGE
-    aug = augmentation_cls(p=1, **params)
+    aug = A.Compose([augmentation_cls(p=1, **params)])
 
     data = {
         "image": image,
@@ -896,7 +895,7 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
-        data["textimage_metadata"] = []
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
 
     data = aug(**data)
 

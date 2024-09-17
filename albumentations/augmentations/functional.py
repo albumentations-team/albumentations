@@ -1375,9 +1375,6 @@ def grayscale_to_multichannel(grayscale_image: np.ndarray, num_output_channels: 
     Returns:
         np.ndarray: Multi-channel image with shape (height, width, num_channels).
 
-    Raises:
-        ValueError: If the input is not a 2D grayscale image or 3D with shape (height, width, 1).
-
     Note:
         If the input is already a multi-channel image with the desired number of channels,
         it will be returned unchanged.
@@ -1620,7 +1617,7 @@ def superpixels(
     image = np.copy(image)
 
     if image.ndim == MONO_CHANNEL_DIMENSIONS:
-        image = image.expand_dims(axis=-1)
+        image = np.expand_dims(image, axis=-1)
 
     num_channels = get_num_channels(image)
 
@@ -1665,18 +1662,22 @@ def unsharp_mask(
     if input_dtype == np.uint8:
         image = to_float(image)
 
+    if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and get_num_channels(image) == 1:
+        image = np.squeeze(image, axis=-1)
+
     blur = blur_fn(image)
     residual = image - blur
 
     # Do not sharpen noise
     mask = np.abs(residual) * 255 > threshold
-    mask = mask.astype("float32")
+    mask = mask.astype(np.float32)
 
     sharp = image + alpha * residual
     # Avoid color noise artefacts.
     sharp = np.clip(sharp, 0, 1)
 
     soft_mask = blur_fn(mask)
+
     output = add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
 
     return from_float(output, dtype=input_dtype) if input_dtype == np.uint8 else output

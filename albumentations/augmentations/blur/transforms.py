@@ -793,8 +793,8 @@ class ZoomBlur(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        max_factor: OnePlusFloatRangeType = (1, 1.31)
-        step_factor: NonNegativeFloatRangeType = (0.01, 0.03)
+        max_factor: OnePlusFloatRangeType
+        step_factor: NonNegativeFloatRangeType
 
     def __init__(
         self,
@@ -811,8 +811,8 @@ class ZoomBlur(ImageOnlyTransform):
         return fblur.zoom_blur(img, zoom_factors)
 
     def get_params(self) -> dict[str, Any]:
-        max_factor = random.uniform(self.max_factor[0], self.max_factor[1])
-        step_factor = random.uniform(self.step_factor[0], self.step_factor[1])
+        step_factor = random.uniform(*self.step_factor)
+        max_factor = max(1 + step_factor, random.uniform(*self.max_factor))
         return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:

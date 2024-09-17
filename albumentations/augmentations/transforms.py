@@ -30,6 +30,7 @@ from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.utils import check_range, non_rgb_error
+from albumentations.core.composition import Compose
 from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
@@ -45,6 +46,7 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
+    BasicTransform,
     DualTransform,
     ImageOnlyTransform,
     Interpolation,
@@ -2829,10 +2831,11 @@ class ToGray(ImageOnlyTransform):
 
 
 class ToRGB(ImageOnlyTransform):
-    """Convert the input grayscale image to RGB.
+    """Convert an input image from grayscale to RGB format.
 
     Args:
-        p: probability of applying the transform. Default: 1.
+        num_output_channels (int): The number of channels in the output image. Default: 3.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image
@@ -2840,10 +2843,35 @@ class ToRGB(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        1
+
+    Note:
+        - For single-channel (grayscale) images, the channel is replicated to create an RGB image.
+        - If the input is already a 3-channel RGB image, it is returned unchanged.
+        - This transform does not change the data type of the image (e.g., uint8 remains uint8).
+
+    Raises:
+        TypeError: If the input image has more than 1 channel.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Convert a grayscale image to RGB
+        >>> transform = A.Compose([A.ToRGB(p=1.0)])
+        >>> grayscale_image = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+        >>> rgb_image = transform(image=grayscale_image)['image']
+        >>> assert rgb_image.shape == (100, 100, 3)
     """
 
-    def __init__(self, p: float = 1.0, always_apply: bool | None = None):
+    class InitSchema(BaseTransformInitSchema):
+        num_output_channels: int = Field(ge=1)
+
+    def __init__(self, num_output_channels: int = 3, p: float = 1.0, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
+
+        self.num_output_channels = num_output_channels
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if is_rgb_image(img):
@@ -2853,10 +2881,10 @@ class ToRGB(ImageOnlyTransform):
             msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
             raise TypeError(msg)
 
-        return fmain.grayscale_to_multichannel(img, num_output_channels=3)
+        return fmain.grayscale_to_multichannel(img, num_output_channels=self.num_output_channels)
 
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
+    def get_transform_init_args_names(self) -> tuple[str]:
+        return ("num_output_channels",)
 
 
 class ToSepia(ImageOnlyTransform):
@@ -3587,7 +3615,7 @@ class Sharpen(ImageOnlyTransform):
     the sharpened image with the original using a specified alpha value.
 
     Args:
-        alpha (tuple of float): Range to choose the visibility of the sharpened image.
+        alpha (tuple[float, float]): Range to choose the visibility of the sharpened image.
             At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
             Values should be in the range [0, 1].
             Default: (0.2, 0.5).
@@ -3792,32 +3820,33 @@ class Superpixels(ImageOnlyTransform):
     This implementation uses skimage's version of the SLIC (Simple Linear Iterative Clustering) algorithm.
 
     Args:
-        p_replace (float or tuple of float): Defines for any segment the probability that the pixels within that
+        p_replace (tuple[float, float] | float): Defines for any segment the probability that the pixels within that
             segment are replaced by their average color (otherwise, the pixels are not changed).
 
-    Examples:
-                * A probability of ``0.0`` would mean, that the pixels in no
+
+            * A probability of ``0.0`` would mean, that the pixels in no
                 segment are replaced by their average color (image is not
                 changed at all).
-                * A probability of ``0.5`` would mean, that around half of all
+            * A probability of ``0.5`` would mean, that around half of all
                 segments are replaced by their average color.
-                * A probability of ``1.0`` would mean, that all segments are
+            * A probability of ``1.0`` would mean, that all segments are
                 replaced by their average color (resulting in a voronoi
                 image).
+
             Behavior based on chosen data types for this parameter:
-                * If a ``float``, then that ``float`` will always be used.
-                * If ``tuple`` ``(a, b)``, then a random probability will be
-                sampled from the interval ``[a, b]`` per image.
+            * If a ``float``, then that ``float`` will always be used.
+            * If ``tuple`` ``(a, b)``, then a random probability will be
+            sampled from the interval ``[a, b]`` per image.
             Default: (0.1, 0.3)
 
-        n_segments (int or tuple of int): Rough target number of how many superpixels to generate.
+        n_segments (tuple[int, int] | int): Rough target number of how many superpixels to generate.
             The algorithm may deviate from this number.
             Lower value will lead to coarser superpixels.
             Higher values are computationally more intensive and will hence lead to a slowdown.
             If tuple ``(a, b)``, then a value from the discrete interval ``[a..b]`` will be sampled per image.
             Default: (15, 120)
 
-        max_size (int or None): Maximum image size at which the augmentation is performed.
+        max_size (int | None): Maximum image size at which the augmentation is performed.
             If the width or height of an image exceeds this value, it will be
             downscaled before the augmentation so that the longest side matches `max_size`.
             This is done to speed up the process. The final output image has the same size as the input image.
@@ -3920,36 +3949,111 @@ class Superpixels(ImageOnlyTransform):
 
 
 class TemplateTransform(ImageOnlyTransform):
-    """Apply blending of input image with specified templates
+    """Apply blending of input image with specified templates.
+
+    This transform overlays one or more template images onto the input image using alpha blending.
+    It allows for creating complex composite images or simulating various visual effects.
+
     Args:
-        templates (numpy array or list of numpy arrays): Images as template for transform.
-        img_weight: If single float weight will be sampled from (0, img_weight).
-            If tuple of float img_weight will be in range `[img_weight[0], img_weight[1])`.
-            If you want fixed weight, use (img_weight, img_weight)
+        templates (numpy array | list[np.ndarray]): Images to use as templates for the transform.
+            If a single numpy array is provided, it will be used as the only template.
+            If a list of numpy arrays is provided, one will be randomly chosen for each application.
+
+        img_weight (tuple[float, float]  | float): Weight of the original image in the blend.
+            If a single float, that value will always be used.
+            If a tuple (min, max), the weight will be randomly sampled from the range [min, max) for each application.
+            To use a fixed weight, use (weight, weight).
             Default: (0.5, 0.5).
-        template_weight: If single float weight will be sampled from (0, template_weight).
-            If tuple of float template_weight will be in range `[template_weight[0], template_weight[1])`.
-            If you want fixed weight, use (template_weight, template_weight)
+
+        template_weight (tuple[float, float] | float): Weight of the template image in the blend.
+            If a single float, that value will always be used.
+            If a tuple (min, max), the weight will be randomly sampled from the range [min, max) for each application.
+            To use a fixed weight, use (weight, weight).
             Default: (0.5, 0.5).
-        template_transform: transformation object which could be applied to template,
-            must produce template the same size as input image.
-        name: (Optional) Name of transform, used only for deserialization.
-        p: probability of applying the transform. Default: 0.5.
+
+        template_transform (A.Compose | None): A composition of Albumentations transforms to apply to the template
+            before blending.
+            This should be an instance of A.Compose containing one or more Albumentations transforms.
+            Default: None.
+
+        name (str | None): Name of the transform instance. Used for serialization purposes.
+            Default: None.
+
+        p (float): Probability of applying the transform. Default: 0.5.
+
     Targets:
         image
+
     Image types:
         uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        - The template(s) must have the same number of channels as the input image or be single-channel.
+        - If a single-channel template is used with a multi-channel image, the template will be replicated across
+            all channels.
+        - The template(s) must have the same size as the input image.
+        - The weights determine the contribution of each image (original and template) to the final blend.
+          Higher weights result in a stronger presence of that image in the output.
+        - The weights are automatically normalized before blending. This ensures that
+          the sum of the normalized weights always equals 1, maintaining the overall
+          brightness of the blended image.
+        - The relative proportion of the weights determines the blend ratio. For example,
+          img_weight=2 and template_weight=1 will result in the same blend as
+          img_weight=0.66 and template_weight=0.33.
+        - To make this transform serializable, provide a name when initializing it.
+
+    Mathematical Formulation:
+        Given:
+        - I: Input image
+        - T: Template image
+        - w_i: Weight of input image (sampled from img_weight)
+        - w_t: Weight of template image (sampled from template_weight)
+
+        The normalized weights are computed as:
+        w_i_norm = w_i / (w_i + w_t)
+        w_t_norm = w_t / (w_i + w_t)
+
+        The blended image B is then computed as:
+
+        B = w_i_norm * I + w_t_norm * T
+
+        This ensures that w_i_norm + w_t_norm = 1, maintaining the overall image intensity.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> template = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+        # Apply template transform with a single template
+        >>> transform = A.TemplateTransform(templates=template, name="my_template_transform", p=1.0)
+        >>> blended_image = transform(image=image)['image']
+
+        # Apply template transform with multiple templates and custom weights
+        >>> templates = [np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8) for _ in range(3)]
+        >>> transform = A.TemplateTransform(
+        ...     templates=templates,
+        ...     img_weight=(0.3, 0.7),
+        ...     template_weight=(0.5, 0.8),
+        ...     name="multi_template_transform",
+        ...     p=1.0
+        ... )
+        >>> blended_image = transform(image=image)['image']
+
+    References:
+        - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
+        - Image blending: https://en.wikipedia.org/wiki/Image_blending
     """
 
     class InitSchema(BaseTransformInitSchema):
-        templates: np.ndarray | Sequence[np.ndarray] = Field(..., description="Images as template for transform.")
-        img_weight: ZeroOneRangeType = (0.5, 0.5)
-        template_weight: ZeroOneRangeType = (0.5, 0.5)
-        template_transform: Callable[..., Any] | None = Field(
-            default=None,
-            description="Transformation object applied to template.",
-        )
-        name: str | None = Field(default=None, description="Name of transform, used only for deserialization.")
+        templates: np.ndarray | Sequence[np.ndarray]
+        img_weight: ZeroOneRangeType
+        template_weight: ZeroOneRangeType
+        template_transform: Compose | BasicTransform | None = None
+        name: str | None
 
         @field_validator("templates")
         @classmethod
@@ -3969,7 +4073,7 @@ class TemplateTransform(ImageOnlyTransform):
         templates: np.ndarray | list[np.ndarray],
         img_weight: ScaleFloatType = (0.5, 0.5),
         template_weight: ScaleFloatType = (0.5, 0.5),
-        template_transform: Callable[..., Any] | None = None,
+        template_transform: Compose | BasicTransform | None = None,
         name: str | None = None,
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -3989,16 +4093,26 @@ class TemplateTransform(ImageOnlyTransform):
         template_weight: float,
         **params: Any,
     ) -> np.ndarray:
-        return add_weighted(img, img_weight, template, template_weight)
+        if img_weight == 0:
+            return template
+        if template_weight == 0:
+            return img
+
+        total_weight = img_weight + template_weight
+        img_weight_norm = img_weight / total_weight
+        template_weight_norm = template_weight / total_weight
+
+        return add_weighted(img, img_weight_norm, template, template_weight_norm)
 
     def get_params(self) -> dict[str, float]:
         return {
-            "img_weight": random.uniform(self.img_weight[0], self.img_weight[1]),
-            "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
+            "img_weight": random.uniform(*self.img_weight),
+            "template_weight": random.uniform(*self.template_weight),
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         img = data["image"] if "image" in data else data["images"][0]
+
         template = random.choice(self.templates)
 
         if self.template_transform is not None:
@@ -4017,7 +4131,7 @@ class TemplateTransform(ImageOnlyTransform):
             raise ValueError(msg)
 
         if img.shape[:2] != template.shape[:2]:
-            raise ValueError(f"Image and template must be the same size, got {img.shape[:2]} and {template.shape[:2]}")
+            template = fgeometric.resize(template, img.shape[:2], interpolation=cv2.INTER_AREA)
 
         if get_num_channels(template) == 1 and get_num_channels(img) > 1:
             template = np.stack((template,) * get_num_channels(img), axis=-1)
@@ -4049,13 +4163,13 @@ class RingingOvershoot(ImageOnlyTransform):
     or overshoots near sharp transitions in the image.
 
     Args:
-        blur_limit (int, tuple of int): Maximum kernel size for the sinc filter.
+        blur_limit (tuple[int, int] | int): Maximum kernel size for the sinc filter.
             Must be an odd number in the range [3, inf).
             If a single int is provided, the kernel size will be randomly chosen
             from the range (3, blur_limit). If a tuple (min, max) is provided,
             the kernel size will be randomly chosen from the range (min, max).
             Default: (7, 15).
-        cutoff (tuple of float): Range to choose the cutoff frequency in radians.
+        cutoff (tuple[float, float]): Range to choose the cutoff frequency in radians.
             Values should be in the range (0, π). A lower cutoff frequency will
             result in more pronounced ringing effects.
             Default: (π/4, π/2).
@@ -4178,29 +4292,64 @@ class RingingOvershoot(ImageOnlyTransform):
 class UnsharpMask(ImageOnlyTransform):
     """Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
 
+    Unsharp masking is a technique that enhances edge contrast in an image, creating the illusion of increased
+        sharpness.
+    This transform applies Gaussian blur to create a blurred version of the image, then uses this to create a mask
+    which is combined with the original image to enhance edges and fine details.
+
     Args:
-        blur_limit: maximum Gaussian kernel size for blurring the input image.
+        blur_limit (tuple[int, int] | int): maximum Gaussian kernel size for blurring the input image.
             Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
             as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
             If set single value `blur_limit` will be in range (0, blur_limit).
             Default: (3, 7).
-        sigma_limit: Gaussian kernel standard deviation. Must be in range [0, inf).
+        sigma_limit (tuple[float, float] | float): Gaussian kernel standard deviation. Must be in range [0, inf).
             If set single value `sigma_limit` will be in range (0, sigma_limit).
             If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
-        alpha: range to choose the visibility of the sharpened image.
+        alpha (tuple[float, float]): range to choose the visibility of the sharpened image.
             At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
             Default: (0.2, 0.5).
-        threshold: Value to limit sharpening only for areas with high pixel difference between original image
+        threshold (int): Value to limit sharpening only for areas with high pixel difference between original image
             and it's smoothed version. Higher threshold means less sharpening on flat areas.
             Must be in range [0, 255]. Default: 10.
-        p: probability of applying the transform. Default: 0.5.
-
-    Reference:
-        arxiv.org/pdf/2107.10833.pdf
+        p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
+    Image types:
+        uint8, float32
+
+    Note:
+        - The algorithm creates a mask M = (I - G) * alpha, where I is the original image and G is the Gaussian
+            blurred version.
+        - The final image is computed as: output = I + M if |I - G| > threshold, else I.
+        - Higher alpha values increase the strength of the sharpening effect.
+        - Higher threshold values limit the sharpening effect to areas with more significant edges or details.
+        - The blur_limit and sigma_limit parameters control the Gaussian blur used to create the mask.
+
+    References:
+        - https://en.wikipedia.org/wiki/Unsharp_masking
+        - https://arxiv.org/pdf/2107.10833.pdf
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>>
+        # Apply UnsharpMask with default parameters
+        >>> transform = A.UnsharpMask(p=1.0)
+        >>> sharpened_image = transform(image=image)['image']
+        >>>
+        # Apply UnsharpMask with custom parameters
+        >>> transform = A.UnsharpMask(
+        ...     blur_limit=(3, 7),
+        ...     sigma_limit=(0.1, 0.5),
+        ...     alpha=(0.2, 0.7),
+        ...     threshold=15,
+        ...     p=1.0
+        ... )
+        >>> sharpened_image = transform(image=image)['image']
     """
 
     class InitSchema(BaseTransformInitSchema):

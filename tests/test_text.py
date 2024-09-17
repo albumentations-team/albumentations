@@ -137,7 +137,16 @@ dummy_metadata = {
     "text": "Test",
     "font": font,
     "font_color": (127, 127, 127, 127, 127)
-}])])
+}]),
+((100, 100, 5), [{
+    "bbox_coords": (20, 20, 110, 60),
+    "text": "Test",
+    "font": font,
+    "font_color": "red"
+}]),
+
+
+    ])
 def test_draw_text_on_pil_image(image_shape, metadata_list):
     image = np.random.randint(0, 255, size=image_shape, dtype=np.uint8)
 
