@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import random
 import typing
@@ -117,9 +119,9 @@ def get_transforms(
 
 
 def check_all_augs_exists(
-    augmentations: typing.List[typing.List],
+    augmentations: list[list],
     except_augmentations: Optional[Set] = None,
-) -> typing.List[typing.List]:
+) -> list[list]:
     existed_augs = {i[0] for i in augmentations}
     except_augmentations = except_augmentations or set()
 

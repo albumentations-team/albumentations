@@ -777,7 +777,6 @@ def test_contiguous_output_dual(augmentation_cls, params):
             A.FDA,
             A.HistogramMatching,
             A.Lambda,
-            A.TemplateTransform,
             A.MixUp,
             A.RandomSizedBBoxSafeCrop,
             A.CropNonEmptyMaskIfExists,
@@ -790,6 +789,9 @@ def test_contiguous_output_dual(augmentation_cls, params):
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
+            },
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
         },
     ),
@@ -1201,7 +1203,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
         transformed = aug(image=image, mask=mask, bboxes=bboxes)
     elif augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
-        transformed = aug(image=image, mask=mask, bboxes=bboxes, textimage_metadata=[])
+        transformed = aug(image=image, mask=mask, bboxes=bboxes, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     elif augmentation_cls == A.OverlayElements:
         # requires "metadata" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])

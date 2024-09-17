@@ -11,7 +11,7 @@ from albucore.utils import clip, clipped, get_num_channels, preserve_channel_dim
 from skimage.exposure import match_histograms
 from typing_extensions import Protocol
 
-import albumentations.augmentations.functional as fmain
+import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.utils import PCA
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS
 
@@ -212,7 +212,7 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
 
     border = int(np.floor(min(image_shape) * beta))
 
-    center_x, center_y = fmain.center(image_shape)
+    center_x, center_y = fgeometric.center(image_shape)
 
     height, width = image_shape
 

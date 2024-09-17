@@ -1000,16 +1000,6 @@ def test_template_transform(img_weight, template_weight, template_transform, ima
     assert template.dtype == img.dtype
 
 
-def test_template_transform_incorrect_size(template):
-    image = np.random.randint(0, 256, (512, 512, 3), np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        transform = A.TemplateTransform(template, p=1.0)
-        transform(image=image)
-
-    message = f"Image and template must be the same size, got {image.shape[:2]} and {template.shape[:2]}"
-    assert str(exc_info.value) == message
-
-
 @pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
 def test_template_transform_incorrect_channels(img_channels, template_channels):
     img = np.random.randint(0, 255, [100, 100, img_channels], np.uint8)
@@ -1471,44 +1461,49 @@ def test_coarse_dropout_invalid_input(params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.FDA: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+            },
+            A.HistogramMatching: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.FDA,
-            A.HistogramMatching,
             A.MaskDropout,
             A.MixUp,
             A.NoOp,
             A.Lambda,
             A.ToRGB,
             A.RandomRotate90,
-            A.TextImage
         },
     ),
 )
 def test_change_image(augmentation_cls, params):
-    """Checks whether transform performs changes to the image."""
+    """Checks whether resulting image is different from the original one."""
     aug = A.Compose([augmentation_cls(p=1, **params)])
     image = SQUARE_UINT8_IMAGE
+
+    data = {
+        "image": image,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": {
+        data["overlay_metadata"] = {
                 "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
                 "bbox": (0.1, 0.12, 0.6, 0.3)
-            }
         }
     elif augmentation_cls == A.FromFloat:
-        data = {
-            "image": SQUARE_FLOAT_IMAGE,
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["image"] = SQUARE_FLOAT_IMAGE
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+
     assert not np.array_equal(aug(**data)["image"], image)
 
 
@@ -2042,28 +2037,49 @@ def test_rot90(bboxes, angle, keypoints):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.FDA: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+            },
+            A.HistogramMatching: {
+                "reference_images": [SQUARE_UINT8_IMAGE + 1],
+                "read_fn": lambda x: x,
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
         },
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.FDA,
-            A.HistogramMatching,
             A.MaskDropout,
             A.MixUp,
             A.OverlayElements,
-            A.TextImage
+            A.NoOp,
+            A.Lambda,
         },
     ),
 )
 def test_return_nonzero(augmentation_cls, params):
-    """Checks whether we can use augmentations in multiprocessing environments"""
+    """Mistakes in clipping may lead to zero image, testing for that"""
     set_seed(42)
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
-    aug = A.Compose([augmentation_cls(p=1, **params)])
 
-    assert not np.array_equal(aug(image=image)["image"], np.zeros_like(image))
+    aug = A.Compose([augmentation_cls(**params, p=1)])
+
+    data = {
+        "image": image,
+    }
+    if augmentation_cls == A.OverlayElements:
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.ToRGB:
+        data["image"] = np.random.randint(0, 255, size=(100, 100)).astype(np.uint8)
+
+    result = aug(**data)
+
+    assert np.max(result["image"]) > 0
 
 
 @pytest.mark.parametrize(

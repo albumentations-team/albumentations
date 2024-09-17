@@ -14,7 +14,6 @@ from pydantic import AfterValidator, Field, ValidationInfo, field_validator, mod
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
-from albumentations.augmentations.functional import center, center_bbox
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.pydantic import (
@@ -776,8 +775,8 @@ class Affine(DualTransform):
         scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
         rotate = -random.uniform(*self.rotate)
 
-        image_shift = center(image_shape)
-        bbox_shift = center_bbox(image_shape)
+        image_shift = fgeometric.center(image_shape)
+        bbox_shift = fgeometric.center_bbox(image_shape)
 
         matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, image_shift)
         bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_shift)

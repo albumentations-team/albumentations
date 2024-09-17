@@ -10,7 +10,6 @@ from skimage.transform import ProjectiveTransform
 from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
-from albumentations.augmentations.functional import center, center_bbox
 from albumentations.augmentations.geometric.transforms import Affine
 from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -345,8 +344,8 @@ class SafeRotate(Affine):
         angle = random.uniform(self.limit[0], self.limit[1])
 
         # Calculate centers for image and bbox
-        image_center = center(image_shape)
-        bbox_center = center_bbox(image_shape)
+        image_center = fgeometric.center(image_shape)
+        bbox_center = fgeometric.center_bbox(image_shape)
 
         # Create matrices for image and bbox
         matrix, scale = self._create_safe_rotate_matrix(angle, image_center, image_shape)

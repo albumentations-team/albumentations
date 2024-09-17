@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import random
 import re
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
 from PIL import ImageFont
-from pydantic import AfterValidator, model_validator
-from typing_extensions import Annotated, Self
+from pydantic import AfterValidator
+from typing_extensions import Annotated
 
 import albumentations.augmentations.text.functional as ftext
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
@@ -70,8 +71,8 @@ class TextImage(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        font_path: str
-        stopwords: list[str] | None
+        font_path: str | Path
+        stopwords: tuple[str, ...]
         augmentations: tuple[str | None, ...] | list[str | None]
         fraction_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
         font_size_fraction_range: Annotated[
@@ -83,19 +84,10 @@ class TextImage(ImageOnlyTransform):
         clear_bg: bool
         metadata_key: str
 
-        @model_validator(mode="after")
-        def validate_input(self) -> Self:
-            if not self.stopwords:
-                self.augmentations = [aug for aug in self.augmentations if aug != "insertion"]
-
-            self.stopwords = self.stopwords or ["the", "is", "in", "at", "of"]
-
-            return self
-
     def __init__(
         self,
-        font_path: str,
-        stopwords: list[str] | None = None,
+        font_path: str | Path,
+        stopwords: tuple[str, ...] = ("the", "is", "in", "at", "of"),
         augmentations: tuple[Literal["insertion", "swap", "deletion"] | None] = (None,),
         fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
@@ -160,7 +152,7 @@ class TextImage(ImageOnlyTransform):
         text: str,
         bbox_index: int,
     ) -> dict[str, Any]:
-        check_bboxes(bbox)
+        check_bboxes(np.array([bbox]))
         denormalized_bbox = denormalize_bboxes(np.array([bbox]), image.shape[:2])[0]
 
         x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
