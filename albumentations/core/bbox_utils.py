@@ -466,8 +466,8 @@ def filter_bboxes(
         (denormalized_box_areas >= EPSILON)
         & (clipped_box_areas >= min_area - EPSILON)
         & (clipped_box_areas / denormalized_box_areas >= min_visibility - EPSILON)
-        & (clipped_widths >= max(min_width, 0))
-        & (clipped_heights >= max(min_height, 0))
+        & (clipped_widths >= min_width - EPSILON)
+        & (clipped_heights >= min_height - EPSILON)
     )
 
     # Apply the mask to get the filtered bboxes
