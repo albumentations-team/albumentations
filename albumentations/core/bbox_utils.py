@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 BBOX_WITH_LABEL_SHAPE = 5
-EPSILON = 1e-3
+EPSILON = 1e-5
 
 
 class BboxParams(Params):
@@ -463,11 +463,11 @@ def filter_bboxes(
 
     # Create a mask for bboxes that meet all criteria
     mask = (
-        (denormalized_box_areas >= (1 - EPSILON))
+        (denormalized_box_areas >= EPSILON)
         & (clipped_box_areas >= min_area - EPSILON)
         & (clipped_box_areas / denormalized_box_areas >= min_visibility - EPSILON)
-        & (clipped_widths >= max(min_width, 1 - EPSILON))
-        & (clipped_heights >= max(min_height, 1 - EPSILON))
+        & (clipped_widths >= max(min_width, 0))
+        & (clipped_heights >= max(min_height, 0))
     )
 
     # Apply the mask to get the filtered bboxes

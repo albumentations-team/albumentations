@@ -1203,3 +1203,13 @@ def test_bbox_d4(bbox, group_member, expected):
     bboxes = np.array([bbox])
     result = fgeometric.bboxes_d4(bboxes, group_member)[0]
     np.testing.assert_array_almost_equal(result, expected)
+
+
+def test_less_1_pixel_bbox():
+    transform = A.Compose(
+    [A.NoOp()],
+        bbox_params=A.BboxParams(format="coco", label_fields=["category_id"]),
+    )
+    transformed = transform(image=np.zeros((4, 4, 3), dtype=np.uint8), bboxes=[[1.0, 1.0, 0.75, 0.75]], category_id=[1])
+
+    np.testing.assert_array_almost_equal(transformed["bboxes"], [[1.0, 1.0, 0.75, 0.75]])
