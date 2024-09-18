@@ -9,7 +9,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage.transform
-from albucore.utils import get_num_channels
+from albucore import hflip, vflip
 from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
@@ -1474,7 +1474,7 @@ class VerticalFlip(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.vflip(img)
+        return vflip(img)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.bboxes_vflip(bboxes)
@@ -1503,12 +1503,7 @@ class HorizontalFlip(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        if get_num_channels(img) > 1 and img.dtype == np.uint8:
-            # Opencv is faster than numpy only in case of
-            # non-gray scale 8bits images
-            return fgeometric.hflip_cv2(img)
-
-        return fgeometric.hflip(img)
+        return hflip(img)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.bboxes_hflip(bboxes)
