@@ -6,7 +6,7 @@ from typing import Any, Callable, Literal, Sequence, Tuple, TypedDict, cast
 import cv2
 import numpy as np
 import skimage.transform
-from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, preserve_channel_dim
+from albucore import clipped, get_num_channels, hflip, maybe_process_in_chunks, preserve_channel_dim, vflip
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
@@ -41,10 +41,7 @@ __all__ = [
     "piecewise_affine",
     "to_distance_maps",
     "from_distance_maps",
-    "hflip",
-    "hflip_cv2",
     "transpose",
-    "vflip",
     "d4",
     "bboxes_rotate",
     "keypoints_rotate",
@@ -1241,18 +1238,6 @@ def bboxes_piecewise_affine(
 
     # Normalize the new bboxes
     return normalize_bboxes(new_bboxes, image_shape)
-
-
-def vflip(img: np.ndarray) -> np.ndarray:
-    return img[::-1, ...]
-
-
-def hflip(img: np.ndarray) -> np.ndarray:
-    return img[:, ::-1, ...]
-
-
-def hflip_cv2(img: np.ndarray) -> np.ndarray:
-    return cv2.flip(img, 1)
 
 
 def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:

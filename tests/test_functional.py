@@ -7,11 +7,10 @@ import skimage
 
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
-from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels, clip
-from albucore.functions import to_float
+from albucore import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels, clip, to_float
 
 from albumentations.core.types import d4_group_elements
-from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
 
 
@@ -887,7 +886,7 @@ def test_iso_noise(image, color_shift, intensity):
     set_seed(42)
     result_float = F.iso_noise(float_image, color_shift=color_shift, intensity=intensity)
 
-    result_float = F.from_float(result_float, dtype=np.uint8)  # Convert the float result back to uint8
+    result_float = F.from_float(result_float, target_dtype=np.uint8)  # Convert the float result back to uint8
 
     np.testing.assert_allclose(result_uint8, result_float, rtol=1e-5, atol=1)
 

@@ -5,8 +5,14 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 import cv2
 import numpy as np
-from albucore.functions import from_float, to_float
-from albucore.utils import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS, preserve_channel_dim
+from albucore import (
+    MONO_CHANNEL_DIMENSIONS,
+    NUM_MULTI_CHANNEL_DIMENSIONS,
+    NUM_RGB_CHANNELS,
+    from_float,
+    preserve_channel_dim,
+    to_float,
+)
 
 from albumentations.core.types import PAIR
 
@@ -132,7 +138,7 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg
     original_dtype = image.dtype
 
     if original_dtype == np.float32:
-        image = from_float(image, dtype=np.uint8)
+        image = from_float(image, target_dtype=np.uint8)
 
     # First clean background under boxes using seamless clone if clear_bg is True
     if clear_bg:

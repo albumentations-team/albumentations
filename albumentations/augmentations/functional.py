@@ -7,25 +7,23 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import (
+from albucore import (
+    MAX_VALUES_BY_DTYPE,
     add,
     add_array,
     add_weighted,
-    from_float,
-    multiply,
-    multiply_add,
-    normalize_per_image,
-    to_float,
-)
-from albucore.utils import (
-    MAX_VALUES_BY_DTYPE,
     clip,
     clipped,
+    from_float,
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
     maybe_process_in_chunks,
+    multiply,
+    multiply_add,
+    normalize_per_image,
     preserve_channel_dim,
+    to_float,
 )
 
 from albumentations import random_utils
@@ -202,7 +200,7 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     original_dtype = img.dtype
 
     if original_dtype != np.uint8:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     if np.any((bits_array < 0) | (bits_array > EIGHT)):
         msg = "bits must be in range [0, 8]"
@@ -357,7 +355,7 @@ def equalize(
     original_dtype = img.dtype
 
     if original_dtype != np.uint8:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     _check_preconditions(img, mask, by_channels)
 
@@ -396,11 +394,9 @@ def move_tone_curve(
 
     """
     input_dtype = img.dtype
-    needs_float = False
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
-        needs_float = True
+        img = from_float(img, target_dtype=np.uint8)
 
     t = np.linspace(0.0, 1.0, 256)
 
@@ -421,7 +417,7 @@ def move_tone_curve(
             f"low_y and high_y must both be of type float or np.ndarray. Got {type(low_y)} and {type(high_y)}",
         )
 
-    return to_float(output, max_value=255) if needs_float else output
+    return to_float(output, max_value=255) if input_dtype == np.float32 else output
 
 
 @clipped
@@ -465,7 +461,7 @@ def clahe(img: np.ndarray, clip_limit: float, tile_grid_size: tuple[int, int]) -
     original_dtype = img.dtype
 
     if img.dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
@@ -498,7 +494,6 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
         raise NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
 
     input_dtype = img.dtype
-    needs_float = False
 
     if input_dtype == np.float32:
         warn(
@@ -508,15 +503,14 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
             UserWarning,
             stacklevel=2,
         )
-        img = from_float(img, dtype=np.dtype("uint8"))
-        needs_float = True
+        img = from_float(img, target_dtype=np.uint8)
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError(f"Unexpected dtype {input_dtype} for image augmentation")
 
     _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
 
-    return to_float(img, max_value=255) if needs_float else img
+    return to_float(img, max_value=255) if input_dtype == np.float32 else img
 
 
 def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
@@ -573,7 +567,7 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
     snow_point += max_value / 3
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     image_hls = np.array(image_hls, dtype=np.float32)
@@ -641,7 +635,7 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
     input_dtype = img.dtype
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
@@ -716,7 +710,7 @@ def add_rain(
     """
     input_dtype = img.dtype
 
-    image = from_float(img, dtype=np.uint8) if input_dtype == np.float32 else img.astype(np.uint8)
+    image = from_float(img, target_dtype=np.uint8) if input_dtype == np.float32 else img.astype(np.uint8)
 
     for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
@@ -762,7 +756,7 @@ def add_fog(
     input_dtype = img.dtype
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
+        img = from_float(img, target_dtype=np.uint8)
 
     height, width = img.shape[:2]
     num_channels = get_num_channels(img)
@@ -860,7 +854,7 @@ def add_sun_flare_overlay(
     """
     input_dtype = img.dtype
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     overlay = img.copy()
     output = img.copy()
@@ -1021,7 +1015,7 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
+        img = from_float(img, target_dtype=np.uint8)
 
     img_shadowed = img.copy()
 
@@ -1052,7 +1046,7 @@ def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
     input_dtype = img.dtype
 
     if input_dtype == np.float32:
-        img = from_float(img, dtype=np.dtype("uint8"))
+        img = from_float(img, target_dtype=np.uint8)
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
@@ -1201,7 +1195,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
         3
     """
     dtype = img.dtype
-    img_uint8 = from_float(img, dtype=np.uint8) if dtype == np.float32 else img
+    img_uint8 = from_float(img, target_dtype=np.uint8) if dtype == np.float32 else img
     result = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2LAB)[..., 0]
 
     return to_float(result) if dtype == np.float32 else result
@@ -1334,7 +1328,7 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
     grayscale = pca_result.reshape(img.shape[:2])
     grayscale = normalize_per_image(grayscale, "min_max")
 
-    return from_float(grayscale, dtype=np.uint8) if dtype == np.uint8 else grayscale
+    return from_float(grayscale, target_dtype=dtype) if dtype == np.uint8 else grayscale
 
 
 def to_gray(
@@ -1402,7 +1396,7 @@ def downscale(
     downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
     upscaled = cv2.resize(downscaled, (width, height), interpolation=up_interpolation)
 
-    return from_float(upscaled, dtype=np.uint8) if need_cast else upscaled
+    return from_float(upscaled, target_dtype=np.uint8) if need_cast else upscaled
 
 
 def noop(input_obj: Any, **params: Any) -> Any:
@@ -1511,7 +1505,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     # Clip values to [0, 1] range
     img_pca = np.clip(img_pca, 0, 1)
 
-    return from_float(img_pca, dtype=orig_dtype) if orig_dtype == np.uint8 else img_pca
+    return from_float(img_pca, target_dtype=orig_dtype) if orig_dtype == np.uint8 else img_pca
 
 
 @preserve_channel_dim
@@ -1680,7 +1674,7 @@ def unsharp_mask(
 
     output = add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
 
-    return from_float(output, dtype=input_dtype) if input_dtype == np.uint8 else output
+    return from_float(output, target_dtype=input_dtype) if input_dtype == np.uint8 else output
 
 
 @preserve_channel_dim
@@ -1725,7 +1719,7 @@ def spatter(
     else:
         raise ValueError("Unsupported spatter mode: " + str(mode))
 
-    return from_float(img, dtype=dtype)
+    return from_float(img, target_dtype=dtype)
 
 
 def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
@@ -2006,7 +2000,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
     image[:, :, 2] = image[:, :, 2] * (coeffs[2] / coeffs[1])
     image[image > 1] = 1
 
-    return from_float(image, dtype=img.dtype) if img.dtype == np.uint8 else image
+    return from_float(image, target_dtype=img.dtype) if img.dtype == np.uint8 else image
 
 
 def generate_approx_gaussian_noise(
