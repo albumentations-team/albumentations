@@ -885,7 +885,23 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
     points = np.stack([x, y], axis=-1).reshape(-1, 2)
 
     # Transform all points at once
-    transformed_points = skimage.transform.matrix_transform(points, matrix.params)
+    # Replacing skimage.transform.matrix_transform with numpy ops:
+    # points reshape from N, 2 to N, 3 with extra dim filled with 1
+    points = np.concatenate([points, np.ones((points.shape[0], 1))], axis=1)
+
+    # change matrix.params.T to matrix.T if matrix is np.ndarray and no longer skimage.transform.ProjectiveTransform
+    transformed_points = points @ matrix.params.T
+
+    # set zero to very small number before homogeneous divide
+    transformed_points[:, -1:] = np.where(
+        transformed_points[:, -1:] == 0,
+        np.finfo(float).eps,
+        transformed_points[:, -1:],
+    )
+
+    # homogeneous divide and then get x, y
+    transformed_points = (transformed_points / transformed_points[:, -1:])[:, :2]
+
     transformed_points = transformed_points.reshape(len(bboxes), -1, 2)
 
     # Compute new bounding boxes
