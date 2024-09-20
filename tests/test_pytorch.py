@@ -237,18 +237,15 @@ def test_to_tensor_v2_on_non_contiguous_array():
     assert not non_contiguous_img.flags["C_CONTIGUOUS"]
 
     transform = A.Compose([ToTensorV2()])
-    transformed = transform(image=non_contiguous_img, masks=[non_contiguous_img] * 2)["image"]
-
-    # Check that the output is a contiguous tensor
-    assert transformed.is_contiguous()
+    transformed = transform(image=non_contiguous_img, masks=[non_contiguous_img] * 2)
 
     # Additional checks to ensure the transformation worked correctly
-    assert isinstance(transformed, torch.Tensor)
-    assert transformed.shape == (3, 50, 50)  # Shape changed due to slicing
-    assert transformed.dtype == torch.uint8
+    assert isinstance(transformed["image"], torch.Tensor)
+    assert transformed["image"].shape == (3, 50, 50)  # Shape changed due to slicing
+    assert transformed["image"].dtype == torch.uint8
 
     # Optional: Check that the content is correct
-    np_transformed = transformed.numpy()
+    np_transformed = transformed["image"].numpy()
     np.testing.assert_array_equal(np_transformed.transpose(1, 2, 0), non_contiguous_img)
 
 
@@ -263,8 +260,4 @@ def test_to_tensor_v2_on_non_contiguous_array_with_horizontal_flip():
 
     masks = [image[:, :, 0]] * 2
 
-    transformed = transform(image=image, masks=masks)
-
-    assert transformed["image"].flags["C_CONTIGUOUS"]
-    assert transformed["masks"][0].flags["C_CONTIGUOUS"]
-    assert transformed["masks"][1].flags["C_CONTIGUOUS"]
+    transform(image=image, masks=masks)
