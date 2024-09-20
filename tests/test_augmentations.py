@@ -5,7 +5,8 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from albucore import to_float, from_float
+from tests.conftest import IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -1074,3 +1075,54 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
     x4, y4 = res[3]
 
     assert x1 < x3 and x1 < x4 and x2 < x3 and x2 < x4 and y1 < y2 and y1 < y3 and y4 < y2 and y4 < y3
+
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+        },
+        except_augmentations={
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.FromFloat, A.ToFloat, A.Normalize, A.MaskDropout, A.CropNonEmptyMaskIfExists,
+            A.MixUp, A.FDA, A.HistogramMatching, A.PixelDistributionAdaptation, A.TemplateTransform, A.OverlayElements, A.TextImage,
+            A.Solarize, A.RGBShift, A.HueSaturationValue, A.GaussNoise
+            },
+    ),
+)
+def test_augmentations_match_uint8_float32(augmentation_cls, params):
+    image_uint8 = RECTANGULAR_UINT8_IMAGE
+    image_float32 = to_float(image_uint8)
+
+    print("image_uint8", image_uint8.min(), image_uint8.max())
+    print("image_float32", image_float32.min(), image_float32.max())
+
+    transform = A.Compose([augmentation_cls(p=1, **params)])
+
+    set_seed(42)
+    transformed_uint8 = transform(image=image_uint8)["image"]
+    set_seed(42)
+    transformed_float32 = transform(image=image_float32)["image"]
+
+    print("transformed_uint8", transformed_uint8.min(), transformed_uint8.max(), transformed_uint8.mean())
+    print("transformed_float32", transformed_float32.min(), transformed_float32.max(), transformed_float32.mean())
+
+    np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)

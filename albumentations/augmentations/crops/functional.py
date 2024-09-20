@@ -4,7 +4,7 @@ from typing import Sequence
 
 import cv2
 import numpy as np
-from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
+from albucore import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.utils import handle_empty_array
