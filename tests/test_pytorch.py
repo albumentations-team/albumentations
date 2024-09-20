@@ -6,7 +6,7 @@ from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
-from tests.conftest import UINT8_IMAGES
+from tests.conftest import RECTANGULAR_UINT8_IMAGE, UINT8_IMAGES
 from .utils import set_seed
 
 
@@ -225,3 +225,39 @@ def test_post_data_check():
     assert len(res["keypoints"]) != 0 and len(res["bboxes"]) != 0
     np.testing.assert_array_equal(res["keypoints"], [(45, 45), (25, 25)])
     np.testing.assert_array_equal(res["bboxes"], [(0, 0, 45, 45, 0)])
+
+
+def test_to_tensor_v2_on_non_contiguous_array():
+    # Create a contiguous array
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    assert img.flags["C_CONTIGUOUS"]
+
+    # Create a non-contiguous array by slicing
+    non_contiguous_img = img[::2, ::2, :]
+    assert not non_contiguous_img.flags["C_CONTIGUOUS"]
+
+    transform = A.Compose([ToTensorV2()])
+    transformed = transform(image=non_contiguous_img, masks=[non_contiguous_img] * 2)
+
+    # Additional checks to ensure the transformation worked correctly
+    assert isinstance(transformed["image"], torch.Tensor)
+    assert transformed["image"].shape == (3, 50, 50)  # Shape changed due to slicing
+    assert transformed["image"].dtype == torch.uint8
+
+    # Optional: Check that the content is correct
+    np_transformed = transformed["image"].numpy()
+    np.testing.assert_array_equal(np_transformed.transpose(1, 2, 0), non_contiguous_img)
+
+
+def test_to_tensor_v2_on_non_contiguous_array_with_horizontal_flip():
+    transform= A.Compose([
+        A.HorizontalFlip(p=1),
+        A.ToFloat(max_value=255),
+        ToTensorV2()
+    ],is_check_shapes=False)
+
+    image = RECTANGULAR_UINT8_IMAGE
+
+    masks = [image[:, :, 0]] * 2
+
+    transform(image=image, masks=masks)
