@@ -9,9 +9,8 @@ from albucore import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
-    from_float,
     preserve_channel_dim,
-    to_float,
+    uint8_io,
 )
 
 from albumentations.core.types import PAIR
@@ -133,13 +132,9 @@ def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict
     return np.stack([np.array(channel) for channel in channels], axis=2)
 
 
+@uint8_io
 @preserve_channel_dim
 def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg: bool) -> np.ndarray:
-    original_dtype = image.dtype
-
-    if original_dtype == np.float32:
-        image = from_float(image, target_dtype=np.uint8)
-
     # First clean background under boxes using seamless clone if clear_bg is True
     if clear_bg:
         image = inpaint_text_background(image, metadata_list)
@@ -149,11 +144,9 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg
     ):
         pil_image = convert_image_to_pil(image)
         pil_image = draw_text_on_pil_image(pil_image, metadata_list)
-        result = np.array(pil_image)
-    else:
-        result = draw_text_on_multi_channel_image(image, metadata_list)
+        return np.array(pil_image)
 
-    return to_float(result) if original_dtype == np.float32 else result
+    return draw_text_on_multi_channel_image(image, metadata_list)
 
 
 def inpaint_text_background(

@@ -14,6 +14,7 @@ from albucore import (
     add_weighted,
     clip,
     clipped,
+    float32_io,
     from_float,
     get_num_channels,
     is_grayscale_image,
@@ -24,6 +25,7 @@ from albucore import (
     normalize_per_image,
     preserve_channel_dim,
     to_float,
+    uint8_io,
 )
 
 from albumentations import random_utils
@@ -152,6 +154,7 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if is_gray else img
 
 
+@clipped
 def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
     """Invert all pixel values above a threshold.
 
@@ -182,9 +185,10 @@ def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
     return result_img
 
 
+@uint8_io
 @clipped
 @preserve_channel_dim
-def posterize(img: np.ndarray, bits: int) -> np.ndarray:
+def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
     Args:
@@ -197,30 +201,17 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """
     bits_array = np.uint8(bits)
 
-    original_dtype = img.dtype
-
-    if original_dtype != np.uint8:
-        img = from_float(img, target_dtype=np.uint8)
-
-    if np.any((bits_array < 0) | (bits_array > EIGHT)):
-        msg = "bits must be in range [0, 8]"
-        raise ValueError(msg)
-
     if not bits_array.shape or len(bits_array) == 1:
         if bits_array == 0:
             return np.zeros_like(img)
         if bits_array == EIGHT:
-            return img.copy()
+            return img
 
         lut = np.arange(0, 256, dtype=np.uint8)
         mask = ~np.uint8(2 ** (8 - bits_array) - 1)
         lut &= mask
 
         return cv2.LUT(img, lut)
-
-    if not is_rgb_image(img):
-        msg = "If bits is iterable image must be RGB"
-        raise TypeError(msg)
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits_array):
@@ -235,7 +226,7 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
 
             result_img[..., i] = cv2.LUT(img[..., i], lut)
 
-    return to_float(result_img) if original_dtype == np.float32 else result_img
+    return result_img
 
 
 def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
@@ -308,6 +299,7 @@ def _handle_mask(
     return mask[..., i]
 
 
+@uint8_io
 @preserve_channel_dim
 def equalize(
     img: np.ndarray,
@@ -352,11 +344,6 @@ def equalize(
         >>> assert equalized.shape == image.shape
         >>> assert equalized.dtype == image.dtype
     """
-    original_dtype = img.dtype
-
-    if original_dtype != np.uint8:
-        img = from_float(img, target_dtype=np.uint8)
-
     _check_preconditions(img, mask, by_channels)
 
     function = _equalize_pil if mode == "pil" else _equalize_cv
@@ -374,9 +361,10 @@ def equalize(
         _mask = _handle_mask(mask, i)
         result_img[..., i] = function(img[..., i], _mask)
 
-    return to_float(result_img, max_value=255) if original_dtype == np.float32 else result_img
+    return result_img
 
 
+@uint8_io
 @preserve_channel_dim
 def move_tone_curve(
     img: np.ndarray,
@@ -393,11 +381,6 @@ def move_tone_curve(
             to adjust image tone curve, must be in range [0, 1]
 
     """
-    input_dtype = img.dtype
-
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
-
     t = np.linspace(0.0, 1.0, 256)
 
     def evaluate_bez(t: np.ndarray, low_y: float | np.ndarray, high_y: float | np.ndarray) -> np.ndarray:
@@ -408,16 +391,14 @@ def move_tone_curve(
 
     if np.isscalar(low_y) and np.isscalar(high_y):
         lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8)
-        output = cv2.LUT(img, lut)
-    elif isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
+        return cv2.LUT(img, lut)
+    if isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
         luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
-        output = cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
-    else:
-        raise TypeError(
-            f"low_y and high_y must both be of type float or np.ndarray. Got {type(low_y)} and {type(high_y)}",
-        )
+        return cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
 
-    return to_float(output, max_value=255) if input_dtype == np.float32 else output
+    raise TypeError(
+        f"low_y and high_y must both be of type float or np.ndarray. Got {type(low_y)} and {type(high_y)}",
+    )
 
 
 @clipped
@@ -425,6 +406,7 @@ def linear_transformation_rgb(img: np.ndarray, transformation_matrix: np.ndarray
     return cv2.transform(img, transformation_matrix)
 
 
+@uint8_io
 @preserve_channel_dim
 def clahe(img: np.ndarray, clip_limit: float, tile_grid_size: tuple[int, int]) -> np.ndarray:
     """Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
@@ -458,32 +440,26 @@ def clahe(img: np.ndarray, clip_limit: float, tile_grid_size: tuple[int, int]) -
         >>> assert result.dtype == img.dtype
     """
     img = img.copy()
-    original_dtype = img.dtype
-
-    if img.dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
-
     clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
     if is_grayscale_image(img):
-        result = clahe_mat.apply(img)
-        return to_float(result, max_value=255) if original_dtype == np.float32 else result
+        return clahe_mat.apply(img)
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
 
     img[:, :, 0] = clahe_mat.apply(img[:, :, 0])
 
-    result = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
-
-    return to_float(result, max_value=255) if original_dtype == np.float32 else result
+    return cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
 
+@clipped
 @preserve_channel_dim
 def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     conv_fn = maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
     return conv_fn(img)
 
 
+@uint8_io
 @preserve_channel_dim
 def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"]) -> np.ndarray:
     if image_type == ".jpg":
@@ -493,26 +469,11 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
     else:
         raise NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
 
-    input_dtype = img.dtype
-
-    if input_dtype == np.float32:
-        warn(
-            "Image compression augmentation "
-            "is most effective with uint8 inputs, "
-            f"{input_dtype} is used as input.",
-            UserWarning,
-            stacklevel=2,
-        )
-        img = from_float(img, target_dtype=np.uint8)
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for image augmentation")
-
     _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
-    img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
-
-    return to_float(img, max_value=255) if input_dtype == np.float32 else img
+    return cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
 
 
+@uint8_io
 def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
     """Adds a simple snow effect to the image by bleaching out pixels.
 
@@ -560,14 +521,10 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
         - HLS Color Space: https://en.wikipedia.org/wiki/HSL_and_HSV
         - Original implementation: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    input_dtype = img.dtype
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
     snow_point *= max_value / 2
     snow_point += max_value / 3
-
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     image_hls = np.array(image_hls, dtype=np.float32)
@@ -578,11 +535,10 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
 
     image_hls = np.array(image_hls, dtype=np.uint8)
 
-    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
-
-    return to_float(image_rgb) if input_dtype == np.float32 else image_rgb
+    return cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
 
+@uint8_io
 def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
     """Add a realistic snow effect to the input image.
 
@@ -632,11 +588,6 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
         - Perlin Noise: https://en.wikipedia.org/wiki/Perlin_noise
         - HSV Color Space: https://en.wikipedia.org/wiki/HSL_and_HSV
     """
-    input_dtype = img.dtype
-
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
-
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
     # Convert to HSV for better color control
@@ -675,9 +626,10 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
     sparkle = random_utils.random(img.shape[:2]) > 0.99  # noqa: PLR2004
     img_with_snow[sparkle] = [max_value, max_value, max_value]
 
-    return to_float(img_with_snow) if input_dtype == np.float32 else img_with_snow
+    return img_with_snow
 
 
+@uint8_io
 @preserve_channel_dim
 def add_rain(
     img: np.ndarray,
@@ -708,31 +660,26 @@ def add_rain(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    input_dtype = img.dtype
-
-    image = from_float(img, target_dtype=np.uint8) if input_dtype == np.float32 else img.astype(np.uint8)
-
     for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
         cv2.line(
-            image,
+            img,
             (rain_drop_x0, rain_drop_y0),
             (rain_drop_x1, rain_drop_y1),
             drop_color,
             drop_width,
         )
 
-    image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
-    image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.float32)
+    img = cv2.blur(img, (blur_value, blur_value))  # rainy view are blurry
+    image_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
     image_hsv[:, :, 2] *= brightness_coefficient
 
-    image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
-
-    return to_float(image_rgb) if input_dtype == np.float32 else image_rgb
+    return cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
 
+@uint8_io
 @clipped
 @preserve_channel_dim
 def add_fog(
@@ -753,11 +700,6 @@ def add_fog(
     Returns:
         np.ndarray: Image with added fog effect.
     """
-    input_dtype = img.dtype
-
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
-
     height, width = img.shape[:2]
     num_channels = get_num_channels(img)
 
@@ -785,11 +727,10 @@ def add_fog(
     alpha = np.mean(fog_layer, axis=2, keepdims=True) / 255 * alpha_coef * fog_intensity
     fog_image = img * (1 - alpha) + fog_layer * alpha
 
-    fog_image = fog_image.astype(np.uint8)
-
-    return to_float(fog_image, max_value=255) if input_dtype == np.float32 else fog_image
+    return fog_image.astype(np.uint8)
 
 
+@uint8_io
 @preserve_channel_dim
 def add_sun_flare_overlay(
     img: np.ndarray,
@@ -852,10 +793,6 @@ def add_sun_flare_overlay(
         - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
         - Lens flare: https://en.wikipedia.org/wiki/Lens_flare
     """
-    input_dtype = img.dtype
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
-
     overlay = img.copy()
     output = img.copy()
 
@@ -874,9 +811,10 @@ def add_sun_flare_overlay(
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
         output = add_weighted(overlay, alp, output, 1 - alp)
 
-    return to_float(output) if input_dtype == np.float32 else output
+    return output
 
 
+@uint8_io
 @clipped
 def add_sun_flare_physics_based(
     img: np.ndarray,
@@ -945,10 +883,6 @@ def add_sun_flare_physics_based(
         - Chromatic aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
         - Screen blending: https://en.wikipedia.org/wiki/Blend_modes#Screen
     """
-    input_dtype = img.dtype
-    if input_dtype == np.float32:
-        img = from_float(img, dtype=np.uint8)
-
     output = img.copy()
     height, width = img.shape[:2]
 
@@ -989,11 +923,10 @@ def add_sun_flare_physics_based(
     flare_layer = cv2.merge(channels)
 
     # Blend the flare with the original image using screen blending
-    output = 255 - ((255 - output) * (255 - flare_layer) / 255)
-
-    return to_float(output) if input_dtype == np.float32 else output
+    return 255 - ((255 - output) * (255 - flare_layer) / 255)
 
 
+@uint8_io
 @preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np.ndarray) -> np.ndarray:
     """Add shadows to the image by reducing the intensity of the pixel values in specified regions.
@@ -1009,13 +942,8 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    input_dtype = img.dtype
-
     num_channels = get_num_channels(img)
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
-
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
 
     img_shadowed = img.copy()
 
@@ -1036,27 +964,21 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
             np.uint8,
         )
 
-    return to_float(img_shadowed) if input_dtype == np.float32 else img_shadowed
+    return img_shadowed
 
 
+@uint8_io
 @clipped
 @preserve_channel_dim
 def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
     non_rgb_error(img)
-    input_dtype = img.dtype
-
-    if input_dtype == np.float32:
-        img = from_float(img, target_dtype=np.uint8)
-
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     for gravel in gravels:
         min_y, max_y, min_x, max_x, sat = gravel
         image_hls[min_y:max_y, min_x:max_x, 1] = sat
 
-    image = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
-
-    return to_float(image, max_value=255) if input_dtype == np.float32 else image
+    return cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
 
 def invert(img: np.ndarray) -> np.ndarray:
@@ -1092,6 +1014,7 @@ def brightness_contrast_adjust(
     return multiply_add(img, alpha, value)
 
 
+@float32_io
 @clipped
 def iso_noise(
     image: np.ndarray,
@@ -1118,13 +1041,6 @@ def iso_noise(
     Number of channels:
         3
     """
-    input_dtype = image.dtype
-    factor = 1
-
-    if input_dtype == np.uint8:
-        image = to_float(image)
-        factor = MAX_VALUES_BY_DTYPE[input_dtype]
-
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
@@ -1138,7 +1054,7 @@ def iso_noise(
     luminance = hls[..., 1]
     luminance += (luminance_noise / 255) * (1.0 - luminance)
 
-    return cv2.cvtColor(hls, cv2.COLOR_HLS2RGB) * factor
+    return cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)
 
 
 def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
@@ -1163,6 +1079,7 @@ def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
 
+@uint8_io
 @clipped
 def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
     """Convert an RGB image to grayscale using the L channel from the LAB color space.
@@ -1194,11 +1111,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
     Number of channels:
         3
     """
-    dtype = img.dtype
-    img_uint8 = from_float(img, target_dtype=np.uint8) if dtype == np.float32 else img
-    result = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2LAB)[..., 0]
-
-    return to_float(result) if dtype == np.float32 else result
+    return cv2.cvtColor(img, cv2.COLOR_RGB2LAB)[..., 0]
 
 
 @clipped
@@ -1429,6 +1342,7 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: list[int]
     return new_image
 
 
+@float32_io
 @clipped
 @preserve_channel_dim
 def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
@@ -1463,12 +1377,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
         In Advances in neural information processing systems (pp. 1097-1105).
     """
     orig_shape = img.shape
-    orig_dtype = img.dtype
     num_channels = get_num_channels(img)
-
-    # Convert to float32 and scale to [0, 1] if necessary
-    if orig_dtype == np.uint8:
-        img = to_float(img)
 
     # Reshape image to 2D array of pixels
     img_reshaped = img.reshape(-1, num_channels)
@@ -1503,9 +1412,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     img_pca = img_pca.reshape(orig_shape)
 
     # Clip values to [0, 1] range
-    img_pca = np.clip(img_pca, 0, 1)
-
-    return from_float(img_pca, target_dtype=orig_dtype) if orig_dtype == np.uint8 else img_pca
+    return np.clip(img_pca, 0, 1)
 
 
 @preserve_channel_dim
@@ -1533,6 +1440,7 @@ def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     return multiply_add(img, factor, mean * (1 - factor))
 
 
+@clipped
 @preserve_channel_dim
 def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float = 0) -> np.ndarray:
     if factor == 1:
@@ -1547,11 +1455,7 @@ def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float =
     if factor == 0:
         return gray
 
-    result = cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
-    if img.dtype == np.uint8:
-        return result
-
-    return clip(result, img.dtype)
+    return cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
 
 
 def _adjust_hue_torchvision_uint8(img: np.ndarray, factor: float) -> np.ndarray:
@@ -1565,10 +1469,7 @@ def _adjust_hue_torchvision_uint8(img: np.ndarray, factor: float) -> np.ndarray:
 
 
 def adjust_hue_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
-    if is_grayscale_image(img):
-        return img
-
-    if factor == 0:
+    if is_grayscale_image(img) or factor == 0:
         return img
 
     if img.dtype == np.uint8:
@@ -1640,6 +1541,7 @@ def superpixels(
     return resize(image, orig_shape[:2], interpolation) if orig_shape != image.shape else image
 
 
+@float32_io
 @clipped
 @preserve_channel_dim
 def unsharp_mask(
@@ -1650,11 +1552,6 @@ def unsharp_mask(
     threshold: int = 10,
 ) -> np.ndarray:
     blur_fn = maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
-
-    input_dtype = image.dtype
-
-    if input_dtype == np.uint8:
-        image = to_float(image)
 
     if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and get_num_channels(image) == 1:
         image = np.squeeze(image, axis=-1)
@@ -1672,9 +1569,7 @@ def unsharp_mask(
 
     soft_mask = blur_fn(mask)
 
-    output = add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
-
-    return from_float(output, target_dtype=input_dtype) if input_dtype == np.uint8 else output
+    return add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
 
 
 @preserve_channel_dim
@@ -1686,6 +1581,7 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: float | 
     return np.where(drop_mask, drop_values, image)
 
 
+@float32_io
 @clipped
 @preserve_channel_dim
 def spatter(
@@ -1695,19 +1591,13 @@ def spatter(
     rain: np.ndarray | None,
     mode: SpatterMode,
 ) -> np.ndarray:
-    non_rgb_error(img)
-
-    dtype = img.dtype
-
-    img = to_float(img)
-
     if mode == "rain":
         if rain is None:
             msg = "Rain spatter requires rain mask"
             raise ValueError(msg)
 
-        img += rain
-    elif mode == "mud":
+        return img + rain
+    if mode == "mud":
         if mud is None:
             msg = "Mud spatter requires mud mask"
             raise ValueError(msg)
@@ -1715,11 +1605,9 @@ def spatter(
             msg = "Mud spatter requires non_mud mask"
             raise ValueError(msg)
 
-        img = img * non_mud + mud
-    else:
-        raise ValueError("Unsupported spatter mode: " + str(mode))
+        return img * non_mud + mud
 
-    return from_float(img, target_dtype=dtype)
+    raise ValueError(f"Unsupported spatter mode: {mode}")
 
 
 def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
@@ -1839,6 +1727,8 @@ def shuffle_tiles_within_shape_groups(
     return mapping
 
 
+@uint8_io
+@clipped
 def chromatic_aberration(
     img: np.ndarray,
     primary_distortion_red: float,
@@ -1981,6 +1871,7 @@ PLANCKIAN_COEFFS = {
 }
 
 
+@float32_io
 @clipped
 def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMode = "blackbody") -> np.ndarray:
     img = img.copy()
@@ -1994,13 +1885,11 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
 
     coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
 
-    image = to_float(img) if img.dtype == np.uint8 else img
+    img[:, :, 0] = img[:, :, 0] * (coeffs[0] / coeffs[1])
+    img[:, :, 2] = img[:, :, 2] * (coeffs[2] / coeffs[1])
+    img[img > 1] = 1
 
-    image[:, :, 0] = image[:, :, 0] * (coeffs[0] / coeffs[1])
-    image[:, :, 2] = image[:, :, 2] * (coeffs[2] / coeffs[1])
-    image[image > 1] = 1
-
-    return from_float(image, target_dtype=img.dtype) if img.dtype == np.uint8 else image
+    return img
 
 
 def generate_approx_gaussian_noise(

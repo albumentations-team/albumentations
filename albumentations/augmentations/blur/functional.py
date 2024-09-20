@@ -6,7 +6,7 @@ from typing import Literal, Sequence
 
 import cv2
 import numpy as np
-from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim
+from albucore import clipped, float32_io, maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
@@ -99,6 +99,7 @@ def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
     return img[h_trim_top : h_trim_top + height, w_trim_top : w_trim_top + width]
 
 
+@float32_io
 @clipped
 def zoom_blur(img: np.ndarray, zoom_factors: np.ndarray | Sequence[int]) -> np.ndarray:
     out = np.zeros_like(img, dtype=np.float32)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from albucore.utils import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_dim
+from albucore import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_dim
 from typing_extensions import Literal
 
 from albumentations import random_utils

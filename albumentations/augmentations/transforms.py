@@ -11,14 +11,19 @@ from warnings import warn
 import albucore
 import cv2
 import numpy as np
-from albucore.functions import add_weighted, from_float, multiply, normalize, normalize_per_image, to_float
-from albucore.utils import (
+from albucore import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    add_weighted,
     clip,
+    from_float,
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
+    multiply,
+    normalize,
+    normalize_per_image,
+    to_float,
 )
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
@@ -1854,10 +1859,19 @@ class HueSaturationValue(ImageOnlyTransform):
 class Solarize(ImageOnlyTransform):
     """Invert all pixel values above a threshold.
 
+    This transform applies a solarization effect to the input image. Solarization is a phenomenon in
+    photography in which the image recorded on a negative or on a photographic print is wholly or
+    partially reversed in tone. Dark areas appear light or light areas appear dark.
+
+    In this implementation, all pixel values above a threshold are inverted.
+
     Args:
-        threshold: range for solarizing threshold.
-            If threshold is a single value, the range will be [1, threshold]. Default: 128.
-        p: probability of applying the transform. Default: 0.5.
+        threshold (float | tuple[float, float]): Range for solarizing threshold.
+            If threshold is a single int, the range will be [threshold, threshold].
+            If it's a tuple of (min, max), the range will be [min, max].
+            The threshold should be in the range [0, 255] for uint8 images or [0, 1.0] for float images.
+            Default: 128.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1865,12 +1879,50 @@ class Solarize(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - For uint8 images, pixel values above the threshold are inverted as: 255 - pixel_value
+        - For float32 images, pixel values above the threshold are inverted as: 1.0 - pixel_value
+        - The threshold is applied to each channel independently
+        - This transform can create interesting artistic effects or be used for data augmentation
+
+    Raises:
+        TypeError: If the input image data type is not supported.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        # Solarize uint8 image with fixed threshold
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Solarize(threshold=128, p=1.0)
+        >>> solarized_image = transform(image=image)['image']
+        >>>
+        # Solarize uint8 image with random threshold
+        >>> transform = A.Solarize(threshold=(100, 200), p=1.0)
+        >>> solarized_image = transform(image=image)['image']
+        >>>
+        # Solarize float32 image
+        >>> image = np.random.rand(100, 100, 3).astype(np.float32)
+        >>> transform = A.Solarize(threshold=0.5, p=1.0)
+        >>> solarized_image = transform(image=image)['image']
+
+    Mathematical Formulation:
+        For each pixel value p and threshold t:
+        if p > t:
+            p_new = max_value - p
+        else:
+            p_new = p
+
+        Where max_value is 255 for uint8 images and 1.0 for float32 images.
+
+    See Also:
+        Invert: For inverting all pixel values regardless of a threshold.
     """
 
     class InitSchema(BaseTransformInitSchema):
         threshold: OnePlusFloatRangeType = (128, 128)
 
-    def __init__(self, threshold: ScaleIntType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, threshold: ScaleFloatType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.threshold = cast(Tuple[float, float], threshold)
 
@@ -1878,7 +1930,7 @@ class Solarize(ImageOnlyTransform):
         return fmain.solarize(img, threshold)
 
     def get_params(self) -> dict[str, float]:
-        return {"threshold": random.uniform(self.threshold[0], self.threshold[1])}
+        return {"threshold": random.uniform(*self.threshold)}
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("threshold",)
@@ -2113,23 +2165,16 @@ class Equalize(ImageOnlyTransform):
 
 
 class RGBShift(ImageOnlyTransform):
-    """Randomly shifts the values of each RGB channel independently.
-
-    This transform adjusts the intensity of the red, green, and blue channels of an image
-    by adding a random value within a specified range to each channel. This can be used to
-    simulate color variations caused by different lighting conditions or camera sensors.
+    """Randomly shift values for each channel of the input RGB image.
 
     Args:
-        r_shift_limit (float | tuple[float, float]): Range for changing values for the red channel.
-            If r_shift_limit is a single int or float, the range will be (-r_shift_limit, r_shift_limit).
-            Default: (-20, 20).
-        g_shift_limit (float | tuple[float, float]): Range for changing values for the green channel.
-            If g_shift_limit is a single int or float, the range will be (-g_shift_limit, g_shift_limit).
-            Default: (-20, 20).
-        b_shift_limit (float | tuple[float, float]): Range for changing values for the blue channel.
-            If b_shift_limit is a single int or float, the range will be (-b_shift_limit, b_shift_limit).
-            Default: (-20, 20).
-        p (float): Probability of applying the transform. Default: 0.5.
+        r_shift_limit ((int, int) or int): range for changing values for the red channel. If r_shift_limit is a
+            single int, the range will be (-r_shift_limit, r_shift_limit). Default: (-20, 20).
+        g_shift_limit ((int, int) or int): range for changing values for the green channel. If g_shift_limit is a
+            single int, the range will be (-g_shift_limit, g_shift_limit). Default: (-20, 20).
+        b_shift_limit ((int, int) or int): range for changing values for the blue channel. If b_shift_limit is a
+            single int, the range will be (-b_shift_limit, b_shift_limit). Default: (-20, 20).
+        p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -2137,44 +2182,29 @@ class RGBShift(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Number of channels:
-        Any
-
     Note:
-        - The shift values are sampled independently for each channel.
-        - Positive shifts increase the intensity of a color channel, while negative shifts decrease it.
-        - For uint8 images, the resulting pixel values are clipped to the [0, 255] range.
-        - For float32 images, the values are typically in the [0, 1] range but may exceed it after shifting.
-        - This transform can be used to:
-          * Simulate variations in color balance
-          * Create subtle color casts
-          * Augment data for improving model robustness to color variations
-
-    Mathematical formula:
-        For each channel c in [r, g, b]:
-        output_c = input_c + shift_c
-        where shift_c is randomly sampled from the corresponding shift_limit range.
+        - For uint8 images, the shift values represent absolute pixel values in the range [0, 255].
+          For example, a shift of 20 for a uint8 image would add 20 to the corresponding channel.
+        - For float32 images, the shift values represent fractions of the full value range [0, 1].
+          For example, a shift of 0.1 for a float32 image would add 0.1 to the corresponding channel.
+        - The shift values are applied independently to each channel.
+        - After applying the shift, values are clipped to the valid range for the image dtype:
+          [0, 255] for uint8 and [0, 1] for float32.
 
     Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>>
+        # Shift RGB channels for uint8 image
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RGBShift(r_shift_limit=30, g_shift_limit=30, b_shift_limit=30, p=1.0)
+        >>> shifted_image = transform(image=image)['image']
+        >>>
+        # Shift RGB channels for float32 image
+        >>> image = np.random.rand(100, 100, 3).astype(np.float32)
+        >>> transform = A.RGBShift(r_shift_limit=0.1, g_shift_limit=0.1, b_shift_limit=0.1, p=1.0)
+        >>> shifted_image = transform(image=image)['image']
 
-        # Default usage
-        >>> transform = A.RGBShift(p=1.0)
-        >>> augmented_image = transform(image=image)["image"]
-
-        # Custom shift ranges for each channel
-        >>> transform = A.RGBShift(r_shift_limit=30, g_shift_limit=(-20, 20), b_shift_limit=(-10, 10), p=1.0)
-        >>> augmented_image = transform(image=image)["image"]
-
-        # Using float values for more precise control
-        >>> transform = A.RGBShift(r_shift_limit=(-0.1, 0.1), g_shift_limit=0.2, b_shift_limit=(-0.3, 0.3), p=1.0)
-        >>> augmented_image = transform(image=image)["image"]
-
-    References:
-        - Color balance: https://en.wikipedia.org/wiki/Color_balance
-        - Color cast: https://en.wikipedia.org/wiki/Color_cast
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2196,10 +2226,7 @@ class RGBShift(ImageOnlyTransform):
         self.b_shift_limit = cast(Tuple[float, float], b_shift_limit)
 
     def apply(self, img: np.ndarray, shift: np.ndarray, **params: Any) -> np.ndarray:
-        if not is_rgb_image(img):
-            msg = "RGBShift transformation expects 3-channel images."
-            raise TypeError(msg)
-
+        non_rgb_error(img)
         return albucore.add_vector(img, shift)
 
     def get_params(self) -> dict[str, Any]:
@@ -3678,8 +3705,6 @@ class ColorJitter(ImageOnlyTransform):
         order: list[int],
         **params: Any,
     ) -> np.ndarray:
-        if order is None:
-            order = [0, 1, 2, 3]
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "ColorJitter transformation expects 1-channel or 3-channel images."
             raise TypeError(msg)
@@ -4594,33 +4619,33 @@ class Spatter(ImageOnlyTransform):
     """Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
 
     Args:
-        mean (float, or tuple of floats): Mean value of normal distribution for generating liquid layer.
+        mean (tuple[float, float] | float): Mean value of normal distribution for generating liquid layer.
             If single float mean will be sampled from `(0, mean)`
             If tuple of float mean will be sampled from range `(mean[0], mean[1])`.
             If you want constant value use (mean, mean).
             Default (0.65, 0.65)
-        std (float, or tuple of floats): Standard deviation value of normal distribution for generating liquid layer.
+        std (tuple[float, float] | float): Standard deviation value of normal distribution for generating liquid layer.
             If single float the number will be sampled from `(0, std)`.
             If tuple of float std will be sampled from range `(std[0], std[1])`.
             If you want constant value use (std, std).
             Default: (0.3, 0.3).
-        gauss_sigma (float, or tuple of floats): Sigma value for gaussian filtering of liquid layer.
+        gauss_sigma (tuple[float, float] | floats): Sigma value for gaussian filtering of liquid layer.
             If single float the number will be sampled from `(0, gauss_sigma)`.
             If tuple of float gauss_sigma will be sampled from range `(gauss_sigma[0], gauss_sigma[1])`.
             If you want constant value use (gauss_sigma, gauss_sigma).
             Default: (2, 3).
-        cutout_threshold (float, or tuple of floats): Threshold for filtering liqued layer
+        cutout_threshold (tuple[float, float] | floats): Threshold for filtering liqued layer
             (determines number of drops). If single float it will used as cutout_threshold.
             If single float the number will be sampled from `(0, cutout_threshold)`.
             If tuple of float cutout_threshold will be sampled from range `(cutout_threshold[0], cutout_threshold[1])`.
             If you want constant value use `(cutout_threshold, cutout_threshold)`.
             Default: (0.68, 0.68).
-        intensity (float, or tuple of floats): Intensity of corruption.
+        intensity (tuple[float, float] | floats): Intensity of corruption.
             If single float the number will be sampled from `(0, intensity)`.
             If tuple of float intensity will be sampled from range `(intensity[0], intensity[1])`.
             If you want constant value use `(intensity, intensity)`.
             Default: (0.6, 0.6).
-        mode (string, or list of strings): Type of corruption. Currently, supported options are 'rain' and 'mud'.
+        mode (str, or list[str]): Type of corruption. Currently, supported options are 'rain' and 'mud'.
              If list is provided type of corruption will be sampled list. Default: ("rain").
         color (list of (r, g, b) or dict or None): Corruption elements color.
             If list uses provided list as color for specified mode.
@@ -4712,6 +4737,7 @@ class Spatter(ImageOnlyTransform):
         mode: SpatterMode,
         **params: dict[str, Any],
     ) -> np.ndarray:
+        non_rgb_error(img)
         return fmain.spatter(img, non_mud, mud, drops, mode)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -4810,6 +4836,9 @@ class ChromaticAberration(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
+    Number of channels:
+        3
 
     Note:
         - This transform only affects RGB images. Grayscale images will raise an error.

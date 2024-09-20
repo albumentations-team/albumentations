@@ -6,8 +6,7 @@ from typing import Literal
 
 import cv2
 import numpy as np
-from albucore.functions import add_weighted, from_float, to_float
-from albucore.utils import clip, clipped, get_num_channels, preserve_channel_dim
+from albucore import add_weighted, clip, clipped, from_float, get_num_channels, preserve_channel_dim, to_float
 from skimage.exposure import match_histograms
 from typing_extensions import Protocol
 
