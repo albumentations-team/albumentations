@@ -1607,7 +1607,7 @@ def spatter(
 
         return img * non_mud + mud
 
-    raise ValueError("Unsupported spatter mode: " + str(mode))
+    raise ValueError(f"Unsupported spatter mode: {mode}")
 
 
 def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
