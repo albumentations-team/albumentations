@@ -1205,11 +1205,42 @@ def test_bbox_d4(bbox, group_member, expected):
     np.testing.assert_array_almost_equal(result, expected)
 
 
-def test_less_1_pixel_bbox():
+@pytest.mark.parametrize("bbox_format, bbox, expected", [
+    ("coco", [[1.0, 1.0, 0.75, 0.75]], [[1.0, 1.0, 0.75, 0.75]]),
+    ("coco", [[1.0, 1.0, 1E-3, 1E-3]], [[1.0, 1.0, 1E-3, 1E-3]]),
+    ("yolo", [[0.25, 0.25, 0.1875, 0.1875]], [[0.25, 0.25, 0.1875, 0.1875]]),
+    ("yolo", [[0.25, 0.25, 1E-3, 1E-3]], [[0.25, 0.25, 1E-3, 1E-3]]),
+    ("yolo", [[0.1, 0.2, 1E-3, 1E-3]], [[0.1, 0.2, 1E-3, 1E-3]]),
+    ("pascal_voc", [[1, 1, 2, 2]], [[1, 1, 2, 2]]),
+    ("pascal_voc", [[1, 1, 1.004, 1.004]], [[1, 1, 1.004, 1.004]]),
+])
+def test_small_bbox(bbox_format, bbox, expected):
     transform = A.Compose(
-    [A.NoOp()],
-        bbox_params=A.BboxParams(format="coco", label_fields=["category_id"]),
+        [A.NoOp()],
+        bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
     )
-    transformed = transform(image=np.zeros((4, 4, 3), dtype=np.uint8), bboxes=[[1.0, 1.0, 0.75, 0.75]], category_id=[1])
+    transformed = transform(
+        image=np.zeros((4, 4, 3), dtype=np.uint8),
+        bboxes=bbox,
+        category_id=[1] * len(bbox)
+    )
 
-    np.testing.assert_array_almost_equal(transformed["bboxes"], [[1.0, 1.0, 0.75, 0.75]])
+    np.testing.assert_array_almost_equal(transformed["bboxes"], expected)
+
+@pytest.mark.parametrize("bbox_format, bbox", [
+    ("coco", np.array((0.1, 0.2, 1E-3, 1E-3))),
+    ("yolo", np.array((0.1, 0.2, 1E-3, 1E-3))),
+    ("pascal_voc", np.array((1, 1, 1.001, 1.001))),
+])
+def test_very_small_bbox(bbox_format, bbox):
+    transform = A.Compose(
+        [A.NoOp()],
+        bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
+    )
+    transformed = transform(
+        image=np.zeros((100, 100, 3), dtype=np.uint8),
+        bboxes=[bbox],
+        category_id=[1]
+    )
+
+    np.testing.assert_array_almost_equal(transformed["bboxes"], [bbox])
