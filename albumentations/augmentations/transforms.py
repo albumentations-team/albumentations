@@ -3497,7 +3497,7 @@ class FancyPCA(ImageOnlyTransform):
     deviation 'alpha'.
 
     Args:
-        alpha (float or tuple of float): Standard deviation of the Gaussian distribution used to generate
+        alpha (tuple[float, float] | float): Standard deviation of the Gaussian distribution used to generate
             random noise for each principal component. If a single float is provided, it will be used for
             all channels. If a tuple of two floats (min, max) is provided, the standard deviation will be
             uniformly sampled from this range for each run. Default: 0.1.
