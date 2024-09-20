@@ -3705,8 +3705,6 @@ class ColorJitter(ImageOnlyTransform):
         order: list[int],
         **params: Any,
     ) -> np.ndarray:
-        if order is None:
-            order = [0, 1, 2, 3]
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "ColorJitter transformation expects 1-channel or 3-channel images."
             raise TypeError(msg)

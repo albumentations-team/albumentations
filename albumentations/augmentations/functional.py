@@ -1440,6 +1440,7 @@ def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     return multiply_add(img, factor, mean * (1 - factor))
 
 
+@clipped
 @preserve_channel_dim
 def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float = 0) -> np.ndarray:
     if factor == 1:
@@ -1454,11 +1455,7 @@ def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float =
     if factor == 0:
         return gray
 
-    result = cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
-    if img.dtype == np.uint8:
-        return result
-
-    return clip(result, img.dtype)
+    return cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
 
 
 def _adjust_hue_torchvision_uint8(img: np.ndarray, factor: float) -> np.ndarray:
@@ -1472,10 +1469,7 @@ def _adjust_hue_torchvision_uint8(img: np.ndarray, factor: float) -> np.ndarray:
 
 
 def adjust_hue_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
-    if is_grayscale_image(img):
-        return img
-
-    if factor == 0:
+    if is_grayscale_image(img) or factor == 0:
         return img
 
     if img.dtype == np.uint8:

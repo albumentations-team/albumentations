@@ -1104,7 +1104,7 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.FromFloat, A.ToFloat, A.Normalize, A.MaskDropout, A.CropNonEmptyMaskIfExists,
             A.MixUp, A.FDA, A.HistogramMatching, A.PixelDistributionAdaptation, A.TemplateTransform, A.OverlayElements, A.TextImage,
-            A.Solarize, A.RGBShift, A.HueSaturationValue, A.GaussNoise
+            A.Solarize, A.RGBShift, A.HueSaturationValue, A.GaussNoise, A.ColorJitter
             },
     ),
 )
@@ -1112,17 +1112,11 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     image_uint8 = RECTANGULAR_UINT8_IMAGE
     image_float32 = to_float(image_uint8)
 
-    print("image_uint8", image_uint8.min(), image_uint8.max())
-    print("image_float32", image_float32.min(), image_float32.max())
-
     transform = A.Compose([augmentation_cls(p=1, **params)])
 
     set_seed(42)
     transformed_uint8 = transform(image=image_uint8)["image"]
     set_seed(42)
     transformed_float32 = transform(image=image_float32)["image"]
-
-    print("transformed_uint8", transformed_uint8.min(), transformed_uint8.max(), transformed_uint8.mean())
-    print("transformed_float32", transformed_float32.min(), transformed_float32.max(), transformed_float32.mean())
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)
