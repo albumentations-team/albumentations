@@ -21,7 +21,6 @@ __all__ = [
 ]
 
 BBOX_WITH_LABEL_SHAPE = 5
-EPSILON = 1e-5
 
 
 class BboxParams(Params):
@@ -443,6 +442,8 @@ def filter_bboxes(
     Returns:
         numpy array of filtered bounding boxes.
     """
+    epsilon = 1e-7
+
     if len(bboxes) == 0:
         return np.array([], dtype=np.float32)
 
@@ -463,28 +464,25 @@ def filter_bboxes(
 
     # Create a mask for bboxes that meet all criteria
     mask = (
-        (denormalized_box_areas >= EPSILON)
-        & (clipped_box_areas >= min_area - EPSILON)
-        & (clipped_box_areas / denormalized_box_areas >= min_visibility - EPSILON)
-        & (clipped_widths >= min_width - EPSILON)
-        & (clipped_heights >= min_height - EPSILON)
+        (denormalized_box_areas >= epsilon)
+        & (clipped_box_areas >= min_area - epsilon)
+        & (clipped_box_areas / denormalized_box_areas >= min_visibility - epsilon)
+        & (clipped_widths >= min_width - epsilon)
+        & (clipped_heights >= min_height - epsilon)
     )
 
     # Apply the mask to get the filtered bboxes
     filtered_bboxes = clipped_bboxes[mask]
 
     # If no bboxes pass the filter, return an empty array with the same number of columns as input
-    if len(filtered_bboxes) == 0:
-        return np.array([], dtype=np.float32)
-
-    return filtered_bboxes
+    return filtered_bboxes if len(filtered_bboxes) > 0 else np.array([], dtype=np.float32)
 
 
 def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | None:
     """Calculate union of bounding boxes. Boxes could be in albumentations or Pascal Voc format.
 
     Args:
-        bboxes (list[tuple]): List of bounding boxes
+        bboxes (np.ndarray): List of bounding boxes
         erosion_rate (float): How much each bounding box can be shrunk, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox lose its volume.
 
@@ -501,6 +499,8 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
     if bboxes.shape[0] == 1:
         return bboxes[0][:4]
 
+    epsilon = 1e-6
+
     x_min, y_min = np.min(bboxes[:, :2], axis=0)
     x_max, y_max = np.max(bboxes[:, 2:4], axis=0)
 
@@ -515,7 +515,7 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
     x_max -= erosion_x
     y_max -= erosion_y
 
-    if abs(x_max - x_min) < EPSILON or abs(y_max - y_min) < EPSILON:
+    if abs(x_max - x_min) < epsilon or abs(y_max - y_min) < epsilon:
         return None
 
     return np.array([x_min, y_min, x_max, y_max], dtype=np.float32)
