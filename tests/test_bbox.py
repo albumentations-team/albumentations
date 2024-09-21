@@ -1243,20 +1243,24 @@ def test_small_bbox(bbox_format, bbox, expected):
 
     np.testing.assert_array_almost_equal(transformed["bboxes"], expected)
 
-@pytest.mark.parametrize("bbox_format, bbox", [
-    ("coco", np.array((0.1, 0.2, 1E-3, 1E-3))),
-    ("yolo", np.array((0.1, 0.2, 1E-3, 1E-3))),
-    ("pascal_voc", np.array((1, 1, 1.001, 1.001))),
+@pytest.mark.parametrize("bbox_format, bboxes, expected", [
+    ("coco", np.array([[0.1, 0.2, 1E-3, 1E-3]]), np.array([[0.1, 0.2, 1E-3, 1E-3]])),
+    ("yolo", np.array([[0.1, 0.2, 1E-3, 1E-3]]), np.array([[0.1, 0.2, 1E-3, 1E-3]])),
+    ("pascal_voc", np.array([[1, 1, 1.001, 1.001]]), np.array([[1, 1, 1.001, 1.001]])),
 ])
-def test_very_small_bbox(bbox_format, bbox):
+def test_very_small_bbox(bbox_format, bboxes, expected):
     transform = A.Compose(
         [A.NoOp()],
         bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
     )
+
+    categories = [1]
+
     transformed = transform(
         image=np.zeros((100, 100, 3), dtype=np.uint8),
-        bboxes=[bbox],
-        category_id=[1]
+        bboxes=bboxes,
+        category_id=categories
     )
 
-    np.testing.assert_array_almost_equal(transformed["bboxes"], [bbox])
+    np.testing.assert_array_almost_equal(transformed["bboxes"], expected)
+    np.testing.assert_array_almost_equal(transformed["category_id"], categories)
