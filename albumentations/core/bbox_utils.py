@@ -475,10 +475,7 @@ def filter_bboxes(
     filtered_bboxes = clipped_bboxes[mask]
 
     # If no bboxes pass the filter, return an empty array with the same number of columns as input
-    if len(filtered_bboxes) == 0:
-        return np.array([], dtype=np.float32)
-
-    return filtered_bboxes
+    return filtered_bboxes if len(filtered_bboxes) > 0 else np.array([], dtype=np.float32)
 
 
 def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | None:

@@ -123,7 +123,6 @@ class DataProcessor(ABC):
                 self.is_sequence_input[data_name] = False
 
         data = self.add_label_fields_to_data(data)
-
         for data_name in set(self.data_fields) & set(data.keys()):
             data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="to")
 
@@ -190,6 +189,8 @@ class DataProcessor(ABC):
 
                 data_array = np.hstack((data_array, encoded_labels))
 
+                del data[label_field]
+
             data[data_name] = data_array
         return data
 
@@ -200,6 +201,8 @@ class DataProcessor(ABC):
         for data_name in set(self.data_fields) & set(data.keys()):
             data_array = data[data_name]
             if not data_array.size:
+                for label_field in self.params.label_fields:
+                    data[label_field] = []
                 continue
 
             num_label_fields = len(self.params.label_fields)

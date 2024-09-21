@@ -565,6 +565,22 @@ def test_filter_bboxes_clipping():
     np.testing.assert_allclose(result, expected, rtol=1e-5)
 
 
+
+def test_filter_bboxes_noop():
+    in_data = dict(
+    image=np.ones((100, 100, 3)),
+    bboxes=np.array([[0.1, 0.2, 1E-3, 1E-3]]),
+    classes=np.array([1]),
+    )
+    bbox_conf = A.core.bbox_utils.BboxParams(format="yolo", label_fields=["classes"], min_area=1.)
+    transf = A.Compose([A.NoOp(p=1.)], bbox_params=bbox_conf, is_check_shapes=False)
+
+    out_data = transf(**in_data)
+
+    assert out_data["bboxes"].shape[0] == 0
+    assert len(out_data["classes"]) == 0
+
+
 @pytest.mark.parametrize("bboxes, erosion_rate, expected", [
     (np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]]), 0, np.array([0.1, 0.1, 0.6, 0.6])),
     (np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.6, 0.6]]), 0.5, np.array([0.225, 0.225, 0.475, 0.475])),
