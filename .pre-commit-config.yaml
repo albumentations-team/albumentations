@@ -42,9 +42,16 @@ repos:
       entry: python tools/check_docstrings.py
       language: system
       types: [python]
+  - repo: local
+    hooks:
+      - id: check-albucore-version
+        name: Check albucore version
+        entry: python ./tools/check_albucore_version.py
+        language: system
+        files: setup.py
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.6.6
+    rev: v0.6.7
     hooks:
       # Run the linter.
       - id: ruff

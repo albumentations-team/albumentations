@@ -494,7 +494,7 @@ def test_check_bboxes_additional_columns():
         np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]]),
         (100, 100),
         200, 0, 0, 0,
-        np.array([])
+        np.array([]).reshape(0, 4)
     ),
     (
         np.array([[0.1, 0.1, 0.2, 0.2], [0.3, 0.3, 0.4, 0.4], [0.5, 0.5, 0.6, 0.6]]),
@@ -524,14 +524,20 @@ def test_check_bboxes_additional_columns():
         np.array([[0.1, 0.1, 0.2, 0.2, 1], [0.3, 0.3, 0.4, 0.4, 2], [0.5, 0.5, 0.6, 0.7, 3]]),
         (100, 100),
         300, 0, 0, 0,
-        np.array([])
+        np.array([]).reshape(0, 4)
     ),
     (
         np.array([]),
         (100, 100),
         0, 0, 0, 0,
-        np.array([])
+        np.array([]).reshape(0, 4)
     ),
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2]]),
+        (100, 100),
+        101, 0, 0, 0,
+        np.array([]).reshape(0, 4)
+    )
 ])
 def test_filter_bboxes(bboxes, image_shape, min_area, min_visibility, min_width, min_height, expected):
     result = filter_bboxes(bboxes, image_shape, min_area, min_visibility, min_width, min_height)
