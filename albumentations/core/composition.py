@@ -476,6 +476,13 @@ class SomeOf(BaseCompose):
     def __init__(self, transforms: TransformsSeqType, n: int, replace: bool = True, p: float = 1):
         super().__init__(transforms, p)
         self.n = n
+        if not replace and n > len(self.transforms):
+            self.n = len(self.transforms)
+            warnings.warn(
+                f"`n` is greater than number of transforms. `n` will be set to {self.n}.",
+                UserWarning,
+                stacklevel=2,
+            )
         self.replace = replace
         transforms_ps = [t.p for t in self.transforms]
         s = sum(transforms_ps)
@@ -489,17 +496,42 @@ class SomeOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
-            for i in idx:
+            for i in self._get_idx():
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
                 data = self.check_data_post_transform(data)
         return data
 
+    def _get_idx(self) -> np.ndarray[np.int_]:
+        idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
+        idx.sort()
+        return idx
+
     def to_dict_private(self) -> dict[str, Any]:
         dictionary = super().to_dict_private()
         dictionary.update({"n": self.n, "replace": self.replace})
         return dictionary
+
+
+class RandomOrder(SomeOf):
+    """Select N transforms to apply. Selected transforms will be called in random order with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
+    This transform is like SomeOf, but transforms are called with random order.
+    It will not replay random order in ReplayCompose.
+
+    Args:
+        transforms (list): list of transformations to compose.
+        n (int): number of transforms to apply.
+        replace (bool): Whether the sampled transforms are with or without replacement. Default: False.
+        p (float): probability of applying selected transform. Default: 1.
+
+    """
+
+    def __init__(self, transforms: TransformsSeqType, n: int, replace: bool = False, p: float = 1):
+        super().__init__(transforms, n, replace, p)
+
+    def _get_idx(self) -> np.ndarray[np.int_]:
+        return random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
 
 
 class OneOrOther(BaseCompose):
