@@ -14,6 +14,7 @@ from albumentations.core.composition import (
     BaseCompose,
     BboxParams,
     Compose,
+    RandomOrder,
     TransformsSeqType,
     get_transforms_dict,
     KeypointParams,
@@ -69,17 +70,23 @@ def test_one_of(target_as_params):
     assert len([transform for transform in transforms if transform.called]) == 1
 
 
-@pytest.mark.parametrize("N", [1, 2, 5, 10])
+@pytest.mark.parametrize("N", [0, 1, 2, 5, 10, 12])
 @pytest.mark.parametrize("replace", [True, False])
 @pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
-def test_n_of(N, replace, target_as_params):
+@pytest.mark.parametrize("aug", [SomeOf, RandomOrder])
+def test_n_of(N, replace, target_as_params, aug):
+    """test for SomeOf and RandomOrder"""
     transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
-    augmentation = SomeOf(transforms, N, p=1, replace=replace)
+    augmentation = aug(transforms, N, p=1, replace=replace)
     image = np.ones((8, 8))
     augmentation(image=image)
+    call_count = sum([transform.call_count for transform in transforms])
     if not replace:
-        assert len([transform for transform in transforms if transform.called]) == N
-    assert sum([transform.call_count for transform in transforms]) == N
+        expected_count = min(N, 10)
+        assert call_count == expected_count
+        assert len([transform for transform in transforms if transform.called]) == call_count
+    else:
+        assert call_count == N
 
 
 @pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
