@@ -153,10 +153,13 @@ class RandomCrop(_BaseCrop):
 class CenterCrop(_BaseCrop):
     """Crop the central part of the input.
 
+    This transform crops the center of the input image, mask, bounding boxes, and keypoints to the specified dimensions.
+    It's useful when you want to focus on the central region of the input, discarding peripheral information.
+
     Args:
-        height: height of the crop.
-        width: width of the crop.
-        p: probability of applying the transform. Default: 1.
+        height (int): The height of the crop. Must be greater than 0.
+        width (int): The width of the crop. Must be greater than 0.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -164,6 +167,21 @@ class CenterCrop(_BaseCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - If the specified crop size is larger than the input image in either dimension,
+          it will raise a CropSizeError.
+        - For bounding boxes and keypoints, only those that fall within the cropped area are kept,
+          and their coordinates are adjusted to the new image size.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.CenterCrop(height=80, width=80, p=1.0),
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed['image']  # 80x80 center crop of the original image
     """
 
     class InitSchema(CropInitSchema):
@@ -733,11 +751,17 @@ class RandomCropNearBBox(_BaseCrop):
 
 
 class BBoxSafeRandomCrop(_BaseCrop):
-    """Crop a random part of the input without loss of bboxes.
+    """Crop a random part of the input without loss of bounding boxes.
+
+    This transform performs a random crop of the input image while ensuring that all bounding boxes remain within
+    the cropped area. It's particularly useful for object detection tasks where preserving all objects in the image
+    is crucial.
 
     Args:
-        erosion_rate: erosion rate applied on input image height before crop.
-        p: probability of applying the transform. Default: 1.
+        erosion_rate (float): A value between 0.0 and 1.0 that determines the minimum allowable size of the crop
+            as a fraction of the original image size. For example, an erosion_rate of 0.2 means the crop will be
+            at least 80% of the original image height. Default: 0.0 (no minimum size).
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -745,16 +769,30 @@ class BBoxSafeRandomCrop(_BaseCrop):
     Image types:
         uint8, float32
 
+    Note:
+        This transform ensures that all bounding boxes in the original image are fully contained within the
+        cropped area. If it's not possible to find such a crop (e.g., when bounding boxes are too spread out),
+        it will default to cropping the entire image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.ones((300, 300, 3), dtype=np.uint8)
+        >>> bboxes = [(10, 10, 50, 50), (100, 100, 150, 150)]
+        >>> transform = A.Compose([
+        ...     A.BBoxSafeRandomCrop(erosion_rate=0.2, p=1.0),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
+        >>> transformed = transform(image=image, bboxes=bboxes, labels=['cat', 'dog'])
+        >>> transformed_image = transformed['image']
+        >>> transformed_bboxes = transformed['bboxes']
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
         erosion_rate: float = Field(
-            default=0.0,
             ge=0.0,
             le=1.0,
-            description="Erosion rate applied on input image height before crop.",
         )
         p: ProbabilityType = 1
 

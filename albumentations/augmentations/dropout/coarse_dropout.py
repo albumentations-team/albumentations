@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, cast
 from warnings import warn
 
 import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
+from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, NumericType, ScalarType, Targets
@@ -67,32 +68,16 @@ class CoarseDropout(DualTransform):
         )
         num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (1, 1)
 
-        min_height: ScalarType | None = Field(
-            default=None,
-            ge=0,
-            description="Minimum height of the hole.",
-        )
-        max_height: ScalarType | None = Field(
-            default=8,
-            ge=0,
-            description="Maximum height of the hole.",
-        )
+        min_height: ScalarType | None = Field(ge=0)
+        max_height: ScalarType | None = Field(ge=0)
         hole_height_range: tuple[ScalarType, ScalarType] = (8, 8)
 
-        min_width: ScalarType | None = Field(
-            default=None,
-            ge=0,
-            description="Minimum width of the hole.",
-        )
-        max_width: ScalarType | None = Field(
-            default=8,
-            ge=0,
-            description="Maximum width of the hole.",
-        )
+        min_width: ScalarType | None = Field(ge=0)
+        max_width: ScalarType | None = Field(ge=0)
         hole_width_range: tuple[ScalarType, ScalarType] = (8, 8)
 
-        fill_value: ColorType | Literal["random"] = Field(default=0, description="Value for dropped pixels.")
-        mask_fill_value: ColorType | None = Field(default=None, description="Fill value for dropped pixels in mask.")
+        fill_value: ColorType | Literal["random"]
+        mask_fill_value: ColorType | None
 
         @staticmethod
         def update_range(
@@ -188,7 +173,7 @@ class CoarseDropout(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        mask_fill_value: ScalarType,
+        mask_fill_value: ScalarType | None,
         holes: Iterable[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
@@ -236,12 +221,12 @@ class CoarseDropout(DualTransform):
 
         height, width = image_shape[:2]
 
-        y1 = randint(np.int8(0), height - hole_heights + 1, size=num_holes)
-        x1 = randint(np.int8(0), width - hole_widths + 1, size=num_holes)
-        y2 = y1 + hole_heights
-        x2 = x1 + hole_widths
+        y_min = randint(np.int8(0), height - hole_heights + 1, size=num_holes)
+        x_min = randint(np.int8(0), width - hole_widths + 1, size=num_holes)
+        y_max = y_min + hole_heights
+        x_max = x_min + hole_widths
 
-        holes = np.stack([x1, y1, x2, y2], axis=-1)
+        holes = np.stack([x_min, y_min, x_max, y_max], axis=-1)
 
         return {"holes": holes}
 
@@ -251,6 +236,11 @@ class CoarseDropout(DualTransform):
         holes: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+
+        if processor is None or not processor.params.remove_invisible:
+            return keypoints
+
         return filter_keypoints_in_holes(keypoints, holes)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:

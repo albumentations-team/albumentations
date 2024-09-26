@@ -18,6 +18,8 @@ from albumentations.core.keypoints_utils import (
 )
 from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.transforms_interface import BasicTransform
+from tests.conftest import RECTANGULAR_UINT8_IMAGE
+
 
 
 @pytest.mark.parametrize("input_angles, expected_angles", [
@@ -580,72 +582,6 @@ def test_angle_to_2pi_range(angle, expected) -> None:
     assert np.isclose(angle_to_2pi_range(angle), expected)
 
 
-def test_coarse_dropout() -> None:
-    aug = A.Compose(
-        [
-            A.CoarseDropout(
-                min_holes=1,
-                max_holes=1,
-                min_height=128,
-                max_width=128,
-                min_width=128,
-                max_height=128,
-                p=1,
-            )
-        ],
-        keypoint_params=A.KeypointParams(format="xy"),
-    )
-
-    result = aug(image=np.zeros((128, 128)), keypoints=((10, 10), (20, 30)))
-    assert len(result["keypoints"]) == 0
-
-
-@pytest.mark.parametrize(
-    ["keypoints", "expected_keypoints", "holes"],
-    [
-        [
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [],
-            [(40, 40, 60, 60), (70, 70, 80, 80), (10, 10, 20, 20)],
-        ],
-        [
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [],
-            [(10, 10, 20, 20), (40, 40, 60, 60), (70, 70, 80, 80)],
-        ],
-        [
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [],
-            [(40, 40, 60, 60), (10, 10, 20, 20), (70, 70, 80, 80)],
-        ],
-        [
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [(75, 75, 0, 0)],
-            [(40, 40, 60, 60), (10, 10, 20, 20)],
-        ],
-        [
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [(50, 50, 0, 0)],
-            [(70, 70, 80, 80), (10, 10, 20, 20)],
-        ],
-        [
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [(50, 50, 0, 0), (75, 75, 0, 0)],
-            [(10, 10, 20, 20)],
-        ],
-    ],
-)
-def test_coarse_dropout_remove_keypoints(
-    keypoints,
-    expected_keypoints,
-    holes: list[tuple[int, int, int, int]],
-) -> None:
-    t = A.CoarseDropout()
-    result_keypoints = t.apply_to_keypoints(np.array(keypoints), np.array(holes))
-
-    assert set([ tuple(x) for x in result_keypoints]) == set(expected_keypoints)
-
-
 @pytest.mark.parametrize("keypoints, image_shape, expected", [
     (
         np.array([[0, 0], [50, 50], [100, 100], [-10, 50], [50, -10], [110, 50], [50, 110]]),
@@ -783,3 +719,20 @@ def test_angle_2pi_range_preserves_input(input_keypoints):
         np.testing.assert_allclose(result, expected, atol=1e-7)
     else:
         np.testing.assert_array_equal(result, input_keypoints)
+
+
+@pytest.mark.parametrize("transform, params", [ (A.CoarseDropout, {"hole_height_range": (98, 98), "hole_width_range": (98, 98)})])
+def test_remove_invisible_keypoints_false(transform, params):
+    image = RECTANGULAR_UINT8_IMAGE
+
+    keypoints = np.array([[10, 10], [20, 10], [20, 20], [10, 20]])
+
+    aug = A.Compose([transform(**params, p=1)], keypoint_params=A.KeypointParams(format="xy", remove_invisible=False))
+    result = aug(image=image, keypoints=keypoints)
+
+    np.testing.assert_array_equal(result["keypoints"], keypoints)
+
+    aug = A.Compose([transform(**params, p=1)], keypoint_params=A.KeypointParams(format="xy", remove_invisible=True))
+    result = aug(image=image, keypoints=keypoints)
+
+    assert len(result["keypoints"]) == 0
