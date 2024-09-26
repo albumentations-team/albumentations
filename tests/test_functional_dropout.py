@@ -1,8 +1,7 @@
+from albumentations.augmentations.dropout.functional import filter_bboxes_by_holes, cutout
 import numpy as np
 import pytest
-
-from albumentations.augmentations.dropout.functional import cutout
-from albucore.utils import MAX_VALUES_BY_DTYPE
+from albucore import MAX_VALUES_BY_DTYPE
 from tests.utils import set_seed
 
 
@@ -94,3 +93,86 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
         else:
             for channel_index in range(result_img.shape[-1]):
                 assert np.all(result_img[10:50, 10:50, channel_index] == expected_fill_value[channel_index])
+
+
+@pytest.mark.parametrize(
+    "bboxes, holes, image_shape, min_area, expected_bboxes",
+    [
+        # Test case 1: No intersection
+        (
+            np.array([[10, 10, 20, 20]]),
+            np.array([[30, 30, 40, 40]]),
+            (50, 50),
+            100,
+            np.array([[10, 10, 20, 20]])
+        ),
+        # Test case 2: Small intersection
+        (
+            np.array([[10, 10, 30, 30]]),
+            np.array([[25, 25, 35, 35]]),
+            (50, 50),
+            100,
+            np.array([[10, 10, 30, 30]])
+        ),
+        # Test case 3: Large intersection
+        (
+            np.array([[10, 10, 40, 40]]),
+            np.array([[20, 20, 30, 30]]),
+            (50, 50),
+            100,
+            np.array([[10, 10, 40, 40]]),
+        ),
+        # Test case 4: Multiple bboxes, some intersecting
+        (
+            np.array([[10, 10, 20, 20], [30, 30, 40, 40], [50, 50, 60, 60]]),
+            np.array([[15, 15, 25, 25], [45, 45, 55, 55]]),
+            (100, 100),
+            100,
+            np.array([[30, 30, 40, 40]])
+        ),
+        # Test case 5: Multiple holes
+        (
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]]),
+            np.array([[15, 15, 25, 25], [45, 45, 55, 55]]),
+            (100, 100),
+            100,
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]])
+        ),
+        # Test case 6: Empty bboxes
+        (
+            np.array([]),
+            np.array([[15, 15, 25, 25]]),
+            (50, 50),
+            100,
+            np.array([])
+        ),
+        # Test case 7: Empty holes
+        (
+            np.array([[10, 10, 20, 20]]),
+            np.array([]),
+            (50, 50),
+            100,
+            np.array([[10, 10, 20, 20]])
+        ),
+        # Test case 8: Bbox exactly equal to min_area
+        (
+            np.array([[10, 10, 20, 20]]),
+            np.array([[10, 10, 20, 20]]),
+            (50, 50),
+            100,
+            np.array([]).reshape(0, 4)
+        ),
+    ]
+)
+def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, expected_bboxes):
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area)
+    np.testing.assert_array_equal(filtered_bboxes, expected_bboxes)
+
+@pytest.mark.parametrize("min_area", [50, 150, 200])
+def test_filter_bboxes_by_holes_different_min_areas(min_area):
+    bboxes = np.array([[10, 10, 30, 30]])
+    holes = np.array([[20, 20, 25, 25]])
+    image_shape = (50, 50)
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area)
+    expected_bboxes = np.array([[10, 10, 30, 30]]) if min_area > 25 else np.array([])
+    np.testing.assert_array_equal(filtered_bboxes, expected_bboxes)

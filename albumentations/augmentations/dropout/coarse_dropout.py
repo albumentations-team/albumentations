@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from typing import Any, Callable, Iterable, cast
 from warnings import warn
 
@@ -7,11 +8,11 @@ import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
+from albumentations import random_utils
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, NumericType, ScalarType, Targets
-from albumentations.random_utils import randint, uniform
 
 from .functional import cutout, filter_keypoints_in_holes
 
@@ -20,61 +21,70 @@ __all__ = ["CoarseDropout"]
 
 class CoarseDropout(DualTransform):
     """CoarseDropout randomly drops out rectangular regions from the image and optionally,
-    the corresponding regions in an associated mask, to simulate the occlusion and
-    varied object sizes found in real-world settings. This transformation is an
-    evolution of CutOut and RandomErasing, offering more flexibility in the size,
-    number of dropout regions, and fill values.
+    the corresponding regions in an associated mask, to simulate occlusion and
+    varied object sizes found in real-world settings.
+
+    This transformation is an evolution of CutOut and RandomErasing, offering more
+    flexibility in the size, number of dropout regions, and fill values.
 
     Args:
-        num_holes_range (tuple[int, int]): Specifies the range (minimum and maximum)
-            of the number of rectangular regions to zero out. This allows for dynamic
-            variation in the number of regions removed per transformation instance.
-        hole_height_range (tuple[ScalarType, ScalarType]): Defines the minimum and
-            maximum heights of the dropout regions, providing variability in their vertical dimensions.
-        hole_width_range (tuple[ScalarType, ScalarType]): Defines the minimum and
-            maximum widths of the dropout regions, providing variability in their horizontal dimensions.
-        fill_value (ColorType, Literal["random"]): Specifies the value used to fill the dropout regions.
-            This can be a constant value, a tuple specifying pixel intensity across channels, or 'random'
-            which fills the region with random noise.
-        mask_fill_value (ColorType | None): Specifies the fill value for dropout regions in the mask.
-            If set to `None`, the mask regions corresponding to the image dropout regions are left unchanged.
-
+        num_holes_range (tuple[int, int]): Range (min, max) for the number of rectangular
+            regions to drop out. Default: (1, 1)
+        hole_height_range (tuple[ScalarType, ScalarType]): Range (min, max) for the height
+            of dropout regions. If int, specifies absolute pixel values. If float,
+            interpreted as a fraction of the image height. Default: (8, 8)
+        hole_width_range (tuple[ScalarType, ScalarType]): Range (min, max) for the width
+            of dropout regions. If int, specifies absolute pixel values. If float,
+            interpreted as a fraction of the image width. Default: (8, 8)
+        fill_value (ColorType | Literal["random"]): Value used to fill dropout regions.
+            Can be a constant value, a tuple for pixel intensity across channels,
+            or 'random' for random noise. Default: 0
+        mask_fill_value (ColorType | None): Fill value for dropout regions in the mask.
+            If None, mask regions corresponding to image dropouts are unchanged. Default: None
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
-        image, mask, keypoints
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
 
-    Reference:
-        https://arxiv.org/abs/1708.04552
-        https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
-        https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.CoarseDropout(num_holes_range=(3, 7),
+        ...                     hole_height_range=(10, 40),
+        ...                     hole_width_range=(10, 40),
+        ...                     fill_value=0,
+        ...                     p=0.5)
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed["image"]
 
+    References:
+        - https://arxiv.org/abs/1708.04552
+        - https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
+        - https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
         min_holes: int | None = Field(
-            default=None,
             ge=0,
-            description="Minimum number of regions to zero out.",
         )
         max_holes: int | None = Field(
-            default=8,
             ge=0,
-            description="Maximum number of regions to zero out.",
         )
-        num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (1, 1)
+        num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
 
         min_height: ScalarType | None = Field(ge=0)
         max_height: ScalarType | None = Field(ge=0)
-        hole_height_range: tuple[ScalarType, ScalarType] = (8, 8)
+        hole_height_range: tuple[ScalarType, ScalarType]
 
         min_width: ScalarType | None = Field(ge=0)
         max_width: ScalarType | None = Field(ge=0)
-        hole_width_range: tuple[ScalarType, ScalarType] = (8, 8)
+        hole_width_range: tuple[ScalarType, ScalarType]
 
         fill_value: ColorType | Literal["random"]
         mask_fill_value: ColorType | None
@@ -198,19 +208,19 @@ class CoarseDropout(DualTransform):
             min_width = width_range[0]
             max_width = min(width_range[1], width)
 
-            hole_heights = randint(np.int64(min_height), np.int64(max_height + 1), size=size)
-            hole_widths = randint(np.int64(min_width), np.int64(max_width + 1), size=size)
+            hole_heights = random_utils.randint(int(min_height), int(max_height + 1), size=size)
+            hole_widths = random_utils.randint(int(min_width), int(max_width + 1), size=size)
 
         else:  # Assume float
-            hole_heights = (height * uniform(height_range[0], height_range[1], size=size)).astype(int)
-            hole_widths = (width * uniform(width_range[0], width_range[1], size=size)).astype(int)
+            hole_heights = (height * random_utils.uniform(height_range[0], height_range[1], size=size)).astype(int)
+            hole_widths = (width * random_utils.uniform(width_range[0], width_range[1], size=size)).astype(int)
 
         return hole_heights, hole_widths
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
 
-        num_holes = randint(self.num_holes_range[0], self.num_holes_range[1] + 1)
+        num_holes = random.randint(*self.num_holes_range)
 
         hole_heights, hole_widths = self.calculate_hole_dimensions(
             image_shape,
@@ -221,8 +231,8 @@ class CoarseDropout(DualTransform):
 
         height, width = image_shape[:2]
 
-        y_min = randint(np.int8(0), height - hole_heights + 1, size=num_holes)
-        x_min = randint(np.int8(0), width - hole_widths + 1, size=num_holes)
+        y_min = random_utils.randint(0, height - hole_heights + 1, size=num_holes)
+        x_min = random_utils.randint(0, width - hole_widths + 1, size=num_holes)
         y_max = y_min + hole_heights
         x_max = x_min + hole_widths
 
