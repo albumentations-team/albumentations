@@ -158,15 +158,18 @@ def filter_bboxes_by_holes(
     bboxes: np.ndarray,
     holes: np.ndarray,
     image_shape: tuple[int, int],
-    min_area: int,
+    min_area: float,
+    min_visibility: float,
 ) -> np.ndarray:
-    """Filter bounding boxes based on their remaining visible area after intersection with holes.
+    """Filter bounding boxes based on their remaining visible area and visibility ratio after intersection with holes.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes, each represented as [x_min, y_min, x_max, y_max].
         holes (np.ndarray): Array of holes, each represented as [x_min, y_min, x_max, y_max].
         image_shape (tuple[int, int]): Shape of the image (height, width).
         min_area (int): Minimum remaining visible area to keep the bounding box.
+        min_visibility (float): Minimum visibility ratio to keep the bounding box.
+            Calculated as 1 - (intersection_area / bbox_area).
 
     Returns:
         np.ndarray: Filtered array of bounding boxes.
@@ -195,6 +198,7 @@ def filter_bboxes_by_holes(
     for i in range(len(bboxes)):
         intersection_area = np.sum(hole_mask[y_min[i] : y_max[i], x_min[i] : x_max[i]])
         remaining_area = box_areas[i] - intersection_area
-        mask[i] = remaining_area >= min_area
+        visibility_ratio = 1 - (intersection_area / box_areas[i])
+        mask[i] = (remaining_area >= min_area) and (visibility_ratio >= min_visibility)
 
     return bboxes[mask]

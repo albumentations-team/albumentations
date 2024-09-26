@@ -96,7 +96,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
 
 
 @pytest.mark.parametrize(
-    "bboxes, holes, image_shape, min_area, expected_bboxes",
+    "bboxes, holes, image_shape, min_area, min_visibility, expected_bboxes",
     [
         # Test case 1: No intersection
         (
@@ -104,6 +104,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[30, 30, 40, 40]]),
             (50, 50),
             100,
+            0.5,
             np.array([[10, 10, 20, 20]])
         ),
         # Test case 2: Small intersection
@@ -112,6 +113,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[25, 25, 35, 35]]),
             (50, 50),
             100,
+            0.5,
             np.array([[10, 10, 30, 30]])
         ),
         # Test case 3: Large intersection
@@ -120,6 +122,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[20, 20, 30, 30]]),
             (50, 50),
             100,
+            0.5,
             np.array([[10, 10, 40, 40]]),
         ),
         # Test case 4: Multiple bboxes, some intersecting
@@ -128,6 +131,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[15, 15, 25, 25], [45, 45, 55, 55]]),
             (100, 100),
             100,
+            0.5,
             np.array([[30, 30, 40, 40]])
         ),
         # Test case 5: Multiple holes
@@ -136,6 +140,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[15, 15, 25, 25], [45, 45, 55, 55]]),
             (100, 100),
             100,
+            0.5,
             np.array([[10, 10, 30, 30], [40, 40, 60, 60]])
         ),
         # Test case 6: Empty bboxes
@@ -144,6 +149,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[15, 15, 25, 25]]),
             (50, 50),
             100,
+            0.5,
             np.array([])
         ),
         # Test case 7: Empty holes
@@ -152,6 +158,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([]),
             (50, 50),
             100,
+            0.5,
             np.array([[10, 10, 20, 20]])
         ),
         # Test case 8: Bbox exactly equal to min_area
@@ -160,19 +167,60 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.array([[10, 10, 20, 20]]),
             (50, 50),
             100,
+            0.5,
             np.array([]).reshape(0, 4)
+        ),
+        # Test case 9: High min_visibility
+        (
+            np.array([[10, 10, 30, 30]]),
+            np.array([[15, 15, 25, 25]]),
+            (50, 50),
+            100,
+            0.9,
+            np.array([]).reshape(0, 4)
+        ),
+        # Test case 10: Low min_visibility
+        (
+            np.array([[10, 10, 30, 30]]),
+            np.array([[15, 15, 25, 25]]),
+            (50, 50),
+            100,
+            0.1,
+            np.array([[10, 10, 30, 30]])
         ),
     ]
 )
-def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, expected_bboxes):
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area)
+def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility, expected_bboxes):
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
     np.testing.assert_array_equal(filtered_bboxes, expected_bboxes)
 
-@pytest.mark.parametrize("min_area", [50, 150, 200])
-def test_filter_bboxes_by_holes_different_min_areas(min_area):
+@pytest.mark.parametrize("min_area, min_visibility, expected", [
+    (50, 0.5, np.array([[10, 10, 30, 30]])),
+    (150, 0.5, np.array([[10, 10, 30, 30]])),
+    (310, 0.5, np.array([]).reshape(0, 4)),
+    (50, 0.9, np.array([]).reshape(0, 4)),
+    (50, 0.1, np.array([[10, 10, 30, 30]])),
+])
+def test_filter_bboxes_by_holes_different_params(min_area, min_visibility, expected):
     bboxes = np.array([[10, 10, 30, 30]])
-    holes = np.array([[20, 20, 25, 25]])
+    holes = np.array([[15, 15, 25, 25]])
     image_shape = (50, 50)
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area)
-    expected_bboxes = np.array([[10, 10, 30, 30]]) if min_area > 25 else np.array([])
-    np.testing.assert_array_equal(filtered_bboxes, expected_bboxes)
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
+    np.testing.assert_array_equal(filtered_bboxes, expected)
+
+def test_filter_bboxes_by_holes_edge_cases():
+    # Test with min_visibility = 0 (should keep all bboxes)
+    bboxes = np.array([[10, 10, 20, 20], [30, 30, 40, 40]])
+    holes = np.array([[15, 15, 25, 25]])
+    image_shape = (50, 50)
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area=1, min_visibility=0)
+    np.testing.assert_array_equal(filtered_bboxes, bboxes)
+
+    # Test with min_visibility = 1 (should remove all intersecting bboxes)
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area=1, min_visibility=1)
+    np.testing.assert_array_equal(filtered_bboxes, np.array([[30, 30, 40, 40]]))
+
+    # Test with very large hole (should remove all bboxes)
+    large_hole = np.array([[0, 0, 50, 50]])
+    filtered_bboxes = filter_bboxes_by_holes(bboxes, large_hole, image_shape, min_area=1, min_visibility=0.1)
+    np.testing.assert_array_equal(filtered_bboxes, np.array([]).reshape(0, 4))

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Callable, Iterable, cast
+from typing import Any, Iterable, cast
 from warnings import warn
 
 import numpy as np
@@ -9,12 +9,13 @@ from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
+from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, NumericType, ScalarType, Targets
 
-from .functional import cutout, filter_keypoints_in_holes
+from .functional import cutout, filter_bboxes_by_holes, filter_keypoints_in_holes
 
 __all__ = ["CoarseDropout"]
 
@@ -262,11 +263,27 @@ class CoarseDropout(DualTransform):
             "mask_fill_value",
         )
 
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-            "keypoints": self.apply_to_keypoints,
-        }
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        holes: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        if processor is None:
+            return bboxes
+
+        image_shape = params["shape"][:2]
+
+        denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
+
+        return normalize_bboxes(
+            filter_bboxes_by_holes(
+                denormalized_bboxes,
+                holes,
+                image_shape,
+                min_area=processor.params.min_area,
+                min_visibility=processor.params.min_visibility,
+            ),
+            image_shape,
+        )
