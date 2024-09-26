@@ -295,11 +295,22 @@ class Compose(BaseCompose, HubMixin):
         self._set_check_args_for_transforms(self.transforms)
 
         self.return_params = return_params
+
         if return_params:
             self.save_key = save_key
             self._available_keys.add(save_key)
             self._transforms_dict = get_transforms_dict(self.transforms)
             self.set_deterministic(True, save_key=save_key)
+
+        self._set_processors_for_transforms(self.transforms)
+
+    def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
+        for transform in transforms:
+            if isinstance(transform, BasicTransform):
+                if hasattr(transform, "set_processors"):
+                    transform.set_processors(self.processors)
+            elif isinstance(transform, BaseCompose):
+                self._set_processors_for_transforms(transform.transforms)
 
     def _set_check_args_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:

@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
+from albumentations.core.bbox_utils import BboxProcessor
+from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import ProbabilityType
 from albumentations.core.validation import ValidatedTransformMeta
 
@@ -83,6 +85,13 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.params: dict[Any, Any] = {}
         self._key2func = {}
         self._set_keys()
+        self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
+
+    def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
+        self.processors = processors
+
+    def get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
+        return self.processors.get(key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
@@ -108,7 +117,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params.update(params_dependent_on_data)
 
             if self.targets_as_params:  # this block will be removed after removing `get_params_dependent_on_targets`
-                targets_as_params = {k: kwargs.get(k, None) for k in self.targets_as_params}
+                targets_as_params = {k: kwargs.get(k) for k in self.targets_as_params}
                 if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
                     targets_as_params["image"] = kwargs["images"][0]
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)

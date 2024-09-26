@@ -96,6 +96,13 @@ class BboxParams(Params):
     def get_class_fullname(cls) -> str:
         return "BboxParams"
 
+    def __repr__(self) -> str:
+        return (
+            f"BboxParams(format={self.format}, label_fields={self.label_fields}, min_area={self.min_area},"
+            f" min_visibility={self.min_visibility}, min_width={self.min_width}, min_height={self.min_height},"
+            f" check_each_transform={self.check_each_transform}, clip={self.clip})"
+        )
+
 
 class BboxProcessor(DataProcessor):
     def __init__(self, params: BboxParams, additional_targets: dict[str, str] | None = None):

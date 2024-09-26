@@ -8,7 +8,7 @@ from albumentations import random_utils
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType
 
-__all__ = ["cutout", "channel_dropout", "filter_keypoints_in_holes", "generate_random_fill"]
+__all__ = ["cutout", "channel_dropout", "filter_keypoints_in_holes", "generate_random_fill", "filter_bboxes_by_holes"]
 
 
 @preserve_channel_dim
@@ -152,3 +152,53 @@ def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.nd
     valid_keypoints = ~np.any(inside_hole, axis=1)
 
     return keypoints[valid_keypoints]
+
+
+def filter_bboxes_by_holes(
+    bboxes: np.ndarray,
+    holes: np.ndarray,
+    image_shape: tuple[int, int],
+    min_area: float,
+    min_visibility: float,
+) -> np.ndarray:
+    """Filter bounding boxes based on their remaining visible area and visibility ratio after intersection with holes.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes, each represented as [x_min, y_min, x_max, y_max].
+        holes (np.ndarray): Array of holes, each represented as [x_min, y_min, x_max, y_max].
+        image_shape (tuple[int, int]): Shape of the image (height, width).
+        min_area (int): Minimum remaining visible area to keep the bounding box.
+        min_visibility (float): Minimum visibility ratio to keep the bounding box.
+            Calculated as 1 - (intersection_area / bbox_area).
+
+    Returns:
+        np.ndarray: Filtered array of bounding boxes.
+    """
+    if len(bboxes) == 0 or len(holes) == 0:
+        return bboxes
+
+    # Create a blank mask for holes
+    hole_mask = np.zeros(image_shape, dtype=np.uint8)
+
+    # Fill in the holes on the mask
+    for hole in holes:
+        x_min, y_min, x_max, y_max = hole.astype(int)
+        hole_mask[y_min:y_max, x_min:x_max] = 1
+
+    # Vectorized calculation
+    bboxes_int = bboxes.astype(int)
+    x_min, y_min, x_max, y_max = bboxes_int[:, 0], bboxes_int[:, 1], bboxes_int[:, 2], bboxes_int[:, 3]
+
+    # Calculate box areas
+    box_areas = (x_max - x_min) * (y_max - y_min)
+
+    # Create a mask of the same shape as bboxes
+    mask = np.zeros(len(bboxes), dtype=bool)
+
+    for i in range(len(bboxes)):
+        intersection_area = np.sum(hole_mask[y_min[i] : y_max[i], x_min[i] : x_max[i]])
+        remaining_area = box_areas[i] - intersection_area
+        visibility_ratio = 1 - (intersection_area / box_areas[i])
+        mask[i] = (remaining_area >= min_area) and (visibility_ratio >= min_visibility)
+
+    return bboxes[mask]

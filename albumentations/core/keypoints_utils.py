@@ -80,6 +80,13 @@ class KeypointParams(Params):
     def get_class_fullname(cls) -> str:
         return "KeypointParams"
 
+    def __repr__(self) -> str:
+        return (
+            f"KeypointParams(format={self.format}, label_fields={self.label_fields},"
+            f" remove_invisible={self.remove_invisible}, angle_in_degrees={self.angle_in_degrees},"
+            f" check_each_transform={self.check_each_transform})"
+        )
+
 
 class KeypointsProcessor(DataProcessor):
     def __init__(self, params: KeypointParams, additional_targets: dict[str, str] | None = None):
