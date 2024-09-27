@@ -20,7 +20,6 @@ from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
     NonNegativeFloatRangeType,
-    ProbabilityType,
     SymmetricRangeType,
     check_1plus,
 )
@@ -1231,7 +1230,6 @@ class PadIfNeeded(DualTransform):
             default=None,
             description="Value for mask border if BORDER_CONSTANT is used.",
         )
-        p: ProbabilityType = 1.0
 
         @model_validator(mode="after")
         def validate_divisibility(self) -> Self:
@@ -1898,7 +1896,7 @@ class D4(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        p: ProbabilityType = 1
+        pass
 
     def __init__(
         self,
@@ -1968,10 +1966,9 @@ class GridElasticDeform(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)]
-        p: ProbabilityType = 1.0
         magnitude: int = Field(gt=0)
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        mask_interpolation: InterpolationType = cv2.INTER_NEAREST
+        interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
     def __init__(
         self,

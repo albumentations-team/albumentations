@@ -3050,7 +3050,6 @@ class ToFloat(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         max_value: float | None
-        p: ProbabilityType = 1
 
     def __init__(self, max_value: float | None = None, p: float = 1.0, always_apply: bool | None = None):
         super().__init__(p, always_apply)
@@ -3107,7 +3106,6 @@ class FromFloat(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         dtype: Literal["uint8", "uint16", "float32", "float64"]
         max_value: float | None
-        p: ProbabilityType = 1
 
     def __init__(
         self,
@@ -4527,16 +4525,10 @@ class PixelDropout(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dropout_prob: ProbabilityType = 0.01
-        per_channel: bool = Field(default=False, description="Sample drop mask per channel.")
-        drop_value: ScaleFloatType | None = Field(
-            default=0,
-            description="Value to set in dropped pixels. None for random sampling.",
-        )
-        mask_drop_value: ScaleFloatType | None = Field(
-            default=None,
-            description="Value to set in dropped pixels in masks. None to leave masks unchanged.",
-        )
+        dropout_prob: ProbabilityType
+        per_channel: bool
+        drop_value: ScaleFloatType | None
+        mask_drop_value: ScaleFloatType | None
 
         @model_validator(mode="after")
         def validate_mask_drop_value(self) -> Self:

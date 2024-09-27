@@ -16,7 +16,6 @@ from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
     OnePlusIntRangeType,
-    ProbabilityType,
     ZeroOneRangeType,
     check_0plus,
     check_01,
@@ -56,9 +55,8 @@ class CropSizeError(Exception):
 
 
 class CropInitSchema(BaseTransformInitSchema):
-    height: int | None = Field(description="Height of the crop", ge=1)
-    width: int | None = Field(description="Width of the crop", ge=1)
-    p: ProbabilityType = 1
+    height: int | None = Field(ge=1)
+    width: int | None = Field(ge=1)
 
 
 class _BaseCrop(DualTransform):
@@ -207,13 +205,19 @@ class CenterCrop(_BaseCrop):
 
 
 class Crop(_BaseCrop):
-    """Crop region from image.
+    """Crop a specific region from the input image.
+
+    This transform crops a rectangular region from the input image, mask, bounding boxes, and keypoints
+    based on specified coordinates. It's useful when you want to extract a specific area of interest
+    from your inputs.
 
     Args:
-        x_min: Minimum upper left x coordinate.
-        y_min: Minimum upper left y coordinate.
-        x_max: Maximum lower right x coordinate.
-        y_max: Maximum lower right y coordinate.
+        x_min (int): Minimum x-coordinate of the crop region (left edge). Must be >= 0. Default: 0.
+        y_min (int): Minimum y-coordinate of the crop region (top edge). Must be >= 0. Default: 0.
+        x_max (int): Maximum x-coordinate of the crop region (right edge). Must be > x_min. Default: 1024.
+        y_max (int): Maximum y-coordinate of the crop region (bottom edge). Must be > y_min. Default: 1024.
+        always_apply (bool, optional): If set to True, the transform will be always applied. Default: None.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -221,14 +225,28 @@ class Crop(_BaseCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - The crop coordinates are applied as follows: x_min <= x < x_max and y_min <= y < y_max.
+        - If the specified crop region extends beyond the image boundaries, it will be clipped to fit within the image.
+        - For bounding boxes and keypoints, only those that fall within the cropped region are kept,
+          and their coordinates are adjusted relative to the new image size.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.Crop(x_min=10, y_min=20, x_max=80, y_max=90, p=1.0),
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed['image']  # 70x70 crop of the original image
     """
 
     class InitSchema(BaseTransformInitSchema):
-        x_min: Annotated[int, Field(ge=0, description="Minimum upper left x coordinate")]
-        y_min: Annotated[int, Field(ge=0, description="Minimum upper left y coordinate")]
-        x_max: Annotated[int, Field(gt=0, description="Maximum lower right x coordinate")]
-        y_max: Annotated[int, Field(gt=0, description="Maximum lower right y coordinate")]
-        p: ProbabilityType = 1
+        x_min: Annotated[int, Field(ge=0)]
+        y_min: Annotated[int, Field(ge=0)]
+        x_max: Annotated[int, Field(gt=0)]
+        y_max: Annotated[int, Field(gt=0)]
 
         @model_validator(mode="after")
         def validate_coordinates(self) -> Self:
@@ -450,10 +468,9 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        p: ProbabilityType = 1
+        interpolation: InterpolationType
         min_max_height: OnePlusIntRangeType
-        w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
+        w2h_ratio: Annotated[float, Field(gt=0)]
         width: int | None = Field(
             None,
             deprecated=(
@@ -468,7 +485,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
                 "Please use a tuple (height, width) for the 'size' argument."
             ),
         )
-        size: ScaleIntType | None = None
+        size: ScaleIntType | None
 
         @model_validator(mode="after")
         def process(self) -> Self:
@@ -552,8 +569,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: Annotated[tuple[float, float], AfterValidator(check_01)] = (0.08, 1.0)
-        ratio: Annotated[tuple[float, float], AfterValidator(check_0plus)] = (0.75, 1.3333333333333333)
+        scale: Annotated[tuple[float, float], AfterValidator(check_01)]
+        ratio: Annotated[tuple[float, float], AfterValidator(check_0plus)]
         width: int | None = Field(
             None,
             deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
@@ -562,9 +579,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             None,
             deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
         )
-        size: ScaleIntType | None = None
-        p: ProbabilityType = 1
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        size: ScaleIntType | None
+        interpolation: InterpolationType
 
         @model_validator(mode="after")
         def process(self) -> Self:
@@ -688,8 +704,7 @@ class RandomCropNearBBox(_BaseCrop):
 
     class InitSchema(BaseTransformInitSchema):
         max_part_shift: ZeroOneRangeType
-        cropping_bbox_key: str = Field(default="cropping_bbox", description="Additional target key for cropping box.")
-        p: ProbabilityType = 1
+        cropping_bbox_key: str
 
     def __init__(
         self,
@@ -794,7 +809,6 @@ class BBoxSafeRandomCrop(_BaseCrop):
             ge=0.0,
             le=1.0,
         )
-        p: ProbabilityType = 1
 
     def __init__(self, erosion_rate: float = 0.0, p: float = 1.0, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
@@ -1030,33 +1044,14 @@ class CropAndPad(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        px: PxType | None = Field(
-            default=None,
-            description="Number of pixels to crop (negative) or pad (positive).",
-        )
-        percent: PercentType | None = Field(
-            default=None,
-            description="Fraction of image size to crop (negative) or pad (positive).",
-        )
-        pad_mode: BorderModeType = cv2.BORDER_CONSTANT
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = Field(
-            default=0,
-            description="Padding value if pad_mode is BORDER_CONSTANT.",
-        )
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = Field(
-            default=0,
-            description="Padding value for masks if pad_mode is BORDER_CONSTANT.",
-        )
-        keep_size: bool = Field(
-            default=True,
-            description="Whether to resize the image back to the original size after cropping and padding.",
-        )
-        sample_independently: bool = Field(
-            default=True,
-            description="Whether to sample the crop/pad size independently for each side.",
-        )
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        p: ProbabilityType = 1
+        px: PxType | None
+        percent: PercentType | None
+        pad_mode: BorderModeType
+        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType]
+        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType]
+        keep_size: bool
+        sample_independently: bool
+        interpolation: InterpolationType
 
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
@@ -1358,7 +1353,6 @@ class RandomCropFromBorders(_BaseCrop):
             le=1.0,
             description="Fraction of height to randomly crop from the bottom side.",
         )
-        p: ProbabilityType = 1
 
         @model_validator(mode="after")
         def validate_crop_values(self) -> Self:

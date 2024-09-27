@@ -7,7 +7,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from albumentations.core.bbox_utils import BboxProcessor
 from albumentations.core.keypoints_utils import KeypointsProcessor
@@ -32,11 +32,8 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    always_apply: bool | None = Field(
-        default=None,
-        deprecated="Deprecated. Use `p=1` instead to always apply the transform",
-    )
-    p: ProbabilityType = 0.5
+    always_apply: bool | None
+    p: ProbabilityType
 
 
 class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
