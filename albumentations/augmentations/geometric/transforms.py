@@ -58,62 +58,83 @@ __all__ = [
 
 
 class ElasticTransform(DualTransform):
-    """Apply elastic deformation to images, masks, and bounding boxes as described in [Simard2003]_.
+    """Apply elastic deformation to images, masks, bounding boxes, and keypoints.
 
-    This transformation introduces random elastic distortions to images, which can be useful for data augmentation
-    in training convolutional neural networks. The transformation can be applied in an approximate or precise manner,
-    with an option to use the same displacement field for both x and y directions to speed up the process.
+    This transformation introduces random elastic distortions to the input data. It's particularly
+    useful for data augmentation in training deep learning models, especially for tasks like
+    image segmentation or object detection where you want to maintain the relative positions of
+    features while introducing realistic deformations.
+
+    The transform works by generating random displacement fields and applying them to the input.
+    These fields are smoothed using a Gaussian filter to create more natural-looking distortions.
 
     Args:
-        alpha (float): Scaling factor for the random displacement fields.
-        sigma (float): Standard deviation for Gaussian filter applied to the displacement fields.
-        interpolation (int): Interpolation method to be used. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default is cv2.INTER_LINEAR.
-        border_mode (int): Pixel extrapolation method. Should be one of:
-            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default is cv2.BORDER_REFLECT_101.
-        value (int, float, list of int, list of float, optional): Padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of int, list of float, optional): Padding value if border_mode is
-            cv2.BORDER_CONSTANT, applied to masks.
-        approximate (bool, optional): Whether to smooth displacement map with a fixed kernel size.
-            Enabling this option gives ~2X speedup on large images. Default is False.
-        same_dxdy (bool, optional): Whether to use the same random displacement for x and y directions.
-            Enabling this option gives ~2X speedup. Default is False.
+        alpha (float): Scaling factor for the random displacement fields. Higher values result in
+            more pronounced distortions. Default: 1.0
+        sigma (float): Standard deviation of the Gaussian filter used to smooth the displacement
+            fields. Higher values result in smoother, more global distortions. Default: 50.0
+        interpolation (int): Interpolation method to be used for image transformation. Should be one
+            of the OpenCV interpolation types. Default: cv2.INTER_LINEAR
+        border_mode (int): Border mode to be used for handling pixels outside the image boundaries.
+            Should be one of the OpenCV border types. Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of int, list of float, optional): Padding value if border_mode is
+            cv2.BORDER_CONSTANT. Default: None
+        mask_value (int, float, list of int, list of float, optional): Padding value for mask if
+            border_mode is cv2.BORDER_CONSTANT. Default: None
+        approximate (bool): Whether to use an approximate version of the elastic transform. If True,
+            uses a fixed kernel size for Gaussian smoothing, which can be faster but potentially
+            less accurate for large sigma values. Default: False
+        same_dxdy (bool): Whether to use the same random displacement field for both x and y
+            directions. Can speed up the transform at the cost of less diverse distortions. Default: False
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
 
-    Reference:
-        Simard, Steinkraus and Platt, "Best Practices for Convolutional Neural Networks applied to
-        Visual Document Analysis", in Proc. of the International Conference on Document Analysis and Recognition, 2003.
-        https://gist.github.com/ernestum/601cdf56d2b424757de5
+    Note:
+        - The transform will maintain consistency across all targets (image, mask, bboxes, keypoints)
+          by using the same displacement fields for all.
+        - The 'approximate' parameter determines whether to use a precise or approximate method for
+          generating displacement fields. The approximate method can be faster but may be less
+          accurate for large sigma values.
+        - Bounding boxes that end up outside the image after transformation will be removed.
+        - Keypoints that end up outside the image after transformation will be removed.
+
+    References:
+        - Simard, Steinkraus and Platt, "Best Practices for Convolutional Neural Networks applied to
+          Visual Document Analysis", in Proc. of the International Conference on Document Analysis
+          and Recognition, 2003.
+        - https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/geometric/transforms.py
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=0.5),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> transformed_image = transformed['image']
+        >>> transformed_mask = transformed['mask']
+        >>> transformed_bboxes = transformed['bboxes']
+        >>> transformed_keypoints = transformed['keypoints']
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: Annotated[float, Field(description="Alpha parameter.", ge=0)]
-        sigma: Annotated[float, Field(default=50, description="Sigma parameter for Gaussian filter.", ge=1)]
+        alpha: Annotated[float, Field(ge=0)]
+        sigma: Annotated[float, Field(ge=1)]
         alpha_affine: None = Field(
-            description="Alpha affine parameter.",
             deprecated="Use Affine transform to get affine effects",
         )
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: int | float | list[int] | list[float] | None = Field(
-            default=None,
-            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
-        )
-        mask_value: float | list[int] | list[float] | None = Field(
-            default=None,
-            description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
-        )
-        approximate: Annotated[bool, Field(default=False, description="Approximate displacement map smoothing.")]
-        same_dxdy: Annotated[bool, Field(default=False, description="Use same shift for x and y.")]
+        interpolation: InterpolationType
+        border_mode: BorderModeType
+        value: int | float | list[int] | list[float] | None
+        mask_value: float | list[int] | list[float] | None
+        approximate: bool
+        same_dxdy: bool
 
     def __init__(
         self,
@@ -142,50 +163,72 @@ class ElasticTransform(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        random_seed: int,
-        interpolation: int,
+        displacement_fields: tuple[np.ndarray, np.ndarray],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.elastic_transform(
             img,
-            self.alpha,
-            self.sigma,
-            interpolation,
+            displacement_fields,
+            self.interpolation,
             self.border_mode,
             self.value,
-            np.random.RandomState(random_seed),
-            self.approximate,
-            self.same_dxdy,
         )
 
-    def apply_to_mask(self, mask: np.ndarray, random_seed: int, **params: Any) -> np.ndarray:
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        displacement_fields: tuple[np.ndarray, np.ndarray],
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.elastic_transform(
             mask,
-            self.alpha,
-            self.sigma,
+            displacement_fields,
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
-            np.random.RandomState(random_seed),
-            self.approximate,
-            self.same_dxdy,
         )
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, random_seed: int, **params: Any) -> np.ndarray:
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        displacement_fields: tuple[np.ndarray, np.ndarray],
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.bbox_elastic_transform(
             bboxes,
-            self.alpha,
-            self.sigma,
-            self.interpolation,
+            displacement_fields,
             self.border_mode,
-            self.approximate,
-            self.same_dxdy,
-            random_seed,
             params["shape"],
         )
 
-    def get_params(self) -> dict[str, int]:
-        return {"random_seed": random_utils.get_random_seed()}
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        displacement_fields: tuple[np.ndarray, np.ndarray],
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.elastic_transform_keypoints(
+            keypoints,
+            displacement_fields,
+            params["shape"],
+        )
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        kernel_size = (0, 0) if self.approximate else (17, 17)
+
+        # Generate displacement fields once
+        displacement_fields = fgeometric.generate_displacement_fields(
+            params["shape"][:2],
+            self.alpha,
+            self.sigma,
+            same_dxdy=self.same_dxdy,
+            kernel_size=kernel_size,
+            random_state=random_utils.get_random_state(),
+        )
+
+        return {
+            "displacement_fields": displacement_fields,
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -198,15 +241,6 @@ class ElasticTransform(DualTransform):
             "approximate",
             "same_dxdy",
         )
-
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-            "bboxes": self.apply_to_bboxes,
-        }
 
 
 class Perspective(DualTransform):
@@ -1860,8 +1894,8 @@ class GridDistortion(DualTransform):
 
 class D4(DualTransform):
     """Applies one of the eight possible D4 dihedral group transformations to a square-shaped input,
-        maintaining the square shape. These transformations correspond to the symmetries of a square,
-        including rotations and reflections.
+    maintaining the square shape. These transformations correspond to the symmetries of a square,
+    including rotations and reflections.
 
     The D4 group transformations include:
     - 'e' (identity): No transformation is applied.
@@ -1877,8 +1911,7 @@ class D4(DualTransform):
     'e' may still occur, which means the input will remain unchanged in one out of eight cases.
 
     Args:
-        p (float): Probability of applying the transform. Default is 1, meaning the
-                   transform is applied every time it is called.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1887,10 +1920,24 @@ class D4(DualTransform):
         uint8, float32
 
     Note:
-        This transform is particularly useful when augmenting data that does not have a clear orientation:
-        - Top view satellite or drone imagery
-        - Medical images
+        - This transform is particularly useful for augmenting data that does not have a clear orientation,
+          such as top-view satellite or drone imagery, or certain types of medical images.
+        - The input image should be square-shaped for optimal results. Non-square inputs may lead to
+          unexpected behavior or distortions.
+        - When applied to bounding boxes or keypoints, their coordinates will be adjusted according
+          to the selected transformation.
+        - This transform preserves the aspect ratio and size of the input.
 
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.D4(p=1.0),
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed['image']
+        # The resulting image will be one of the 8 possible D4 transformations of the input
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)

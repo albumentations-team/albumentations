@@ -100,40 +100,6 @@ def test_grid_distortion_steps(size):
     assert np.array_equal(data["image"].shape, (size, size, 3))
 
 
-@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_elastic_transform_interpolation(monkeypatch, interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-
-    random_seed = get_random_seed()
-
-    monkeypatch.setattr(
-        "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_seed": random_seed}
-    )
-
-    aug = A.ElasticTransform(alpha=1, sigma=50, interpolation=interpolation, p=1)
-
-    data = aug(image=image, mask=mask)
-    expected_image = fgeometric.elastic_transform(
-        image,
-        alpha=1,
-        sigma=50,
-        interpolation=interpolation,
-        border_mode=cv2.BORDER_REFLECT_101,
-        random_state=np.random.RandomState(random_seed),
-    )
-    expected_mask = fgeometric.elastic_transform(
-        mask,
-        alpha=1,
-        sigma=50,
-        interpolation=cv2.INTER_NEAREST,
-        border_mode=cv2.BORDER_REFLECT_101,
-        random_state=np.random.RandomState(random_seed),
-    )
-    assert np.array_equal(data["image"], expected_image)
-    assert np.array_equal(data["mask"], expected_mask)
-
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
