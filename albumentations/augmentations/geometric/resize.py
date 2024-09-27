@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from pydantic import Field, ValidationInfo, field_validator
 
-from albumentations.core.pydantic import InterpolationType, ProbabilityType
+from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ScaleFloatType, ScaleIntType, Targets
 from albumentations.core.utils import to_tuple
@@ -89,12 +89,8 @@ class RandomScale(DualTransform):
 
 
 class MaxSizeInitSchema(BaseTransformInitSchema):
-    max_size: int | list[int] = Field(
-        default=1024,
-        description="Maximum size of the smallest side of the image after the transformation.",
-    )
-    interpolation: InterpolationType = cv2.INTER_LINEAR
-    p: ProbabilityType = 1
+    max_size: int | list[int]
+    interpolation: InterpolationType
 
     @field_validator("max_size")
     @classmethod
@@ -257,10 +253,9 @@ class Resize(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        height: int = Field(ge=1, description="Desired height of the output.")
-        width: int = Field(ge=1, description="Desired width of the output.")
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        p: ProbabilityType = 1
+        height: int = Field(ge=1)
+        width: int = Field(ge=1)
+        interpolation: InterpolationType
 
     def __init__(
         self,

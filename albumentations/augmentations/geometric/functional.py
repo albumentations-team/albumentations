@@ -22,8 +22,7 @@ from albumentations.core.types import (
 
 __all__ = [
     "optical_distortion",
-    "elastic_transform_approximate",
-    "elastic_transform_precise",
+    "elastic_transform_keypoints",
     "grid_distortion",
     "pad",
     "pad_with_params",
@@ -1690,27 +1689,72 @@ def grid_distortion(
     return remap_fn(img)
 
 
-def elastic_transform_helper(
-    img: np.ndarray,
+def generate_displacement_fields(
+    image_shape: tuple[int, int],
     alpha: float,
     sigma: float,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None,
-    random_state: np.random.RandomState | None,
     same_dxdy: bool,
     kernel_size: tuple[int, int],
-) -> np.ndarray:
-    height, width = img.shape[:2]
+    random_state: np.random.RandomState,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate displacement fields for elastic transform."""
+    height, width = image_shape[:2]
 
-    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
+    dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, kernel_size, sigma, dst=dx)
     dx *= alpha
 
-    dy = dx if same_dxdy else random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    if not same_dxdy:
+    if same_dxdy:
+        dy = dx
+    else:
+        dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dy, kernel_size, sigma, dst=dy)
         dy *= alpha
+
+    return dx, dy
+
+
+def elastic_transform_keypoints(
+    keypoints: np.ndarray,
+    displacement_fields: tuple[np.ndarray, np.ndarray],
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    height, width = image_shape[:2]
+    dx, dy = displacement_fields
+
+    transformed_keypoints = []
+    for kp in keypoints:
+        x, y = kp[:2]
+
+        # Ensure the keypoint is within the image bounds
+        x = np.clip(x, 0, width - 1)
+        y = np.clip(y, 0, height - 1)
+
+        # Get the displacement at the keypoint location
+        x_displacement = dx[int(y), int(x)]
+        y_displacement = dy[int(y), int(x)]
+
+        # Apply the displacement
+        new_x = x + x_displacement
+        new_y = y + y_displacement
+
+        # Add the transformed keypoint
+        transformed_keypoints.append([new_x, new_y, *list(kp[2:])])
+
+    return np.array(transformed_keypoints)
+
+
+@preserve_channel_dim
+def elastic_transform(
+    img: np.ndarray,
+    displacement_fields: tuple[np.ndarray, np.ndarray],
+    interpolation: int,
+    border_mode: int,
+    value: ColorType | None = None,
+) -> np.ndarray:
+    height, width = img.shape[:2]
+
+    dx, dy = displacement_fields
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
     map_x = np.float32(x + dx)
@@ -1725,108 +1769,6 @@ def elastic_transform_helper(
         borderValue=value,
     )
     return remap_fn(img)
-
-
-def elastic_transform_precise(
-    img: np.ndarray,
-    alpha: float,
-    sigma: float,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None,
-    random_state: np.random.RandomState | None,
-    same_dxdy: bool = False,
-) -> np.ndarray:
-    """Apply a precise elastic transformation to an image.
-
-    This function applies an elastic deformation to the input image using a precise method.
-    The transformation involves creating random displacement fields, smoothing them using Gaussian
-    blur with adaptive kernel size, and then remapping the image according to the smoothed displacement fields.
-
-    Args:
-        img (np.ndarray): Input image.
-        alpha (float): Scaling factor for the random displacement fields.
-        sigma (float): Standard deviation for Gaussian blur applied to the displacement fields.
-        interpolation (int): Interpolation method to be used (e.g., cv2.INTER_LINEAR).
-        border_mode (int): Pixel extrapolation method (e.g., cv2.BORDER_CONSTANT).
-        value (ColorType | None): Border value if border_mode is cv2.BORDER_CONSTANT.
-        random_state (np.random.RandomState | None): Random state for reproducibility.
-        same_dxdy (bool, optional): If True, use the same displacement field for both x and y directions.
-
-    Returns:
-        np.ndarray: Transformed image with precise elastic deformation applied.
-    """
-    return elastic_transform_helper(
-        img,
-        alpha,
-        sigma,
-        interpolation,
-        border_mode,
-        value,
-        random_state,
-        same_dxdy,
-        kernel_size=(0, 0),
-    )
-
-
-def elastic_transform_approximate(
-    img: np.ndarray,
-    alpha: float,
-    sigma: float,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None,
-    random_state: np.random.RandomState | None,
-    same_dxdy: bool = False,
-) -> np.ndarray:
-    """Apply an approximate elastic transformation to an image."""
-    return elastic_transform_helper(
-        img,
-        alpha,
-        sigma,
-        interpolation,
-        border_mode,
-        value,
-        random_state,
-        same_dxdy,
-        kernel_size=(17, 17),
-    )
-
-
-@preserve_channel_dim
-def elastic_transform(
-    img: np.ndarray,
-    alpha: float,
-    sigma: float,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-    random_state: np.random.RandomState | None = None,
-    approximate: bool = False,
-    same_dxdy: bool = False,
-) -> np.ndarray:
-    """Apply an elastic transformation to an image."""
-    if approximate:
-        return elastic_transform_approximate(
-            img,
-            alpha,
-            sigma,
-            interpolation,
-            border_mode,
-            value,
-            random_state,
-            same_dxdy,
-        )
-    return elastic_transform_precise(
-        img,
-        alpha,
-        sigma,
-        interpolation,
-        border_mode,
-        value,
-        random_state,
-        same_dxdy,
-    )
 
 
 @handle_empty_array
@@ -2571,13 +2513,8 @@ def bboxes_optical_distortion(
 @handle_empty_array
 def bbox_elastic_transform(
     bboxes: np.ndarray,
-    alpha: float,
-    sigma: float,
-    interpolation: int,
+    displacement_fields: tuple[np.ndarray, np.ndarray],
     border_mode: int,
-    approximate: bool,
-    same_dxdy: bool,
-    random_seed: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
     bboxes = bboxes.copy()
@@ -2587,13 +2524,8 @@ def bbox_elastic_transform(
     for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm[:, :4].astype(int)):
         masks[i, y_min:y_max, x_min:x_max] = 1
 
-    # Apply elastic transform to all masks
-    rng = np.random.RandomState(random_seed)
     transformed_masks = np.stack(
-        [
-            elastic_transform(mask, alpha, sigma, interpolation, border_mode, -1, rng, approximate, same_dxdy)
-            for mask in masks
-        ],
+        [elastic_transform(mask, displacement_fields, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
     )
 
     # Get bboxes from transformed masks

@@ -277,7 +277,6 @@ def test_augmentations_for_bboxes_serialization(
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CropNonEmptyMaskIfExists,
-            A.ElasticTransform,
             A.GridDistortion,
             A.GridDropout,
             A.MaskDropout,
@@ -770,7 +769,7 @@ def test_augmentations_serialization(augmentation_cls: A.BasicTransform, params:
 
     model_fields = get_all_init_schema_fields(augmentation_cls)
     # Note: You might want to adjust this based on how you handle default fields in your models
-    expected_args = model_fields - {'__class_fullname__'}
+    expected_args = model_fields - {'__class_fullname__', "always_apply"}
 
     achieved_args = set(instance.to_dict()["transform"].keys())
 
