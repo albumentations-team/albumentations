@@ -63,7 +63,7 @@ class _BaseCrop(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(self, p: float = 1.0, always_apply: bool | None = None):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
     def apply(self, img: np.ndarray, crop_coords: tuple[int, int, int, int], **params: Any) -> np.ndarray:
         x_min = crop_coords[0]
@@ -186,7 +186,7 @@ class CenterCrop(_BaseCrop):
         pass
 
     def __init__(self, height: int, width: int, p: float = 1.0, always_apply: bool | None = None):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.height = height
         self.width = width
 
@@ -320,7 +320,7 @@ class CropNonEmptyMaskIfExists(_BaseCrop):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
         self.height = height
         self.width = width
@@ -897,12 +897,10 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
 
     class InitSchema(CropInitSchema):
         erosion_rate: float = Field(
-            default=0.0,
             ge=0.0,
             le=1.0,
-            description="Erosion rate applied on input image height before crop.",
         )
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        interpolation: InterpolationType
 
     def __init__(
         self,
@@ -1330,28 +1328,20 @@ class RandomCropFromBorders(_BaseCrop):
 
     class InitSchema(BaseTransformInitSchema):
         crop_left: float = Field(
-            default=0.1,
             ge=0.0,
             le=1.0,
-            description="Fraction of width to randomly crop from the left side.",
         )
         crop_right: float = Field(
-            default=0.1,
             ge=0.0,
             le=1.0,
-            description="Fraction of width to randomly crop from the right side.",
         )
         crop_top: float = Field(
-            default=0.1,
             ge=0.0,
             le=1.0,
-            description="Fraction of height to randomly crop from the top side.",
         )
         crop_bottom: float = Field(
-            default=0.1,
             ge=0.0,
             le=1.0,
-            description="Fraction of height to randomly crop from the bottom side.",
         )
 
         @model_validator(mode="after")
