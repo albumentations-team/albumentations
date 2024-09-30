@@ -151,7 +151,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = fgeometric.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        img_out = fgeometric.rotate(mask, angle, self.interpolation, self.border_mode, self.mask_value)
         if self.crop_border:
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
