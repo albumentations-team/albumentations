@@ -24,6 +24,8 @@ __all__ = [
     "optical_distortion",
     "elastic_transform_keypoints",
     "grid_distortion",
+    "grid_distortion_keypoints",
+    "grid_distortion_bboxes",
     "pad",
     "pad_with_params",
     "rotate",
@@ -56,6 +58,7 @@ __all__ = [
     "keypoints_hflip",
     "center",
     "center_bbox",
+    "generate_grid",
 ]
 
 PAIR = 2
@@ -1633,60 +1636,63 @@ def optical_distortion(
 @preserve_channel_dim
 def grid_distortion(
     img: np.ndarray,
-    num_steps: int,
-    xsteps: tuple[()],
-    ysteps: tuple[()],
+    map_x: np.ndarray,
+    map_y: np.ndarray,
     interpolation: int,
     border_mode: int,
     value: ColorType | None = None,
 ) -> np.ndarray:
-    height, width = img.shape[:2]
+    return cv2.remap(img, map_x, map_y, interpolation, borderMode=border_mode, borderValue=value)
 
-    x_step = width // num_steps
-    xx = np.zeros(width, np.float32)
-    prev = 0
-    for idx in range(num_steps + 1):
-        x = idx * x_step
-        start = int(x)
-        end = int(x) + x_step
-        if end > width:
-            end = width
-            cur = width
-        else:
-            cur = prev + x_step * xsteps[idx]
 
-        xx[start:end] = np.linspace(prev, cur, end - start)
-        prev = cur
+@handle_empty_array
+def grid_distortion_keypoints(
+    keypoints: np.ndarray,
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    height, width = image_shape[:2]
 
-    y_step = height // num_steps
-    yy = np.zeros(height, np.float32)
-    prev = 0
-    for idx in range(num_steps + 1):
-        y = idx * y_step
-        start = int(y)
-        end = int(y) + y_step
-        if end > height:
-            end = height
-            cur = height
-        else:
-            cur = prev + y_step * ysteps[idx]
+    # Extract x and y coordinates
+    x, y = keypoints[:, 0], keypoints[:, 1]
 
-        yy[start:end] = np.linspace(prev, cur, end - start)
-        prev = cur
+    # Clip coordinates to image boundaries
+    x = np.clip(x, 0, width - 1)
+    y = np.clip(y, 0, height - 1)
 
-    map_x, map_y = np.meshgrid(xx, yy)
-    map_x = map_x.astype(np.float32)
-    map_y = map_y.astype(np.float32)
+    # Convert to integer indices
+    x_idx, y_idx = x.astype(int), y.astype(int)
 
-    remap_fn = maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
+    # Apply the mapping
+    new_x = map_x[y_idx, x_idx]
+    new_y = map_y[y_idx, x_idx]
+
+    # Create the transformed keypoints array
+    return np.column_stack([new_x, new_y, keypoints[:, 2:]])
+
+
+@handle_empty_array
+def grid_distortion_bboxes(
+    bboxes: np.ndarray,
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    image_shape: tuple[int, int],
+    border_mode: int,
+) -> np.ndarray:
+    result = bboxes.copy()
+    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
+
+    for box_id, bbox in enumerate(bboxes):
+        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
+        masks[box_id, y_min:y_max, x_min:x_max] = 1
+
+    transformed_masks = np.stack(
+        [cv2.remap(mask, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0) for mask in masks],
     )
-    return remap_fn(img)
+    result[:, :4] = np.array([bbox_from_mask(mask) for mask in transformed_masks])
+
+    return result
 
 
 def generate_displacement_fields(
@@ -2518,10 +2524,9 @@ def bbox_elastic_transform(
     image_shape: tuple[int, int],
 ) -> np.ndarray:
     bboxes = bboxes.copy()
-    bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
     # Create a mask for each bbox
     masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm[:, :4].astype(int)):
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes[:, :4].astype(int)):
         masks[i, y_min:y_max, x_min:x_max] = 1
 
     transformed_masks = np.stack(
@@ -2532,7 +2537,7 @@ def bbox_elastic_transform(
     bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
 
     # Normalize the returned bboxes
-    bboxes[:, :4] = normalize_bboxes(bboxes_returned, image_shape)
+    bboxes[:, :4] = bboxes_returned
 
     return bboxes
 
@@ -2602,3 +2607,61 @@ def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
     """
     height, width = image_shape[:2]
     return width / 2, height / 2
+
+
+def generate_grid(
+    image_shape: tuple[int, int],
+    steps_x: list[float],
+    steps_y: list[float],
+    num_steps: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    height, width = image_shape[:2]
+    x_step = width // num_steps
+    xx = np.zeros(width, np.float32)
+    prev = 0.0
+    for idx, step in enumerate(steps_x):
+        x = idx * x_step
+        start = int(x)
+        end = min(int(x) + x_step, width)
+        cur = prev + x_step * step
+        xx[start:end] = np.linspace(prev, cur, end - start)
+        prev = cur
+
+    y_step = height // num_steps
+    yy = np.zeros(height, np.float32)
+    prev = 0.0
+    for idx, step in enumerate(steps_y):
+        y = idx * y_step
+        start = int(y)
+        end = min(int(y) + y_step, height)
+        cur = prev + y_step * step
+        yy[start:end] = np.linspace(prev, cur, end - start)
+        prev = cur
+
+    return np.meshgrid(xx, yy)
+
+
+def normalize_grid_distortion_steps(
+    image_shape: tuple[int, int],
+    num_steps: int,
+    x_steps: list[float],
+    y_steps: list[float],
+) -> dict[str, np.ndarray]:
+    height, width = image_shape
+
+    # compensate for smaller last steps in source image.
+    x_step = width // num_steps
+    last_x_step = min(width, ((num_steps + 1) * x_step)) - (num_steps * x_step)
+    x_steps[-1] *= last_x_step / x_step
+
+    y_step = height // num_steps
+    last_y_step = min(height, ((num_steps + 1) * y_step)) - (num_steps * y_step)
+    y_steps[-1] *= last_y_step / y_step
+
+    # now normalize such that distortion never leaves image bounds.
+    tx = width / math.floor(width / num_steps)
+    ty = height / math.floor(height / num_steps)
+    x_steps = np.array(x_steps) * (tx / np.sum(x_steps))
+    y_steps = np.array(y_steps) * (ty / np.sum(y_steps))
+
+    return {"steps_x": x_steps, "steps_y": y_steps}

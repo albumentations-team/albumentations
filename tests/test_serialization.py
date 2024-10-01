@@ -277,7 +277,6 @@ def test_augmentations_for_bboxes_serialization(
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CropNonEmptyMaskIfExists,
-            A.GridDistortion,
             A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
