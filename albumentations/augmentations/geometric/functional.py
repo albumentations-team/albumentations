@@ -1654,6 +1654,10 @@ def grid_distortion_keypoints(
 ) -> np.ndarray:
     height, width = image_shape[:2]
 
+    # Create inverse mappings
+    x_inv = np.arange(width).reshape(1, -1).repeat(height, axis=0)
+    y_inv = np.arange(height).reshape(-1, 1).repeat(width, axis=1)
+
     # Extract x and y coordinates
     x, y = keypoints[:, 0], keypoints[:, 1]
 
@@ -1664,9 +1668,13 @@ def grid_distortion_keypoints(
     # Convert to integer indices
     x_idx, y_idx = x.astype(int), y.astype(int)
 
-    # Apply the mapping
-    new_x = map_x[y_idx, x_idx]
-    new_y = map_y[y_idx, x_idx]
+    # Apply the inverse mapping
+    new_x = x_inv[y_idx, x_idx] + (x - map_x[y_idx, x_idx])
+    new_y = y_inv[y_idx, x_idx] + (y - map_y[y_idx, x_idx])
+
+    # Clip the new coordinates to ensure they're within the image bounds
+    new_x = np.clip(new_x, 0, width - 1)
+    new_y = np.clip(new_y, 0, height - 1)
 
     # Create the transformed keypoints array
     return np.column_stack([new_x, new_y, keypoints[:, 2:]])
@@ -2615,6 +2623,47 @@ def generate_grid(
     steps_y: list[float],
     num_steps: int,
 ) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a distorted grid for image transformation based on given step sizes.
+
+    This function creates two 2D arrays (map_x and map_y) that represent a distorted version
+    of the original image grid. These arrays can be used with OpenCV's remap function to
+    apply grid distortion to an image.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        steps_x (list[float]): List of step sizes for the x-axis distortion. The length
+            should be num_steps + 1. Each value represents the relative step size for
+            a segment of the grid in the x direction.
+        steps_y (list[float]): List of step sizes for the y-axis distortion. The length
+            should be num_steps + 1. Each value represents the relative step size for
+            a segment of the grid in the y direction.
+        num_steps (int): The number of steps to divide each axis into. This determines
+            the granularity of the distortion grid.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing two 2D numpy arrays:
+            - map_x: A 2D array of float32 values representing the x-coordinates
+              of the distorted grid.
+            - map_y: A 2D array of float32 values representing the y-coordinates
+              of the distorted grid.
+
+    Note:
+        - The function generates a grid where each cell can be distorted independently.
+        - The distortion is controlled by the steps_x and steps_y parameters, which
+          determine how much each grid line is shifted.
+        - The resulting map_x and map_y can be used directly with cv2.remap() to
+          apply the distortion to an image.
+        - The distortion is applied smoothly across each grid cell using linear
+          interpolation.
+
+    Example:
+        >>> image_shape = (100, 100)
+        >>> steps_x = [1.1, 0.9, 1.0, 1.2, 0.95, 1.05]
+        >>> steps_y = [0.9, 1.1, 1.0, 1.1, 0.9, 1.0]
+        >>> num_steps = 5
+        >>> map_x, map_y = generate_grid(image_shape, steps_x, steps_y, num_steps)
+        >>> distorted_image = cv2.remap(image, map_x, map_y, cv2.INTER_LINEAR)
+    """
     height, width = image_shape[:2]
     x_step = width // num_steps
     xx = np.zeros(width, np.float32)

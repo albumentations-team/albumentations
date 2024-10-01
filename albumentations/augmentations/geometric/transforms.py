@@ -1715,27 +1715,33 @@ class OpticalDistortion(DualTransform):
 
 
 class GridDistortion(DualTransform):
-    """Applies grid distortion augmentation to images, masks, and bounding boxes. This technique involves dividing
-    the image into a grid of cells and randomly displacing the intersection points of the grid,
-    resulting in localized distortions.
+    """Apply grid distortion to images, masks, bounding boxes, and keypoints.
+
+    This transformation divides the image into a grid and randomly distorts each cell,
+    creating localized warping effects. It's particularly useful for data augmentation
+    in tasks like medical image analysis, OCR, and other domains where local geometric
+    variations are meaningful.
 
     Args:
-        num_steps (int): Number of grid cells on each side (minimum 1).
-        distort_limit (float, (float, float)): Range of distortion limits. If a single float is provided,
-            the range will be from (-distort_limit, distort_limit). Default: (-0.3, 0.3).
-        interpolation (OpenCV flag): Interpolation algorithm used for image transformation. Options are:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): Pixel extrapolation method used when pixels outside the image are required.
-            Options are: cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP,
-            cv2.BORDER_REFLECT_101.
+        num_steps (int): Number of grid cells on each side of the image. Higher values
+            create more granular distortions. Must be at least 1. Default: 5.
+        distort_limit (float or tuple[float, float]): Range of distortion. If a single float
+            is provided, the range will be (-distort_limit, distort_limit). Higher values
+            create stronger distortions. Should be in the range of -1 to 1.
+            Default: (-0.3, 0.3).
+        interpolation (int): OpenCV interpolation method used for image transformation.
+            Options include cv2.INTER_LINEAR, cv2.INTER_CUBIC, etc. Default: cv2.INTER_LINEAR.
+        border_mode (int): OpenCV border mode used for handling pixels outside the image.
+            Options include cv2.BORDER_REFLECT_101, cv2.BORDER_CONSTANT, etc.
             Default: cv2.BORDER_REFLECT_101.
-        value (int, float, list of ints, list of floats, optional): Value used for padding when
-            border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of floats, optional): Padding value for masks when
-            border_mode is cv2.BORDER_CONSTANT.
-        normalized (bool): If True, ensures that distortion does not exceed image boundaries. Default: False.
-            Reference: https://github.com/albumentations-team/albumentations/pull/722
+        value (int, float, list of int, list of float, optional): Padding value if
+            border_mode is cv2.BORDER_CONSTANT. Default: None.
+        mask_value (int, float, list of int, list of float, optional): Padding value for
+            mask if border_mode is cv2.BORDER_CONSTANT. Default: None.
+        normalized (bool): If True, ensures that the distortion does not move pixels
+            outside the image boundaries. This can result in less extreme distortions
+            but guarantees that no information is lost. Default: True.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1744,8 +1750,26 @@ class GridDistortion(DualTransform):
         uint8, float32
 
     Note:
-        This transform is helpful in medical imagery, Optical Character Recognition, and other tasks where local
-        distance may not be preserved.
+        - The same distortion is applied to all targets (image, mask, bboxes, keypoints)
+          to maintain consistency.
+        - When normalized=True, the distortion is adjusted to ensure all pixels remain
+          within the image boundaries.
+        - Bounding boxes that end up outside the image after transformation will be removed.
+        - Keypoints that end up outside the image after transformation will be removed.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.GridDistortion(num_steps=5, distort_limit=0.3, p=1.0),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> transformed_image = transformed['image']
+        >>> transformed_mask = transformed['mask']
+        >>> transformed_bboxes = transformed['bboxes']
+        >>> transformed_keypoints = transformed['keypoints']
+
+    References:
+        - https://github.com/albumentations-team/albumentations/pull/722 (for normalized option)
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
