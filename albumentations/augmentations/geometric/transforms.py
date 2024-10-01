@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import random
 from enum import Enum
 from typing import Any, Callable, Literal, Tuple, cast
@@ -1716,58 +1715,73 @@ class OpticalDistortion(DualTransform):
 
 
 class GridDistortion(DualTransform):
-    """Applies grid distortion augmentation to images, masks, and bounding boxes. This technique involves dividing
-    the image into a grid of cells and randomly displacing the intersection points of the grid,
-    resulting in localized distortions.
+    """Apply grid distortion to images, masks, bounding boxes, and keypoints.
+
+    This transformation divides the image into a grid and randomly distorts each cell,
+    creating localized warping effects. It's particularly useful for data augmentation
+    in tasks like medical image analysis, OCR, and other domains where local geometric
+    variations are meaningful.
 
     Args:
-        num_steps (int): Number of grid cells on each side (minimum 1).
-        distort_limit (float, (float, float)): Range of distortion limits. If a single float is provided,
-            the range will be from (-distort_limit, distort_limit). Default: (-0.3, 0.3).
-        interpolation (OpenCV flag): Interpolation algorithm used for image transformation. Options are:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): Pixel extrapolation method used when pixels outside the image are required.
-            Options are: cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP,
-            cv2.BORDER_REFLECT_101.
+        num_steps (int): Number of grid cells on each side of the image. Higher values
+            create more granular distortions. Must be at least 1. Default: 5.
+        distort_limit (float or tuple[float, float]): Range of distortion. If a single float
+            is provided, the range will be (-distort_limit, distort_limit). Higher values
+            create stronger distortions. Should be in the range of -1 to 1.
+            Default: (-0.3, 0.3).
+        interpolation (int): OpenCV interpolation method used for image transformation.
+            Options include cv2.INTER_LINEAR, cv2.INTER_CUBIC, etc. Default: cv2.INTER_LINEAR.
+        border_mode (int): OpenCV border mode used for handling pixels outside the image.
+            Options include cv2.BORDER_REFLECT_101, cv2.BORDER_CONSTANT, etc.
             Default: cv2.BORDER_REFLECT_101.
-        value (int, float, list of ints, list of floats, optional): Value used for padding when
-            border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of floats, optional): Padding value for masks when
-            border_mode is cv2.BORDER_CONSTANT.
-        normalized (bool): If True, ensures that distortion does not exceed image boundaries. Default: False.
-            Reference: https://github.com/albumentations-team/albumentations/pull/722
+        value (int, float, list of int, list of float, optional): Padding value if
+            border_mode is cv2.BORDER_CONSTANT. Default: None.
+        mask_value (int, float, list of int, list of float, optional): Padding value for
+            mask if border_mode is cv2.BORDER_CONSTANT. Default: None.
+        normalized (bool): If True, ensures that the distortion does not move pixels
+            outside the image boundaries. This can result in less extreme distortions
+            but guarantees that no information is lost. Default: True.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
 
     Note:
-        This transform is helpful in medical imagery, Optical Character Recognition, and other tasks where local
-        distance may not be preserved.
+        - The same distortion is applied to all targets (image, mask, bboxes, keypoints)
+          to maintain consistency.
+        - When normalized=True, the distortion is adjusted to ensure all pixels remain
+          within the image boundaries.
+        - Bounding boxes that end up outside the image after transformation will be removed.
+        - Keypoints that end up outside the image after transformation will be removed.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.GridDistortion(num_steps=5, distort_limit=0.3, p=1.0),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> transformed_image = transformed['image']
+        >>> transformed_mask = transformed['mask']
+        >>> transformed_bboxes = transformed['bboxes']
+        >>> transformed_keypoints = transformed['keypoints']
+
+    References:
+        - https://github.com/albumentations-team/albumentations/pull/722 (for normalized option)
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        num_steps: Annotated[int, Field(ge=1, description="Count of grid cells on each side.")]
-        distort_limit: SymmetricRangeType = (-0.3, 0.3)
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: ColorType | None = Field(
-            default=None,
-            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
-        )
-        mask_value: ColorType | None = Field(
-            default=None,
-            description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT.",
-        )
-        normalized: bool = Field(
-            default=False,
-            description="If true, distortion will be normalized to not go outside the image.",
-        )
+        num_steps: Annotated[int, Field(ge=1)]
+        distort_limit: SymmetricRangeType
+        interpolation: InterpolationType
+        border_mode: BorderModeType
+        value: ColorType | None
+        mask_value: ColorType | None
+        normalized: bool
 
         @field_validator("distort_limit")
         @classmethod
@@ -1785,7 +1799,7 @@ class GridDistortion(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
-        normalized: bool = False,
+        normalized: bool = True,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1799,97 +1813,50 @@ class GridDistortion(DualTransform):
         self.mask_value = mask_value
         self.normalized = normalized
 
-    def apply(
+    def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.grid_distortion(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
+
+    def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.grid_distortion(mask, map_x, map_y, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+
+    def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        image_shape = params["shape"][:2]
+
+        bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
+
+        bboxes_returned = fgeometric.grid_distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape, self.border_mode)
+
+        return normalize_bboxes(bboxes_returned, image_shape)
+
+    def apply_to_keypoints(
         self,
-        img: np.ndarray,
-        stepsx: tuple[()],
-        stepsy: tuple[()],
-        interpolation: int,
+        keypoints: np.ndarray,
+        map_x: np.ndarray,
+        map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.grid_distortion(
-            img,
-            self.num_steps,
-            stepsx,
-            stepsy,
-            interpolation,
-            self.border_mode,
-            self.value,
-        )
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        stepsx: tuple[()],
-        stepsy: tuple[()],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.grid_distortion(
-            mask,
-            self.num_steps,
-            stepsx,
-            stepsy,
-            cv2.INTER_NEAREST,
-            self.border_mode,
-            self.mask_value,
-        )
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        stepsx: tuple[()],
-        stepsy: tuple[()],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.bboxes_grid_distortion(
-            bboxes,
-            stepsx,
-            stepsy,
-            self.num_steps,
-            self.border_mode,
-            params["shape"],
-        )
-
-    def _normalize(self, h: int, w: int, xsteps: list[float], ysteps: list[float]) -> dict[str, Any]:
-        # compensate for smaller last steps in source image.
-        x_step = w // self.num_steps
-        last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)
-        xsteps[-1] *= last_x_step / x_step
-
-        y_step = h // self.num_steps
-        last_y_step = min(h, ((self.num_steps + 1) * y_step)) - (self.num_steps * y_step)
-        ysteps[-1] *= last_y_step / y_step
-
-        # now normalize such that distortion never leaves image bounds.
-        tx = w / math.floor(w / self.num_steps)
-        ty = h / math.floor(h / self.num_steps)
-        xsteps = np.array(xsteps) * (tx / np.sum(xsteps))
-        ysteps = np.array(ysteps) * (ty / np.sum(ysteps))
-
-        return {"stepsx": xsteps, "stepsy": ysteps}
+        return fgeometric.grid_distortion_keypoints(keypoints, map_x, map_y, params["shape"])
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
-
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        image_shape = params["shape"][:2]
+        steps_x = [1 + random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
+        steps_y = [1 + random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
 
         if self.normalized:
-            return self._normalize(height, width, stepsx, stepsy)
+            normalized_params = fgeometric.normalize_grid_distortion_steps(
+                image_shape,
+                self.num_steps,
+                steps_x,
+                steps_y,
+            )
+            steps_x, steps_y = normalized_params["steps_x"], normalized_params["steps_y"]
 
-        return {"stepsx": stepsx, "stepsy": stepsy}
+        map_x, map_y = fgeometric.generate_grid(image_shape, steps_x, steps_y, self.num_steps)
+
+        return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
-
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-            "bboxes": self.apply_to_bboxes,
-        }
 
 
 class D4(DualTransform):
