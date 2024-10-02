@@ -47,6 +47,29 @@ class CoarseDropout(BaseDropout):
 
     Image types:
         uint8, float32
+
+    Note:
+        - The actual number and size of dropout regions are randomly chosen within the specified ranges for each
+            application.
+        - When using float values for hole_height_range and hole_width_range, ensure they are between 0 and 1.
+        - This implementation includes deprecation warnings for older parameter names (min_holes, max_holes, etc.).
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> augmentation = A.CoarseDropout(num_holes_range=(3, 6),
+        ...                                hole_height_range=(10, 20),
+        ...                                hole_width_range=(10, 20),
+        ...                                fill_value=0,
+        ...                                p=1.0)
+        >>> transformed = augmentation(image=image, mask=mask)
+        >>> transformed_image, transformed_mask = transformed["image"], transformed["mask"]
+
+    References:
+        - CutOut: https://arxiv.org/abs/1708.04552
+        - Random Erasing: https://arxiv.org/abs/1708.04896
     """
 
     class InitSchema(BaseDropout.InitSchema):
