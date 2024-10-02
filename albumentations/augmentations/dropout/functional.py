@@ -5,10 +5,19 @@ from albucore import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_d
 from typing_extensions import Literal
 
 from albumentations import random_utils
+from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType
 
-__all__ = ["cutout", "channel_dropout", "filter_keypoints_in_holes", "generate_random_fill", "filter_bboxes_by_holes"]
+__all__ = [
+    "cutout",
+    "channel_dropout",
+    "filter_keypoints_in_holes",
+    "generate_random_fill",
+    "filter_bboxes_by_holes",
+    "calculate_grid_dimensions",
+    "generate_grid_holes",
+]
 
 
 @preserve_channel_dim
@@ -202,3 +211,150 @@ def filter_bboxes_by_holes(
         mask[i] = (remaining_area >= min_area) and (visibility_ratio >= min_visibility)
 
     return bboxes[mask]
+
+
+def calculate_grid_dimensions(
+    image_shape: tuple[int, int],
+    unit_size_range: tuple[int, int] | None,
+    holes_number_xy: tuple[int, int] | None,
+) -> tuple[int, int]:
+    """Calculate the dimensions of grid units for GridDropout.
+
+    This function determines the size of grid units based on the input parameters.
+    It supports three modes of operation:
+    1. Using a range of unit sizes
+    2. Using a specified number of holes in x and y directions
+    3. Falling back to a default calculation
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        unit_size_range (tuple[int, int] | None, optional): A range of possible unit sizes.
+            If provided, a random size within this range will be chosen for both height and width.
+        holes_number_xy (tuple[int, int] | None, optional): The number of holes in the x and y directions.
+            If provided, the grid dimensions will be calculated to fit this number of holes.
+
+    Returns:
+        tuple[int, int]: The calculated grid unit dimensions as (unit_height, unit_width).
+
+    Raises:
+        ValueError: If the upper limit of unit_size_range is greater than the shortest image edge.
+
+    Notes:
+        - If both unit_size_range and holes_number_xy are None, the function falls back to a default calculation,
+          where the grid unit size is set to max(2, image_dimension // 10) for both height and width.
+        - The function prioritizes unit_size_range over holes_number_xy if both are provided.
+        - When using holes_number_xy, the actual number of holes may be slightly different due to integer division.
+
+    Examples:
+        >>> image_shape = (100, 200)
+        >>> calculate_grid_dimensions(image_shape, unit_size_range=(10, 20))
+        (15, 15)  # Random value between 10 and 20
+
+        >>> calculate_grid_dimensions(image_shape, holes_number_xy=(5, 10))
+        (20, 20)  # 100 // 5 and 200 // 10
+
+        >>> calculate_grid_dimensions(image_shape)
+        (10, 20)  # Default calculation: max(2, dimension // 10)
+    """
+    height, width = image_shape[:2]
+
+    if unit_size_range is not None:
+        if unit_size_range[1] > min(image_shape[:2]):
+            raise ValueError("Grid size limits must be within the shortest image edge.")
+        unit_size = random_utils.randint(*unit_size_range)
+        return unit_size, unit_size
+
+    if holes_number_xy:
+        holes_number_x, holes_number_y = holes_number_xy
+        unit_width = width // holes_number_x
+        unit_height = height // holes_number_y
+        return unit_height, unit_width
+
+    # Default fallback
+    unit_width = max(2, width // 10)
+    unit_height = max(2, height // 10)
+    return unit_height, unit_width
+
+
+def generate_grid_holes(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    ratio: float,
+    random_offset: bool,
+    random_state: np.random.RandomState | None,
+    shift_xy: tuple[int, int],
+) -> np.ndarray:
+    """Generate a list of holes for GridDropout using a uniform grid.
+
+    This function creates a grid of holes for use in the GridDropout augmentation technique.
+    It allows for customization of the grid size, hole size ratio, and positioning of holes.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        grid (tuple[int, int]): The grid size as (rows, columns). This determines the number of cells
+            in the grid, where each cell may contain a hole.
+        ratio (float): The ratio of the hole size to the grid cell size. Should be between 0 and 1.
+            A ratio of 1 means the hole will fill the entire grid cell.
+        random_offset (bool): If True, applies random offsets to each hole within its grid cell.
+            If False, uses the global shift specified by shift_xy.
+        random_state (np.random.RandomState | None): The random state for generating random offsets
+            and shuffling. If None, a new RandomState will be created.
+        shift_xy (tuple[int, int]): The global shift to apply to all holes as (shift_x, shift_y).
+            Only used when random_offset is False.
+
+    Returns:
+        np.ndarray: An array of hole coordinates, where each hole is represented as
+            [x1, y1, x2, y2]. The shape of the array is (n_holes, 4), where n_holes
+            is determined by the grid size.
+
+    Notes:
+        - The function first creates a uniform grid based on the image shape and specified grid size.
+        - Hole sizes are calculated based on the provided ratio and grid cell sizes.
+        - If random_offset is True, each hole is randomly positioned within its grid cell.
+        - If random_offset is False, all holes are shifted by the global shift_xy value.
+        - The function ensures that all holes remain within the image boundaries.
+
+    Examples:
+        >>> image_shape = (100, 100)
+        >>> grid = (5, 5)
+        >>> ratio = 0.5
+        >>> random_offset = True
+        >>> random_state = np.random.RandomState(42)
+        >>> shift_xy = (0, 0)
+        >>> holes = generate_grid_holes(image_shape, grid, ratio, random_offset, random_state, shift_xy)
+        >>> print(holes.shape)
+        (25, 4)
+        >>> print(holes[0])  # Example output: [x1, y1, x2, y2] of the first hole
+        [ 1 21 11 31]
+    """
+    height, width = image_shape[:2]
+
+    # Generate the uniform grid
+    cells = split_uniform_grid(image_shape, grid, random_state)
+
+    # Calculate hole sizes based on the ratio
+    cell_heights = cells[:, 2] - cells[:, 0]
+    cell_widths = cells[:, 3] - cells[:, 1]
+    hole_heights = np.clip(cell_heights * ratio, 1, cell_heights - 1).astype(int)
+    hole_widths = np.clip(cell_widths * ratio, 1, cell_widths - 1).astype(int)
+
+    # Calculate maximum possible offsets
+    max_offset_y = cell_heights - hole_heights
+    max_offset_x = cell_widths - hole_widths
+
+    if random_offset and random_state is not None:
+        # Generate random offsets for each hole
+        offset_y = random_state.randint(0, max_offset_y + 1)
+        offset_x = random_state.randint(0, max_offset_x + 1)
+    else:
+        # Use global shift
+        offset_y = np.full_like(max_offset_y, shift_xy[1])
+        offset_x = np.full_like(max_offset_x, shift_xy[0])
+
+    # Calculate hole coordinates
+    x_min = np.clip(cells[:, 1] + offset_x, 0, width - hole_widths)
+    y_min = np.clip(cells[:, 0] + offset_y, 0, height - hole_heights)
+    x_max = np.minimum(x_min + hole_widths, width)
+    y_max = np.minimum(y_min + hole_heights, height)
+
+    return np.column_stack((x_min, y_min, x_max, y_max))

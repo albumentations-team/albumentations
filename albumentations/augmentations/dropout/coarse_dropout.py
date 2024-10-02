@@ -33,9 +33,11 @@ class CoarseDropout(BaseDropout):
         hole_width_range (tuple[ScalarType, ScalarType]): Range (min, max) for the width
             of dropout regions. If int, specifies absolute pixel values. If float,
             interpreted as a fraction of the image width. Default: (8, 8)
-        fill_value (ColorType | Literal["random"]): Value used to fill dropout regions.
-            Can be a constant value, a tuple for pixel intensity across channels,
-            or 'random' for random noise. Default: 0
+        fill_value (int | float | Literal["random"] | tuple[int | float,...]): Value for the dropped pixels. Can be:
+            - int or float: all channels are filled with this value.
+            - tuple: tuple of values for each channel.
+            - 'random': filled with random values.
+            Default: 0.
         mask_fill_value (ColorType | None): Fill value for dropout regions in the mask.
             If None, mask regions corresponding to image dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Default: 0.5

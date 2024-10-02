@@ -1,59 +1,74 @@
 from __future__ import annotations
 
-import random
-from typing import Any, Iterable, Sequence
+from typing import Any, Literal
 from warnings import warn
 
-import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Self
 
+import albumentations.augmentations.dropout.functional as fdropout
+from albumentations import random_utils
+from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import MIN_UNIT_SIZE, PAIR, ColorType, Targets
-
-from . import functional as fdropout
+from albumentations.core.types import MIN_UNIT_SIZE, ColorType
 
 __all__ = ["GridDropout"]
 
 
-class GridDropout(DualTransform):
-    """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
+class GridDropout(BaseDropout):
+    """Apply GridDropout augmentation to images, masks, bounding boxes, and keypoints.
+
+    GridDropout drops out rectangular regions of an image and the corresponding mask in a grid fashion.
+    This technique can help improve model robustness by forcing the network to rely on a broader context
+    rather than specific local features.
 
     Args:
-        ratio (float): The ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+        ratio (float): The ratio of the mask holes to the unit size (same for horizontal and vertical directions).
             Must be between 0 and 1. Default: 0.5.
-        random_offset (bool): Whether to offset the grid randomly between 0 and grid unit size - hole size.
-            If True, entered shift_x and shift_y are ignored and set randomly. Default: False.
-        fill_value (Optional[ColorType]): Value for the dropped pixels. Default: 0.
-        mask_fill_value (Optional[ColorType]): Value for the dropped pixels in mask.
-            If None, transformation is not applied to the mask. Default: None.
-        unit_size_range (Optional[tuple[int, int]]): Range from which to sample grid size. Default: None.
-             Must be between 2 and the image shorter edge.
-        holes_number_xy (Optional[tuple[int, int]]): The number of grid units in x and y directions.
+        unit_size_range (tuple[int, int] | None): Range from which to sample grid size. Default: None.
+            Must be between 2 and the image's shorter edge. If None, grid size is calculated based on image size.
+        holes_number_xy (tuple[int, int] | None): The number of grid units in x and y directions.
             First value should be between 1 and image width//2,
             Second value should be between 1 and image height//2.
-            Default: None.
-        shift_xy (tuple[int, int]): Offsets of the grid start in x and y directions.
-            Offsets of the grid start in x and y directions from (0,0) coordinate.
-            Default: (0, 0).
-
+            Default: None. If provided, overrides unit_size_range.
+        random_offset (bool): Whether to offset the grid randomly between 0 and (grid unit size - hole size).
+            If True, entered shift_xy is ignored and set randomly. Default: True.
+        fill_value (int | float | Literal["random"] | tuple[int | float,...]): Value for the dropped pixels. Can be:
+            - int or float: all channels are filled with this value.
+            - tuple: tuple of values for each channel.
+            - 'random': filled with random values.
+            Default: 0.
+        mask_fill_value (int | float | tuple[int | float,...] | None): Value for the dropped pixels in mask.
+            If None, the mask is not modified. Default: None.
+        shift_xy (tuple[int, int]): Offsets of the grid start in x and y directions from (0,0) coordinate.
+            Only used when random_offset is False. Default: (0, 0).
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
 
-    Reference:
-        https://arxiv.org/abs/2001.04086
+    Note:
+        - If both unit_size_range and holes_number_xy are None, the grid size is calculated based on the image size.
+        - The actual number of dropped regions may differ slightly from holes_number_xy due to rounding.
+        - This implementation includes deprecation warnings for older parameter names.
 
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> augmentation = A.GridDropout(ratio=0.3, unit_size_range=(10, 20), random_offset=True, p=1.0)
+        >>> transformed = augmentation(image=image, mask=mask)
+        >>> transformed_image, transformed_mask = transformed["image"], transformed["mask"]
+
+    Reference:
+        - Paper: https://arxiv.org/abs/2001.04086
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK)
-
-    class InitSchema(BaseTransformInitSchema):
+    class InitSchema(BaseDropout.InitSchema):
         ratio: float = Field(gt=0, le=1)
 
         unit_size_min: int | None = Field(ge=2)
@@ -66,7 +81,7 @@ class GridDropout(DualTransform):
         shift_y: int | None = Field(ge=0)
 
         random_offset: bool
-        fill_value: ColorType | None
+        fill_value: ColorType | Literal["random"]
         mask_fill_value: ColorType | None
         unit_size_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
         shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)]
@@ -109,8 +124,8 @@ class GridDropout(DualTransform):
         holes_number_y: int | None = None,
         shift_x: int | None = None,
         shift_y: int | None = None,
-        random_offset: bool = False,
-        fill_value: ColorType = 0,
+        random_offset: bool = True,
+        fill_value: ColorType | Literal["random"] = 0,
         mask_fill_value: ColorType | None = None,
         unit_size_range: tuple[int, int] | None = None,
         holes_number_xy: tuple[int, int] | None = None,
@@ -118,128 +133,42 @@ class GridDropout(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(fill_value=fill_value, mask_fill_value=mask_fill_value, p=p, always_apply=always_apply)
         self.ratio = ratio
         self.unit_size_range = unit_size_range
         self.holes_number_xy = holes_number_xy
         self.random_offset = random_offset
-        self.fill_value = fill_value
-        self.mask_fill_value = mask_fill_value
         self.shift_xy = shift_xy
-
-    def apply(self, img: np.ndarray, holes: Iterable[tuple[int, int, int, int]], **params: Any) -> np.ndarray:
-        return fdropout.cutout(img, holes, self.fill_value)
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        holes: Iterable[tuple[int, int, int, int]],
-        **params: Any,
-    ) -> np.ndarray:
-        if self.mask_fill_value is None:
-            return mask
-
-        return fdropout.cutout(mask, holes, self.mask_fill_value)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"]
-        unit_shape = self._calculate_unit_dimensions(image_shape)
-        hole_dimensions = self._calculate_hole_dimensions(unit_shape)
-        shift_x, shift_y = self._calculate_shifts(unit_shape, hole_dimensions)
-        holes = self._generate_holes(image_shape, unit_shape, hole_dimensions, shift_x, shift_y)
+        if self.holes_number_xy:
+            grid = self.holes_number_xy
+        else:
+            # Calculate grid based on unit_size_range or default
+            unit_height, unit_width = fdropout.calculate_grid_dimensions(
+                image_shape,
+                self.unit_size_range,
+                self.holes_number_xy,
+            )
+            grid = (image_shape[0] // unit_height, image_shape[1] // unit_width)
+
+        holes = fdropout.generate_grid_holes(
+            image_shape,
+            grid,
+            self.ratio,
+            self.random_offset,
+            random_utils.get_random_state(),
+            self.shift_xy,
+        )
         return {"holes": holes}
-
-    def _calculate_unit_dimensions(self, shape: tuple[int, int]) -> tuple[int, int]:
-        """Calculates the dimensions of the grid units."""
-        if self.unit_size_range is not None:
-            self._validate_unit_sizes(shape)
-            unit_size = random.randint(*self.unit_size_range)
-            return unit_size, unit_size
-
-        return self._calculate_dimensions_based_on_holes(shape)
-
-    def _validate_unit_sizes(self, shape: tuple[int, int]) -> None:
-        """Validates the minimum and maximum unit sizes."""
-        if self.unit_size_range is None:
-            raise ValueError("unit_size_range must not be None.")
-        if self.unit_size_range[1] > min(shape[:2]):
-            msg = "Grid size limits must be within the shortest image edge."
-            raise ValueError(msg)
-
-    def _calculate_dimensions_based_on_holes(self, shape: tuple[int, int]) -> tuple[int, int]:
-        """Calculates dimensions based on the number of holes specified."""
-        height, width = shape[:2]
-        holes_number_x, holes_number_y = self.holes_number_xy or (None, None)
-        unit_width = self._calculate_dimension(width, holes_number_x, 10)
-        unit_height = self._calculate_dimension(height, holes_number_y, unit_width)
-        return unit_height, unit_width
-
-    @staticmethod
-    def _calculate_dimension(dimension: int, holes_number: int | None, fallback: int) -> int:
-        """Helper function to calculate unit width or height."""
-        if holes_number is None:
-            return max(2, dimension // fallback)
-
-        if not 1 <= holes_number <= dimension // 2:
-            raise ValueError(f"The number of holes must be between 1 and {dimension // 2}.")
-        return dimension // holes_number
-
-    def _calculate_hole_dimensions(self, unit_shape: tuple[int, int]) -> tuple[int, int]:
-        """Calculates the dimensions of the holes to be dropped out."""
-        unit_height, unit_width = unit_shape
-        hole_width = min(max(1, int(unit_width * self.ratio)), unit_width - 1)
-        hole_height = min(max(1, int(unit_height * self.ratio)), unit_height - 1)
-        return hole_height, hole_width
-
-    def _calculate_shifts(
-        self,
-        unit_shape: tuple[int, int],
-        hole_dimensions: tuple[int, int],
-    ) -> tuple[int, int]:
-        """Calculates the shifts for the grid start."""
-        unit_width, unit_height = unit_shape
-        hole_width, hole_height = hole_dimensions
-        if self.random_offset:
-            shift_x = random.randint(0, unit_width - hole_width)
-            shift_y = random.randint(0, unit_height - hole_height)
-            return shift_x, shift_y
-
-        if isinstance(self.shift_xy, Sequence) and len(self.shift_xy) == PAIR:
-            shift_x = min(max(0, self.shift_xy[0]), unit_width - hole_width)
-            shift_y = min(max(0, self.shift_xy[1]), unit_height - hole_height)
-            return shift_x, shift_y
-
-        return 0, 0
-
-    @staticmethod
-    def _generate_holes(
-        image_shape: tuple[int, int],
-        unit_shape: tuple[int, int],
-        hole_dimensions: tuple[int, int],
-        shift_x: int,
-        shift_y: int,
-    ) -> np.ndarray:
-        height, width = image_shape[:2]
-        unit_height, unit_width = unit_shape
-        hole_width, hole_height = hole_dimensions
-        """Generates the list of holes to be dropped out."""
-        holes = []
-        for i in range(width // unit_width + 1):
-            for j in range(height // unit_height + 1):
-                x1 = min(shift_x + unit_width * i, width)
-                y1 = min(shift_y + unit_height * j, height)
-                x2 = min(x1 + hole_width, width)
-                y2 = min(y1 + hole_height, height)
-                holes.append((x1, y1, x2, y2))
-        return np.array(holes)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
+            *super().get_transform_init_args_names(),
             "ratio",
             "unit_size_range",
             "holes_number_xy",
             "shift_xy",
             "random_offset",
-            "fill_value",
-            "mask_fill_value",
         )
