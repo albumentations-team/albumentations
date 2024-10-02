@@ -429,7 +429,7 @@ class Compose(BaseCompose, HubMixin):
         if isinstance(data, Sequence):
             if not all(isinstance(m, np.ndarray) for m in data):
                 raise TypeError(f"All elements in {data_name} must be numpy arrays")
-            if not all(m.ndim in [2, 3] for m in data):
+            if any(m.ndim not in [2, 3] for m in data):
                 raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
             return data[0].shape[:2]
 

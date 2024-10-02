@@ -1286,9 +1286,9 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
         },
     ),
 )
-@pytest.mark.parametrize("masks", [[np.random.randint(0, 1, [100, 100], dtype=np.uint8)] * 2,
-                                   [np.random.randint(0, 1, [100, 100, 3], dtype=np.uint8)] * 2,
-                                   np.random.randint(0, 1, [2, 100, 100], dtype=np.uint8)])
+@pytest.mark.parametrize("masks", [[np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 2,
+                                   [np.random.randint(0, 2, [100, 100, 3], dtype=np.uint8)] * 2,
+                                   np.stack([np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 2)])
 def test_masks_as_target(augmentation_cls, params, masks):
     image = SQUARE_UINT8_IMAGE
 
@@ -1299,3 +1299,5 @@ def test_masks_as_target(augmentation_cls, params, masks):
     transformed = aug(image=image, masks=masks)
 
     np.testing.assert_array_equal(transformed["masks"][0], transformed["masks"][1])
+
+    assert transformed["masks"][0].dtype == masks[0].dtype
