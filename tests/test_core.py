@@ -1234,3 +1234,70 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
     # Check if the augmentation is not an ImageOnlyTransform and mask is in the output
     if not issubclass(augmentation_cls, ImageOnlyTransform) and "mask" in transformed:
         assert transformed["mask"].flags["C_CONTIGUOUS"], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS mask"
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size" : (10, 10)},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
+            },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
+        },
+        except_augmentations={
+            A.FDA,
+            A.HistogramMatching,
+            A.Lambda,
+            A.TemplateTransform,
+            A.MixUp,
+            A.RandomSizedBBoxSafeCrop,
+            A.MaskDropout,
+            A.CropNonEmptyMaskIfExists,
+            A.BBoxSafeRandomCrop,
+            A.OverlayElements,
+            A.TextImage,
+            A.FromFloat
+        },
+    ),
+)
+@pytest.mark.parametrize("masks", [[np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 2,
+                                   [np.random.randint(0, 2, [100, 100, 3], dtype=np.uint8)] * 2,
+                                   np.stack([np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 2)])
+def test_masks_as_target(augmentation_cls, params, masks):
+    image = SQUARE_UINT8_IMAGE
+
+    aug = A.Compose(
+        [augmentation_cls(p=1, **params)]
+    )
+
+    transformed = aug(image=image, masks=masks)
+
+    np.testing.assert_array_equal(transformed["masks"][0], transformed["masks"][1])
+
+    assert transformed["masks"][0].dtype == masks[0].dtype
