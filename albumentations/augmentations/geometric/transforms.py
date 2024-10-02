@@ -1961,7 +1961,7 @@ class GridElasticDeform(DualTransform):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -1976,7 +1976,7 @@ class GridElasticDeform(DualTransform):
         and other domains where elastic deformations can simulate realistic variations.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
         num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)]
@@ -2008,9 +2008,18 @@ class GridElasticDeform(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image_shape = np.array(params["shape"][:2])
+        image_shape = params["shape"][:2]
 
-        dimensions = fgeometric.calculate_grid_dimensions(image_shape, self.num_grid_xy)
+        # Replace calculate_grid_dimensions with split_uniform_grid
+        tiles = fgeometric.split_uniform_grid(image_shape, self.num_grid_xy)
+
+        # Convert tiles to the format expected by generate_distorted_grid_polygons
+        dimensions = np.array(
+            [
+                [tile[1], tile[0], tile[3], tile[2]]  # Reorder to [x_min, y_min, x_max, y_max]
+                for tile in tiles
+            ],
+        ).reshape(self.num_grid_xy[::-1] + (4,))  # Reshape to (grid_height, grid_width, 4)
 
         polygons = fgeometric.generate_distorted_grid_polygons(dimensions, self.magnitude)
 
@@ -2023,6 +2032,22 @@ class GridElasticDeform(DualTransform):
 
     def apply_to_mask(self, mask: np.ndarray, generated_mesh: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.distort_image(mask, generated_mesh, self.mask_interpolation)
+
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        generated_mesh: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        bboxes_denorm = denormalize_bboxes(bboxes, params["shape"][:2])
+        return normalize_bboxes(
+            fgeometric.bbox_distort_image(
+                bboxes_denorm,
+                generated_mesh,
+                params["shape"][:2],
+            ),
+            params["shape"][:2],
+        )
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_grid_xy", "magnitude", "interpolation", "mask_interpolation"

@@ -205,6 +205,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
                 "value": [124, 116, 104],
                 "position": "top_left"
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.FDA,
@@ -221,7 +222,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
             A.TextImage,
-            A.GridElasticDeform
         },
     ),
 )

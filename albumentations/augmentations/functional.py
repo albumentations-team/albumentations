@@ -28,8 +28,8 @@ from albucore import (
     uint8_io,
 )
 
+import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations import random_utils
-from albumentations.augmentations.geometric.functional import resize
 from albumentations.augmentations.utils import (
     PCA,
     non_rgb_error,
@@ -79,7 +79,6 @@ __all__ = [
     "swap_tiles_on_image",
     "to_gray",
     "unsharp_mask",
-    "split_uniform_grid",
     "chromatic_aberration",
     "erode",
     "dilate",
@@ -1498,7 +1497,7 @@ def superpixels(
             scale = max_size / size
             height, width = image.shape[:2]
             new_height, new_width = int(height * scale), int(width * scale)
-            image = resize(image, (new_height, new_width), interpolation)
+            image = fgeometric.resize(image, (new_height, new_width), interpolation)
 
     segments = skimage.segmentation.slic(
         image,
@@ -1538,7 +1537,7 @@ def superpixels(
 
                 image_sp_c[segments == region_idx] = value
 
-    return resize(image, orig_shape[:2], interpolation) if orig_shape != image.shape else image
+    return fgeometric.resize(image, orig_shape[:2], interpolation) if orig_shape != image.shape else image
 
 
 @float32_io
@@ -1608,86 +1607,6 @@ def spatter(
         return img * non_mud + mud
 
     raise ValueError(f"Unsupported spatter mode: {mode}")
-
-
-def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
-    """Generates an array of nearly equal integer intervals that sum up to `n`.
-
-    This function divides the number `n` into `parts` nearly equal parts. It ensures that
-    the sum of all parts equals `n`, and the difference between any two parts is at most one.
-    This is useful for distributing a total amount into nearly equal discrete parts.
-
-    Args:
-        n (int): The total value to be split.
-        parts (int): The number of parts to split into.
-
-    Returns:
-        np.ndarray: An array of integers where each integer represents the size of a part.
-
-    Example:
-        >>> almost_equal_intervals(20, 3)
-        array([7, 7, 6])  # Splits 20 into three parts: 7, 7, and 6
-        >>> almost_equal_intervals(16, 4)
-        array([4, 4, 4, 4])  # Splits 16 into four equal parts
-    """
-    part_size, remainder = divmod(n, parts)
-    # Create an array with the base part size and adjust the first `remainder` parts by adding 1
-    return np.array([part_size + 1 if i < remainder else part_size for i in range(parts)])
-
-
-def generate_shuffled_splits(
-    size: int,
-    divisions: int,
-    random_state: np.random.RandomState | None = None,
-) -> np.ndarray:
-    """Generate shuffled splits for a given dimension size and number of divisions.
-
-    Args:
-        size (int): Total size of the dimension (height or width).
-        divisions (int): Number of divisions (rows or columns).
-        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
-
-    Returns:
-        np.ndarray: Cumulative edges of the shuffled intervals.
-    """
-    intervals = almost_equal_intervals(size, divisions)
-    intervals = random_utils.shuffle(intervals, random_state=random_state)
-    return np.insert(np.cumsum(intervals), 0, 0)
-
-
-def split_uniform_grid(
-    image_shape: tuple[int, int],
-    grid: tuple[int, int],
-    random_state: np.random.RandomState | None = None,
-) -> np.ndarray:
-    """Splits an image shape into a uniform grid specified by the grid dimensions.
-
-    Args:
-        image_shape (tuple[int, int]): The shape of the image as (height, width).
-        grid (tuple[int, int]): The grid size as (rows, columns).
-        random_state (Optional[np.random.RandomState]): The random state to use for shuffling the splits.
-            If None, the splits are not shuffled.
-
-    Returns:
-        np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
-
-    Note:
-        The function uses `generate_shuffled_splits` to generate the splits for the height and width of the image.
-        The splits are then used to calculate the coordinates of the tiles.
-    """
-    n_rows, n_cols = grid
-
-    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_state)
-    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_state)
-
-    # Calculate tiles coordinates
-    tiles = [
-        (height_splits[i], width_splits[j], height_splits[i + 1], width_splits[j + 1])
-        for i in range(n_rows)
-        for j in range(n_cols)
-    ]
-
-    return np.array(tiles)
 
 
 def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
