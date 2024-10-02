@@ -347,19 +347,18 @@ class DualTransform(BasicTransform):
         apply_to_keypoints(keypoints: np.ndarray, **params: Any) -> np.ndarray:
             Apply the transform to keypoints.
 
-            keypoints: Array of shape (N, 2) where N is the number of keypoints.
+            keypoints: Array of shape (N, 2+) where N is the number of keypoints.
                 **params: Additional parameters specific to the transform.
-            Returns Transformed keypoints array of shape (N, 2).
+            Returns Transformed keypoints array of shape (N, 2+).
 
         apply_to_bboxes(bboxes: np.ndarray, **params: Any) -> np.ndarray:
             Apply the transform to bounding boxes.
 
-
-            bboxes: Array of shape (N, 4) where N is the number of bounding boxes,
+            bboxes: Array of shape (N, 4+) where N is the number of bounding boxes,
                     and each row is in the format [x_min, y_min, x_max, y_max].
             **params: Additional parameters specific to the transform.
 
-            Returns Transformed bounding boxes array of shape (N, 4).
+            Returns Transformed bounding boxes array of shape (N, 4+).
 
     Note:
         - All `apply_*` methods should maintain the input shape and format of the data.
