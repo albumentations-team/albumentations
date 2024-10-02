@@ -219,7 +219,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.XYMasking,
             A.MixUp,
             A.CropNonEmptyMaskIfExists,
-            A.GridDropout,
             A.OverlayElements,
             A.TextImage,
             A.GridElasticDeform
@@ -277,7 +276,6 @@ def test_augmentations_for_bboxes_serialization(
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CropNonEmptyMaskIfExists,
-            A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
