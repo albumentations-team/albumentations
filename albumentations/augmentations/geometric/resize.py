@@ -104,11 +104,11 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
 
 
 class LongestMaxSize(DualTransform):
-    """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
+    """Rescale an image so that the longest side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
-        max_size (int, list of int): maximum size of the image after the transformation. When using a list, max size
-            will be randomly selected from the values in the list.
+        max_size (int, Sequence[int]): Maximum size of the image after the transformation. When using a list or tuple,
+            the max size will be randomly selected from the values provided.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
 
@@ -117,6 +117,24 @@ class LongestMaxSize(DualTransform):
 
     Image types:
         uint8, float32
+
+    Note:
+        - If the longest side of the image is already less than or equal to max_size, the image will not be resized.
+        - This transform will not crop the image. The resulting image may be smaller than max_size in both dimensions.
+        - For non-square images, the shorter side will be scaled proportionally to maintain the aspect ratio.
+
+    Example:
+        >>> import albumentations as A
+        >>> import cv2
+        >>> transform = A.Compose([
+        ...     A.LongestMaxSize(max_size=1024, interpolation=cv2.INTER_LINEAR),
+        ...     A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=cv2.BORDER_CONSTANT),
+        ... ])
+        >>> # Assume we have a 1500x800 image
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed['image']
+        >>> transformed_image.shape
+        (1024, 546, 3)  # The longest side (1500) is scaled to 1024, and the other side is scaled proportionally
 
     """
 

@@ -115,6 +115,7 @@ class KeypointsProcessor(DataProcessor):
     ) -> np.ndarray:
         if not data.size:
             return data
+
         params = self.params
         return convert_keypoints_from_albumentations(
             data,

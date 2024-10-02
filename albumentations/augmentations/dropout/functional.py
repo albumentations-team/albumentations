@@ -358,3 +358,55 @@ def generate_grid_holes(
     y_max = np.minimum(y_min + hole_heights, height)
 
     return np.column_stack((x_min, y_min, x_max, y_max))
+
+
+@handle_empty_array
+def mask_dropout_bboxes(
+    bboxes: np.ndarray,
+    dropout_mask: np.ndarray,
+    image_shape: tuple[int, int],
+    min_area: float,
+    min_visibility: float,
+) -> np.ndarray:
+    """Filter out bounding boxes based on their intersection with the dropout mask.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes with shape (N, 4+) in format [x_min, y_min, x_max, y_max, ...].
+        dropout_mask (np.ndarray): Boolean mask of shape (height, width) where True values indicate dropped out regions.
+        image_shape (Tuple[int, int]): The shape of the original image as (height, width).
+        min_area (float): Minimum area of the bounding box to be kept.
+        min_visibility (float): Minimum visibility ratio of the bounding box to be kept.
+
+    Returns:
+        np.ndarray: Filtered array of bounding boxes.
+    """
+    height, width = image_shape
+
+    # Create binary masks for each bounding box
+    y, x = np.ogrid[:height, :width]
+    box_masks = (
+        (x[None, :] >= bboxes[:, 0, None, None])
+        & (x[None, :] <= bboxes[:, 2, None, None])
+        & (y[None, :] >= bboxes[:, 1, None, None])
+        & (y[None, :] <= bboxes[:, 3, None, None])
+    )
+
+    # Calculate the area of each bounding box
+    box_areas = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1])
+
+    # Calculate the visible area of each box (non-intersecting area with dropout mask)
+    visible_areas = np.sum(box_masks & ~dropout_mask, axis=(1, 2))
+
+    # Calculate visibility ratio (visible area / total box area)
+    visibility_ratio = visible_areas / box_areas
+
+    # Create a boolean mask for boxes to keep
+    keep_mask = (visible_areas >= min_area) & (visibility_ratio >= min_visibility)
+
+    return bboxes[keep_mask]
+
+
+@handle_empty_array
+def mask_dropout_keypoints(keypoints: np.ndarray, dropout_mask: np.ndarray) -> np.ndarray:
+    keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])] for kp in keypoints])
+    return keypoints[keep_indices]
