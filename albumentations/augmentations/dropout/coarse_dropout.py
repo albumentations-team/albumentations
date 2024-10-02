@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Iterable, cast
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -9,18 +9,14 @@ from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
-from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
-from albumentations.core.keypoints_utils import KeypointsProcessor
+from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_1plus, nondecreasing
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, NumericType, ScalarType, Targets
-
-from .functional import cutout, filter_bboxes_by_holes, filter_keypoints_in_holes
 
 __all__ = ["CoarseDropout"]
 
 
-class CoarseDropout(DualTransform):
+class CoarseDropout(BaseDropout):
     """CoarseDropout randomly drops out rectangular regions from the image and optionally,
     the corresponding regions in an associated mask, to simulate occlusion and
     varied object sizes found in real-world settings.
@@ -49,34 +45,13 @@ class CoarseDropout(DualTransform):
 
     Image types:
         uint8, float32
-
-    Example:
-        >>> import albumentations as A
-        >>> transform = A.Compose([
-        ...     A.CoarseDropout(num_holes_range=(3, 7),
-        ...                     hole_height_range=(10, 40),
-        ...                     hole_width_range=(10, 40),
-        ...                     fill_value=0,
-        ...                     p=0.5)
-        ... ])
-        >>> transformed = transform(image=image)
-        >>> transformed_image = transformed["image"]
-
-    References:
-        - https://arxiv.org/abs/1708.04552
-        - https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
-        - https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
-    class InitSchema(BaseTransformInitSchema):
-        min_holes: int | None = Field(
-            ge=0,
-        )
-        max_holes: int | None = Field(
-            ge=0,
-        )
+    class InitSchema(BaseDropout.InitSchema):
+        min_holes: int | None = Field(ge=0)
+        max_holes: int | None = Field(ge=0)
         num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
 
         min_height: ScalarType | None = Field(ge=0)
@@ -87,9 +62,6 @@ class CoarseDropout(DualTransform):
         max_width: ScalarType | None = Field(ge=0)
         hole_width_range: tuple[ScalarType, ScalarType]
 
-        fill_value: ColorType | Literal["random"]
-        mask_fill_value: ColorType | None
-
         @staticmethod
         def update_range(
             min_value: NumericType | None,
@@ -98,11 +70,9 @@ class CoarseDropout(DualTransform):
         ) -> tuple[NumericType, NumericType]:
             if max_value is not None:
                 return (min_value or max_value, max_value)
-
             return default_range
 
         @staticmethod
-        # Validation for hole dimensions ranges
         def validate_range(range_value: tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
             if not minimum <= range_value[0] <= range_value[1]:
                 raise ValueError(
@@ -116,24 +86,18 @@ class CoarseDropout(DualTransform):
         def check_num_holes_and_dimensions(self) -> Self:
             if self.min_holes is not None:
                 warn("`min_holes` is deprecated. Use num_holes_range instead.", DeprecationWarning, stacklevel=2)
-
             if self.max_holes is not None:
                 warn("`max_holes` is deprecated. Use num_holes_range instead.", DeprecationWarning, stacklevel=2)
-
             if self.min_height is not None:
                 warn("`min_height` is deprecated. Use hole_height_range instead.", DeprecationWarning, stacklevel=2)
-
             if self.max_height is not None:
                 warn("`max_height` is deprecated. Use hole_height_range instead.", DeprecationWarning, stacklevel=2)
-
             if self.min_width is not None:
                 warn("`min_width` is deprecated. Use hole_width_range instead.", DeprecationWarning, stacklevel=2)
-
             if self.max_width is not None:
                 warn("`max_width` is deprecated. Use hole_width_range instead.", DeprecationWarning, stacklevel=2)
 
             if self.max_holes is not None:
-                # Update ranges for holes, heights, and widths
                 self.num_holes_range = self.update_range(self.min_holes, self.max_holes, self.num_holes_range)
 
             self.validate_range(self.num_holes_range, "num_holes_range", minimum=1)
@@ -164,33 +128,10 @@ class CoarseDropout(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(fill_value=fill_value, mask_fill_value=mask_fill_value, p=p, always_apply=always_apply)
         self.num_holes_range = num_holes_range
         self.hole_height_range = hole_height_range
         self.hole_width_range = hole_width_range
-
-        self.fill_value = fill_value  # type: ignore[assignment]
-        self.mask_fill_value = mask_fill_value
-
-    def apply(
-        self,
-        img: np.ndarray,
-        fill_value: ColorType | Literal["random"],
-        holes: Iterable[tuple[int, int, int, int]],
-        **params: Any,
-    ) -> np.ndarray:
-        return cutout(img, holes, fill_value)
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        mask_fill_value: ScalarType | None,
-        holes: Iterable[tuple[int, int, int, int]],
-        **params: Any,
-    ) -> np.ndarray:
-        if mask_fill_value is None:
-            return mask
-        return cutout(mask, holes, mask_fill_value)
 
     @staticmethod
     def calculate_hole_dimensions(
@@ -241,49 +182,5 @@ class CoarseDropout(DualTransform):
 
         return {"holes": holes}
 
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        holes: np.ndarray,
-        **params: Any,
-    ) -> np.ndarray:
-        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
-
-        if processor is None or not processor.params.remove_invisible:
-            return keypoints
-
-        return filter_keypoints_in_holes(keypoints, holes)
-
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "num_holes_range",
-            "hole_height_range",
-            "hole_width_range",
-            "fill_value",
-            "mask_fill_value",
-        )
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        holes: np.ndarray,
-        **params: Any,
-    ) -> np.ndarray:
-        processor = cast(BboxProcessor, self.get_processor("bboxes"))
-        if processor is None:
-            return bboxes
-
-        image_shape = params["shape"][:2]
-
-        denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
-
-        return normalize_bboxes(
-            filter_bboxes_by_holes(
-                denormalized_bboxes,
-                holes,
-                image_shape,
-                min_area=processor.params.min_area,
-                min_visibility=processor.params.min_visibility,
-            ),
-            image_shape,
-        )
+        return (*super().get_transform_init_args_names(), "num_holes_range", "hole_height_range", "hole_width_range")

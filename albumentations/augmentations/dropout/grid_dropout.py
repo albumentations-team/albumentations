@@ -54,31 +54,24 @@ class GridDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        ratio: float = Field(description="The ratio of the mask holes to the unit_size.", gt=0, le=1)
+        ratio: float = Field(gt=0, le=1)
 
-        unit_size_min: int | None = Field(None, description="Minimum size of the grid unit.", ge=2)
-        unit_size_max: int | None = Field(None, description="Maximum size of the grid unit.", ge=2)
+        unit_size_min: int | None = Field(ge=2)
+        unit_size_max: int | None = Field(ge=2)
 
-        holes_number_x: int | None = Field(None, description="The number of grid units in x direction.", ge=1)
-        holes_number_y: int | None = Field(None, description="The number of grid units in y direction.", ge=1)
+        holes_number_x: int | None = Field(ge=1)
+        holes_number_y: int | None = Field(ge=1)
 
-        shift_x: int | None = Field(0, description="Offsets of the grid start in x direction.", ge=0)
-        shift_y: int | None = Field(0, description="Offsets of the grid start in y direction.", ge=0)
+        shift_x: int | None = Field(ge=0)
+        shift_y: int | None = Field(ge=0)
 
-        random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
-        fill_value: ColorType | None = Field(0, description="Value for the dropped pixels.")
-        mask_fill_value: ColorType | None = Field(None, description="Value for the dropped pixels in mask.")
-        unit_size_range: (
-            Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
-        ) = None
-        shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)] = Field(
-            (0, 0),
-            description="Offsets of the grid start in x and y directions.",
-        )
-        holes_number_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)] | None = Field(
-            None,
-            description="The number of grid units in x and y directions.",
-        )
+        random_offset: bool
+        fill_value: ColorType | None
+        mask_fill_value: ColorType | None
+        unit_size_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
+        shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)]
+
+        holes_number_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)] | None
 
         @model_validator(mode="after")
         def validate_normalization(self) -> Self:
