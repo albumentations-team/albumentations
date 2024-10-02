@@ -1943,12 +1943,12 @@ class D4(DualTransform):
 
 
 class GridElasticDeform(DualTransform):
-    """Grid-based Elastic deformation Albumentations implementation
+    """Apply elastic deformations to images, masks, bounding boxes, and keypoints using a grid-based approach.
 
-    This class applies elastic transformations using a grid-based approach.
-    The granularity and intensity of the distortions can be controlled using
-    the dimensions of the overlaying distortion grid and the magnitude parameter.
-    Larger grid sizes result in finer, less severe distortions.
+    This transformation overlays a grid on the input and applies random displacements to the grid points,
+    resulting in local elastic distortions. The granularity and intensity of the distortions can be
+    controlled using the dimensions of the overlaying distortion grid and the magnitude parameter.
+
 
     Args:
         num_grid_xy (tuple[int, int]): Number of grid cells along the width and height.
@@ -1961,7 +1961,7 @@ class GridElasticDeform(DualTransform):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1976,7 +1976,7 @@ class GridElasticDeform(DualTransform):
         and other domains where elastic deformations can simulate realistic variations.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
         num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)]
@@ -2048,6 +2048,14 @@ class GridElasticDeform(DualTransform):
             ),
             params["shape"][:2],
         )
+
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        generated_mesh: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.distort_image_keypoints(keypoints, generated_mesh, params["shape"][:2])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_grid_xy", "magnitude", "interpolation", "mask_interpolation"

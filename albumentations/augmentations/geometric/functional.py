@@ -2089,6 +2089,49 @@ def bbox_distort_image(
     return bboxes
 
 
+@handle_empty_array
+def distort_image_keypoints(
+    keypoints: np.ndarray,
+    generated_mesh: np.ndarray,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    distorted_keypoints = keypoints.copy()
+    height, width = image_shape[:2]
+
+    for mesh in generated_mesh:
+        x1, y1, x2, y2 = mesh[:4]  # Source rectangle
+        dst_quad = mesh[4:].reshape(4, 2)  # Destination quadrilateral
+
+        src_quad = np.array(
+            [
+                [x1, y1],  # Top-left
+                [x2, y1],  # Top-right
+                [x2, y2],  # Bottom-right
+                [x1, y2],  # Bottom-left
+            ],
+            dtype=np.float32,
+        )
+
+        perspective_mat = cv2.getPerspectiveTransform(src_quad, dst_quad)
+
+        mask = (keypoints[:, 0] >= x1) & (keypoints[:, 0] < x2) & (keypoints[:, 1] >= y1) & (keypoints[:, 1] < y2)
+        cell_keypoints = keypoints[mask]
+
+        if len(cell_keypoints) > 0:
+            # Convert to float32 before applying the transformation
+            points_float32 = cell_keypoints[:, :2].astype(np.float32).reshape(-1, 1, 2)
+            transformed_points = cv2.perspectiveTransform(points_float32, perspective_mat).reshape(-1, 2)
+
+            # Update distorted keypoints
+            distorted_keypoints[mask, :2] = transformed_points
+
+    # Clip keypoints to image boundaries
+    distorted_keypoints[:, 0] = np.clip(distorted_keypoints[:, 0], 0, width - 1)
+    distorted_keypoints[:, 1] = np.clip(distorted_keypoints[:, 1], 0, height - 1)
+
+    return distorted_keypoints
+
+
 def generate_distorted_grid_polygons(
     dimensions: np.ndarray,
     magnitude: int,

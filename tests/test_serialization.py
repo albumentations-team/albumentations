@@ -268,7 +268,8 @@ def test_augmentations_for_bboxes_serialization(
                 "border_mode": 0,
                 "value": [124, 116, 104],
                 "position": "top_left"
-            }
+            },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.FDA,
@@ -284,7 +285,6 @@ def test_augmentations_for_bboxes_serialization(
             A.MixUp,
             A.OverlayElements,
             A.TextImage,
-            A.GridElasticDeform
         },
     ),
 )

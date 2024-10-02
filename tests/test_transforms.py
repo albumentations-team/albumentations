@@ -1520,6 +1520,7 @@ def test_random_snow_invalid_input(params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1531,7 +1532,6 @@ def test_random_snow_invalid_input(params):
             A.MaskDropout,
             A.MixUp,
             A.OverlayElements,
-            A.GridElasticDeform
         },
     ),
 )
@@ -1552,7 +1552,7 @@ def test_dual_transforms_methods(augmentation_cls, params):
         if target in arg:
             kwarg = {target: arg[target]}
             try:
-                _res = aug(image=image, **kwarg)
+                _ = aug(image=image, **kwarg)
             except Exception as e:
                 if isinstance(e, NotImplementedError):
                     raise NotImplementedError(f"{target} error at: {augmentation_cls},  {e}")
