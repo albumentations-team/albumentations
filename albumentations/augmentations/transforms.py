@@ -189,7 +189,7 @@ class RandomGridShuffle(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
         random_state = random_utils.get_random_state()
-        original_tiles = fmain.split_uniform_grid(
+        original_tiles = fgeometric.split_uniform_grid(
             (height, width),
             self.grid,
             random_state=random_state,

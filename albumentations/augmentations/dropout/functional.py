@@ -5,7 +5,7 @@ from albucore import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_d
 from typing_extensions import Literal
 
 from albumentations import random_utils
-from albumentations.augmentations.functional import split_uniform_grid
+from albumentations.augmentations.geometric.functional import split_uniform_grid
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType
 

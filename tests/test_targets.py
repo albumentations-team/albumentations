@@ -95,7 +95,7 @@ DUAL_TARGETS = {
     A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
     A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
-    A.GridElasticDeform: (Targets.IMAGE, Targets.MASK),
+    A.GridElasticDeform: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
 }
 
 str2target = {

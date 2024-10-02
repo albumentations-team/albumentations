@@ -2064,53 +2064,72 @@ def distort_image(image: np.ndarray, generated_mesh: np.ndarray, interpolation: 
     return distorted_image
 
 
-def calculate_grid_dimensions(
+@handle_empty_array
+def bbox_distort_image(
+    bboxes: np.ndarray,
+    generated_mesh: np.ndarray,
     image_shape: tuple[int, int],
-    num_grid_xy: tuple[int, int],
 ) -> np.ndarray:
-    """Calculate the dimensions of a grid overlay on an image using vectorized operations.
+    bboxes = bboxes.copy()
+    # Create a mask for each bbox
+    masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes[:, :4].astype(int)):
+        masks[i, y_min:y_max, x_min:x_max] = 1
 
-    This function divides an image into a grid and calculates the dimensions
-    (x_min, y_min, x_max, y_max) for each cell in the grid without using loops.
+    transformed_masks = np.stack(
+        [distort_image(mask, generated_mesh, cv2.INTER_NEAREST) for mask in masks],
+    )
 
-    Args:
-        image_shape (tuple[int, int]): The shape of the image (height, width).
-        num_grid_xy (tuple[int, int]): The number of grid cells in (x, y) directions.
+    # Get bboxes from transformed masks
+    bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
 
-    Returns:
-        np.ndarray: A 3D array of shape (grid_height, grid_width, 4) where each element
-                    is [x_min, y_min, x_max, y_max] for a grid cell.
+    # Normalize the returned bboxes
+    bboxes[:, :4] = bboxes_returned
 
-    Example:
-        >>> image_shape = (100, 150)
-        >>> num_grid_xy = (3, 2)
-        >>> dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
-        >>> print(dimensions.shape)
-        (2, 3, 4)
-        >>> print(dimensions[0, 0])  # First cell
-        [  0   0  50  50]
-    """
-    num_grid_yx = np.array(num_grid_xy[::-1])  # Reverse to match image_shape order
-    image_shape = np.array(image_shape)
+    return bboxes
 
-    square_shape = image_shape // num_grid_yx
-    last_square_shape = image_shape - (square_shape * (num_grid_yx - 1))
 
-    grid_width, grid_height = num_grid_xy
+@handle_empty_array
+def distort_image_keypoints(
+    keypoints: np.ndarray,
+    generated_mesh: np.ndarray,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    distorted_keypoints = keypoints.copy()
+    height, width = image_shape[:2]
 
-    # Create meshgrid for row and column indices
-    col_indices, row_indices = np.meshgrid(np.arange(grid_width), np.arange(grid_height))
+    for mesh in generated_mesh:
+        x1, y1, x2, y2 = mesh[:4]  # Source rectangle
+        dst_quad = mesh[4:].reshape(4, 2)  # Destination quadrilateral
 
-    # Calculate x_min and y_min
-    x_min = col_indices * square_shape[1]
-    y_min = row_indices * square_shape[0]
+        src_quad = np.array(
+            [
+                [x1, y1],  # Top-left
+                [x2, y1],  # Top-right
+                [x2, y2],  # Bottom-right
+                [x1, y2],  # Bottom-left
+            ],
+            dtype=np.float32,
+        )
 
-    # Calculate x_max and y_max
-    x_max = np.where(col_indices == grid_width - 1, x_min + last_square_shape[1], x_min + square_shape[1])
-    y_max = np.where(row_indices == grid_height - 1, y_min + last_square_shape[0], y_min + square_shape[0])
+        perspective_mat = cv2.getPerspectiveTransform(src_quad, dst_quad)
 
-    # Stack the dimensions
-    return np.stack([x_min, y_min, x_max, y_max], axis=-1).astype(np.int16)
+        mask = (keypoints[:, 0] >= x1) & (keypoints[:, 0] < x2) & (keypoints[:, 1] >= y1) & (keypoints[:, 1] < y2)
+        cell_keypoints = keypoints[mask]
+
+        if len(cell_keypoints) > 0:
+            # Convert to float32 before applying the transformation
+            points_float32 = cell_keypoints[:, :2].astype(np.float32).reshape(-1, 1, 2)
+            transformed_points = cv2.perspectiveTransform(points_float32, perspective_mat).reshape(-1, 2)
+
+            # Update distorted keypoints
+            distorted_keypoints[mask, :2] = transformed_points
+
+    # Clip keypoints to image boundaries
+    distorted_keypoints[:, 0] = np.clip(distorted_keypoints[:, 0], 0, width - 1)
+    distorted_keypoints[:, 1] = np.clip(distorted_keypoints[:, 1], 0, height - 1)
+
+    return distorted_keypoints
 
 
 def generate_distorted_grid_polygons(
@@ -2714,3 +2733,83 @@ def normalize_grid_distortion_steps(
     y_steps = np.array(y_steps) * (ty / np.sum(y_steps))
 
     return {"steps_x": x_steps, "steps_y": y_steps}
+
+
+def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
+    """Generates an array of nearly equal integer intervals that sum up to `n`.
+
+    This function divides the number `n` into `parts` nearly equal parts. It ensures that
+    the sum of all parts equals `n`, and the difference between any two parts is at most one.
+    This is useful for distributing a total amount into nearly equal discrete parts.
+
+    Args:
+        n (int): The total value to be split.
+        parts (int): The number of parts to split into.
+
+    Returns:
+        np.ndarray: An array of integers where each integer represents the size of a part.
+
+    Example:
+        >>> almost_equal_intervals(20, 3)
+        array([7, 7, 6])  # Splits 20 into three parts: 7, 7, and 6
+        >>> almost_equal_intervals(16, 4)
+        array([4, 4, 4, 4])  # Splits 16 into four equal parts
+    """
+    part_size, remainder = divmod(n, parts)
+    # Create an array with the base part size and adjust the first `remainder` parts by adding 1
+    return np.array([part_size + 1 if i < remainder else part_size for i in range(parts)])
+
+
+def generate_shuffled_splits(
+    size: int,
+    divisions: int,
+    random_state: np.random.RandomState | None = None,
+) -> np.ndarray:
+    """Generate shuffled splits for a given dimension size and number of divisions.
+
+    Args:
+        size (int): Total size of the dimension (height or width).
+        divisions (int): Number of divisions (rows or columns).
+        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
+
+    Returns:
+        np.ndarray: Cumulative edges of the shuffled intervals.
+    """
+    intervals = almost_equal_intervals(size, divisions)
+    intervals = random_utils.shuffle(intervals, random_state=random_state)
+    return np.insert(np.cumsum(intervals), 0, 0)
+
+
+def split_uniform_grid(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    random_state: np.random.RandomState | None = None,
+) -> np.ndarray:
+    """Splits an image shape into a uniform grid specified by the grid dimensions.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        grid (tuple[int, int]): The grid size as (rows, columns).
+        random_state (Optional[np.random.RandomState]): The random state to use for shuffling the splits.
+            If None, the splits are not shuffled.
+
+    Returns:
+        np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
+
+    Note:
+        The function uses `generate_shuffled_splits` to generate the splits for the height and width of the image.
+        The splits are then used to calculate the coordinates of the tiles.
+    """
+    n_rows, n_cols = grid
+
+    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_state)
+    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_state)
+
+    # Calculate tiles coordinates
+    tiles = [
+        (height_splits[i], width_splits[j], height_splits[i + 1], width_splits[j + 1])
+        for i in range(n_rows)
+        for j in range(n_cols)
+    ]
+
+    return np.array(tiles, dtype=np.int16)
