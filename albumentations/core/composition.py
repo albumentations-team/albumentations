@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 
 from albumentations import random_utils
+from albumentations.core.types import NUM_MULTI_CHANNEL_DIMENSIONS
 
 from .bbox_utils import BboxParams, BboxProcessor
 from .hub_mixin import HubMixin
@@ -413,34 +414,67 @@ class Compose(BaseCompose, HubMixin):
         )
         return dictionary
 
+    @staticmethod
+    def _check_single_data(data_name: str, data: Any) -> tuple[int, int]:
+        if not isinstance(data, np.ndarray):
+            raise TypeError(f"{data_name} must be numpy array type")
+        return data.shape[:2]
+
+    @staticmethod
+    def _check_masks_data(data_name: str, data: Any) -> tuple[int, int]:
+        if isinstance(data, np.ndarray):
+            if data.ndim not in [3, 4]:
+                raise TypeError(f"{data_name} must be a 3D or 4D numpy array")
+            return data.shape[1:3] if data.ndim == NUM_MULTI_CHANNEL_DIMENSIONS else data.shape[:2]
+        if isinstance(data, Sequence):
+            if not all(isinstance(m, np.ndarray) for m in data):
+                raise TypeError(f"All elements in {data_name} must be numpy arrays")
+            if not all(m.ndim in [2, 3] for m in data):
+                raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
+            return data[0].shape[:2]
+
+        raise TypeError(f"{data_name} must be either a numpy array or a sequence of numpy arrays")
+
+    @staticmethod
+    def _check_multi_data(data_name: str, data: Any) -> tuple[int, int]:
+        if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
+            raise TypeError(f"{data_name} must be list of numpy arrays")
+        return data[0].shape[:2]
+
+    @staticmethod
+    def _check_bbox_keypoint_params(internal_data_name: str, processors: dict[str, Any]) -> None:
+        if internal_data_name in CHECK_BBOX_PARAM and processors.get("bboxes") is None:
+            raise ValueError("bbox_params must be specified for bbox transformations")
+        if internal_data_name in CHECK_KEYPOINTS_PARAM and processors.get("keypoints") is None:
+            raise ValueError("keypoints_params must be specified for keypoint transformations")
+
+    @staticmethod
+    def _check_shapes(shapes: list[tuple[int, int]], is_check_shapes: bool) -> None:
+        if is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
+            raise ValueError(
+                "Height and Width of image, mask or masks should be equal. You can disable shapes check "
+                "by setting a parameter is_check_shapes=False of Compose class (do it only if you are sure "
+                "about your data consistency).",
+            )
+
     def _check_args(self, **kwargs: Any) -> None:
         shapes = []
 
         for data_name, data in kwargs.items():
             internal_data_name = self._additional_targets.get(data_name, data_name)
+
             if internal_data_name in CHECKED_SINGLE:
-                if not isinstance(data, np.ndarray):
-                    raise TypeError(f"{data_name} must be numpy array type")
-                shapes.append(data.shape[:2])
+                shapes.append(self._check_single_data(data_name, data))
+
             if internal_data_name in CHECKED_MULTI and data is not None and len(data):
-                if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
-                    raise TypeError(f"{data_name} must be list of numpy arrays")
-                shapes.append(data[0].shape[:2])
-            if internal_data_name in CHECK_BBOX_PARAM and self.processors.get("bboxes") is None:
-                msg = "bbox_params must be specified for bbox transformations"
-                raise ValueError(msg)
+                if internal_data_name == "masks":
+                    shapes.append(self._check_masks_data(data_name, data))
+                else:
+                    shapes.append(self._check_multi_data(data_name, data))
 
-            if internal_data_name in CHECK_KEYPOINTS_PARAM and self.processors.get("keypoints") is None:
-                msg = "keypoints_params must be specified for keypoint transformations"
-                raise ValueError(msg)
+            self._check_bbox_keypoint_params(internal_data_name, self.processors)
 
-        if self.is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
-            msg = (
-                "Height and Width of image, mask or masks should be equal. You can disable shapes check "
-                "by setting a parameter is_check_shapes=False of Compose class (do it only if you are sure "
-                "about your data consistency)."
-            )
-            raise ValueError(msg)
+        self._check_shapes(shapes, self.is_check_shapes)
 
 
 class OneOf(BaseCompose):
