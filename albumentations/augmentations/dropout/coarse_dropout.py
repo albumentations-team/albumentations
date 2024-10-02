@@ -11,7 +11,7 @@ from typing_extensions import Annotated, Literal, Self
 from albumentations import random_utils
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_1plus, nondecreasing
-from albumentations.core.types import ColorType, NumericType, ScalarType, Targets
+from albumentations.core.types import ColorType, NumericType, ScalarType
 
 __all__ = ["CoarseDropout"]
 
@@ -46,8 +46,6 @@ class CoarseDropout(BaseDropout):
     Image types:
         uint8, float32
     """
-
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseDropout.InitSchema):
         min_holes: int | None = Field(ge=0)

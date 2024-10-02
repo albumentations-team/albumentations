@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from copy import deepcopy
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Literal, Sequence
 from warnings import warn
 
 import cv2
@@ -49,7 +49,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
-    fill_value: ColorType
+    fill_value: ColorType | Literal["random"]
     mask_fill_value: ColorType | None
     # replay mode params
     deterministic: bool = False

@@ -68,7 +68,7 @@ def generate_random_fill(
 def cutout(
     img: np.ndarray,
     holes: np.ndarray,
-    fill_value: ColorType | Literal["random"] = 0,
+    fill_value: ColorType | Literal["random"],
     random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Apply cutout augmentation to the image by cutting out holes and filling them
@@ -80,7 +80,7 @@ def cutout(
             Each hole is represented as [x1, y1, x2, y2].
         fill_value (Union[ColorType, Literal["random"]], optional): The fill value to use for the holes.
             Can be a single integer, a tuple or list of numbers for multichannel images,
-            or the string "random" to fill with random noise. Defaults to 0.
+            or the string "random" to fill with random noise.
         random_state (np.random.RandomState | None, optional): The random state to use for generating
             random fill values. If None, a new random state will be used. Defaults to None.
 

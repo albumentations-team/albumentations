@@ -19,13 +19,13 @@ class BaseDropout(DualTransform):
 
     Args:
         fill_value (Union[int, float, list[int], list[float], str]): Value to fill dropped regions.
-            If "random", fills with random values. Defaults to 0.
+            If "random", fills with random values.
         mask_fill_value (Optional[Union[int, float, list[int], list[float]]]): Value to fill
-            dropped regions in the mask. If None, the mask is not modified. Defaults to None.
-        p (float): Probability of applying the transform. Defaults to 0.5.
+            dropped regions in the mask. If None, the mask is not modified.
+        p (float): Probability of applying the transform.
 
     Targets:
-        image, mask
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -45,7 +45,7 @@ class BaseDropout(DualTransform):
         always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.fill_value = cast(ColorType, fill_value)
+        self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
 
     def apply(self, img: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
