@@ -313,7 +313,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.MaskDropout,
         },
     ),
 )
@@ -329,6 +328,10 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     aug(**data)
 
@@ -610,7 +613,6 @@ def test_mask_fill_value(augmentation_cls, params):
             A.FromFloat,
             A.HueSaturationValue,
             A.ISONoise,
-            A.MaskDropout,
             A.Normalize,
             A.RGBShift,
             A.RandomCropNearBBox,
@@ -640,6 +642,10 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     data = aug(**data)
     assert data["image"].dtype == np.uint8
@@ -700,7 +706,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.FromFloat,
             A.HueSaturationValue,
             A.ISONoise,
-            A.MaskDropout,
             A.RGBShift,
             A.RandomCropNearBBox,
             A.RandomGravel,
@@ -728,6 +733,10 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     data = aug(**data)
 
@@ -779,7 +788,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.FromFloat,
             A.HueSaturationValue,
             A.ISONoise,
-            A.MaskDropout,
             A.Normalize,
             A.RGBShift,
             A.RandomCropNearBBox,
@@ -813,6 +821,10 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     data = aug(**data)
 
@@ -866,7 +878,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.FromFloat,
             A.HueSaturationValue,
             A.ISONoise,
-            A.MaskDropout,
             A.RGBShift,
             A.RandomCropNearBBox,
             A.RandomGravel,
@@ -897,6 +908,10 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
         data["overlay_metadata"] = []
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     data = aug(**data)
 
@@ -1102,7 +1117,7 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
-            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.FromFloat, A.ToFloat, A.Normalize, A.MaskDropout, A.CropNonEmptyMaskIfExists,
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.FromFloat, A.ToFloat, A.Normalize, A.CropNonEmptyMaskIfExists,
             A.MixUp, A.FDA, A.HistogramMatching, A.PixelDistributionAdaptation, A.TemplateTransform, A.OverlayElements, A.TextImage,
             A.Solarize, A.RGBShift, A.HueSaturationValue, A.GaussNoise, A.ColorJitter
             },
@@ -1114,9 +1129,16 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
 
     transform = A.Compose([augmentation_cls(p=1, **params)])
 
+    data = {"image": image_uint8}
+    if augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image_uint8)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
+
     set_seed(42)
-    transformed_uint8 = transform(image=image_uint8)["image"]
+    transformed_uint8 = transform(**data)["image"]
     set_seed(42)
-    transformed_float32 = transform(image=image_float32)["image"]
+    data["image"] = image_float32
+    transformed_float32 = transform(**data)["image"]
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)

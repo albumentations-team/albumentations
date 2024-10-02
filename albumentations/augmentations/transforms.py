@@ -3281,6 +3281,9 @@ class Lambda(NoOp):
         image, mask, bboxes, keypoints, global_label
 
     Image types:
+        uint8, float32
+
+    Number of channels:
         Any
 
     """
@@ -3296,7 +3299,7 @@ class Lambda(NoOp):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
         self.name = name
         self.custom_apply_fns = {

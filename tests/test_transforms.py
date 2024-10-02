@@ -195,10 +195,10 @@ def __test_multiprocessing_support_proc(args):
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
-            A.MaskDropout,
             A.MixUp,
             A.OverlayElements,
-            A.TextImage
+            A.TextImage,
+            A.MaskDropout,
         },
     ),
 )
@@ -1283,7 +1283,6 @@ def test_coarse_dropout_invalid_input(params):
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.MaskDropout,
             A.MixUp,
             A.NoOp,
             A.Lambda,
@@ -1310,6 +1309,10 @@ def test_change_image(augmentation_cls, params):
         data["image"] = SQUARE_FLOAT_IMAGE
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     assert not np.array_equal(aug(**data)["image"], image)
 
@@ -1350,7 +1353,6 @@ def test_change_image(augmentation_cls, params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.MaskDropout,
             A.MixUp,
             A.NoOp,
             A.Lambda,
@@ -1369,6 +1371,7 @@ def test_change_image(augmentation_cls, params):
             A.FromFloat,
             A.TextImage,
             A.PixelDistributionAdaptation,
+            A.MaskDropout,
         },
     ),
 )
@@ -1390,7 +1393,7 @@ def test_selective_channel(augmentation_cls: BasicTransform, params: Dict[str, A
         if channel in channels:
             assert not np.array_equal(image[..., channel], transformed_image[..., channel])
         else:
-            assert np.array_equal(image[..., channel], transformed_image[..., channel])
+            np.testing.assert_array_equal(image[..., channel], transformed_image[..., channel])
 
 
 @pytest.mark.parametrize("params, expected", [
@@ -1529,9 +1532,9 @@ def test_random_snow_invalid_input(params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.MaskDropout,
             A.MixUp,
             A.OverlayElements,
+            A.MaskDropout,
         },
     ),
 )
@@ -1859,7 +1862,6 @@ def test_rot90(bboxes, angle, keypoints):
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.MaskDropout,
             A.MixUp,
             A.OverlayElements,
             A.NoOp,
@@ -1883,6 +1885,10 @@ def test_return_nonzero(augmentation_cls, params):
         data["textimage_metadata"] = {"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)}
     elif augmentation_cls == A.ToRGB:
         data["image"] = np.random.randint(0, 255, size=(100, 100)).astype(np.uint8)
+    elif augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
 
     result = aug(**data)
 
@@ -1949,11 +1955,11 @@ def test_padding_color(transform, num_channels):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop,
-                              A.MixUp, A.MaskDropout, A.OverlayElements, A.GridElasticDeform, A.CropNonEmptyMaskIfExists},
+                              A.MixUp, A.OverlayElements, A.GridElasticDeform, A.CropNonEmptyMaskIfExists},
     ),
 )
 def test_empty_bboxes_keypoints(augmentation_cls, params):
-    aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xyas"))
+    aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xy"))
     image = SQUARE_UINT8_IMAGE
     data = {
         "image": image,
@@ -1968,7 +1974,25 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
             "overlay_metadata": []
         }
 
+    if augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
+
     data = aug(**data)
 
-    np.testing.assert_array_equal(data["bboxes"], np.array([]))
-    np.testing.assert_array_equal(data["keypoints"], np.array([]))
+    np.testing.assert_array_equal(data["bboxes"], [])
+    np.testing.assert_array_equal(data["keypoints"], [])
+
+
+@pytest.mark.parametrize("remove_invisible, expected_keypoints", [(True, np.array([], dtype=np.float32).reshape(0, 2)), (False, np.array([[10, 10]]))])
+def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
+    image = SQUARE_UINT8_IMAGE
+    mask = np.zeros_like(image)[:, :, 0]
+    mask[:20, :20] = 1
+    keypoints = np.array([[10, 10]])
+
+    transform = A.Compose([A.MaskDropout(p=1, max_objects=1, image_fill_value=0, mask_fill_value=1)], keypoint_params=A.KeypointParams(format="xy", remove_invisible=remove_invisible))
+
+    transformed = transform(image=image, mask=mask, keypoints=keypoints)
+    np.testing.assert_array_equal(transformed["keypoints"], expected_keypoints)

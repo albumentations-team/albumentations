@@ -106,6 +106,10 @@ class DataProcessor(ABC):
 
         for data_name in set(self.data_fields) & set(data.keys()):
             data[data_name] = self.filter(data[data_name], image_shape)
+
+            if data_name == "keypoints" and len(data[data_name]) == 0:
+                data[data_name] = np.array([], dtype=np.float32).reshape(0, len(self.params.format))
+
             data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="from")
             # Convert back to list of lists if original input was a list
             if self.is_sequence_input.get(data_name, False):

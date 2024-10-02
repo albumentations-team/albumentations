@@ -749,7 +749,6 @@ def test_single_transform_compose(
             A.TemplateTransform,
             A.MixUp,
             A.RandomSizedBBoxSafeCrop,
-            A.MaskDropout,
             A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
@@ -768,8 +767,14 @@ def test_contiguous_output_dual(augmentation_cls, params):
 
     transform = augmentation_cls(p=1, **params)
 
+    data = {"image": image, "mask": mask}
+    if augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
+
     # pipeline always outputs contiguous results
-    data = transform(image=image, mask=mask)
+    data = transform(**data)
 
     # confirm output contiguous
     # assert data["image"].flags["C_CONTIGUOUS"]
@@ -1118,7 +1123,6 @@ def test_transform_always_apply_warning() -> None:
             A.TemplateTransform,
             A.MixUp,
             A.RandomSizedBBoxSafeCrop,
-            A.MaskDropout,
             A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
@@ -1130,13 +1134,20 @@ def test_images_as_target(augmentation_cls, params):
     image = RECTANGULAR_FLOAT_IMAGE if augmentation_cls == A.FromFloat else RECTANGULAR_UINT8_IMAGE
     image2 = image.copy()
 
+
+    data = {"images": [image, image2]}
+    if augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
+
     aug = A.Compose(
         [augmentation_cls(p=1, **params)]
     )
 
-    transformed2 = aug(images=[image, image2])
+    transformed2 = aug(**data)
 
-    assert np.array_equal(transformed2["images"][0], transformed2["images"][1])
+    np.testing.assert_array_equal(transformed2["images"][0], transformed2["images"][1])
 
 
 @pytest.mark.parametrize(
@@ -1277,12 +1288,12 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             A.TemplateTransform,
             A.MixUp,
             A.RandomSizedBBoxSafeCrop,
-            A.MaskDropout,
             A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
-            A.FromFloat
+            A.FromFloat,
+            A.MaskDropout,
         },
     ),
 )

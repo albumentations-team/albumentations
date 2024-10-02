@@ -214,7 +214,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.Lambda,
             A.CoarseDropout,
             A.RandomGridShuffle,
-            A.MaskDropout,
             A.OpticalDistortion,
             A.TemplateTransform,
             A.XYMasking,
@@ -232,14 +231,21 @@ def test_augmentations_for_bboxes_serialization(
 ):
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
+
+    data = {"image": image, "bboxes": albumentations_bboxes}
+    if augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
+
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
-    aug_data = aug(image=image, bboxes=albumentations_bboxes)
+    aug_data = aug(**data)
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
+    deserialized_aug_data = deserialized_aug(**data)
+    np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
+    np.testing.assert_array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
 
 
 @pytest.mark.parametrize(
@@ -277,7 +283,6 @@ def test_augmentations_for_bboxes_serialization(
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CropNonEmptyMaskIfExists,
-            A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -293,14 +298,21 @@ def test_augmentations_for_bboxes_serialization(
 def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, keypoints):
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
+
+    data = {"image": image, "keypoints": keypoints}
+    if augmentation_cls == A.MaskDropout:
+        mask = np.zeros_like(image)[:, :, 0]
+        mask[:20, :20] = 1
+        data["mask"] = mask
+
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
-    aug_data = aug(image=image, keypoints=keypoints)
+    aug_data = aug(**data)
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+    deserialized_aug_data = deserialized_aug(**data)
+    np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
+    np.testing.assert_array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
 
 
 @pytest.mark.parametrize(
