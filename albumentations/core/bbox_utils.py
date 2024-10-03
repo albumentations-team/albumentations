@@ -538,18 +538,17 @@ def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
         np.ndarray: An array of bounding boxes with shape (N, 4), where each row is
                     (x_min, y_min, x_max, y_max).
     """
-    num_masks = masks.shape[0]
-    bboxes = np.zeros((num_masks, 4), dtype=np.int32)
+    rows = np.any(masks, axis=2)
+    cols = np.any(masks, axis=1)
 
-    for i, mask in enumerate(masks):
-        rows = np.any(mask, axis=1)
-        cols = np.any(mask, axis=0)
+    bboxes = np.zeros((masks.shape[0], 4), dtype=np.int32)
 
-        if not rows.any() or not cols.any():
+    for i, (row, col) in enumerate(zip(rows, cols)):
+        if not np.any(row) or not np.any(col):
             bboxes[i] = [-1, -1, -1, -1]
         else:
-            y_min, y_max = np.where(rows)[0][[0, -1]]
-            x_min, x_max = np.where(cols)[0][[0, -1]]
+            y_min, y_max = np.where(row)[0][[0, -1]]
+            x_min, x_max = np.where(col)[0][[0, -1]]
             bboxes[i] = [x_min, y_min, x_max + 1, y_max + 1]
 
     return bboxes
@@ -566,10 +565,11 @@ def masks_from_bboxes(bboxes: np.ndarray, img_shape: tuple[int, int]) -> np.ndar
         masks: Array of binary masks with shape (N, height, width)
 
     """
-    masks = np.zeros((len(bboxes), *img_shape[:2]), dtype=np.uint8)
+    height, width = img_shape[:2]
+    masks = np.zeros((len(bboxes), height, width), dtype=np.uint8)
+    y, x = np.ogrid[:height, :width]
 
-    for i, bbox in enumerate(bboxes[:, :4]):
-        x_min, y_min, x_max, y_max = bbox.astype(int)
-        masks[i, y_min:y_max, x_min:x_max] = 1
+    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes[:, :4].astype(int)):
+        masks[i] = (x_min <= x) & (x < x_max) & (y_min <= y) & (y < y_max)
 
     return masks
