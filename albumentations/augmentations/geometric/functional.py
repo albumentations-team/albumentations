@@ -2413,45 +2413,6 @@ def compute_affine_warp_output_shape(
     return matrix, cast(Tuple[int, int], output_shape_tuple)
 
 
-@handle_empty_array
-def bboxes_grid_distortion(
-    bboxes: np.ndarray,
-    stepsx: tuple[float, ...],
-    stepsy: tuple[float, ...],
-    num_steps: int,
-    border_mode: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-
-    # Create a mask for each bbox
-    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
-
-    for i, bbox in enumerate(bboxes_denorm):
-        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
-        masks[i, y_min:y_max, x_min:x_max] = 1
-
-    # Apply grid distortion to all masks
-    transformed_masks = np.stack(
-        [
-            distortion(
-                mask,
-                num_steps,
-                stepsx,
-                stepsy,
-                cv2.INTER_NEAREST,
-                border_mode,
-                -1,
-            )
-            for mask in masks
-        ],
-    )
-
-    bboxes_denorm[:, :4] = bboxes_from_masks(transformed_masks)
-
-    return normalize_bboxes(bboxes_denorm, image_shape)
-
-
 def center(image_shape: tuple[int, int]) -> tuple[float, float]:
     """Calculate the center coordinates if image. Used by images, masks and keypoints.
 
