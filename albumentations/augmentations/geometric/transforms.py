@@ -56,7 +56,56 @@ __all__ = [
 ]
 
 
-class ElasticTransform(DualTransform):
+class BaseDistortion(DualTransform):
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        interpolation: InterpolationType
+        border_mode: BorderModeType
+        value: ColorType | None
+        mask_value: ColorType | None
+
+    def __init__(
+        self,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
+        self.value = value
+        self.mask_value = mask_value
+
+    def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.distortion(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
+
+    def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.distortion(mask, map_x, map_y, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+
+    def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        image_shape = params["shape"][:2]
+        bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
+        bboxes_returned = fgeometric.distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape, self.border_mode)
+        return normalize_bboxes(bboxes_returned, image_shape)
+
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        map_x: np.ndarray,
+        map_y: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.distortion_keypoints(keypoints, map_x, map_y, params["shape"])
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("interpolation", "border_mode", "value", "mask_value")
+
+
+class ElasticTransform(BaseDistortion):
     """Apply elastic deformation to images, masks, bounding boxes, and keypoints.
 
     This transformation introduces random elastic distortions to the input data. It's particularly
@@ -102,16 +151,10 @@ class ElasticTransform(DualTransform):
         - Bounding boxes that end up outside the image after transformation will be removed.
         - Keypoints that end up outside the image after transformation will be removed.
 
-    References:
-        - Simard, Steinkraus and Platt, "Best Practices for Convolutional Neural Networks applied to
-          Visual Document Analysis", in Proc. of the International Conference on Document Analysis
-          and Recognition, 2003.
-        - https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/geometric/transforms.py
-
     Example:
         >>> import albumentations as A
         >>> transform = A.Compose([
-        ...     A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=0.5),
+        ...     A.ElasticTransform(alpha=1, sigma=50, p=0.5),
         ... ])
         >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
         >>> transformed_image = transformed['image']
@@ -120,26 +163,16 @@ class ElasticTransform(DualTransform):
         >>> transformed_keypoints = transformed['keypoints']
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
-    class InitSchema(BaseTransformInitSchema):
+    class InitSchema(BaseDistortion.InitSchema):
         alpha: Annotated[float, Field(ge=0)]
         sigma: Annotated[float, Field(ge=1)]
-        alpha_affine: None = Field(
-            deprecated="Use Affine transform to get affine effects",
-        )
-        interpolation: InterpolationType
-        border_mode: BorderModeType
-        value: int | float | list[int] | list[float] | None
-        mask_value: float | list[int] | list[float] | None
         approximate: bool
         same_dxdy: bool
 
     def __init__(
         self,
-        alpha: float = 3,
+        alpha: float = 1,
         sigma: float = 50,
-        alpha_affine: None = None,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ScalarType | list[ScalarType] | None = None,
@@ -149,75 +182,26 @@ class ElasticTransform(DualTransform):
         same_dxdy: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(
+            interpolation=interpolation,
+            border_mode=border_mode,
+            value=value,
+            mask_value=mask_value,
+            always_apply=always_apply,
+            p=p,
+        )
         self.alpha = alpha
         self.sigma = sigma
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
         self.approximate = approximate
         self.same_dxdy = same_dxdy
 
-    def apply(
-        self,
-        img: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.elastic_transform(
-            img,
-            displacement_fields,
-            self.interpolation,
-            self.border_mode,
-            self.value,
-        )
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.elastic_transform(
-            mask,
-            displacement_fields,
-            cv2.INTER_NEAREST,
-            self.border_mode,
-            self.mask_value,
-        )
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.bbox_elastic_transform(
-            bboxes,
-            displacement_fields,
-            self.border_mode,
-            params["shape"],
-        )
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.elastic_transform_keypoints(
-            keypoints,
-            displacement_fields,
-            params["shape"],
-        )
-
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
         kernel_size = (0, 0) if self.approximate else (17, 17)
 
-        # Generate displacement fields once
-        displacement_fields = fgeometric.generate_displacement_fields(
-            params["shape"][:2],
+        # Generate displacement fields
+        dx, dy = fgeometric.generate_displacement_fields(
+            (height, width),
             self.alpha,
             self.sigma,
             same_dxdy=self.same_dxdy,
@@ -225,21 +209,14 @@ class ElasticTransform(DualTransform):
             random_state=random_utils.get_random_state(),
         )
 
-        return {
-            "displacement_fields": displacement_fields,
-        }
+        x, y = np.meshgrid(np.arange(width), np.arange(height))
+        map_x = np.float32(x + dx)
+        map_y = np.float32(y + dy)
+
+        return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "alpha",
-            "sigma",
-            "interpolation",
-            "border_mode",
-            "value",
-            "mask_value",
-            "approximate",
-            "same_dxdy",
-        )
+        return (*super().get_transform_init_args_names(), "alpha", "sigma", "approximate", "same_dxdy")
 
 
 class Perspective(DualTransform):
@@ -1608,55 +1585,6 @@ class Transpose(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
-
-
-class BaseDistortion(DualTransform):
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
-    class InitSchema(BaseTransformInitSchema):
-        interpolation: InterpolationType
-        border_mode: BorderModeType
-        value: ColorType | None
-        mask_value: ColorType | None
-
-    def __init__(
-        self,
-        interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
-        always_apply: bool | None = None,
-        p: float = 0.5,
-    ):
-        super().__init__(p=p, always_apply=always_apply)
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
-
-    def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.distortion(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
-
-    def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.distortion(mask, map_x, map_y, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-
-    def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        image_shape = params["shape"][:2]
-        bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        bboxes_returned = fgeometric.distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape, self.border_mode)
-        return normalize_bboxes(bboxes_returned, image_shape)
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        map_x: np.ndarray,
-        map_y: np.ndarray,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.distortion_keypoints(keypoints, map_x, map_y, params["shape"])
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("interpolation", "border_mode", "value", "mask_value")
 
 
 class OpticalDistortion(BaseDistortion):

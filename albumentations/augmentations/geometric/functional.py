@@ -23,14 +23,12 @@ from albumentations.core.types import (
 
 __all__ = [
     "distortion",
-    "elastic_transform_keypoints",
     "distortion",
     "distortion_keypoints",
     "distortion_bboxes",
     "pad",
     "pad_with_params",
     "rotate",
-    "elastic_transform",
     "resize",
     "scale",
     "_func_max_size",
@@ -1696,63 +1694,6 @@ def generate_displacement_fields(
     return dx, dy
 
 
-def elastic_transform_keypoints(
-    keypoints: np.ndarray,
-    displacement_fields: tuple[np.ndarray, np.ndarray],
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    height, width = image_shape[:2]
-    dx, dy = displacement_fields
-
-    transformed_keypoints = []
-    for kp in keypoints:
-        x, y = kp[:2]
-
-        # Ensure the keypoint is within the image bounds
-        x = np.clip(x, 0, width - 1)
-        y = np.clip(y, 0, height - 1)
-
-        # Get the displacement at the keypoint location
-        x_displacement = dx[int(y), int(x)]
-        y_displacement = dy[int(y), int(x)]
-
-        # Apply the displacement
-        new_x = x + x_displacement
-        new_y = y + y_displacement
-
-        # Add the transformed keypoint
-        transformed_keypoints.append([new_x, new_y, *list(kp[2:])])
-
-    return np.array(transformed_keypoints)
-
-
-@preserve_channel_dim
-def elastic_transform(
-    img: np.ndarray,
-    displacement_fields: tuple[np.ndarray, np.ndarray],
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-) -> np.ndarray:
-    height, width = img.shape[:2]
-
-    dx, dy = displacement_fields
-
-    x, y = np.meshgrid(np.arange(width), np.arange(height))
-    map_x = np.float32(x + dx)
-    map_y = np.float32(y + dy)
-
-    remap_fn = maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return remap_fn(img)
-
-
 @handle_empty_array
 def pad_bboxes(
     bboxes: np.ndarray,
@@ -2470,30 +2411,6 @@ def compute_affine_warp_output_shape(
     matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
     matrix += matrix_to_fit
     return matrix, cast(Tuple[int, int], output_shape_tuple)
-
-
-@handle_empty_array
-def bbox_elastic_transform(
-    bboxes: np.ndarray,
-    displacement_fields: tuple[np.ndarray, np.ndarray],
-    border_mode: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    bboxes = bboxes.copy()
-    # Create a mask for each bbox
-    masks = masks_from_bboxes(denormalize_bboxes(bboxes, image_shape), image_shape)
-
-    transformed_masks = elastic_transform(
-        np.transpose(masks, (1, 2, 0)),
-        displacement_fields,
-        cv2.INTER_NEAREST,
-        border_mode,
-        -1,
-    )
-
-    bboxes[:, :4] = bboxes_from_masks(np.transpose(transformed_masks, (2, 0, 1)))
-
-    return normalize_bboxes(bboxes, image_shape)
 
 
 @handle_empty_array
