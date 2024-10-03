@@ -567,19 +567,25 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
 
 class RandomResizedCrop(_BaseRandomSizedCrop):
-    """Torchvision's variant of crop a random part of the input and rescale it to some size.
+    """Crop a random part of the input and rescale it to a specified size.
+
+    This transform first crops a random portion of the input image (or mask, bounding boxes, keypoints)
+    and then resizes the crop to a specified size. It's particularly useful for training neural networks
+    on images of varying sizes and aspect ratios.
 
     Args:
-        size (int, int): expected output size of the crop, for each edge. If size is an int instead of sequence
-            like (height, width), a square output size (size, size) is made. If provided a sequence of length 1,
-            it will be interpreted as (size[0], size[0]).
-        scale ((float, float)): Specifies the lower and upper bounds for the random area of the crop, before resizing.
-            The scale is defined with respect to the area of the original image.
-        ratio ((float, float)): lower and upper bounds for the random aspect ratio of the crop, before resizing.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        size (int, tuple[int, int]): If int, square crop is made of this size.
+            If tuple of two ints (height, width), this size is used.
+        scale (tuple[float, float]): Range of the random size of the crop relative to the input size.
+            For example, (0.08, 1.0) means the crop size will be between 8% and 100% of the input size.
+            Default: (0.08, 1.0)
+        ratio (tuple[float, float]): Range of aspect ratios of the random crop.
+            For example, (0.75, 1.3333) allows crop aspect ratios from 3:4 to 4:3.
+            Default: (0.75, 1.3333333333333333)
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+            Default: cv2.INTER_LINEAR
+        p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
         image, mask, bboxes, keypoints
@@ -587,6 +593,36 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - This transform attempts to crop a random area with an aspect ratio and relative size
+          specified by 'ratio' and 'scale' parameters. If it fails to find a suitable crop after
+          10 attempts, it will return a crop from the center of the image.
+        - The crop's aspect ratio is defined as width / height.
+        - Bounding boxes that end up fully outside the cropped area will be removed.
+        - Keypoints that end up outside the cropped area will be removed.
+        - After cropping, the result is resized to the specified size.
+
+    Mathematical Details:
+        1. A target area A is sampled from the range [scale[0] * input_area, scale[1] * input_area].
+        2. A target aspect ratio r is sampled from the range [ratio[0], ratio[1]].
+        3. The crop width and height are computed as:
+           w = sqrt(A * r)
+           h = sqrt(A / r)
+        4. If w and h are within the input image dimensions, the crop is accepted.
+           Otherwise, steps 1-3 are repeated (up to 10 times).
+        5. If no valid crop is found after 10 attempts, a centered crop is taken.
+        6. The crop is then resized to the specified size.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomResizedCrop(size=80, scale=(0.5, 1.0), ratio=(0.75, 1.33), p=1.0)
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        # transformed_image will be a 80x80 crop from a random location in the original image,
+        # with the crop's size between 50% and 100% of the original image size,
+        # and the crop's aspect ratio between 3:4 and 4:3.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
