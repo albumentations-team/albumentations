@@ -12,6 +12,7 @@ from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
 from albumentations.core.types import (
+    MONO_CHANNEL_DIMENSIONS,
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
@@ -1656,15 +1657,14 @@ def distortion_bboxes(
     border_mode: int,
 ) -> np.ndarray:
     result = bboxes.copy()
-    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
 
-    for box_id, bbox in enumerate(bboxes):
-        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
-        masks[box_id, y_min:y_max, x_min:x_max] = 1
+    masks = np.transpose(masks_from_bboxes(bboxes, image_shape), (1, 2, 0))
+    transformed_masks = cv2.remap(masks, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0)
 
-    transformed_masks = np.stack(
-        [cv2.remap(mask, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0) for mask in masks],
-    )
+    if transformed_masks.ndim == MONO_CHANNEL_DIMENSIONS:
+        transformed_masks = np.expand_dims(transformed_masks, axis=0)
+    else:
+        transformed_masks = np.transpose(transformed_masks, (2, 0, 1))
 
     result[:, :4] = bboxes_from_masks(transformed_masks)
 
