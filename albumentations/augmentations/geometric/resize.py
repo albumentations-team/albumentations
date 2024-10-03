@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, List, Sequence, Tuple, Union, cast
+from typing import Any, List, Sequence, Union, cast
 
 import cv2
 import numpy as np
@@ -21,7 +21,7 @@ class RandomScale(DualTransform):
     """Randomly resize the input. Output image size is different from the input image size.
 
     Args:
-        scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
+        scale_limit (float or tuple[float, float]): scaling factor range. If scale_limit is a single float value, the
             range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
             If scale_limit is a tuple, like (low, high), sampling will be done from the range (1 + low, 1 + high).
             Default: (-0.1, 0.1).
@@ -35,6 +35,27 @@ class RandomScale(DualTransform):
 
     Image types:
         uint8, float32
+
+    Note:
+        - The output image size is different from the input image size.
+        - Scale factor is sampled independently per image side (width and height).
+        - Bounding box coordinates are scaled accordingly.
+        - Keypoint coordinates are scaled accordingly.
+
+    Mathematical formulation:
+        Let (W, H) be the original image dimensions and (W', H') be the output dimensions.
+        The scale factor s is sampled from the range [1 + scale_limit[0], 1 + scale_limit[1]].
+        Then, W' = W * s and H' = H * s.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomScale(scale_limit=0.1, p=1.0)
+        >>> result = transform(image=image)
+        >>> scaled_image = result['image']
+        # scaled_image will have dimensions in the range [90, 110] x [90, 110]
+        # (assuming the scale_limit of 0.1 results in a scaling factor between 0.9 and 1.1)
 
     """
 
@@ -56,12 +77,12 @@ class RandomScale(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
-        self.scale_limit = cast(Tuple[float, float], scale_limit)
+        super().__init__(p=p, always_apply=always_apply)
+        self.scale_limit = cast(tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
     def get_params(self) -> dict[str, float]:
-        return {"scale": random.uniform(self.scale_limit[0], self.scale_limit[1])}
+        return {"scale": random.uniform(*self.scale_limit)}
 
     def apply(
         self,
