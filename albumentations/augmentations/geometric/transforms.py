@@ -946,37 +946,27 @@ class ShiftScaleRotate(Affine):
 
 
 class PiecewiseAffine(DualTransform):
-    """Apply affine transformations that differ between local neighborhoods.
-    This augmentation places a regular grid of points on an image and randomly moves the neighborhood of these point
-    around via affine transformations. This leads to local distortions.
+    """Apply piecewise affine transformations to the input image.
 
-    This is mostly a wrapper around scikit-image's ``PiecewiseAffine``.
-    See also ``Affine`` for a similar technique.
-
-    Note:
-        This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.
-
-    Note:
-        For coordinate-based inputs (keypoints, bounding boxes, polygons, ...),
-        this augmenter still has to perform an image-based augmentation,
-        which will make it significantly slower and not fully correct for such inputs than other transforms.
+    This augmentation places a regular grid of points on an image and randomly moves the neighborhood of these points
+    around via affine transformations. This leads to local distortions in the image.
 
     Args:
-        scale (float, tuple of float): Each point on the regular grid is moved around via a normal distribution.
-            This scale factor is equivalent to the normal distribution's sigma.
-            Note that the jitter (how far each point is moved in which direction) is multiplied by the height/width of
-            the image if ``absolute_scale=False`` (default), so this scale can be the same for different sized images.
-            Recommended values are in the range ``0.01`` to ``0.05`` (weak to strong augmentations).
-                * If a single ``float``, then that value will always be used as the scale.
-                * If a tuple ``(a, b)`` of ``float`` s, then a random value will
-                  be uniformly sampled per image from the interval ``[a, b]``.
-        nb_rows (int, tuple of int): Number of rows of points that the regular grid should have.
-            Must be at least ``2``. For large images, you might want to pick a higher value than ``4``.
-            You might have to then adjust scale to lower values.
-                * If a single ``int``, then that value will always be used as the number of rows.
-                * If a tuple ``(a, b)``, then a value from the discrete interval
-                  ``[a..b]`` will be uniformly sampled per image.
-        nb_cols (int, tuple of int): Number of columns. Analogous to `nb_rows`.
+        scale (tuple[float, float] | float): Standard deviation of the normal distributions. These are used to sample
+            the random distances of the subimage's corners from the full image's corners.
+            If scale is a single float value, the range will be (0, scale).
+            Recommended values are in the range (0.01, 0.05) for small distortions,
+            and (0.05, 0.1) for larger distortions. Default: (0.03, 0.05).
+        nb_rows (tuple[int, int] | int): Number of rows of points that the regular grid should have.
+            Must be at least 2. For large images, you might want to pick a higher value than 4.
+            If a single int, then that value will always be used as the number of rows.
+            If a tuple (a, b), then a value from the discrete interval [a..b] will be uniformly sampled per image.
+            Default: 4.
+        nb_cols (tuple[int, int] | int): Number of columns of points that the regular grid should have.
+            Must be at least 2. For large images, you might want to pick a higher value than 4.
+            If a single int, then that value will always be used as the number of columns.
+            If a tuple (a, b), then a value from the discrete interval [a..b] will be uniformly sampled per image.
+            Default: 4.
         interpolation (int): The order of interpolation. The order has to be in the range 0-5:
              - 0: Nearest-neighbor
              - 1: Bi-linear (default)
@@ -984,18 +974,23 @@ class PiecewiseAffine(DualTransform):
              - 3: Bi-cubic
              - 4: Bi-quartic
              - 5: Bi-quintic
-        mask_interpolation (int): same as interpolation but for mask.
+        mask_interpolation (int): The order of interpolation for masks. Similar to 'interpolation' but for masks.
+            Default: 0 (Nearest-neighbor).
         cval (number): The constant value to use when filling in newly created pixels.
-        cval_mask (number): Same as cval but only for masks.
+            Default: 0.
+        cval_mask (number): The constant value to use when filling in newly created pixels in masks.
+            Default: 0.
         mode (str): {'constant', 'edge', 'symmetric', 'reflect', 'wrap'}, optional
             Points outside the boundaries of the input are filled according
-            to the given mode.  Modes match the behaviour of `numpy.pad`.
-        absolute_scale (bool): Take `scale` as an absolute value rather than a relative value.
+            to the given mode. Default: 'constant'.
+        absolute_scale (bool): If set to True, the value of the scale parameter will be treated as an absolute
+            pixel value. If set to False, it will be treated as a fraction of the image height and width.
+            Default: False.
         keypoints_threshold (float): Used as threshold in conversion from distance maps to keypoints.
-            The search for keypoints works by searching for the
-            argmin (non-inverted) or argmax (inverted) in each channel. This
-            parameters contains the maximum (non-inverted) or minimum (inverted) value to accept in order to view a hit
-            as a keypoint. Use ``None`` to use no min/max. Default: 0.01
+            The search for keypoints works by searching for the argmin (non-inverted) or argmax (inverted) in each
+            channel. This parameter contains the maximum (non-inverted) or minimum (inverted) value to accept in order
+            to view a hit as a keypoint. Use None to use no min/max. Default: 0.01.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, keypoints, bboxes
@@ -1003,6 +998,21 @@ class PiecewiseAffine(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - This augmentation is very slow. Consider using `ElasticTransform` instead, which is at least 10x faster.
+        - The augmentation may not always produce visible effects, especially with small scale values.
+        - For keypoints and bounding boxes, the transformation might move them outside the image boundaries.
+          In such cases, the keypoints will be set to (-1, -1) and the bounding boxes will be removed.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.PiecewiseAffine(scale=(0.03, 0.05), nb_rows=4, nb_cols=4, p=0.5),
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed["image"]
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -1015,7 +1025,7 @@ class PiecewiseAffine(DualTransform):
         mask_interpolation: InterpolationType
         cval: int
         cval_mask: int
-        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant"
+        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"]
         absolute_scale: bool
         keypoints_threshold: float
 
@@ -1030,8 +1040,8 @@ class PiecewiseAffine(DualTransform):
     def __init__(
         self,
         scale: ScaleFloatType = (0.03, 0.05),
-        nb_rows: ScaleIntType = 4,
-        nb_cols: ScaleIntType = 4,
+        nb_rows: ScaleIntType = (4, 4),
+        nb_cols: ScaleIntType = (4, 4),
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: int = 0,
@@ -1042,7 +1052,7 @@ class PiecewiseAffine(DualTransform):
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
         warn(
             "This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.",
