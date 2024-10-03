@@ -933,16 +933,22 @@ class BBoxSafeRandomCrop(_BaseCrop):
 
 
 class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
-    """Crop a random part of the input and rescale it to some size without loss of bboxes.
+    """Crop a random part of the input and rescale it to a specific size without loss of bounding boxes.
+
+    This transform first attempts to crop a random portion of the input image while ensuring that all bounding boxes
+    remain within the cropped area. It then resizes the crop to the specified size. This is particularly useful for
+    object detection tasks where preserving all objects in the image is crucial while also standardizing the image size.
 
     Args:
-        height: height after crop and resize.
-        width: width after crop and resize.
-        erosion_rate: erosion rate applied on input image height before crop.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+        height (int): Height of the output image after resizing.
+        width (int): Width of the output image after resizing.
+        erosion_rate (float): A value between 0.0 and 1.0 that determines the minimum allowable size of the crop
+            as a fraction of the original image size. For example, an erosion_rate of 0.2 means the crop will be
+            at least 80% of the original image height and width. Default: 0.0 (no minimum size).
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -950,6 +956,37 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - This transform ensures that all bounding boxes in the original image are fully contained within the
+          cropped area. If it's not possible to find such a crop (e.g., when bounding boxes are too spread out),
+          it will default to cropping the entire image.
+        - After cropping, the result is resized to the specified (height, width) size.
+        - Bounding box coordinates are adjusted to match the new image size.
+        - Keypoints are moved along with the crop and scaled to the new image size.
+        - If there are no bounding boxes in the image, it will fall back to a random crop.
+
+    Mathematical Details:
+        1. A crop region is selected that includes all bounding boxes.
+        2. The crop size is determined by the erosion_rate:
+           min_crop_size = (1 - erosion_rate) * original_size
+        3. If the selected crop is smaller than min_crop_size, it's expanded to meet this requirement.
+        4. The crop is then resized to the specified (height, width) size.
+        5. Bounding box coordinates are transformed to match the new image size:
+           new_coord = (old_coord - crop_start) * (new_size / crop_size)
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (300, 300, 3), dtype=np.uint8)
+        >>> bboxes = [(10, 10, 50, 50), (100, 100, 150, 150)]
+        >>> transform = A.Compose([
+        ...     A.RandomSizedBBoxSafeCrop(height=224, width=224, erosion_rate=0.2, p=1.0),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
+        >>> transformed = transform(image=image, bboxes=bboxes, labels=['cat', 'dog'])
+        >>> transformed_image = transformed['image']
+        >>> transformed_bboxes = transformed['bboxes']
+        # transformed_image will be a 224x224 image containing all original bounding boxes,
+        # with their coordinates adjusted to the new image size.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
