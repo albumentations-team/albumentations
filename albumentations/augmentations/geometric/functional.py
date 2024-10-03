@@ -21,11 +21,11 @@ from albumentations.core.types import (
 )
 
 __all__ = [
-    "optical_distortion",
+    "distortion",
     "elastic_transform_keypoints",
-    "grid_distortion",
-    "grid_distortion_keypoints",
-    "grid_distortion_bboxes",
+    "distortion",
+    "distortion_keypoints",
+    "distortion_bboxes",
     "pad",
     "pad_with_params",
     "rotate",
@@ -1601,40 +1601,7 @@ def pad_with_params(
 
 
 @preserve_channel_dim
-def optical_distortion(
-    img: np.ndarray,
-    k: int,
-    dx: int,
-    dy: int,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-) -> np.ndarray:
-    """Barrel / pincushion distortion. Unconventional augment.
-
-    Reference:
-        |  https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
-        |  https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
-        |  https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
-        |  http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
-    """
-    height, width = img.shape[:2]
-
-    fx = width
-    fy = height
-
-    cx = width * 0.5 + dx
-    cy = height * 0.5 + dy
-
-    camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
-
-    distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
-
-
-@preserve_channel_dim
-def grid_distortion(
+def distortion(
     img: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1646,7 +1613,7 @@ def grid_distortion(
 
 
 @handle_empty_array
-def grid_distortion_keypoints(
+def distortion_keypoints(
     keypoints: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1681,7 +1648,7 @@ def grid_distortion_keypoints(
 
 
 @handle_empty_array
-def grid_distortion_bboxes(
+def distortion_bboxes(
     bboxes: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -2526,7 +2493,7 @@ def bboxes_optical_distortion(
 
     # Apply optical distortion to all masks
     distorted_masks = np.array(
-        [optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
+        [distortion(mask, k, dx, dy, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
     )
 
     # Get bboxes from distorted masks
@@ -2586,7 +2553,7 @@ def bboxes_grid_distortion(
     # Apply grid distortion to all masks
     transformed_masks = np.stack(
         [
-            grid_distortion(
+            distortion(
                 mask,
                 num_steps,
                 stepsx,
