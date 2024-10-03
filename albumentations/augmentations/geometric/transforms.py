@@ -24,7 +24,6 @@ from albumentations.core.pydantic import (
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BIG_INTEGER,
-    TWO,
     ColorType,
     D4Type,
     PositionType,
@@ -266,26 +265,28 @@ class ElasticTransform(BaseDistortion):
 
 
 class Perspective(DualTransform):
-    """Perform a random four point perspective transform of the input.
+    """Apply random four point perspective transformation to the input.
 
     Args:
-        scale: standard deviation of the normal distributions. These are used to sample
+        scale (float or tuple of float): Standard deviation of the normal distributions. These are used to sample
             the random distances of the subimage's corners from the full image's corners.
-            If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
-        keep_size: Whether to resize image back to their original size after applying the perspective
-            transform. If set to False, the resulting images may end up having different shapes
-            and will always be a list, never an array. Default: True
-        pad_mode (OpenCV flag): OpenCV border mode.
-        pad_val (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-            Default: 0
-        mask_pad_val (int, float, list of int, list of float): padding value for mask
-            if border_mode is cv2.BORDER_CONSTANT. Default: 0
+            If scale is a single float value, the range will be (0, scale).
+            Default: (0.05, 0.1).
+        keep_size (bool): Whether to resize image back to its original size after applying the perspective transform.
+            If set to False, the resulting images may end up having different shapes.
+            Default: True.
+        pad_mode (OpenCV flag): OpenCV border mode used for padding.
+            Default: cv2.BORDER_CONSTANT.
+        pad_val (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT.
+            Default: 0.
+        mask_pad_val (int, float, list of int, list of float): Padding value for mask if border_mode is
+            cv2.BORDER_CONSTANT. Default: 0.
         fit_output (bool): If True, the image plane size and position will be adjusted to still capture
-            the whole image after perspective transformation. (Followed by image resizing if keep_size is set to True.)
-            Otherwise, parts of the transformed image may be outside of the image plane.
+            the whole image after perspective transformation. This is followed by image resizing if keep_size is set
+            to True. If False, parts of the transformed image may be outside of the image plane.
             This setting should not be set to True when using large scale values as it could lead to very large images.
-            Default: False
-        p (float): probability of applying the transform. Default: 0.5.
+            Default: False.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, keypoints, bboxes
@@ -293,17 +294,36 @@ class Perspective(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        This transformation creates a perspective effect by randomly moving the four corners of the image.
+        The amount of movement is controlled by the 'scale' parameter.
+
+        When 'keep_size' is True, the output image will have the same size as the input image,
+        which may cause some parts of the transformed image to be cut off or padded.
+
+        When 'fit_output' is True, the transformation ensures that the entire transformed image is visible,
+        which may result in a larger output image if keep_size is False.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.Perspective(scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5),
+        ... ])
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType
-        keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
+        keep_size: bool
         pad_mode: BorderModeType
         pad_val: ColorType | None
         mask_pad_val: ColorType | None
-        fit_output: Annotated[bool, Field(default=False, description="Adjust image plane to capture whole image.")]
+        fit_output: bool
         interpolation: InterpolationType
 
     def __init__(
@@ -318,7 +338,7 @@ class Perspective(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p, always_apply=always_apply)
         self.scale = cast(Tuple[float, float], scale)
         self.keep_size = keep_size
         self.pad_mode = pad_mode
@@ -343,7 +363,26 @@ class Perspective(DualTransform):
             self.pad_val,
             self.pad_mode,
             self.keep_size,
-            params["interpolation"],
+            self.interpolation,
+        )
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        matrix: np.ndarray,
+        max_height: int,
+        max_width: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.perspective(
+            mask,
+            matrix,
+            max_width,
+            max_height,
+            self.pad_val,
+            self.pad_mode,
+            self.keep_size,
+            cv2.INTER_NEAREST,
         )
 
     def apply_to_bboxes(
@@ -381,112 +420,20 @@ class Perspective(DualTransform):
         )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
         scale = random.uniform(*self.scale)
-        points = random_utils.normal(0, scale, (4, 2))
-        points = np.mod(np.abs(points), 0.32)
 
-        # top left -- no changes needed, just use jitter
-        # top right
-        points[1, 0] = 1.0 - points[1, 0]  # w = 1.0 - jitter
-        # bottom right
-        points[2] = 1.0 - points[2]  # w = 1.0 - jitt
-        # bottom left
-        points[3, 1] = 1.0 - points[3, 1]  # h = 1.0 - jitter
+        random_state = random_utils.get_random_state()
+        points = fgeometric.generate_perspective_points(image_shape, scale, random_state)
+        points = fgeometric.order_points(points)
 
-        points[:, 0] *= width
-        points[:, 1] *= height
-
-        # Obtain a consistent order of the points and unpack them individually.
-        # Warning: don't just do (tl, tr, br, bl) = _order_points(...)
-        # here, because the reordered points is used further below.
-        points = self._order_points(points)
-        tl, tr, br, bl = points
-
-        # compute the width of the new image, which will be the
-        # maximum distance between bottom-right and bottom-left
-        # x-coordiates or the top-right and top-left x-coordinates
-        min_width = None
-        max_width = None
-        while min_width is None or min_width < TWO:
-            width_top = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
-            width_bottom = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
-            max_width = int(max(width_top, width_bottom))
-            min_width = int(min(width_top, width_bottom))
-            if min_width < TWO:
-                step_size = (2 - min_width) / 2
-                tl[0] -= step_size
-                tr[0] += step_size
-                bl[0] -= step_size
-                br[0] += step_size
-
-        # compute the height of the new image, which will be the maximum distance between the top-right
-        # and bottom-right y-coordinates or the top-left and bottom-left y-coordinates
-        min_height = None
-        max_height = None
-        while min_height is None or min_height < TWO:
-            height_right = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-            height_left = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-            max_height = int(max(height_right, height_left))
-            min_height = int(min(height_right, height_left))
-            if min_height < TWO:
-                step_size = (2 - min_height) / 2
-                tl[1] -= step_size
-                tr[1] -= step_size
-                bl[1] += step_size
-                br[1] += step_size
-
-        # now that we have the dimensions of the new image, construct
-        # the set of destination points to obtain a "birds eye view",
-        # (i.e. top-down view) of the image, again specifying points
-        # in the top-left, top-right, bottom-right, and bottom-left order
-        # do not use width-1 or height-1 here, as for e.g. width=3, height=2
-        # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
-        dst = np.array([[0, 0], [max_width, 0], [max_width, max_height], [0, max_height]], dtype=np.float32)
-
-        # compute the perspective transform matrix and then apply it
-        m = cv2.getPerspectiveTransform(points, dst)
+        matrix, max_width, max_height = fgeometric.compute_perspective_params(points)
 
         if self.fit_output:
-            m, max_width, max_height = self._expand_transform(m, (height, width))
+            matrix, max_width, max_height = fgeometric.expand_transform(matrix, image_shape)
 
-        return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
-
-    @classmethod
-    def _expand_transform(cls, matrix: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, int, int]:
-        height, width = shape[:2]
-        # do not use width-1 or height-1 here, as for e.g. width=3, height=2, max_height
-        # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
-        rect = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
-        dst = cv2.perspectiveTransform(np.array([rect]), matrix)[0]
-
-        # get min x, y over transformed 4 points
-        # then modify target points by subtracting these minima  => shift to (0, 0)
-        dst -= dst.min(axis=0, keepdims=True)
-        dst = np.around(dst, decimals=0)
-
-        matrix_expanded = cv2.getPerspectiveTransform(rect, dst)
-        max_width, max_height = dst.max(axis=0)
-        return matrix_expanded, int(max_width), int(max_height)
-
-    @staticmethod
-    def _order_points(pts: np.ndarray) -> np.ndarray:
-        pts = np.array(sorted(pts, key=lambda x: x[0]))
-        left = pts[:2]  # points with smallest x coordinate - left points
-        right = pts[2:]  # points with greatest x coordinate - right points
-
-        if left[0][1] < left[1][1]:
-            tl, bl = left
-        else:
-            bl, tl = left
-
-        if right[0][1] < right[1][1]:
-            tr, br = right
-        else:
-            br, tr = right
-
-        return np.array([tl, tr, br, bl], dtype=np.float32)
+        return {"matrix": matrix, "max_height": max_height, "max_width": max_width}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation"

@@ -574,6 +574,9 @@ def perspective_keypoints(
     keep_size: bool,
 ) -> np.ndarray:
     keypoints = keypoints.copy().astype(np.float32)
+
+    height, width = image_shape[:2]
+
     x, y, angle, scale = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2], keypoints[:, 3]
 
     # Reshape keypoints for perspective transform
@@ -581,6 +584,11 @@ def perspective_keypoints(
 
     # Apply perspective transform
     transformed_points = cv2.perspectiveTransform(keypoint_vector, matrix).squeeze()
+
+    # Unsqueeze if we have a single keypoint
+    if transformed_points.ndim == 1:
+        transformed_points = transformed_points[np.newaxis, :]
+
     x, y = transformed_points[:, 0], transformed_points[:, 1]
 
     # Update angles
@@ -604,7 +612,7 @@ def perspective_keypoints(
 
     # If there are additional columns, preserve them
     if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        transformed_keypoints = np.column_stack(
+        return np.column_stack(
             [transformed_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
         )
 
@@ -2616,3 +2624,82 @@ def split_uniform_grid(
     ]
 
     return np.array(tiles, dtype=np.int16)
+
+
+def generate_perspective_points(
+    image_shape: tuple[int, int],
+    scale: float,
+    random_state: np.random.RandomState | None = None,
+) -> np.ndarray:
+    height, width = image_shape[:2]
+    points = random_utils.normal(0, scale, (4, 2), random_state=random_state)
+    points = np.mod(np.abs(points), 0.32)
+
+    # top left -- no changes needed, just use jitter
+    # top right
+    points[1, 0] = 1.0 - points[1, 0]  # w = 1.0 - jitter
+    # bottom right
+    points[2] = 1.0 - points[2]  # w = 1.0 - jitter
+    # bottom left
+    points[3, 1] = 1.0 - points[3, 1]  # h = 1.0 - jitter
+
+    points[:, 0] *= width
+    points[:, 1] *= height
+
+    return points
+
+
+def order_points(pts: np.ndarray) -> np.ndarray:
+    pts = np.array(sorted(pts, key=lambda x: x[0]))
+    left = pts[:2]  # points with smallest x coordinate - left points
+    right = pts[2:]  # points with greatest x coordinate - right points
+
+    if left[0][1] < left[1][1]:
+        tl, bl = left
+    else:
+        bl, tl = left
+
+    if right[0][1] < right[1][1]:
+        tr, br = right
+    else:
+        br, tr = right
+
+    return np.array([tl, tr, br, bl], dtype=np.float32)
+
+
+def compute_perspective_params(points: np.ndarray) -> tuple[np.ndarray, int, int]:
+    top_left, top_right, bottom_right, bottom_left = points
+
+    def adjust_dimension(dim1: np.ndarray, dim2: np.ndarray, min_size: int = 2) -> float:
+        size = np.sqrt(np.sum((dim1 - dim2) ** 2))
+        if size < min_size:
+            step_size = (min_size - size) / 2
+            dim1[dim1 > dim2] += step_size
+            dim2[dim1 > dim2] -= step_size
+            dim1[dim1 <= dim2] -= step_size
+            dim2[dim1 <= dim2] += step_size
+            size = min_size
+        return size
+
+    max_width = max(adjust_dimension(top_right, top_left), adjust_dimension(bottom_right, bottom_left))
+    max_height = max(adjust_dimension(bottom_right, top_right), adjust_dimension(bottom_left, top_left))
+
+    max_width, max_height = int(max_width), int(max_height)
+
+    dst = np.array([[0, 0], [max_width, 0], [max_width, max_height], [0, max_height]], dtype=np.float32)
+    matrix = cv2.getPerspectiveTransform(points, dst)
+
+    return matrix, max_width, max_height
+
+
+def expand_transform(matrix: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, int, int]:
+    height, width = shape[:2]
+    rect = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
+    dst = cv2.perspectiveTransform(np.array([rect]), matrix)[0]
+
+    dst -= dst.min(axis=0, keepdims=True)
+    dst = np.around(dst, decimals=0)
+
+    matrix_expanded = cv2.getPerspectiveTransform(rect, dst)
+    max_width, max_height = dst.max(axis=0)
+    return matrix_expanded, int(max_width), int(max_height)
