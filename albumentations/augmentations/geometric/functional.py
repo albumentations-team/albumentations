@@ -12,6 +12,7 @@ from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
 from albumentations.core.types import (
+    MONO_CHANNEL_DIMENSIONS,
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
@@ -21,15 +22,13 @@ from albumentations.core.types import (
 )
 
 __all__ = [
-    "optical_distortion",
-    "elastic_transform_keypoints",
-    "grid_distortion",
-    "grid_distortion_keypoints",
-    "grid_distortion_bboxes",
+    "distortion",
+    "distortion",
+    "distortion_keypoints",
+    "distortion_bboxes",
     "pad",
     "pad_with_params",
     "rotate",
-    "elastic_transform",
     "resize",
     "scale",
     "_func_max_size",
@@ -1601,40 +1600,7 @@ def pad_with_params(
 
 
 @preserve_channel_dim
-def optical_distortion(
-    img: np.ndarray,
-    k: int,
-    dx: int,
-    dy: int,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-) -> np.ndarray:
-    """Barrel / pincushion distortion. Unconventional augment.
-
-    Reference:
-        |  https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
-        |  https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
-        |  https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
-        |  http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
-    """
-    height, width = img.shape[:2]
-
-    fx = width
-    fy = height
-
-    cx = width * 0.5 + dx
-    cy = height * 0.5 + dy
-
-    camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
-
-    distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
-
-
-@preserve_channel_dim
-def grid_distortion(
+def distortion(
     img: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1646,7 +1612,7 @@ def grid_distortion(
 
 
 @handle_empty_array
-def grid_distortion_keypoints(
+def distortion_keypoints(
     keypoints: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1681,7 +1647,7 @@ def grid_distortion_keypoints(
 
 
 @handle_empty_array
-def grid_distortion_bboxes(
+def distortion_bboxes(
     bboxes: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1689,15 +1655,14 @@ def grid_distortion_bboxes(
     border_mode: int,
 ) -> np.ndarray:
     result = bboxes.copy()
-    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
 
-    for box_id, bbox in enumerate(bboxes):
-        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
-        masks[box_id, y_min:y_max, x_min:x_max] = 1
+    masks = np.transpose(masks_from_bboxes(bboxes, image_shape), (1, 2, 0))
+    transformed_masks = cv2.remap(masks, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0)
 
-    transformed_masks = np.stack(
-        [cv2.remap(mask, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0) for mask in masks],
-    )
+    if transformed_masks.ndim == MONO_CHANNEL_DIMENSIONS:
+        transformed_masks = np.expand_dims(transformed_masks, axis=0)
+    else:
+        transformed_masks = np.transpose(transformed_masks, (2, 0, 1))
 
     result[:, :4] = bboxes_from_masks(transformed_masks)
 
@@ -1727,63 +1692,6 @@ def generate_displacement_fields(
         dy *= alpha
 
     return dx, dy
-
-
-def elastic_transform_keypoints(
-    keypoints: np.ndarray,
-    displacement_fields: tuple[np.ndarray, np.ndarray],
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    height, width = image_shape[:2]
-    dx, dy = displacement_fields
-
-    transformed_keypoints = []
-    for kp in keypoints:
-        x, y = kp[:2]
-
-        # Ensure the keypoint is within the image bounds
-        x = np.clip(x, 0, width - 1)
-        y = np.clip(y, 0, height - 1)
-
-        # Get the displacement at the keypoint location
-        x_displacement = dx[int(y), int(x)]
-        y_displacement = dy[int(y), int(x)]
-
-        # Apply the displacement
-        new_x = x + x_displacement
-        new_y = y + y_displacement
-
-        # Add the transformed keypoint
-        transformed_keypoints.append([new_x, new_y, *list(kp[2:])])
-
-    return np.array(transformed_keypoints)
-
-
-@preserve_channel_dim
-def elastic_transform(
-    img: np.ndarray,
-    displacement_fields: tuple[np.ndarray, np.ndarray],
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-) -> np.ndarray:
-    height, width = img.shape[:2]
-
-    dx, dy = displacement_fields
-
-    x, y = np.meshgrid(np.arange(width), np.arange(height))
-    map_x = np.float32(x + dx)
-    map_y = np.float32(y + dy)
-
-    remap_fn = maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return remap_fn(img)
 
 
 @handle_empty_array
@@ -2503,105 +2411,6 @@ def compute_affine_warp_output_shape(
     matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
     matrix += matrix_to_fit
     return matrix, cast(Tuple[int, int], output_shape_tuple)
-
-
-@handle_empty_array
-def bboxes_optical_distortion(
-    bboxes: np.ndarray,
-    k: float,
-    dx: int,
-    dy: int,
-    border_mode: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    height, width = image_shape[:2]
-
-    # Denormalize bboxes
-    bboxes_denorm = denormalize_bboxes(bboxes[:, :4], image_shape)
-
-    # Create masks for each bbox
-    masks = np.zeros((len(bboxes), height, width), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm.astype(int)):
-        masks[i, y_min:y_max, x_min:x_max] = 1
-
-    # Apply optical distortion to all masks
-    distorted_masks = np.array(
-        [optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
-    )
-
-    # Get bboxes from distorted masks
-    distorted_bboxes = bboxes_from_masks(distorted_masks)
-
-    # Normalize the distorted bboxes
-    normalized_bboxes = normalize_bboxes(distorted_bboxes, image_shape)
-
-    # Update the first 4 columns of the input array
-    bboxes[:, :4] = normalized_bboxes
-
-    return bboxes
-
-
-@handle_empty_array
-def bbox_elastic_transform(
-    bboxes: np.ndarray,
-    displacement_fields: tuple[np.ndarray, np.ndarray],
-    border_mode: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    bboxes = bboxes.copy()
-    # Create a mask for each bbox
-    masks = masks_from_bboxes(denormalize_bboxes(bboxes, image_shape), image_shape)
-
-    transformed_masks = elastic_transform(
-        np.transpose(masks, (1, 2, 0)),
-        displacement_fields,
-        cv2.INTER_NEAREST,
-        border_mode,
-        -1,
-    )
-
-    bboxes[:, :4] = bboxes_from_masks(np.transpose(transformed_masks, (2, 0, 1)))
-
-    return normalize_bboxes(bboxes, image_shape)
-
-
-@handle_empty_array
-def bboxes_grid_distortion(
-    bboxes: np.ndarray,
-    stepsx: tuple[float, ...],
-    stepsy: tuple[float, ...],
-    num_steps: int,
-    border_mode: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-
-    # Create a mask for each bbox
-    masks = np.zeros((len(bboxes), *image_shape[:2]), dtype=np.uint8)
-
-    for i, bbox in enumerate(bboxes_denorm):
-        x_min, y_min, x_max, y_max = bbox[:4].astype(int)
-        masks[i, y_min:y_max, x_min:x_max] = 1
-
-    # Apply grid distortion to all masks
-    transformed_masks = np.stack(
-        [
-            grid_distortion(
-                mask,
-                num_steps,
-                stepsx,
-                stepsy,
-                cv2.INTER_NEAREST,
-                border_mode,
-                -1,
-            )
-            for mask in masks
-        ],
-    )
-
-    bboxes_denorm[:, :4] = bboxes_from_masks(transformed_masks)
-
-    return normalize_bboxes(bboxes_denorm, image_shape)
 
 
 def center(image_shape: tuple[int, int]) -> tuple[float, float]:

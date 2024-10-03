@@ -84,7 +84,7 @@ DUAL_TARGETS = {
     A.RandomSizedCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomCropFromBorders: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomGridShuffle: (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS),
-    A.OpticalDistortion: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
+    A.OpticalDistortion: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.SafeRotate: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.CropNonEmptyMaskIfExists: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.XYMasking: (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS),

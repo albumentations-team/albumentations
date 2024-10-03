@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from enum import Enum
-from typing import Any, Callable, Literal, Tuple, cast
+from typing import Any, Literal, Tuple, cast
 from warnings import warn
 
 import cv2
@@ -56,7 +56,102 @@ __all__ = [
 ]
 
 
-class ElasticTransform(DualTransform):
+class BaseDistortion(DualTransform):
+    """Base class for distortion-based transformations.
+
+    This class provides a foundation for implementing various types of image distortions,
+    such as optical distortions, grid distortions, and elastic transformations. It handles
+    the common operations of applying distortions to images, masks, bounding boxes, and keypoints.
+
+    Args:
+        interpolation (int): Interpolation method to be used for image transformation.
+            Should be one of the OpenCV interpolation types (e.g., cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC). Default: cv2.INTER_LINEAR
+        border_mode (int): Border mode to be used for handling pixels outside the image boundaries.
+            Should be one of the OpenCV border types (e.g., cv2.BORDER_REFLECT_101,
+            cv2.BORDER_CONSTANT). Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of int, list of float, optional): Padding value if border_mode is
+            cv2.BORDER_CONSTANT. Default: None
+        mask_value (ColorType | None): Padding value for mask if
+            border_mode is cv2.BORDER_CONSTANT. Default: None
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - This is an abstract base class and should not be used directly.
+        - Subclasses should implement the `get_params_dependent_on_data` method to generate
+          the distortion maps (map_x and map_y).
+        - The distortion is applied consistently across all targets (image, mask, bboxes, keypoints)
+          to maintain coherence in the augmented data.
+
+    Example of a subclass:
+        class CustomDistortion(BaseDistortion):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                # Add custom parameters here
+
+            def get_params_dependent_on_data(self, params, data):
+                # Generate and return map_x and map_y based on the distortion logic
+                return {"map_x": map_x, "map_y": map_y}
+
+            def get_transform_init_args_names(self):
+                return super().get_transform_init_args_names() + ("custom_param1", "custom_param2")
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        interpolation: InterpolationType
+        border_mode: BorderModeType
+        value: ColorType | None
+        mask_value: ColorType | None
+
+    def __init__(
+        self,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
+        self.value = value
+        self.mask_value = mask_value
+
+    def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.distortion(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
+
+    def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.distortion(mask, map_x, map_y, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+
+    def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+        image_shape = params["shape"][:2]
+        bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
+        bboxes_returned = fgeometric.distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape, self.border_mode)
+        return normalize_bboxes(bboxes_returned, image_shape)
+
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        map_x: np.ndarray,
+        map_y: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.distortion_keypoints(keypoints, map_x, map_y, params["shape"])
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("interpolation", "border_mode", "value", "mask_value")
+
+
+class ElasticTransform(BaseDistortion):
     """Apply elastic deformation to images, masks, bounding boxes, and keypoints.
 
     This transformation introduces random elastic distortions to the input data. It's particularly
@@ -102,16 +197,10 @@ class ElasticTransform(DualTransform):
         - Bounding boxes that end up outside the image after transformation will be removed.
         - Keypoints that end up outside the image after transformation will be removed.
 
-    References:
-        - Simard, Steinkraus and Platt, "Best Practices for Convolutional Neural Networks applied to
-          Visual Document Analysis", in Proc. of the International Conference on Document Analysis
-          and Recognition, 2003.
-        - https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/geometric/transforms.py
-
     Example:
         >>> import albumentations as A
         >>> transform = A.Compose([
-        ...     A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=0.5),
+        ...     A.ElasticTransform(alpha=1, sigma=50, p=0.5),
         ... ])
         >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
         >>> transformed_image = transformed['image']
@@ -120,26 +209,16 @@ class ElasticTransform(DualTransform):
         >>> transformed_keypoints = transformed['keypoints']
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
-    class InitSchema(BaseTransformInitSchema):
+    class InitSchema(BaseDistortion.InitSchema):
         alpha: Annotated[float, Field(ge=0)]
         sigma: Annotated[float, Field(ge=1)]
-        alpha_affine: None = Field(
-            deprecated="Use Affine transform to get affine effects",
-        )
-        interpolation: InterpolationType
-        border_mode: BorderModeType
-        value: int | float | list[int] | list[float] | None
-        mask_value: float | list[int] | list[float] | None
         approximate: bool
         same_dxdy: bool
 
     def __init__(
         self,
-        alpha: float = 3,
+        alpha: float = 1,
         sigma: float = 50,
-        alpha_affine: None = None,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ScalarType | list[ScalarType] | None = None,
@@ -149,75 +228,26 @@ class ElasticTransform(DualTransform):
         same_dxdy: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(
+            interpolation=interpolation,
+            border_mode=border_mode,
+            value=value,
+            mask_value=mask_value,
+            always_apply=always_apply,
+            p=p,
+        )
         self.alpha = alpha
         self.sigma = sigma
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
         self.approximate = approximate
         self.same_dxdy = same_dxdy
 
-    def apply(
-        self,
-        img: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.elastic_transform(
-            img,
-            displacement_fields,
-            self.interpolation,
-            self.border_mode,
-            self.value,
-        )
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.elastic_transform(
-            mask,
-            displacement_fields,
-            cv2.INTER_NEAREST,
-            self.border_mode,
-            self.mask_value,
-        )
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.bbox_elastic_transform(
-            bboxes,
-            displacement_fields,
-            self.border_mode,
-            params["shape"],
-        )
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        displacement_fields: tuple[np.ndarray, np.ndarray],
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.elastic_transform_keypoints(
-            keypoints,
-            displacement_fields,
-            params["shape"],
-        )
-
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
         kernel_size = (0, 0) if self.approximate else (17, 17)
 
-        # Generate displacement fields once
-        displacement_fields = fgeometric.generate_displacement_fields(
-            params["shape"][:2],
+        # Generate displacement fields
+        dx, dy = fgeometric.generate_displacement_fields(
+            (height, width),
             self.alpha,
             self.sigma,
             same_dxdy=self.same_dxdy,
@@ -225,21 +255,14 @@ class ElasticTransform(DualTransform):
             random_state=random_utils.get_random_state(),
         )
 
-        return {
-            "displacement_fields": displacement_fields,
-        }
+        x, y = np.meshgrid(np.arange(width), np.arange(height))
+        map_x = np.float32(x + dx)
+        map_y = np.float32(y + dy)
+
+        return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "alpha",
-            "sigma",
-            "interpolation",
-            "border_mode",
-            "value",
-            "mask_value",
-            "approximate",
-            "same_dxdy",
-        )
+        return (*super().get_transform_init_args_names(), "alpha", "sigma", "approximate", "same_dxdy")
 
 
 class Perspective(DualTransform):
@@ -1610,46 +1633,61 @@ class Transpose(DualTransform):
         return ()
 
 
-class OpticalDistortion(DualTransform):
-    """Args:
-        distort_limit (float, (float, float)): If distort_limit is a single float, the range
-            will be (-distort_limit, distort_limit). Default: (-0.05, 0.05).
-        shift_limit (float, (float, float))): If shift_limit is a single float, the range
-            will be (-shift_limit, shift_limit). Default: (-0.05, 0.05).
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
-            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+class OpticalDistortion(BaseDistortion):
+    """Apply optical distortion to images, masks, bounding boxes, and keypoints.
+
+    This transformation simulates lens distortion effects by warping the image using
+    a camera matrix and distortion coefficients. It's particularly useful for
+    augmenting data in computer vision tasks where camera lens effects are relevant.
+
+    Args:
+        distort_limit (float or tuple of float): Range of distortion coefficient.
+            If distort_limit is a single float, the range will be (-distort_limit, distort_limit).
+            Default: (-0.05, 0.05).
+        shift_limit (float or tuple of float): Range of shifts for the image center.
+            If shift_limit is a single float, the range will be (-shift_limit, shift_limit).
+            Default: (-0.05, 0.05).
+        interpolation (OpenCV flag): Interpolation method used for image transformation.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC,
+            cv2.INTER_AREA, cv2.INTER_LANCZOS4. Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): Border mode used for handling pixels outside the image.
+            Should be one of: cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101. Default: cv2.BORDER_REFLECT_101.
+        value (int, float, list of int, list of float): Padding value if border_mode
+            is cv2.BORDER_CONSTANT. Default: None.
+        mask_value (int, float, list of int, list of float): Padding value for mask
+            if border_mode is cv2.BORDER_CONSTANT. Default: None.
+        always_apply (bool): If True, the transform will be always applied.
+            Default: None.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
 
+    Note:
+        - The distortion is applied using OpenCV's initUndistortRectifyMap and remap functions.
+        - The distortion coefficient (k) is randomly sampled from the distort_limit range.
+        - The image center is shifted by dx and dy, randomly sampled from the shift_limit range.
+        - Bounding boxes and keypoints are transformed along with the image to maintain consistency.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.OpticalDistortion(distort_limit=0.1, shift_limit=0.1, p=1.0),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> transformed_image = transformed['image']
+        >>> transformed_mask = transformed['mask']
+        >>> transformed_bboxes = transformed['bboxes']
+        >>> transformed_keypoints = transformed['keypoints']
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
-
-    class InitSchema(BaseTransformInitSchema):
-        distort_limit: SymmetricRangeType = (-0.05, 0.05)
-        shift_limit: SymmetricRangeType = (-0.05, 0.05)
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: ColorType | None = Field(
-            default=None,
-            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
-        )
-        mask_value: ColorType | None = Field(
-            default=None,
-            description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT.",
-        )
+    class InitSchema(BaseDistortion.InitSchema):
+        distort_limit: SymmetricRangeType
+        shift_limit: SymmetricRangeType
 
     def __init__(
         self,
@@ -1662,59 +1700,41 @@ class OpticalDistortion(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(
+            interpolation=interpolation,
+            border_mode=border_mode,
+            value=value,
+            mask_value=mask_value,
+            always_apply=always_apply,
+            p=p,
+        )
         self.shift_limit = cast(Tuple[float, float], shift_limit)
         self.distort_limit = cast(Tuple[float, float], distort_limit)
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
 
-    def apply(
-        self,
-        img: np.ndarray,
-        k: int,
-        dx: int,
-        dy: int,
-        interpolation: int,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
-    def apply_to_mask(self, mask: np.ndarray, k: int, dx: int, dy: int, **params: Any) -> np.ndarray:
-        return fgeometric.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        fx = width
+        fy = height
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, k: float, dx: int, dy: int, **params: Any) -> np.ndarray:
-        return fgeometric.bboxes_optical_distortion(bboxes, k, dx, dy, self.border_mode, params["shape"])
+        k = random.uniform(*self.distort_limit)
+        dx = round(random.uniform(*self.shift_limit))
+        dy = round(random.uniform(*self.shift_limit))
 
-    def get_params(self) -> dict[str, Any]:
-        return {
-            "k": random.uniform(*self.distort_limit),
-            "dx": round(random.uniform(*self.shift_limit)),
-            "dy": round(random.uniform(*self.shift_limit)),
-        }
+        cx = width * 0.5 + dx
+        cy = height * 0.5 + dy
+
+        camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
+        distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
+        map_x, map_y = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+
+        return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "distort_limit",
-            "shift_limit",
-            "interpolation",
-            "border_mode",
-            "value",
-            "mask_value",
-        )
-
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-            "bboxes": self.apply_to_bboxes,
-        }
+        return (*super().get_transform_init_args_names(), "distort_limit", "shift_limit")
 
 
-class GridDistortion(DualTransform):
+class GridDistortion(BaseDistortion):
     """Apply grid distortion to images, masks, bounding boxes, and keypoints.
 
     This transformation divides the image into a grid and randomly distorts each cell,
@@ -1741,6 +1761,7 @@ class GridDistortion(DualTransform):
         normalized (bool): If True, ensures that the distortion does not move pixels
             outside the image boundaries. This can result in less extreme distortions
             but guarantees that no information is lost. Default: True.
+        always_apply (bool): If True, the transform will be always applied. Default: None.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1754,8 +1775,6 @@ class GridDistortion(DualTransform):
           to maintain consistency.
         - When normalized=True, the distortion is adjusted to ensure all pixels remain
           within the image boundaries.
-        - Bounding boxes that end up outside the image after transformation will be removed.
-        - Keypoints that end up outside the image after transformation will be removed.
 
     Example:
         >>> import albumentations as A
@@ -1768,19 +1787,11 @@ class GridDistortion(DualTransform):
         >>> transformed_bboxes = transformed['bboxes']
         >>> transformed_keypoints = transformed['keypoints']
 
-    References:
-        - https://github.com/albumentations-team/albumentations/pull/722 (for normalized option)
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
-    class InitSchema(BaseTransformInitSchema):
+    class InitSchema(BaseDistortion.InitSchema):
         num_steps: Annotated[int, Field(ge=1)]
         distort_limit: SymmetricRangeType
-        interpolation: InterpolationType
-        border_mode: BorderModeType
-        value: ColorType | None
-        mask_value: ColorType | None
         normalized: bool
 
         @field_validator("distort_limit")
@@ -1803,39 +1814,17 @@ class GridDistortion(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
-
+        super().__init__(
+            interpolation=interpolation,
+            border_mode=border_mode,
+            value=value,
+            mask_value=mask_value,
+            always_apply=always_apply,
+            p=p,
+        )
         self.num_steps = num_steps
         self.distort_limit = cast(Tuple[float, float], distort_limit)
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
         self.normalized = normalized
-
-    def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.grid_distortion(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
-
-    def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.grid_distortion(mask, map_x, map_y, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-
-    def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        image_shape = params["shape"][:2]
-
-        bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-
-        bboxes_returned = fgeometric.grid_distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape, self.border_mode)
-
-        return normalize_bboxes(bboxes_returned, image_shape)
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        map_x: np.ndarray,
-        map_y: np.ndarray,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.grid_distortion_keypoints(keypoints, map_x, map_y, params["shape"])
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
@@ -1856,7 +1845,7 @@ class GridDistortion(DualTransform):
         return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
+        return (*super().get_transform_init_args_names(), "num_steps", "distort_limit", "normalized")
 
 
 class D4(DualTransform):

@@ -56,22 +56,6 @@ def test_rotate_crop_border():
     assert (aug_img == border_value).sum() == 0
 
 
-@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_optical_distortion_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    aug = A.OpticalDistortion(distort_limit=(0.05, 0.05), shift_limit=(0, 0), interpolation=interpolation, p=1)
-    data = aug(image=image, mask=mask)
-    expected_image = fgeometric.optical_distortion(
-        image, k=0.05, dx=0, dy=0, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
-    )
-    expected_mask = fgeometric.optical_distortion(
-        mask, k=0.05, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
-    )
-    assert np.array_equal(data["image"], expected_image)
-    assert np.array_equal(data["mask"], expected_mask)
-
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
