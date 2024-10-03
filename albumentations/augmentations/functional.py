@@ -32,8 +32,10 @@ import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations import random_utils
 from albumentations.augmentations.utils import (
     PCA,
+    handle_empty_array,
     non_rgb_error,
 )
+from albumentations.core.bbox_utils import bboxes_from_masks, masks_from_bboxes
 from albumentations.core.types import (
     EIGHT,
     MONO_CHANNEL_DIMENSIONS,
@@ -1725,13 +1727,27 @@ def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return cv2.dilate(img, kernel, iterations=1)
 
 
-def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarray:
+def morphology(img: np.ndarray, kernel: np.ndarray, operation: Literal["dilation", "erosion"]) -> np.ndarray:
     if operation == "dilation":
         return dilate(img, kernel)
     if operation == "erosion":
         return erode(img, kernel)
 
     raise ValueError(f"Unsupported operation: {operation}")
+
+
+@handle_empty_array
+def bboxes_morphology(
+    bboxes: np.ndarray,
+    kernel: np.ndarray,
+    operation: Literal["dilation", "erosion"],
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    bboxes = bboxes.copy()
+    masks = masks_from_bboxes(bboxes, image_shape)
+    masks = morphology(masks, kernel, operation)
+    bboxes[:, :4] = bboxes_from_masks(masks)
+    return bboxes
 
 
 PLANCKIAN_COEFFS = {

@@ -18,6 +18,8 @@ from albumentations.core.bbox_utils import (
     filter_bboxes,
     normalize_bboxes,
     union_of_bboxes,
+    bboxes_from_masks,
+    masks_from_bboxes,
 )
 
 from albumentations.augmentations.geometric import functional as fgeometric
@@ -1270,3 +1272,62 @@ def test_very_small_bbox(bbox_format, bboxes, expected):
 
     np.testing.assert_array_almost_equal(transformed["bboxes"], expected)
     np.testing.assert_array_almost_equal(transformed["category_id"], categories)
+
+
+@pytest.mark.parametrize("masks, expected_bboxes", [
+    (np.array([[[0, 1, 1], [1, 1, 0], [0, 1, 0]]]), np.array([[0, 0, 3, 3]])),
+    (np.array([[[1, 1], [1, 1]], [[0, 1], [1, 0]]]), np.array([[0, 0, 2, 2], [0, 0, 2, 2]])),
+    (np.array([[[0, 0], [0, 0]], [[1, 0], [0, 0]]]), np.array([[-1, -1, -1, -1], [0, 0, 1, 1]])),
+])
+def test_bboxes_from_masks(masks, expected_bboxes):
+    result = bboxes_from_masks(masks)
+    np.testing.assert_array_equal(result, expected_bboxes)
+
+@pytest.mark.parametrize("bboxes, img_shape, expected_masks", [
+    (np.array([[0, 0, 2, 2]]), (3, 3), np.array([[[1, 1, 0], [1, 1, 0], [0, 0, 0]]])),
+    (np.array([[1, 1, 3, 3], [0, 0, 2, 2]]), (4, 4), np.array([
+        [[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]],
+        [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+    ])),
+])
+def test_masks_from_bboxes(bboxes, img_shape, expected_masks):
+    result = masks_from_bboxes(bboxes, img_shape)
+    np.testing.assert_array_equal(result, expected_masks)
+
+@pytest.mark.parametrize("original_masks", [
+    np.array([[[0, 1, 1], [1, 1, 0], [0, 1, 0]]]),
+    np.array([[[1, 1, 1], [1, 1, 1]], [[0, 1, 0], [1, 1, 1]]]),
+    np.array([[[0, 0, 0], [0, 0, 0]], [[1, 0, 0], [0, 0, 0]]]),
+])
+def test_inverse_relationship(original_masks):
+    img_shape = original_masks.shape[1:]
+    bboxes = bboxes_from_masks(original_masks)
+    reconstructed_masks = masks_from_bboxes(bboxes, img_shape)
+
+    for original, reconstructed in zip(original_masks, reconstructed_masks):
+        # Check if the reconstructed mask fully contains the original mask
+        assert np.all(original <= reconstructed)
+
+        # Check if the bounding box of the reconstructed mask matches the original bounding box
+        original_bbox = bboxes_from_masks(original[np.newaxis, ...])[0]
+        reconstructed_bbox = bboxes_from_masks(reconstructed[np.newaxis, ...])[0]
+        np.testing.assert_array_equal(original_bbox, reconstructed_bbox)
+
+def test_bboxes_from_masks_preserves_input():
+    original_masks = np.array([[[0, 1, 1], [1, 1, 0], [0, 1, 0]]])
+    original_masks_copy = original_masks.copy()
+    bboxes_from_masks(original_masks)
+    np.testing.assert_array_equal(original_masks, original_masks_copy)
+
+def test_masks_from_bboxes_output_type():
+    bboxes = np.array([[0, 0, 2, 2]])
+    img_shape = (3, 3)
+    result = masks_from_bboxes(bboxes, img_shape)
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.uint8
+
+def test_bboxes_from_masks_output_type():
+    masks = np.array([[[0, 1, 1], [1, 1, 0], [0, 1, 0]]])
+    result = bboxes_from_masks(masks)
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.int32

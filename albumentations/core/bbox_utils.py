@@ -527,37 +527,49 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
     return np.array([x_min, y_min, x_max, y_max], dtype=np.float32)
 
 
-def bbox_from_mask(mask: np.ndarray) -> tuple[int, int, int, int]:
-    """Create bounding box from binary mask (fast version)
+def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
+    """Create bounding boxes from binary masks (fast version)
 
     Args:
-        mask (numpy.ndarray): binary mask.
+        masks (np.ndarray): Binary masks of shape (N, H, W) where N is the number of masks,
+                            and H, W are the height and width of each mask.
 
     Returns:
-        tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
-
+        np.ndarray: An array of bounding boxes with shape (N, 4), where each row is
+                    (x_min, y_min, x_max, y_max).
     """
-    rows = np.any(mask, axis=1)
-    if not rows.any():
-        return -1, -1, -1, -1
-    cols = np.any(mask, axis=0)
-    y_min, y_max = np.where(rows)[0][[0, -1]]
-    x_min, x_max = np.where(cols)[0][[0, -1]]
-    return x_min, y_min, x_max + 1, y_max + 1
+    num_masks = masks.shape[0]
+    bboxes = np.zeros((num_masks, 4), dtype=np.int32)
+
+    for i, mask in enumerate(masks):
+        rows = np.any(mask, axis=1)
+        cols = np.any(mask, axis=0)
+
+        if not rows.any() or not cols.any():
+            bboxes[i] = [-1, -1, -1, -1]
+        else:
+            y_min, y_max = np.where(rows)[0][[0, -1]]
+            x_min, x_max = np.where(cols)[0][[0, -1]]
+            bboxes[i] = [x_min, y_min, x_max + 1, y_max + 1]
+
+    return bboxes
 
 
-def mask_from_bbox(img: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
-    """Create binary mask from bounding box
+def masks_from_bboxes(bboxes: np.ndarray, img_shape: tuple[int, int]) -> np.ndarray:
+    """Create binary masks from multiple bounding boxes
 
     Args:
-        img: input image
-        bbox: A bounding box tuple `(x_min, y_min, x_max, y_max)`
+        bboxes: Array of bounding boxes with shape (N, 4), where N is the number of boxes
+        img_shape: Image shape (height, width)
 
     Returns:
-        mask: binary mask
+        masks: Array of binary masks with shape (N, height, width)
 
     """
-    mask = np.zeros(img.shape[:2], dtype=np.uint8)
-    x_min, y_min, x_max, y_max = bbox
-    mask[y_min:y_max, x_min:x_max] = 1
-    return mask
+    masks = np.zeros((len(bboxes), *img_shape[:2]), dtype=np.uint8)
+
+    for i, bbox in enumerate(bboxes[:, :4]):
+        x_min, y_min, x_max, y_max = bbox.astype(int)
+        masks[i, y_min:y_max, x_min:x_max] = 1
+
+    return masks

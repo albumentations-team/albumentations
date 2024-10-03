@@ -97,6 +97,7 @@ DUAL_TARGETS = {
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
     A.GridElasticDeform: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.MaskDropout: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
+    A.Morphological: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
 }
 
 str2target = {
