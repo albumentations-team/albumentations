@@ -57,6 +57,52 @@ __all__ = [
 
 
 class BaseDistortion(DualTransform):
+    """Base class for distortion-based transformations.
+
+    This class provides a foundation for implementing various types of image distortions,
+    such as optical distortions, grid distortions, and elastic transformations. It handles
+    the common operations of applying distortions to images, masks, bounding boxes, and keypoints.
+
+    Args:
+        interpolation (int): Interpolation method to be used for image transformation.
+            Should be one of the OpenCV interpolation types (e.g., cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC). Default: cv2.INTER_LINEAR
+        border_mode (int): Border mode to be used for handling pixels outside the image boundaries.
+            Should be one of the OpenCV border types (e.g., cv2.BORDER_REFLECT_101,
+            cv2.BORDER_CONSTANT). Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of int, list of float, optional): Padding value if border_mode is
+            cv2.BORDER_CONSTANT. Default: None
+        mask_value (ColorType | None): Padding value for mask if
+            border_mode is cv2.BORDER_CONSTANT. Default: None
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - This is an abstract base class and should not be used directly.
+        - Subclasses should implement the `get_params_dependent_on_data` method to generate
+          the distortion maps (map_x and map_y).
+        - The distortion is applied consistently across all targets (image, mask, bboxes, keypoints)
+          to maintain coherence in the augmented data.
+
+    Example of a subclass:
+        class CustomDistortion(BaseDistortion):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                # Add custom parameters here
+
+            def get_params_dependent_on_data(self, params, data):
+                # Generate and return map_x and map_y based on the distortion logic
+                return {"map_x": map_x, "map_y": map_y}
+
+            def get_transform_init_args_names(self):
+                return super().get_transform_init_args_names() + ("custom_param1", "custom_param2")
+    """
+
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
