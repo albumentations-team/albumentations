@@ -10,7 +10,7 @@ from albucore import clipped, get_num_channels, hflip, maybe_process_in_chunks, 
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
-from albumentations.core.bbox_utils import bbox_from_mask, denormalize_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
 from albumentations.core.types import (
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
@@ -1698,7 +1698,8 @@ def grid_distortion_bboxes(
     transformed_masks = np.stack(
         [cv2.remap(mask, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0) for mask in masks],
     )
-    result[:, :4] = np.array([bbox_from_mask(mask) for mask in transformed_masks])
+
+    result[:, :4] = bboxes_from_masks(transformed_masks)
 
     return result
 
@@ -2080,11 +2081,8 @@ def bbox_distort_image(
         [distort_image(mask, generated_mesh, cv2.INTER_NEAREST) for mask in masks],
     )
 
-    # Get bboxes from transformed masks
-    bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
-
     # Normalize the returned bboxes
-    bboxes[:, :4] = bboxes_returned
+    bboxes[:, :4] = bboxes_from_masks(transformed_masks)
 
     return bboxes
 
@@ -2532,7 +2530,7 @@ def bboxes_optical_distortion(
     )
 
     # Get bboxes from distorted masks
-    distorted_bboxes = np.array([bbox_from_mask(mask) for mask in distorted_masks])
+    distorted_bboxes = bboxes_from_masks(distorted_masks)
 
     # Normalize the distorted bboxes
     normalized_bboxes = normalize_bboxes(distorted_bboxes, image_shape)
@@ -2552,21 +2550,19 @@ def bbox_elastic_transform(
 ) -> np.ndarray:
     bboxes = bboxes.copy()
     # Create a mask for each bbox
-    masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes[:, :4].astype(int)):
-        masks[i, y_min:y_max, x_min:x_max] = 1
+    masks = masks_from_bboxes(denormalize_bboxes(bboxes, image_shape), image_shape)
 
-    transformed_masks = np.stack(
-        [elastic_transform(mask, displacement_fields, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
+    transformed_masks = elastic_transform(
+        np.transpose(masks, (1, 2, 0)),
+        displacement_fields,
+        cv2.INTER_NEAREST,
+        border_mode,
+        -1,
     )
 
-    # Get bboxes from transformed masks
-    bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
+    bboxes[:, :4] = bboxes_from_masks(np.transpose(transformed_masks, (2, 0, 1)))
 
-    # Normalize the returned bboxes
-    bboxes[:, :4] = bboxes_returned
-
-    return bboxes
+    return normalize_bboxes(bboxes, image_shape)
 
 
 @handle_empty_array
@@ -2603,11 +2599,9 @@ def bboxes_grid_distortion(
         ],
     )
 
-    # Get bboxes from transformed masks
-    bboxes_returned = np.array([bbox_from_mask(mask) for mask in transformed_masks])
+    bboxes_denorm[:, :4] = bboxes_from_masks(transformed_masks)
 
-    # Normalize the returned bboxes
-    return normalize_bboxes(bboxes_returned, image_shape)
+    return normalize_bboxes(bboxes_denorm, image_shape)
 
 
 def center(image_shape: tuple[int, int]) -> tuple[float, float]:

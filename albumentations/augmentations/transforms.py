@@ -35,6 +35,7 @@ from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.utils import check_range, non_rgb_error
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.composition import Compose
 from albumentations.core.pydantic import (
     InterpolationType,
@@ -4964,7 +4965,7 @@ class Morphological(DualTransform):
         p (float, optional): The probability of applying this transformation. Default is 0.5.
 
     Targets:
-        image, mask
+        image, mask, keypoints, bboxes
 
     Image types:
         uint8, float32
@@ -4980,11 +4981,11 @@ class Morphological(DualTransform):
         >>> image = transform(image=image)["image"]
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: OnePlusIntRangeType = (2, 3)
-        operation: MorphologyMode = "dilation"
+        scale: OnePlusIntRangeType
+        operation: MorphologyMode
 
     def __init__(
         self,
@@ -4993,15 +4994,24 @@ class Morphological(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.scale = cast(Tuple[int, int], scale)
         self.operation = operation
 
     def apply(self, img: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
         return fmain.morphology(img, kernel, self.operation)
 
-    def apply_to_mask(self, mask: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
-        return fmain.morphology(mask, kernel, self.operation)
+    def apply_to_bboxes(self, bboxes: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
+        image_shape = params["shape"]
+
+        denormalized_boxes = denormalize_bboxes(bboxes, image_shape)
+
+        result = fmain.bboxes_morphology(denormalized_boxes, kernel, self.operation, image_shape)
+
+        return normalize_bboxes(result, image_shape)
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
+        return keypoints
 
     def get_params(self) -> dict[str, float]:
         return {
@@ -5010,14 +5020,6 @@ class Morphological(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("scale", "operation")
-
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-        }
 
 
 PLANKIAN_JITTER_CONST = {
