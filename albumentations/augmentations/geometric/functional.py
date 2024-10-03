@@ -2473,42 +2473,6 @@ def compute_affine_warp_output_shape(
 
 
 @handle_empty_array
-def bboxes_optical_distortion(
-    bboxes: np.ndarray,
-    k: float,
-    dx: int,
-    dy: int,
-    border_mode: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    height, width = image_shape[:2]
-
-    # Denormalize bboxes
-    bboxes_denorm = denormalize_bboxes(bboxes[:, :4], image_shape)
-
-    # Create masks for each bbox
-    masks = np.zeros((len(bboxes), height, width), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes_denorm.astype(int)):
-        masks[i, y_min:y_max, x_min:x_max] = 1
-
-    # Apply optical distortion to all masks
-    distorted_masks = np.array(
-        [distortion(mask, k, dx, dy, cv2.INTER_NEAREST, border_mode, -1) for mask in masks],
-    )
-
-    # Get bboxes from distorted masks
-    distorted_bboxes = bboxes_from_masks(distorted_masks)
-
-    # Normalize the distorted bboxes
-    normalized_bboxes = normalize_bboxes(distorted_bboxes, image_shape)
-
-    # Update the first 4 columns of the input array
-    bboxes[:, :4] = normalized_bboxes
-
-    return bboxes
-
-
-@handle_empty_array
 def bbox_elastic_transform(
     bboxes: np.ndarray,
     displacement_fields: tuple[np.ndarray, np.ndarray],
