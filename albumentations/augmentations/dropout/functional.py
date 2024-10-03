@@ -395,7 +395,7 @@ def mask_dropout_bboxes(
     box_areas = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1])
 
     # Calculate the visible area of each box (non-intersecting area with dropout mask)
-    visible_areas = np.sum(box_masks & ~dropout_mask, axis=(1, 2))
+    visible_areas = np.sum(box_masks & ~dropout_mask.squeeze(), axis=(1, 2))
 
     # Calculate visibility ratio (visible area / total box area)
     visibility_ratio = visible_areas / box_areas

@@ -98,6 +98,7 @@ DUAL_TARGETS = {
     A.GridElasticDeform: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.MaskDropout: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Morphological: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
+    A.PixelDropout: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
 }
 
 str2target = {

@@ -30,13 +30,15 @@ from scipy import special
 from scipy.ndimage import gaussian_filter
 from typing_extensions import Annotated, Literal, Self, TypedDict
 
+import albumentations.augmentations.dropout.functional as fdropout
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.utils import check_range, non_rgb_error
-from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.composition import Compose
+from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
@@ -4504,28 +4506,63 @@ class UnsharpMask(ImageOnlyTransform):
 
 
 class PixelDropout(DualTransform):
-    """Set pixels to 0 with some probability.
+    """Drops random pixels from the image.
+
+    This transform randomly sets pixels in the image to a specified value, effectively "dropping out" those pixels.
+    It can be applied to both the image and its corresponding mask.
 
     Args:
-        dropout_prob (float): pixel drop probability. Default: 0.01
-        per_channel (bool): if set to `True` drop mask will be sampled for each channel,
-            otherwise the same mask will be sampled for all channels. Default: False
-        drop_value (number or sequence of numbers or None): Value that will be set in dropped place.
-            If set to None value will be sampled randomly, default ranges will be used:
-                - uint8 - [0, 255]
-                - uint16 - [0, 65535]
-                - uint32 - [0, 4294967295]
-                - float, double - [0, 1]
+        dropout_prob (float): Probability of dropping out each pixel. Should be in the range [0, 1].
+            Default: 0.01
+
+        per_channel (bool): If True, the dropout mask will be generated independently for each channel.
+            If False, the same dropout mask will be applied to all channels.
+            Default: False
+
+        drop_value (float | Sequence[float] | None): Value to assign to the dropped pixels.
+            If None, the value will be randomly sampled for each application:
+                - For uint8 images: Random integer in [0, 255]
+                - For float32 images: Random float in [0, 1]
+            If a single number, that value will be used for all dropped pixels.
+            If a sequence, it should contain one value per channel.
             Default: 0
-        mask_drop_value (number or sequence of numbers or None): Value that will be set in dropped place in masks.
-            If set to None masks will be unchanged. Default: 0
-        p (float): probability of applying the transform. Default: 0.5.
+
+        mask_drop_value (float | Sequence[float] | None): Value to assign to dropped pixels in the mask.
+            If None, the mask will remain unchanged.
+            If a single number, that value will be used for all dropped pixels in the mask.
+            If a sequence, it should contain one value per channel of the mask.
+            Note: Only applicable when per_channel=False.
+            Default: None
+
+        always_apply (bool): If True, the transform will always be applied.
+            Default: False
+
+        p (float): Probability of applying the transform. Should be in the range [0, 1].
+            Default: 0.5
 
     Targets:
-        image, mask
-    Image types:
-        any
+        image, mask, bboxes, keypoints
 
+    Image types:
+        uint8, float32
+
+    Note:
+        - When applied to bounding boxes, this transform may cause some boxes to have zero area
+          if all pixels within the box are dropped. Such boxes will be removed.
+        - When applied to keypoints, keypoints that fall on dropped pixels will be removed if
+          the keypoint processor is configured to remove invisible keypoints.
+        - The 'per_channel' option is not supported for mask dropout. If you need to drop pixels
+          in a multi-channel mask independently, consider applying this transform multiple times
+          with per_channel=False.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> transform = A.PixelDropout(dropout_prob=0.1, per_channel=True, p=1.0)
+        >>> result = transform(image=image, mask=mask)
+        >>> dropped_image, dropped_mask = result['image'], result['mask']
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4541,7 +4578,7 @@ class PixelDropout(DualTransform):
                 raise ValueError(msg)
             return self
 
-    _targets = (Targets.IMAGE, Targets.MASK)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -4576,29 +4613,57 @@ class PixelDropout(DualTransform):
 
         return fmain.pixel_dropout(mask, drop_mask, self.mask_drop_value)
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        return bboxes
+    def apply_to_bboxes(self, bboxes: np.ndarray, drop_mask: np.ndarray | None, **params: Any) -> np.ndarray:
+        if drop_mask is None or self.per_channel:
+            return bboxes
 
-    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        return keypoints
+        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        if processor is None:
+            return bboxes
+
+        image_shape = params["shape"][:2]
+
+        denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
+
+        result = fdropout.mask_dropout_bboxes(
+            denormalized_bboxes,
+            drop_mask,
+            image_shape,
+            processor.params.min_area,
+            processor.params.min_visibility,
+        )
+
+        return normalize_bboxes(result, image_shape)
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, drop_mask: np.ndarray | None, **params: Any) -> np.ndarray:
+        if drop_mask is None or self.per_channel:
+            return keypoints
+
+        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+
+        if processor is None or not processor.params.remove_invisible:
+            return keypoints
+
+        return fdropout.mask_dropout_keypoints(keypoints, drop_mask)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         img = data["image"] if "image" in data else data["images"][0]
         shape = img.shape if self.per_channel else img.shape[:2]
 
-        rnd = np.random.RandomState(random.randint(0, 1 << 31))
+        rnd = random_utils.get_random_state()
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
         drop_mask = rnd.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
         drop_value: float | Sequence[float] | np.ndarray
+
         if drop_mask.ndim != img.ndim:
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
             drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
 
-            if img.dtype in (np.uint8, np.uint16, np.uint32):
+            if img.dtype == np.uint8:
                 drop_value = rnd.randint(0, int(MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
-            elif img.dtype in [np.float32, np.double]:
+            elif img.dtype == np.float32:
                 drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtype)
             else:
                 raise ValueError(f"Unsupported dtype: {img.dtype}")
