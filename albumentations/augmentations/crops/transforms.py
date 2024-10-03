@@ -1310,25 +1310,51 @@ class CropAndPad(DualTransform):
 
 
 class RandomCropFromBorders(_BaseCrop):
-    """Randomly crops parts of the image from the borders without resizing at the end. The cropped regions are defined
-    as fractions of the original image dimensions, specified for each side of the image (left, right, top, bottom).
+    """Randomly crops the input from its borders without resizing.
+
+    This transform randomly crops parts of the input (image, mask, bounding boxes, or keypoints)
+    from each of its borders. The amount of cropping is specified as a fraction of the input's
+    dimensions for each side independently.
 
     Args:
-        crop_left (float): Fraction of the width to randomly crop from the left side. Must be in the range [0.0, 1.0].
-                            Default is 0.1.
-        crop_right (float): Fraction of the width to randomly crop from the right side. Must be in the range [0.0, 1.0].
-                            Default is 0.1.
-        crop_top (float): Fraction of the height to randomly crop from the top side. Must be in the range [0.0, 1.0].
-                          Default is 0.1.
-        crop_bottom (float): Fraction of the height to randomly crop from the bottom side.
-                             Must be in the range [0.0, 1.0]. Default is 0.1.
-        p (float): Probability of applying the transform. Default is 1.
+        crop_left (float): The maximum fraction of width to crop from the left side.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        crop_right (float): The maximum fraction of width to crop from the right side.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        crop_top (float): The maximum fraction of height to crop from the top.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        crop_bottom (float): The maximum fraction of height to crop from the bottom.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
+    Note:
+        - The actual amount of cropping for each side is randomly chosen between 0 and
+          the specified maximum for each application of the transform.
+        - The sum of crop_left and crop_right must not exceed 1.0, and the sum of
+          crop_top and crop_bottom must not exceed 1.0. Otherwise, a ValueError will be raised.
+        - This transform does not resize the input after cropping, so the output dimensions
+          will be smaller than the input dimensions.
+        - Bounding boxes that end up fully outside the cropped area will be removed.
+        - Keypoints that end up outside the cropped area will be removed.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomCropFromBorders(
+        ...     crop_left=0.1, crop_right=0.2, crop_top=0.2, crop_bottom=0.1, p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        # The resulting image will have random crops from each border, with the maximum
+        # possible crops being 10% from the left, 20% from the right, 20% from the top,
+        # and 10% from the bottom. The image size will be reduced accordingly.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -1370,7 +1396,7 @@ class RandomCropFromBorders(_BaseCrop):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.crop_left = crop_left
         self.crop_right = crop_right
         self.crop_top = crop_top
