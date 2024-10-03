@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from enum import Enum
 from typing import Any, Literal, Tuple, cast
 from warnings import warn
 
@@ -28,6 +27,7 @@ from albumentations.core.types import (
     TWO,
     ColorType,
     D4Type,
+    PositionType,
     ScalarType,
     ScaleFloatType,
     ScaleIntType,
@@ -1217,18 +1217,21 @@ class PadIfNeeded(DualTransform):
     that the image dimensions are divisible by these values.
 
     Args:
-        min_height (int): Minimum desired height of the image. Ensures image height is at least this value.
-        min_width (int): Minimum desired width of the image. Ensures image width is at least this value.
-        pad_height_divisor (int, optional): If set, pads the image height to make it divisible by this value.
-        pad_width_divisor (int, optional): If set, pads the image width to make it divisible by this value.
-        position (Union[str, PositionType]): Position where the image is to be placed after padding.
-            Can be one of 'center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', or 'random'.
-            Default is 'center'.
+        min_height (int | None): Minimum desired height of the image. Ensures image height is at least this value.
+            If not specified, pad_height_divisor must be provided.
+        min_width (int | None): Minimum desired width of the image. Ensures image width is at least this value.
+            If not specified, pad_width_divisor must be provided.
+        pad_height_divisor (int | None): If set, pads the image height to make it divisible by this value.
+            If not specified, min_height must be provided.
+        pad_width_divisor (int | None): If set, pads the image width to make it divisible by this value.
+            If not specified, min_width must be provided.
+        position (Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]):
+            Position where the image is to be placed after padding. Default is 'center'.
         border_mode (int): Specifies the border mode to use if padding is required.
             The default is `cv2.BORDER_REFLECT_101`.
-        value (Union[int, float, list[int], list[float]], optional): Value to fill the border pixels if
+        value (int, float, list[int], list[float] | None): Value to fill the border pixels if
             the border mode is `cv2.BORDER_CONSTANT`. Default is None.
-        mask_value (Union[int, float, list[int], list[float]], optional): Similar to `value` but used for padding masks.
+        mask_value (int, float, list[int], list[float] | None): Similar to `value` but used for padding masks.
             Default is None.
         p (float): Probability of applying the transform. Default is 1.0.
 
@@ -1238,54 +1241,37 @@ class PadIfNeeded(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - Either `min_height` or `pad_height_divisor` must be set, but not both.
+        - Either `min_width` or `pad_width_divisor` must be set, but not both.
+        - If `border_mode` is set to `cv2.BORDER_CONSTANT`, `value` must be provided.
+        - The transform will maintain consistency across all targets (image, mask, bboxes, keypoints).
+        - For bounding boxes, the coordinates will be adjusted to account for the padding.
+        - For keypoints, their positions will be shifted according to the padding.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=cv2.BORDER_CONSTANT, value=0),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> padded_image = transformed['image']
+        >>> padded_mask = transformed['mask']
+        >>> adjusted_bboxes = transformed['bboxes']
+        >>> adjusted_keypoints = transformed['keypoints']
     """
-
-    class PositionType(Enum):
-        """Enumerates the types of positions for placing an object within a container.
-
-        This Enum class is utilized to define specific anchor positions that an object can
-        assume relative to a container. It's particularly useful in image processing, UI layout,
-        and graphic design to specify the alignment and positioning of elements.
-
-        Attributes:
-            CENTER (str): Specifies that the object should be placed at the center.
-            TOP_LEFT (str): Specifies that the object should be placed at the top-left corner.
-            TOP_RIGHT (str): Specifies that the object should be placed at the top-right corner.
-            BOTTOM_LEFT (str): Specifies that the object should be placed at the bottom-left corner.
-            BOTTOM_RIGHT (str): Specifies that the object should be placed at the bottom-right corner.
-            RANDOM (str): Indicates that the object's position should be determined randomly.
-
-        """
-
-        CENTER = "center"
-        TOP_LEFT = "top_left"
-        TOP_RIGHT = "top_right"
-        BOTTOM_LEFT = "bottom_left"
-        BOTTOM_RIGHT = "bottom_right"
-        RANDOM = "random"
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        min_height: int | None = Field(default=None, ge=1, description="Minimal result image height.")
-        min_width: int | None = Field(default=None, ge=1, description="Minimal result image width.")
-        pad_height_divisor: int | None = Field(
-            default=None,
-            ge=1,
-            description="Ensures image height is divisible by this value.",
-        )
-        pad_width_divisor: int | None = Field(
-            default=None,
-            ge=1,
-            description="Ensures image width is divisible by this value.",
-        )
-        position: str = Field(default="center", description="Position of the padded image.")
-        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: ColorType | None = Field(default=None, description="Value for border if BORDER_CONSTANT is used.")
-        mask_value: ColorType | None = Field(
-            default=None,
-            description="Value for mask border if BORDER_CONSTANT is used.",
-        )
+        min_height: int | None = Field(ge=1)
+        min_width: int | None = Field(ge=1)
+        pad_height_divisor: int | None = Field(ge=1)
+        pad_width_divisor: int | None = Field(ge=1)
+        position: PositionType
+        border_mode: BorderModeType
+        value: ColorType | None
+        mask_value: ColorType | None
 
         @model_validator(mode="after")
         def validate_divisibility(self) -> Self:
@@ -1308,19 +1294,19 @@ class PadIfNeeded(DualTransform):
         min_width: int | None = 1024,
         pad_height_divisor: int | None = None,
         pad_width_divisor: int | None = None,
-        position: PositionType | str = PositionType.CENTER,
+        position: PositionType = "center",
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.min_height = min_height
         self.min_width = min_width
         self.pad_width_divisor = pad_width_divisor
         self.pad_height_divisor = pad_height_divisor
-        self.position = PadIfNeeded.PositionType(position)
+        self.position = position
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -1476,31 +1462,31 @@ class PadIfNeeded(DualTransform):
         w_left: int,
         w_right: int,
     ) -> tuple[int, int, int, int]:
-        if self.position == PadIfNeeded.PositionType.TOP_LEFT:
+        if self.position == "top_left":
             h_bottom += h_top
             w_right += w_left
             h_top = 0
             w_left = 0
 
-        elif self.position == PadIfNeeded.PositionType.TOP_RIGHT:
+        elif self.position == "top_right":
             h_bottom += h_top
             w_left += w_right
             h_top = 0
             w_right = 0
 
-        elif self.position == PadIfNeeded.PositionType.BOTTOM_LEFT:
+        elif self.position == "bottom_left":
             h_top += h_bottom
             w_right += w_left
             h_bottom = 0
             w_left = 0
 
-        elif self.position == PadIfNeeded.PositionType.BOTTOM_RIGHT:
+        elif self.position == "bottom_right":
             h_top += h_bottom
             w_left += w_right
             h_bottom = 0
             w_right = 0
 
-        elif self.position == PadIfNeeded.PositionType.RANDOM:
+        elif self.position == "random":
             h_pad = h_top + h_bottom
             w_pad = w_left + w_right
             h_top = random.randint(0, h_pad)
