@@ -816,6 +816,8 @@ class Affine(DualTransform):
 class ShiftScaleRotate(Affine):
     """Randomly apply affine transforms: translate, scale and rotate the input.
 
+    ShiftScaleRotate is deprecated. Please use Affine transform instead.
+
     Args:
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
@@ -919,7 +921,7 @@ class ShiftScaleRotate(Affine):
             p=p,
         )
         warn(
-            "ShiftScaleRotate is deprecated. Please use Affine transform instead .",
+            "ShiftScaleRotate is deprecated. Please use Affine transform instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1548,16 +1550,52 @@ class Flip(DualTransform):
 
 
 class Transpose(DualTransform):
-    """Transpose the input by swapping rows and columns.
+    """Transpose the input by swapping its rows and columns.
+
+    This transform flips the image over its main diagonal, effectively switching its width and height.
+    It's equivalent to a 90-degree rotation followed by a horizontal flip.
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
+    Note:
+        - The dimensions of the output will be swapped compared to the input. For example,
+          an input image of shape (100, 200, 3) will result in an output of shape (200, 100, 3).
+        - This transform is its own inverse. Applying it twice will return the original input.
+        - For multi-channel images (like RGB), the channels are preserved in their original order.
+        - Bounding boxes will have their coordinates adjusted to match the new image dimensions.
+        - Keypoints will have their x and y coordinates swapped.
+
+    Mathematical Details:
+        1. For an input image I of shape (H, W, C), the output O is:
+           O[i, j, k] = I[j, i, k] for all i in [0, W-1], j in [0, H-1], k in [0, C-1]
+        2. For bounding boxes with coordinates (x_min, y_min, x_max, y_max):
+           new_bbox = (y_min, x_min, y_max, x_max)
+        3. For keypoints with coordinates (x, y):
+           new_keypoint = (y, x)
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.array([
+        ...     [[1, 2, 3], [4, 5, 6]],
+        ...     [[7, 8, 9], [10, 11, 12]]
+        ... ])
+        >>> transform = A.Transpose(p=1.0)
+        >>> result = transform(image=image)
+        >>> transposed_image = result['image']
+        >>> print(transposed_image)
+        [[[ 1  2  3]
+          [ 7  8  9]]
+         [[ 4  5  6]
+          [10 11 12]]]
+        # The original 2x2x3 image is now 2x2x3, with rows and columns swapped
 
     """
 

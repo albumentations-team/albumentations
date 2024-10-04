@@ -218,10 +218,12 @@ class SmallestMaxSize(DualTransform):
     """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
-        max_size (int, list of int): maximum size of smallest side of the image after the transformation. When using a
+        max_size (int, list of int): Maximum size of smallest side of the image after the transformation. When using a
             list, max size will be randomly selected from the values in the list.
-        interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): Probability of applying the transform. Default: 1.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -229,6 +231,31 @@ class SmallestMaxSize(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - If the smallest side of the image is already less than or equal to max_size, the image will not be resized.
+        - This transform will not crop the image. The resulting image may be larger than max_size in both dimensions.
+        - For non-square images, the larger side will be scaled proportionally to maintain the aspect ratio.
+        - Bounding boxes and keypoints are scaled accordingly.
+
+    Mathematical Details:
+        1. Let (W, H) be the original width and height of the image.
+        2. The scaling factor s is calculated as:
+           s = max_size / min(W, H)
+        3. The new dimensions (W', H') are:
+           W' = W * s
+           H' = H * s
+        4. The image is resized to (W', H') using the specified interpolation method.
+        5. Bounding boxes and keypoints are scaled by the same factor s.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 150, 3), dtype=np.uint8)
+        >>> transform = A.SmallestMaxSize(max_size=120, p=1.0)
+        >>> result = transform(image=image)
+        >>> resized_image = result['image']
+        # resized_image will have shape (120, 180, 3), as the smallest side (100)
+        # is scaled to 120, and the larger side is scaled proportionally
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
