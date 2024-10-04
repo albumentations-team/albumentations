@@ -73,22 +73,22 @@ class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
-        limit: range from which a random angle is picked. If limit is a single int
+        limit (float | tuple[float, float]): Range from which a random angle is picked. If limit is a single float,
             an angle is picked from (-limit, limit). Default: (-90, 90)
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+        border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
-            Default: "largest_box"
-        crop_border (bool): If True would make a largest possible crop within rotated image
-        p (float): probability of applying the transform. Default: 0.5.
+        value (int, float, list of ints, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float, list of ints, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT
+            applied for masks.
+        rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
+            Default: 'largest_box'
+        crop_border (bool): Whether to crop border after rotation. If True, the output image size might differ
+            from the input. Default: False
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -96,6 +96,35 @@ class Rotate(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - The rotation angle is randomly selected for each execution within the range specified by 'limit'.
+        - When 'crop_border' is False, the output image will have the same size as the input, potentially
+          introducing black triangles in the corners.
+        - When 'crop_border' is True, the output image is cropped to remove black triangles, which may result
+          in a smaller image.
+        - Bounding boxes are rotated and may change size or shape.
+        - Keypoints are rotated around the center of the image.
+
+    Mathematical Details:
+        1. An angle θ is randomly sampled from the range specified by 'limit'.
+        2. The image is rotated around its center by θ degrees.
+        3. The rotation matrix R is:
+           R = [cos(θ)  -sin(θ)]
+               [sin(θ)   cos(θ)]
+        4. Each point (x, y) in the image is transformed to (x', y') by:
+           [x']   [cos(θ)  -sin(θ)] [x - cx]   [cx]
+           [y'] = [sin(θ)   cos(θ)] [y - cy] + [cy]
+           where (cx, cy) is the center of the image.
+        5. If 'crop_border' is True, the image is cropped to the largest rectangle that fits inside the rotated image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Rotate(limit=45, p=1.0)
+        >>> result = transform(image=image)
+        >>> rotated_image = result['image']
+        # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -129,14 +158,13 @@ class Rotate(DualTransform):
         self,
         img: np.ndarray,
         angle: float,
-        interpolation: int,
         x_min: int,
         x_max: int,
         y_min: int,
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = fgeometric.rotate(img, angle, interpolation, self.border_mode, self.value)
+        img_out = fgeometric.rotate(img, angle, self.interpolation, self.border_mode, self.value)
         if self.crop_border:
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
@@ -221,7 +249,7 @@ class Rotate(DualTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        out_params = {"angle": random.uniform(self.limit[0], self.limit[1])}
+        out_params = {"angle": random.uniform(*self.limit)}
         if self.crop_border:
             height, width = params["shape"][:2]
             out_params.update(self._rotated_rect_with_max_area(height, width, out_params["angle"]))
@@ -242,7 +270,7 @@ class SafeRotate(Affine):
     rotation and scaling process.
 
     Args:
-        limit (float, tuple of float): Range from which a random angle is picked. If limit is a single float,
+        limit (float | tuple[float, float]): Range from which a random angle is picked. If limit is a single float,
             an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -267,6 +295,35 @@ class SafeRotate(Affine):
         - The rotation is performed around the center of the image.
         - After rotation, the image is scaled to fit within the original frame, which may cause some distortion.
         - The output image will always have the same dimensions as the input image.
+        - Bounding boxes and keypoints are transformed along with the image.
+
+    Mathematical Details:
+        1. An angle θ is randomly sampled from the range specified by 'limit'.
+        2. The image is rotated around its center by θ degrees.
+        3. The rotation matrix R is:
+           R = [cos(θ)  -sin(θ)]
+               [sin(θ)   cos(θ)]
+        4. The scaling factor s is calculated to ensure the rotated image fits within the original frame:
+           s = min(width / (width * |cos(θ)| + height * |sin(θ)|),
+                   height / (width * |sin(θ)| + height * |cos(θ)|))
+        5. The combined transformation matrix T is:
+           T = [s*cos(θ)  -s*sin(θ)  tx]
+               [s*sin(θ)   s*cos(θ)  ty]
+           where tx and ty are translation factors to keep the image centered.
+        6. Each point (x, y) in the image is transformed to (x', y') by:
+           [x']   [s*cos(θ)  -s*sin(θ)] [x - cx]   [cx]
+           [y'] = [s*sin(θ)   s*cos(θ)] [y - cy] + [cy]
+           where (cx, cy) is the center of the image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.SafeRotate(limit=45, p=1.0)
+        >>> result = transform(image=image)
+        >>> rotated_image = result['image']
+        # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees,
+        # scaled to fit within the original 100x100 frame
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)

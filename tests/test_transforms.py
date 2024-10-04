@@ -1409,12 +1409,12 @@ def test_downscale_invalid_input(params):
 
 @pytest.mark.parametrize("params, expected", [
     # Default values
-    ({}, {"min_height": 1024, "min_width": 1024, "position": A.PadIfNeeded.PositionType.CENTER, "border_mode": cv2.BORDER_REFLECT_101}),
+    ({}, {"min_height": 1024, "min_width": 1024, "position": "center", "border_mode": cv2.BORDER_REFLECT_101}),
     # Boundary values
     ({"min_height": 800, "min_width": 800}, {"min_height": 800, "min_width": 800}),
     ({"pad_height_divisor": 10, "min_height": None, "pad_width_divisor": 10, "min_width": None},
      {"pad_height_divisor": 10, "min_height": None, "pad_width_divisor": 10, "min_width": None}),
-    ({"position": "top_left"}, {"position": A.PadIfNeeded.PositionType.TOP_LEFT}),
+    ({"position": "top_left"}, {"position": "top_left"}),
     # Value handling when border_mode is BORDER_CONSTANT
     ({"border_mode": cv2.BORDER_CONSTANT, "value": 255}, {"border_mode": cv2.BORDER_CONSTANT, "value": 255}),
     ({"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0]}, {"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0]}),

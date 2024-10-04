@@ -736,3 +736,54 @@ def test_remove_invisible_keypoints_false(transform, params):
     result = aug(image=image, keypoints=keypoints)
 
     assert len(result["keypoints"]) == 0
+
+
+@pytest.mark.parametrize("keypoints, image_shape, matrix, max_width, max_height, keep_size, expected", [
+    # Test case 1: Identity transformation
+    (
+        np.array([[10, 10, 0, 1], [50, 50, np.pi/4, 2]]),
+        (100, 100),
+        np.eye(3, dtype=np.float32),
+        100,
+        100,
+        True,
+        np.array([[10, 10, 0, 1], [50, 50, np.pi/4, 2]])
+    ),
+    # Test case 3: Scaling
+    (
+        np.array([[10, 10, 0, 1], [50, 50, 0, 1]]),
+        (100, 100),
+        np.array([[2, 0, 0], [0, 2, 0], [0, 0, 1]], dtype=np.float32),
+        200,
+        200,
+        False,
+        np.array([[20, 20, 0, 2], [100, 100, 0, 2]])
+    ),
+    # Test case 4: Single keypoint
+    (
+        np.array([[10, 10, 0, 1]]),
+        (100, 100),
+        np.eye(3, dtype=np.float32),
+        100,
+        100,
+        True,
+        np.array([[10, 10, 0, 1]])
+    ),
+])
+def test_perspective_keypoints(keypoints, image_shape, matrix, max_width, max_height, keep_size, expected):
+    result = fgeometric.perspective_keypoints(keypoints, image_shape, matrix, max_width, max_height, keep_size)
+    np.testing.assert_allclose(result, expected, atol=1e-6)
+
+def test_perspective_keypoints_empty():
+    result = fgeometric.perspective_keypoints(np.array([]), (100, 100), np.eye(3, dtype=np.float32), 100, 100, True)
+    assert result.size == 0
+
+@pytest.mark.parametrize("input_angle, expected_angle", [
+    (3*np.pi, np.pi),
+    (-np.pi/2, 3*np.pi/2),
+    (5*np.pi/2, np.pi/2)
+])
+def test_perspective_keypoints_angle_wrapping(input_angle, expected_angle):
+    keypoints = np.array([[0.5, 0.5, input_angle, 1]])
+    result = fgeometric.perspective_keypoints(keypoints, (100, 100), np.eye(3, dtype=np.float32), 100, 100, True)
+    np.testing.assert_allclose(result[0, 2], expected_angle, atol=1e-6)

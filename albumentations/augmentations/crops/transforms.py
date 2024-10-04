@@ -59,7 +59,7 @@ class CropInitSchema(BaseTransformInitSchema):
     width: int | None = Field(ge=1)
 
 
-class _BaseCrop(DualTransform):
+class BaseCrop(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(self, p: float = 1.0, always_apply: bool | None = None):
@@ -100,7 +100,7 @@ class _BaseCrop(DualTransform):
         return x_min, y_min, x_max, y_max
 
 
-class RandomCrop(_BaseCrop):
+class RandomCrop(BaseCrop):
     """Crop a random part of the input.
 
     Args:
@@ -148,7 +148,7 @@ class RandomCrop(_BaseCrop):
         return "height", "width"
 
 
-class CenterCrop(_BaseCrop):
+class CenterCrop(BaseCrop):
     """Crop the central part of the input.
 
     This transform crops the center of the input image, mask, bounding boxes, and keypoints to the specified dimensions.
@@ -204,7 +204,7 @@ class CenterCrop(_BaseCrop):
         return {"crop_coords": crop_coords}
 
 
-class Crop(_BaseCrop):
+class Crop(BaseCrop):
     """Crop a specific region from the input image.
 
     This transform crops a rectangular region from the input image, mask, bounding boxes, and keypoints
@@ -284,7 +284,7 @@ class Crop(_BaseCrop):
         return {"crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max)}
 
 
-class CropNonEmptyMaskIfExists(_BaseCrop):
+class CropNonEmptyMaskIfExists(BaseCrop):
     """Crop area with mask if mask is non-empty, else make random crop.
 
     This transform attempts to crop a region containing a mask (non-zero pixels). If the mask is empty or not provided,
@@ -459,26 +459,38 @@ class _BaseRandomSizedCrop(DualTransform):
         crop_coords: tuple[int, int, int, int],
         **params: Any,
     ) -> np.ndarray:
-        keypoint = fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
+        # First, crop the keypoints
+        cropped_keypoints = fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
 
+        # Calculate the dimensions of the crop
         crop_height = crop_coords[3] - crop_coords[1]
         crop_width = crop_coords[2] - crop_coords[0]
-        scale_x = self.size[0] / crop_width
-        scale_y = self.size[1] / crop_height
-        return fgeometric.keypoints_scale(keypoint, scale_x, scale_y)
+
+        # Calculate scaling factors
+        scale_x = self.size[1] / crop_height
+        scale_y = self.size[0] / crop_width
+
+        # Scale the cropped keypoints
+        return fgeometric.keypoints_scale(cropped_keypoints, scale_x, scale_y)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "size", "interpolation"
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
-    """Crop a random portion of the input and rescale it to a specific size.
+    """Crop a random part of the input and rescale it to a specific size.
+
+    This transform first crops a random portion of the input and then resizes it to a specified size.
+    The size of the random crop is controlled by the 'min_max_height' parameter.
 
     Args:
-        min_max_height ((int, int)): crop size limits.
-        size ((int, int)): target size for the output image, i.e. (height, width) after crop and resize
-        w2h_ratio (float): aspect ratio of crop.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        min_max_height (tuple[int, int]): Minimum and maximum height of the crop in pixels.
+        size (tuple[int, int]): Target size for the output image, i.e. (height, width) after crop and resize.
+        w2h_ratio (float): Aspect ratio (width/height) of crop. Default: 1.0
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
         image, mask, bboxes, keypoints
@@ -486,6 +498,38 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - The crop size is randomly selected for each execution within the range specified by 'min_max_height'.
+        - The aspect ratio of the crop is determined by the 'w2h_ratio' parameter.
+        - After cropping, the result is resized to the specified 'size'.
+        - Bounding boxes that end up fully outside the cropped area will be removed.
+        - Keypoints that end up outside the cropped area will be removed.
+        - This transform differs from RandomResizedCrop in that it allows more control over the crop size
+          through the 'min_max_height' parameter, rather than using a scale parameter.
+
+    Mathematical Details:
+        1. A random crop height h is sampled from the range [min_max_height[0], min_max_height[1]].
+        2. The crop width w is calculated as: w = h * w2h_ratio
+        3. A random location for the crop is selected within the input image.
+        4. The image is cropped to the size (h, w).
+        5. The crop is then resized to the specified 'size'.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomSizedCrop(
+        ...     min_max_height=(50, 80),
+        ...     size=(64, 64),
+        ...     w2h_ratio=1.0,
+        ...     interpolation=cv2.INTER_LINEAR,
+        ...     p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        # transformed_image will be a 64x64 image, resulting from a crop with height
+        # between 50 and 80 pixels, and the same aspect ratio as specified by w2h_ratio,
+        # taken from a random location in the original image and then resized.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -550,7 +594,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     ) -> dict[str, tuple[int, int, int, int]]:
         image_shape = params["shape"][:2]
 
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = random.randint(*self.min_max_height)
         crop_width = int(crop_height * self.w2h_ratio)
 
         crop_shape = (crop_height, crop_width)
@@ -563,23 +607,29 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         return {"crop_coords": crop_coords}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "min_max_height", "size", "w2h_ratio", "interpolation"
+        return (*super().get_transform_init_args_names(), "min_max_height", "w2h_ratio")
 
 
 class RandomResizedCrop(_BaseRandomSizedCrop):
-    """Torchvision's variant of crop a random part of the input and rescale it to some size.
+    """Crop a random part of the input and rescale it to a specified size.
+
+    This transform first crops a random portion of the input image (or mask, bounding boxes, keypoints)
+    and then resizes the crop to a specified size. It's particularly useful for training neural networks
+    on images of varying sizes and aspect ratios.
 
     Args:
-        size (int, int): expected output size of the crop, for each edge. If size is an int instead of sequence
-            like (height, width), a square output size (size, size) is made. If provided a sequence of length 1,
-            it will be interpreted as (size[0], size[0]).
-        scale ((float, float)): Specifies the lower and upper bounds for the random area of the crop, before resizing.
-            The scale is defined with respect to the area of the original image.
-        ratio ((float, float)): lower and upper bounds for the random aspect ratio of the crop, before resizing.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        size (int | tuple[int, int]): If int, square crop is made of this size.
+            If tuple of two ints (height, width), this size is used.
+        scale (tuple[float, float]): Range of the random size of the crop relative to the input size.
+            For example, (0.08, 1.0) means the crop size will be between 8% and 100% of the input size.
+            Default: (0.08, 1.0)
+        ratio (tuple[float, float]): Range of aspect ratios of the random crop.
+            For example, (0.75, 1.3333) allows crop aspect ratios from 3:4 to 4:3.
+            Default: (0.75, 1.3333333333333333)
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+            Default: cv2.INTER_LINEAR
+        p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
         image, mask, bboxes, keypoints
@@ -587,6 +637,36 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - This transform attempts to crop a random area with an aspect ratio and relative size
+          specified by 'ratio' and 'scale' parameters. If it fails to find a suitable crop after
+          10 attempts, it will return a crop from the center of the image.
+        - The crop's aspect ratio is defined as width / height.
+        - Bounding boxes that end up fully outside the cropped area will be removed.
+        - Keypoints that end up outside the cropped area will be removed.
+        - After cropping, the result is resized to the specified size.
+
+    Mathematical Details:
+        1. A target area A is sampled from the range [scale[0] * input_area, scale[1] * input_area].
+        2. A target aspect ratio r is sampled from the range [ratio[0], ratio[1]].
+        3. The crop width and height are computed as:
+           w = sqrt(A * r)
+           h = sqrt(A / r)
+        4. If w and h are within the input image dimensions, the crop is accepted.
+           Otherwise, steps 1-3 are repeated (up to 10 times).
+        5. If no valid crop is found after 10 attempts, a centered crop is taken.
+        6. The crop is then resized to the specified size.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomResizedCrop(size=80, scale=(0.5, 1.0), ratio=(0.75, 1.33), p=1.0)
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        # transformed_image will be a 80x80 crop from a random location in the original image,
+        # with the crop's size between 50% and 100% of the original image size,
+        # and the crop's aspect ratio between 3:4 and 4:3.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -698,7 +778,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         return "size", "scale", "ratio", "interpolation"
 
 
-class RandomCropNearBBox(_BaseCrop):
+class RandomCropNearBBox(BaseCrop):
     """Crop bbox from image with random shift by x,y coordinates
 
     Args:
@@ -788,7 +868,7 @@ class RandomCropNearBBox(_BaseCrop):
         return "max_part_shift", "cropping_bbox_key"
 
 
-class BBoxSafeRandomCrop(_BaseCrop):
+class BBoxSafeRandomCrop(BaseCrop):
     """Crop a random part of the input without loss of bounding boxes.
 
     This transform performs a random crop of the input image while ensuring that all bounding boxes remain within
@@ -897,16 +977,22 @@ class BBoxSafeRandomCrop(_BaseCrop):
 
 
 class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
-    """Crop a random part of the input and rescale it to some size without loss of bboxes.
+    """Crop a random part of the input and rescale it to a specific size without loss of bounding boxes.
+
+    This transform first attempts to crop a random portion of the input image while ensuring that all bounding boxes
+    remain within the cropped area. It then resizes the crop to the specified size. This is particularly useful for
+    object detection tasks where preserving all objects in the image is crucial while also standardizing the image size.
 
     Args:
-        height: height after crop and resize.
-        width: width after crop and resize.
-        erosion_rate: erosion rate applied on input image height before crop.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+        height (int): Height of the output image after resizing.
+        width (int): Width of the output image after resizing.
+        erosion_rate (float): A value between 0.0 and 1.0 that determines the minimum allowable size of the crop
+            as a fraction of the original image size. For example, an erosion_rate of 0.2 means the crop will be
+            at least 80% of the original image height and width. Default: 0.0 (no minimum size).
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -914,6 +1000,37 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - This transform ensures that all bounding boxes in the original image are fully contained within the
+          cropped area. If it's not possible to find such a crop (e.g., when bounding boxes are too spread out),
+          it will default to cropping the entire image.
+        - After cropping, the result is resized to the specified (height, width) size.
+        - Bounding box coordinates are adjusted to match the new image size.
+        - Keypoints are moved along with the crop and scaled to the new image size.
+        - If there are no bounding boxes in the image, it will fall back to a random crop.
+
+    Mathematical Details:
+        1. A crop region is selected that includes all bounding boxes.
+        2. The crop size is determined by the erosion_rate:
+           min_crop_size = (1 - erosion_rate) * original_size
+        3. If the selected crop is smaller than min_crop_size, it's expanded to meet this requirement.
+        4. The crop is then resized to the specified (height, width) size.
+        5. Bounding box coordinates are transformed to match the new image size:
+           new_coord = (old_coord - crop_start) * (new_size / crop_size)
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (300, 300, 3), dtype=np.uint8)
+        >>> bboxes = [(10, 10, 50, 50), (100, 100, 150, 150)]
+        >>> transform = A.Compose([
+        ...     A.RandomSizedBBoxSafeCrop(height=224, width=224, erosion_rate=0.2, p=1.0),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
+        >>> transformed = transform(image=image, bboxes=bboxes, labels=['cat', 'dog'])
+        >>> transformed_image = transformed['image']
+        >>> transformed_bboxes = transformed['bboxes']
+        # transformed_image will be a 224x224 image containing all original bounding boxes,
+        # with their coordinates adjusted to the new image size.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -1309,26 +1426,52 @@ class CropAndPad(DualTransform):
         )
 
 
-class RandomCropFromBorders(_BaseCrop):
-    """Randomly crops parts of the image from the borders without resizing at the end. The cropped regions are defined
-    as fractions of the original image dimensions, specified for each side of the image (left, right, top, bottom).
+class RandomCropFromBorders(BaseCrop):
+    """Randomly crops the input from its borders without resizing.
+
+    This transform randomly crops parts of the input (image, mask, bounding boxes, or keypoints)
+    from each of its borders. The amount of cropping is specified as a fraction of the input's
+    dimensions for each side independently.
 
     Args:
-        crop_left (float): Fraction of the width to randomly crop from the left side. Must be in the range [0.0, 1.0].
-                            Default is 0.1.
-        crop_right (float): Fraction of the width to randomly crop from the right side. Must be in the range [0.0, 1.0].
-                            Default is 0.1.
-        crop_top (float): Fraction of the height to randomly crop from the top side. Must be in the range [0.0, 1.0].
-                          Default is 0.1.
-        crop_bottom (float): Fraction of the height to randomly crop from the bottom side.
-                             Must be in the range [0.0, 1.0]. Default is 0.1.
-        p (float): Probability of applying the transform. Default is 1.
+        crop_left (float): The maximum fraction of width to crop from the left side.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        crop_right (float): The maximum fraction of width to crop from the right side.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        crop_top (float): The maximum fraction of height to crop from the top.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        crop_bottom (float): The maximum fraction of height to crop from the bottom.
+            Must be in the range [0.0, 1.0]. Default: 0.1
+        p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
+    Note:
+        - The actual amount of cropping for each side is randomly chosen between 0 and
+          the specified maximum for each application of the transform.
+        - The sum of crop_left and crop_right must not exceed 1.0, and the sum of
+          crop_top and crop_bottom must not exceed 1.0. Otherwise, a ValueError will be raised.
+        - This transform does not resize the input after cropping, so the output dimensions
+          will be smaller than the input dimensions.
+        - Bounding boxes that end up fully outside the cropped area will be removed.
+        - Keypoints that end up outside the cropped area will be removed.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomCropFromBorders(
+        ...     crop_left=0.1, crop_right=0.2, crop_top=0.2, crop_bottom=0.1, p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        # The resulting image will have random crops from each border, with the maximum
+        # possible crops being 10% from the left, 20% from the right, 20% from the top,
+        # and 10% from the bottom. The image size will be reduced accordingly.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -1370,7 +1513,7 @@ class RandomCropFromBorders(_BaseCrop):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.crop_left = crop_left
         self.crop_right = crop_right
         self.crop_top = crop_top

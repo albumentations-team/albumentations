@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from enum import Enum
 from typing import Any, Literal, Tuple, cast
 from warnings import warn
 
@@ -25,9 +24,9 @@ from albumentations.core.pydantic import (
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BIG_INTEGER,
-    TWO,
     ColorType,
     D4Type,
+    PositionType,
     ScalarType,
     ScaleFloatType,
     ScaleIntType,
@@ -266,26 +265,28 @@ class ElasticTransform(BaseDistortion):
 
 
 class Perspective(DualTransform):
-    """Perform a random four point perspective transform of the input.
+    """Apply random four point perspective transformation to the input.
 
     Args:
-        scale: standard deviation of the normal distributions. These are used to sample
+        scale (float or tuple of float): Standard deviation of the normal distributions. These are used to sample
             the random distances of the subimage's corners from the full image's corners.
-            If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
-        keep_size: Whether to resize image back to their original size after applying the perspective
-            transform. If set to False, the resulting images may end up having different shapes
-            and will always be a list, never an array. Default: True
-        pad_mode (OpenCV flag): OpenCV border mode.
-        pad_val (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-            Default: 0
-        mask_pad_val (int, float, list of int, list of float): padding value for mask
-            if border_mode is cv2.BORDER_CONSTANT. Default: 0
+            If scale is a single float value, the range will be (0, scale).
+            Default: (0.05, 0.1).
+        keep_size (bool): Whether to resize image back to its original size after applying the perspective transform.
+            If set to False, the resulting images may end up having different shapes.
+            Default: True.
+        pad_mode (OpenCV flag): OpenCV border mode used for padding.
+            Default: cv2.BORDER_CONSTANT.
+        pad_val (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT.
+            Default: 0.
+        mask_pad_val (int, float, list of int, list of float): Padding value for mask if border_mode is
+            cv2.BORDER_CONSTANT. Default: 0.
         fit_output (bool): If True, the image plane size and position will be adjusted to still capture
-            the whole image after perspective transformation. (Followed by image resizing if keep_size is set to True.)
-            Otherwise, parts of the transformed image may be outside of the image plane.
+            the whole image after perspective transformation. This is followed by image resizing if keep_size is set
+            to True. If False, parts of the transformed image may be outside of the image plane.
             This setting should not be set to True when using large scale values as it could lead to very large images.
-            Default: False
-        p (float): probability of applying the transform. Default: 0.5.
+            Default: False.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, keypoints, bboxes
@@ -293,17 +294,36 @@ class Perspective(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        This transformation creates a perspective effect by randomly moving the four corners of the image.
+        The amount of movement is controlled by the 'scale' parameter.
+
+        When 'keep_size' is True, the output image will have the same size as the input image,
+        which may cause some parts of the transformed image to be cut off or padded.
+
+        When 'fit_output' is True, the transformation ensures that the entire transformed image is visible,
+        which may result in a larger output image if keep_size is False.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.Perspective(scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5),
+        ... ])
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType
-        keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
+        keep_size: bool
         pad_mode: BorderModeType
         pad_val: ColorType | None
         mask_pad_val: ColorType | None
-        fit_output: Annotated[bool, Field(default=False, description="Adjust image plane to capture whole image.")]
+        fit_output: bool
         interpolation: InterpolationType
 
     def __init__(
@@ -318,7 +338,7 @@ class Perspective(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p, always_apply=always_apply)
         self.scale = cast(Tuple[float, float], scale)
         self.keep_size = keep_size
         self.pad_mode = pad_mode
@@ -343,7 +363,26 @@ class Perspective(DualTransform):
             self.pad_val,
             self.pad_mode,
             self.keep_size,
-            params["interpolation"],
+            self.interpolation,
+        )
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        matrix: np.ndarray,
+        max_height: int,
+        max_width: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.perspective(
+            mask,
+            matrix,
+            max_width,
+            max_height,
+            self.pad_val,
+            self.pad_mode,
+            self.keep_size,
+            cv2.INTER_NEAREST,
         )
 
     def apply_to_bboxes(
@@ -381,112 +420,20 @@ class Perspective(DualTransform):
         )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
         scale = random.uniform(*self.scale)
-        points = random_utils.normal(0, scale, (4, 2))
-        points = np.mod(np.abs(points), 0.32)
 
-        # top left -- no changes needed, just use jitter
-        # top right
-        points[1, 0] = 1.0 - points[1, 0]  # w = 1.0 - jitter
-        # bottom right
-        points[2] = 1.0 - points[2]  # w = 1.0 - jitt
-        # bottom left
-        points[3, 1] = 1.0 - points[3, 1]  # h = 1.0 - jitter
+        random_state = random_utils.get_random_state()
+        points = fgeometric.generate_perspective_points(image_shape, scale, random_state)
+        points = fgeometric.order_points(points)
 
-        points[:, 0] *= width
-        points[:, 1] *= height
-
-        # Obtain a consistent order of the points and unpack them individually.
-        # Warning: don't just do (tl, tr, br, bl) = _order_points(...)
-        # here, because the reordered points is used further below.
-        points = self._order_points(points)
-        tl, tr, br, bl = points
-
-        # compute the width of the new image, which will be the
-        # maximum distance between bottom-right and bottom-left
-        # x-coordiates or the top-right and top-left x-coordinates
-        min_width = None
-        max_width = None
-        while min_width is None or min_width < TWO:
-            width_top = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
-            width_bottom = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
-            max_width = int(max(width_top, width_bottom))
-            min_width = int(min(width_top, width_bottom))
-            if min_width < TWO:
-                step_size = (2 - min_width) / 2
-                tl[0] -= step_size
-                tr[0] += step_size
-                bl[0] -= step_size
-                br[0] += step_size
-
-        # compute the height of the new image, which will be the maximum distance between the top-right
-        # and bottom-right y-coordinates or the top-left and bottom-left y-coordinates
-        min_height = None
-        max_height = None
-        while min_height is None or min_height < TWO:
-            height_right = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-            height_left = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-            max_height = int(max(height_right, height_left))
-            min_height = int(min(height_right, height_left))
-            if min_height < TWO:
-                step_size = (2 - min_height) / 2
-                tl[1] -= step_size
-                tr[1] -= step_size
-                bl[1] += step_size
-                br[1] += step_size
-
-        # now that we have the dimensions of the new image, construct
-        # the set of destination points to obtain a "birds eye view",
-        # (i.e. top-down view) of the image, again specifying points
-        # in the top-left, top-right, bottom-right, and bottom-left order
-        # do not use width-1 or height-1 here, as for e.g. width=3, height=2
-        # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
-        dst = np.array([[0, 0], [max_width, 0], [max_width, max_height], [0, max_height]], dtype=np.float32)
-
-        # compute the perspective transform matrix and then apply it
-        m = cv2.getPerspectiveTransform(points, dst)
+        matrix, max_width, max_height = fgeometric.compute_perspective_params(points)
 
         if self.fit_output:
-            m, max_width, max_height = self._expand_transform(m, (height, width))
+            matrix, max_width, max_height = fgeometric.expand_transform(matrix, image_shape)
 
-        return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
-
-    @classmethod
-    def _expand_transform(cls, matrix: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, int, int]:
-        height, width = shape[:2]
-        # do not use width-1 or height-1 here, as for e.g. width=3, height=2, max_height
-        # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
-        rect = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
-        dst = cv2.perspectiveTransform(np.array([rect]), matrix)[0]
-
-        # get min x, y over transformed 4 points
-        # then modify target points by subtracting these minima  => shift to (0, 0)
-        dst -= dst.min(axis=0, keepdims=True)
-        dst = np.around(dst, decimals=0)
-
-        matrix_expanded = cv2.getPerspectiveTransform(rect, dst)
-        max_width, max_height = dst.max(axis=0)
-        return matrix_expanded, int(max_width), int(max_height)
-
-    @staticmethod
-    def _order_points(pts: np.ndarray) -> np.ndarray:
-        pts = np.array(sorted(pts, key=lambda x: x[0]))
-        left = pts[:2]  # points with smallest x coordinate - left points
-        right = pts[2:]  # points with greatest x coordinate - right points
-
-        if left[0][1] < left[1][1]:
-            tl, bl = left
-        else:
-            bl, tl = left
-
-        if right[0][1] < right[1][1]:
-            tr, br = right
-        else:
-            br, tr = right
-
-        return np.array([tl, tr, br, bl], dtype=np.float32)
+        return {"matrix": matrix, "max_height": max_height, "max_width": max_width}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation"
@@ -972,7 +919,7 @@ class ShiftScaleRotate(Affine):
             p=p,
         )
         warn(
-            "ShiftScaleRotate is deprecated. Please use Affine transform instead .",
+            "ShiftScaleRotate is deprecated. Please use Affine transform instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -999,37 +946,27 @@ class ShiftScaleRotate(Affine):
 
 
 class PiecewiseAffine(DualTransform):
-    """Apply affine transformations that differ between local neighborhoods.
-    This augmentation places a regular grid of points on an image and randomly moves the neighborhood of these point
-    around via affine transformations. This leads to local distortions.
+    """Apply piecewise affine transformations to the input image.
 
-    This is mostly a wrapper around scikit-image's ``PiecewiseAffine``.
-    See also ``Affine`` for a similar technique.
-
-    Note:
-        This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.
-
-    Note:
-        For coordinate-based inputs (keypoints, bounding boxes, polygons, ...),
-        this augmenter still has to perform an image-based augmentation,
-        which will make it significantly slower and not fully correct for such inputs than other transforms.
+    This augmentation places a regular grid of points on an image and randomly moves the neighborhood of these points
+    around via affine transformations. This leads to local distortions in the image.
 
     Args:
-        scale (float, tuple of float): Each point on the regular grid is moved around via a normal distribution.
-            This scale factor is equivalent to the normal distribution's sigma.
-            Note that the jitter (how far each point is moved in which direction) is multiplied by the height/width of
-            the image if ``absolute_scale=False`` (default), so this scale can be the same for different sized images.
-            Recommended values are in the range ``0.01`` to ``0.05`` (weak to strong augmentations).
-                * If a single ``float``, then that value will always be used as the scale.
-                * If a tuple ``(a, b)`` of ``float`` s, then a random value will
-                  be uniformly sampled per image from the interval ``[a, b]``.
-        nb_rows (int, tuple of int): Number of rows of points that the regular grid should have.
-            Must be at least ``2``. For large images, you might want to pick a higher value than ``4``.
-            You might have to then adjust scale to lower values.
-                * If a single ``int``, then that value will always be used as the number of rows.
-                * If a tuple ``(a, b)``, then a value from the discrete interval
-                  ``[a..b]`` will be uniformly sampled per image.
-        nb_cols (int, tuple of int): Number of columns. Analogous to `nb_rows`.
+        scale (tuple[float, float] | float): Standard deviation of the normal distributions. These are used to sample
+            the random distances of the subimage's corners from the full image's corners.
+            If scale is a single float value, the range will be (0, scale).
+            Recommended values are in the range (0.01, 0.05) for small distortions,
+            and (0.05, 0.1) for larger distortions. Default: (0.03, 0.05).
+        nb_rows (tuple[int, int] | int): Number of rows of points that the regular grid should have.
+            Must be at least 2. For large images, you might want to pick a higher value than 4.
+            If a single int, then that value will always be used as the number of rows.
+            If a tuple (a, b), then a value from the discrete interval [a..b] will be uniformly sampled per image.
+            Default: 4.
+        nb_cols (tuple[int, int] | int): Number of columns of points that the regular grid should have.
+            Must be at least 2. For large images, you might want to pick a higher value than 4.
+            If a single int, then that value will always be used as the number of columns.
+            If a tuple (a, b), then a value from the discrete interval [a..b] will be uniformly sampled per image.
+            Default: 4.
         interpolation (int): The order of interpolation. The order has to be in the range 0-5:
              - 0: Nearest-neighbor
              - 1: Bi-linear (default)
@@ -1037,18 +974,23 @@ class PiecewiseAffine(DualTransform):
              - 3: Bi-cubic
              - 4: Bi-quartic
              - 5: Bi-quintic
-        mask_interpolation (int): same as interpolation but for mask.
+        mask_interpolation (int): The order of interpolation for masks. Similar to 'interpolation' but for masks.
+            Default: 0 (Nearest-neighbor).
         cval (number): The constant value to use when filling in newly created pixels.
-        cval_mask (number): Same as cval but only for masks.
+            Default: 0.
+        cval_mask (number): The constant value to use when filling in newly created pixels in masks.
+            Default: 0.
         mode (str): {'constant', 'edge', 'symmetric', 'reflect', 'wrap'}, optional
             Points outside the boundaries of the input are filled according
-            to the given mode.  Modes match the behaviour of `numpy.pad`.
-        absolute_scale (bool): Take `scale` as an absolute value rather than a relative value.
+            to the given mode. Default: 'constant'.
+        absolute_scale (bool): If set to True, the value of the scale parameter will be treated as an absolute
+            pixel value. If set to False, it will be treated as a fraction of the image height and width.
+            Default: False.
         keypoints_threshold (float): Used as threshold in conversion from distance maps to keypoints.
-            The search for keypoints works by searching for the
-            argmin (non-inverted) or argmax (inverted) in each channel. This
-            parameters contains the maximum (non-inverted) or minimum (inverted) value to accept in order to view a hit
-            as a keypoint. Use ``None`` to use no min/max. Default: 0.01
+            The search for keypoints works by searching for the argmin (non-inverted) or argmax (inverted) in each
+            channel. This parameter contains the maximum (non-inverted) or minimum (inverted) value to accept in order
+            to view a hit as a keypoint. Use None to use no min/max. Default: 0.01.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, keypoints, bboxes
@@ -1056,6 +998,21 @@ class PiecewiseAffine(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - This augmentation is very slow. Consider using `ElasticTransform` instead, which is at least 10x faster.
+        - The augmentation may not always produce visible effects, especially with small scale values.
+        - For keypoints and bounding boxes, the transformation might move them outside the image boundaries.
+          In such cases, the keypoints will be set to (-1, -1) and the bounding boxes will be removed.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.PiecewiseAffine(scale=(0.03, 0.05), nb_rows=4, nb_cols=4, p=0.5),
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed["image"]
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -1068,7 +1025,7 @@ class PiecewiseAffine(DualTransform):
         mask_interpolation: InterpolationType
         cval: int
         cval_mask: int
-        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant"
+        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"]
         absolute_scale: bool
         keypoints_threshold: float
 
@@ -1083,8 +1040,8 @@ class PiecewiseAffine(DualTransform):
     def __init__(
         self,
         scale: ScaleFloatType = (0.03, 0.05),
-        nb_rows: ScaleIntType = 4,
-        nb_cols: ScaleIntType = 4,
+        nb_rows: ScaleIntType = (4, 4),
+        nb_cols: ScaleIntType = (4, 4),
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: int = 0,
@@ -1095,7 +1052,7 @@ class PiecewiseAffine(DualTransform):
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
         warn(
             "This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.",
@@ -1217,18 +1174,21 @@ class PadIfNeeded(DualTransform):
     that the image dimensions are divisible by these values.
 
     Args:
-        min_height (int): Minimum desired height of the image. Ensures image height is at least this value.
-        min_width (int): Minimum desired width of the image. Ensures image width is at least this value.
-        pad_height_divisor (int, optional): If set, pads the image height to make it divisible by this value.
-        pad_width_divisor (int, optional): If set, pads the image width to make it divisible by this value.
-        position (Union[str, PositionType]): Position where the image is to be placed after padding.
-            Can be one of 'center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', or 'random'.
-            Default is 'center'.
+        min_height (int | None): Minimum desired height of the image. Ensures image height is at least this value.
+            If not specified, pad_height_divisor must be provided.
+        min_width (int | None): Minimum desired width of the image. Ensures image width is at least this value.
+            If not specified, pad_width_divisor must be provided.
+        pad_height_divisor (int | None): If set, pads the image height to make it divisible by this value.
+            If not specified, min_height must be provided.
+        pad_width_divisor (int | None): If set, pads the image width to make it divisible by this value.
+            If not specified, min_width must be provided.
+        position (Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]):
+            Position where the image is to be placed after padding. Default is 'center'.
         border_mode (int): Specifies the border mode to use if padding is required.
             The default is `cv2.BORDER_REFLECT_101`.
-        value (Union[int, float, list[int], list[float]], optional): Value to fill the border pixels if
+        value (int, float, list[int], list[float] | None): Value to fill the border pixels if
             the border mode is `cv2.BORDER_CONSTANT`. Default is None.
-        mask_value (Union[int, float, list[int], list[float]], optional): Similar to `value` but used for padding masks.
+        mask_value (int, float, list[int], list[float] | None): Similar to `value` but used for padding masks.
             Default is None.
         p (float): Probability of applying the transform. Default is 1.0.
 
@@ -1238,54 +1198,37 @@ class PadIfNeeded(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        - Either `min_height` or `pad_height_divisor` must be set, but not both.
+        - Either `min_width` or `pad_width_divisor` must be set, but not both.
+        - If `border_mode` is set to `cv2.BORDER_CONSTANT`, `value` must be provided.
+        - The transform will maintain consistency across all targets (image, mask, bboxes, keypoints).
+        - For bounding boxes, the coordinates will be adjusted to account for the padding.
+        - For keypoints, their positions will be shifted according to the padding.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=cv2.BORDER_CONSTANT, value=0),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> padded_image = transformed['image']
+        >>> padded_mask = transformed['mask']
+        >>> adjusted_bboxes = transformed['bboxes']
+        >>> adjusted_keypoints = transformed['keypoints']
     """
-
-    class PositionType(Enum):
-        """Enumerates the types of positions for placing an object within a container.
-
-        This Enum class is utilized to define specific anchor positions that an object can
-        assume relative to a container. It's particularly useful in image processing, UI layout,
-        and graphic design to specify the alignment and positioning of elements.
-
-        Attributes:
-            CENTER (str): Specifies that the object should be placed at the center.
-            TOP_LEFT (str): Specifies that the object should be placed at the top-left corner.
-            TOP_RIGHT (str): Specifies that the object should be placed at the top-right corner.
-            BOTTOM_LEFT (str): Specifies that the object should be placed at the bottom-left corner.
-            BOTTOM_RIGHT (str): Specifies that the object should be placed at the bottom-right corner.
-            RANDOM (str): Indicates that the object's position should be determined randomly.
-
-        """
-
-        CENTER = "center"
-        TOP_LEFT = "top_left"
-        TOP_RIGHT = "top_right"
-        BOTTOM_LEFT = "bottom_left"
-        BOTTOM_RIGHT = "bottom_right"
-        RANDOM = "random"
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        min_height: int | None = Field(default=None, ge=1, description="Minimal result image height.")
-        min_width: int | None = Field(default=None, ge=1, description="Minimal result image width.")
-        pad_height_divisor: int | None = Field(
-            default=None,
-            ge=1,
-            description="Ensures image height is divisible by this value.",
-        )
-        pad_width_divisor: int | None = Field(
-            default=None,
-            ge=1,
-            description="Ensures image width is divisible by this value.",
-        )
-        position: str = Field(default="center", description="Position of the padded image.")
-        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: ColorType | None = Field(default=None, description="Value for border if BORDER_CONSTANT is used.")
-        mask_value: ColorType | None = Field(
-            default=None,
-            description="Value for mask border if BORDER_CONSTANT is used.",
-        )
+        min_height: int | None = Field(ge=1)
+        min_width: int | None = Field(ge=1)
+        pad_height_divisor: int | None = Field(ge=1)
+        pad_width_divisor: int | None = Field(ge=1)
+        position: PositionType
+        border_mode: BorderModeType
+        value: ColorType | None
+        mask_value: ColorType | None
 
         @model_validator(mode="after")
         def validate_divisibility(self) -> Self:
@@ -1308,19 +1251,19 @@ class PadIfNeeded(DualTransform):
         min_width: int | None = 1024,
         pad_height_divisor: int | None = None,
         pad_width_divisor: int | None = None,
-        position: PositionType | str = PositionType.CENTER,
+        position: PositionType = "center",
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.min_height = min_height
         self.min_width = min_width
         self.pad_width_divisor = pad_width_divisor
         self.pad_height_divisor = pad_height_divisor
-        self.position = PadIfNeeded.PositionType(position)
+        self.position = position
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -1476,31 +1419,31 @@ class PadIfNeeded(DualTransform):
         w_left: int,
         w_right: int,
     ) -> tuple[int, int, int, int]:
-        if self.position == PadIfNeeded.PositionType.TOP_LEFT:
+        if self.position == "top_left":
             h_bottom += h_top
             w_right += w_left
             h_top = 0
             w_left = 0
 
-        elif self.position == PadIfNeeded.PositionType.TOP_RIGHT:
+        elif self.position == "top_right":
             h_bottom += h_top
             w_left += w_right
             h_top = 0
             w_right = 0
 
-        elif self.position == PadIfNeeded.PositionType.BOTTOM_LEFT:
+        elif self.position == "bottom_left":
             h_top += h_bottom
             w_right += w_left
             h_bottom = 0
             w_left = 0
 
-        elif self.position == PadIfNeeded.PositionType.BOTTOM_RIGHT:
+        elif self.position == "bottom_right":
             h_top += h_bottom
             w_left += w_right
             h_bottom = 0
             w_right = 0
 
-        elif self.position == PadIfNeeded.PositionType.RANDOM:
+        elif self.position == "random":
             h_pad = h_top + h_bottom
             w_pad = w_left + w_right
             h_top = random.randint(0, h_pad)
@@ -1515,13 +1458,46 @@ class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
+    Note:
+        - This transform flips the image upside down. The top of the image becomes the bottom and vice versa.
+        - The dimensions of the image remain unchanged.
+        - For multi-channel images (like RGB), each channel is flipped independently.
+        - Bounding boxes are adjusted to match their new positions in the flipped image.
+        - Keypoints are moved to their new positions in the flipped image.
+
+    Mathematical Details:
+        1. For an input image I of shape (H, W, C), the output O is:
+           O[i, j, k] = I[H-1-i, j, k] for all i in [0, H-1], j in [0, W-1], k in [0, C-1]
+        2. For bounding boxes with coordinates (x_min, y_min, x_max, y_max):
+           new_bbox = (x_min, H-y_max, x_max, H-y_min)
+        3. For keypoints with coordinates (x, y):
+           new_keypoint = (x, H-y)
+        where H is the height of the image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.array([
+        ...     [[1, 2, 3], [4, 5, 6]],
+        ...     [[7, 8, 9], [10, 11, 12]]
+        ... ])
+        >>> transform = A.VerticalFlip(p=1.0)
+        >>> result = transform(image=image)
+        >>> flipped_image = result['image']
+        >>> print(flipped_image)
+        [[[ 7  8  9]
+          [10 11 12]]
+         [[ 1  2  3]
+          [ 4  5  6]]]
+        # The original image is flipped vertically, with rows reversed
 
     """
 
@@ -1605,16 +1581,52 @@ class Flip(DualTransform):
 
 
 class Transpose(DualTransform):
-    """Transpose the input by swapping rows and columns.
+    """Transpose the input by swapping its rows and columns.
+
+    This transform flips the image over its main diagonal, effectively switching its width and height.
+    It's equivalent to a 90-degree rotation followed by a horizontal flip.
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
+    Note:
+        - The dimensions of the output will be swapped compared to the input. For example,
+          an input image of shape (100, 200, 3) will result in an output of shape (200, 100, 3).
+        - This transform is its own inverse. Applying it twice will return the original input.
+        - For multi-channel images (like RGB), the channels are preserved in their original order.
+        - Bounding boxes will have their coordinates adjusted to match the new image dimensions.
+        - Keypoints will have their x and y coordinates swapped.
+
+    Mathematical Details:
+        1. For an input image I of shape (H, W, C), the output O is:
+           O[i, j, k] = I[j, i, k] for all i in [0, W-1], j in [0, H-1], k in [0, C-1]
+        2. For bounding boxes with coordinates (x_min, y_min, x_max, y_max):
+           new_bbox = (y_min, x_min, y_max, x_max)
+        3. For keypoints with coordinates (x, y):
+           new_keypoint = (y, x)
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.array([
+        ...     [[1, 2, 3], [4, 5, 6]],
+        ...     [[7, 8, 9], [10, 11, 12]]
+        ... ])
+        >>> transform = A.Transpose(p=1.0)
+        >>> result = transform(image=image)
+        >>> transposed_image = result['image']
+        >>> print(transposed_image)
+        [[[ 1  2  3]
+          [ 7  8  9]]
+         [[ 4  5  6]
+          [10 11 12]]]
+        # The original 2x2x3 image is now 2x2x3, with rows and columns swapped
 
     """
 
