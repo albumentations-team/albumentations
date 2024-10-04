@@ -59,7 +59,7 @@ class CropInitSchema(BaseTransformInitSchema):
     width: int | None = Field(ge=1)
 
 
-class _BaseCrop(DualTransform):
+class BaseCrop(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(self, p: float = 1.0, always_apply: bool | None = None):
@@ -100,7 +100,7 @@ class _BaseCrop(DualTransform):
         return x_min, y_min, x_max, y_max
 
 
-class RandomCrop(_BaseCrop):
+class RandomCrop(BaseCrop):
     """Crop a random part of the input.
 
     Args:
@@ -148,7 +148,7 @@ class RandomCrop(_BaseCrop):
         return "height", "width"
 
 
-class CenterCrop(_BaseCrop):
+class CenterCrop(BaseCrop):
     """Crop the central part of the input.
 
     This transform crops the center of the input image, mask, bounding boxes, and keypoints to the specified dimensions.
@@ -204,7 +204,7 @@ class CenterCrop(_BaseCrop):
         return {"crop_coords": crop_coords}
 
 
-class Crop(_BaseCrop):
+class Crop(BaseCrop):
     """Crop a specific region from the input image.
 
     This transform crops a rectangular region from the input image, mask, bounding boxes, and keypoints
@@ -284,7 +284,7 @@ class Crop(_BaseCrop):
         return {"crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max)}
 
 
-class CropNonEmptyMaskIfExists(_BaseCrop):
+class CropNonEmptyMaskIfExists(BaseCrop):
     """Crop area with mask if mask is non-empty, else make random crop.
 
     This transform attempts to crop a region containing a mask (non-zero pixels). If the mask is empty or not provided,
@@ -459,21 +459,30 @@ class _BaseRandomSizedCrop(DualTransform):
         crop_coords: tuple[int, int, int, int],
         **params: Any,
     ) -> np.ndarray:
-        keypoint = fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
+        # First, crop the keypoints
+        cropped_keypoints = fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
 
+        # Calculate the dimensions of the crop
         crop_height = crop_coords[3] - crop_coords[1]
         crop_width = crop_coords[2] - crop_coords[0]
-        scale_x = self.size[0] / crop_width
-        scale_y = self.size[1] / crop_height
-        return fgeometric.keypoints_scale(keypoint, scale_x, scale_y)
+
+        # Calculate scaling factors
+        scale_x = self.size[1] / crop_height
+        scale_y = self.size[0] / crop_width
+
+        # Scale the cropped keypoints
+        return fgeometric.keypoints_scale(cropped_keypoints, scale_x, scale_y)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "size", "interpolation"
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
     """Crop a random portion of the input and rescale it to a specific size.
 
     Args:
-        min_max_height ((int, int)): crop size limits.
-        size ((int, int)): target size for the output image, i.e. (height, width) after crop and resize
+        min_max_height (tuple[int, int]): crop size limits.
+        size (tuple[int, int]): target size for the output image, i.e. (height, width) after crop and resize
         w2h_ratio (float): aspect ratio of crop.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -550,7 +559,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     ) -> dict[str, tuple[int, int, int, int]]:
         image_shape = params["shape"][:2]
 
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = random.randint(*self.min_max_height)
         crop_width = int(crop_height * self.w2h_ratio)
 
         crop_shape = (crop_height, crop_width)
@@ -563,7 +572,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         return {"crop_coords": crop_coords}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "min_max_height", "size", "w2h_ratio", "interpolation"
+        return (*super().get_transform_init_args_names(), "min_max_height", "w2h_ratio")
 
 
 class RandomResizedCrop(_BaseRandomSizedCrop):
@@ -734,7 +743,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         return "size", "scale", "ratio", "interpolation"
 
 
-class RandomCropNearBBox(_BaseCrop):
+class RandomCropNearBBox(BaseCrop):
     """Crop bbox from image with random shift by x,y coordinates
 
     Args:
@@ -824,7 +833,7 @@ class RandomCropNearBBox(_BaseCrop):
         return "max_part_shift", "cropping_bbox_key"
 
 
-class BBoxSafeRandomCrop(_BaseCrop):
+class BBoxSafeRandomCrop(BaseCrop):
     """Crop a random part of the input without loss of bounding boxes.
 
     This transform performs a random crop of the input image while ensuring that all bounding boxes remain within
@@ -1382,7 +1391,7 @@ class CropAndPad(DualTransform):
         )
 
 
-class RandomCropFromBorders(_BaseCrop):
+class RandomCropFromBorders(BaseCrop):
     """Randomly crops the input from its borders without resizing.
 
     This transform randomly crops parts of the input (image, mask, bounding boxes, or keypoints)
