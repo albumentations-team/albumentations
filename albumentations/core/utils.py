@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Literal, Sequence
+from numbers import Real
+from typing import TYPE_CHECKING, Any, Literal, Sequence, cast, overload
 
 import numpy as np
 
 from .serialization import Serializable
-from .types import PAIR, ScalarType, ScaleType
+from .types import PAIR, ScalarType, ScaleFloatType, ScaleIntType, ScaleType
 
 if TYPE_CHECKING:
     import torch
@@ -226,6 +227,47 @@ class DataProcessor(ABC):
         return data
 
 
+def validate_args(low: ScaleType | None, bias: ScalarType | None) -> None:
+    if low is not None and bias is not None:
+        raise ValueError("Arguments 'low' and 'bias' cannot be used together.")
+
+
+def process_sequence(param: Sequence[ScalarType]) -> tuple[ScalarType, ScalarType]:
+    if len(param) != PAIR:
+        raise ValueError("Sequence must contain exactly 2 elements.")
+    return min(param), max(param)
+
+
+def process_scalar(param: ScalarType, low: ScalarType | None) -> tuple[ScalarType, ScalarType]:
+    if isinstance(low, Real):
+        return (low, param) if low < param else (param, low)
+    return -param, param
+
+
+def apply_bias(min_val: ScalarType, max_val: ScalarType, bias: ScalarType) -> tuple[ScalarType, ScalarType]:
+    return bias + min_val, bias + max_val
+
+
+def ensure_int_output(
+    min_val: ScalarType,
+    max_val: ScalarType,
+    param: ScalarType,
+) -> tuple[int, int] | tuple[float, float]:
+    return (int(min_val), int(max_val)) if isinstance(param, int) else (float(min_val), float(max_val))
+
+
+@overload
+def to_tuple(param: ScaleIntType, low: ScaleType | None = None, bias: ScalarType | None = None) -> tuple[int, int]: ...
+
+
+@overload
+def to_tuple(
+    param: ScaleFloatType,
+    low: ScaleType | None = None,
+    bias: ScalarType | None = None,
+) -> tuple[float, float]: ...
+
+
 def to_tuple(
     param: ScaleType,
     low: ScaleType | None = None,
@@ -241,30 +283,17 @@ def to_tuple(
     Returns:
         A tuple of two scalars, optionally adjusted by `bias`.
         Raises ValueError for invalid combinations or types of arguments.
-
     """
-    # Validate mutually exclusive arguments
-    if low is not None and bias is not None:
-        msg = "Arguments 'low' and 'bias' cannot be used together."
-        raise ValueError(msg)
+    validate_args(low, bias)
 
-    if isinstance(param, Sequence) and len(param) == PAIR:
-        min_val, max_val = min(param), max(param)
-
-    # Handle scalar input
-    elif isinstance(param, (int, float)):
-        if isinstance(low, (int, float)):
-            # Use low and param to create a tuple
-            min_val, max_val = (low, param) if low < param else (param, low)
-        else:
-            # Create a symmetric tuple around 0
-            min_val, max_val = -param, param
+    if isinstance(param, Sequence):
+        min_val, max_val = process_sequence(param)
+    elif isinstance(param, Real):
+        min_val, max_val = process_scalar(param, cast(ScalarType, low))
     else:
-        msg = "Argument 'param' must be either a scalar or a sequence of 2 elements."
-        raise ValueError(msg)
+        raise TypeError("Argument 'param' must be either a scalar or a sequence of 2 elements.")
 
-    # Apply bias if provided
     if bias is not None:
-        return (bias + min_val, bias + max_val)
+        min_val, max_val = apply_bias(min_val, max_val, bias)
 
-    return min_val, max_val
+    return ensure_int_output(min_val, max_val, param if isinstance(param, (int, float)) else min_val)
