@@ -270,7 +270,7 @@ class SafeRotate(Affine):
     rotation and scaling process.
 
     Args:
-        limit (float, tuple of float): Range from which a random angle is picked. If limit is a single float,
+        limit (float | tuple[float, float]): Range from which a random angle is picked. If limit is a single float,
             an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -295,6 +295,35 @@ class SafeRotate(Affine):
         - The rotation is performed around the center of the image.
         - After rotation, the image is scaled to fit within the original frame, which may cause some distortion.
         - The output image will always have the same dimensions as the input image.
+        - Bounding boxes and keypoints are transformed along with the image.
+
+    Mathematical Details:
+        1. An angle θ is randomly sampled from the range specified by 'limit'.
+        2. The image is rotated around its center by θ degrees.
+        3. The rotation matrix R is:
+           R = [cos(θ)  -sin(θ)]
+               [sin(θ)   cos(θ)]
+        4. The scaling factor s is calculated to ensure the rotated image fits within the original frame:
+           s = min(width / (width * |cos(θ)| + height * |sin(θ)|),
+                   height / (width * |sin(θ)| + height * |cos(θ)|))
+        5. The combined transformation matrix T is:
+           T = [s*cos(θ)  -s*sin(θ)  tx]
+               [s*sin(θ)   s*cos(θ)  ty]
+           where tx and ty are translation factors to keep the image centered.
+        6. Each point (x, y) in the image is transformed to (x', y') by:
+           [x']   [s*cos(θ)  -s*sin(θ)] [x - cx]   [cx]
+           [y'] = [s*sin(θ)   s*cos(θ)] [y - cy] + [cy]
+           where (cx, cy) is the center of the image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.SafeRotate(limit=45, p=1.0)
+        >>> result = transform(image=image)
+        >>> rotated_image = result['image']
+        # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees,
+        # scaled to fit within the original 100x100 frame
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
