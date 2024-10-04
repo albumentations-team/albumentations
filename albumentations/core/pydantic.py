@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Tuple, overload
 
 import cv2
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 from typing_extensions import Annotated
 
-from albumentations.core.types import NumericType, ScalarType, ScaleType
+from albumentations.core.types import NumericType, ScalarType, ScaleFloatType, ScaleIntType, ScaleType
 from albumentations.core.utils import to_tuple
 
 valid_interpolations = {
@@ -68,7 +68,15 @@ NonNegativeFloatRangeType = Annotated[ScaleType, AfterValidator(process_non_nega
 NonNegativeIntRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range), AfterValidator(float2int)]
 
 
-def create_symmetric_range(value: ScaleType) -> tuple[float, float]:
+@overload
+def create_symmetric_range(value: ScaleIntType) -> tuple[int, int]: ...
+
+
+@overload
+def create_symmetric_range(value: ScaleFloatType) -> tuple[float, float]: ...
+
+
+def create_symmetric_range(value: ScaleType) -> tuple[int, int] | tuple[float, float]:
     return to_tuple(value)
 
 

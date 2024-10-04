@@ -275,14 +275,46 @@ def to_tuple(
 ) -> tuple[int, int] | tuple[float, float]:
     """Convert input argument to a min-max tuple.
 
+    This function processes various input types and returns a tuple representing a range.
+    It handles single values, sequences, and can apply optional low bounds or biases.
+
     Args:
-        param: Input value which could be a scalar or a sequence of exactly 2 scalars.
-        low: Second element of the tuple, provided as an optional argument for when `param` is a scalar.
-        bias: An offset added to both elements of the tuple.
+        param (ScaleType): The primary input value. Can be:
+            - A single int or float: Converted to a symmetric range around zero.
+            - A tuple of two ints or two floats: Used directly as min and max values.
+
+        low (ScaleType | None, optional): A lower bound value. Used when param is a single value.
+            If provided, the result will be (low, param) or (param, low), depending on which is smaller.
+            Cannot be used together with 'bias'. Defaults to None.
+
+        bias (ScalarType | None, optional): A value to be added to both elements of the resulting tuple.
+            Cannot be used together with 'low'. Defaults to None.
 
     Returns:
-        A tuple of two scalars, optionally adjusted by `bias`.
-        Raises ValueError for invalid combinations or types of arguments.
+        tuple[int, int] | tuple[float, float]: A tuple representing the processed range.
+            - If input is int-based, returns tuple[int, int]
+            - If input is float-based, returns tuple[float, float]
+
+    Raises:
+        ValueError: If both 'low' and 'bias' are provided.
+        TypeError: If 'param' is neither a scalar nor a sequence of 2 elements.
+
+    Examples:
+        >>> to_tuple(5)
+        (-5, 5)
+        >>> to_tuple(5.0)
+        (-5.0, 5.0)
+        >>> to_tuple((1, 10))
+        (1, 10)
+        >>> to_tuple(5, low=3)
+        (3, 5)
+        >>> to_tuple(5, bias=1)
+        (-4, 6)
+
+    Notes:
+        - When 'param' is a single value and 'low' is not provided, the function creates a symmetric range around zero.
+        - The function preserves the type (int or float) of the input in the output.
+        - If a sequence is provided, it must contain exactly 2 elements.
     """
     validate_args(low, bias)
 
