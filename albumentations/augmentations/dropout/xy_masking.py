@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Callable, Tuple, cast
+from typing import Any, Tuple, cast
 
 import numpy as np
 from pydantic import model_validator
 from typing_extensions import Self
 
+from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import NonNegativeIntRangeType
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import ColorType, ScaleIntType, Targets
-
-from .functional import cutout, filter_keypoints_in_holes
 
 __all__ = ["XYMasking"]
 
 
-class XYMasking(DualTransform):
+class XYMasking(BaseDropout):
     """Applies masking strips to an image, either horizontally (X axis) or vertically (Y axis),
     simulating occlusions. This transform is useful for training models to recognize images
     with varied visibility conditions. It's particularly effective for spectrogram images,
@@ -38,22 +37,21 @@ class XYMasking(DualTransform):
             while a tuple (min, max) allows for variable-height masks, chosen randomly
             within the specified range for each mask. This flexibility facilitates creating masks of various
             sizes in the vertical direction.
-        fill_value (Union[int, float, list[int], list[float]]): Value to fill image masks. Defaults to 0.
+        fill_value (Union[int, float, list[int], list[float], str]): Value to fill image masks. Defaults to 0.
         mask_fill_value (Optional[Union[int, float, list[int], list[float]]]): Value to fill masks in the mask.
             If `None`, uses mask is not affected. Default: `None`.
         p (float): Probability of applying the transform. Defaults to 0.5.
 
     Targets:
-        image, mask, keypoints
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
 
     Note: Either `max_x_length` or `max_y_length` or both must be defined.
-
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
         num_masks_x: NonNegativeIntRangeType
@@ -87,34 +85,12 @@ class XYMasking(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply, fill_value=fill_value, mask_fill_value=mask_fill_value)
         self.num_masks_x = cast(Tuple[int, int], num_masks_x)
         self.num_masks_y = cast(Tuple[int, int], num_masks_y)
 
         self.mask_x_length = cast(Tuple[int, int], mask_x_length)
         self.mask_y_length = cast(Tuple[int, int], mask_y_length)
-        self.fill_value = fill_value
-        self.mask_fill_value = mask_fill_value
-
-    def apply(
-        self,
-        img: np.ndarray,
-        masks_x: list[tuple[int, int, int, int]],
-        masks_y: list[tuple[int, int, int, int]],
-        **params: Any,
-    ) -> np.ndarray:
-        return cutout(img, masks_x + masks_y, self.fill_value)
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        masks_x: list[tuple[int, int, int, int]],
-        masks_y: list[tuple[int, int, int, int]],
-        **params: Any,
-    ) -> np.ndarray:
-        if self.mask_fill_value is None:
-            return mask
-        return cutout(mask, masks_x + masks_y, self.mask_fill_value)
 
     def validate_mask_length(
         self,
@@ -122,15 +98,7 @@ class XYMasking(DualTransform):
         dimension_size: int,
         dimension_name: str,
     ) -> None:
-        """Validate the mask length against the corresponding image dimension size.
-
-        Args:
-            mask_length (Optional[tuple[int, int]]): The length of the mask to be validated.
-            dimension_size (int): The size of the image dimension (width or height)
-                against which to validate the mask length.
-            dimension_name (str): The name of the dimension ('width' or 'height') for error messaging.
-
-        """
+        """Validate the mask length against the corresponding image dimension size."""
         if mask_length is not None:
             if isinstance(mask_length, (tuple, list)):
                 if mask_length[0] < 0 or mask_length[1] > dimension_size:
@@ -144,21 +112,21 @@ class XYMasking(DualTransform):
         self,
         params: dict[str, Any],
         data: dict[str, Any],
-    ) -> dict[str, list[tuple[int, int, int, int]]]:
+    ) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
 
-        # Use the helper method to validate mask lengths against image dimensions
         self.validate_mask_length(self.mask_x_length, width, "mask_x_length")
         self.validate_mask_length(self.mask_y_length, height, "mask_y_length")
 
         masks_x = self.generate_masks(self.num_masks_x, width, height, self.mask_x_length, axis="x")
         masks_y = self.generate_masks(self.num_masks_y, width, height, self.mask_y_length, axis="y")
 
-        return {"masks_x": masks_x, "masks_y": masks_y}
+        holes = np.array(masks_x + masks_y)
+        return {"holes": holes}
 
     @staticmethod
     def generate_mask_size(mask_length: tuple[int, int]) -> int:
-        return random.randint(mask_length[0], mask_length[1])
+        return random.randint(*mask_length)
 
     def generate_masks(
         self,
@@ -172,32 +140,22 @@ class XYMasking(DualTransform):
             return []
 
         masks = []
-
         num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)
 
             if axis == "x":
-                x1 = random.randint(0, width - length)
-                y1 = 0
-                x2, y2 = x1 + length, height
+                x_min = random.randint(0, width - length)
+                y_min = 0
+                x_max, y_max = x_min + length, height
             else:  # axis == 'y'
-                y1 = random.randint(0, height - length)
-                x1 = 0
-                x2, y2 = width, y1 + length
+                y_min = random.randint(0, height - length)
+                x_min = 0
+                x_max, y_max = width, y_min + length
 
-            masks.append((x1, y1, x2, y2))
+            masks.append((x_min, y_min, x_max, y_max))
         return masks
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        masks_x: list[tuple[int, int, int, int]],
-        masks_y: list[tuple[int, int, int, int]],
-        **params: Any,
-    ) -> np.ndarray:
-        return filter_keypoints_in_holes(keypoints, np.array(masks_x + masks_y))
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -208,12 +166,3 @@ class XYMasking(DualTransform):
             "fill_value",
             "mask_fill_value",
         )
-
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-            "keypoints": self.apply_to_keypoints,
-        }
