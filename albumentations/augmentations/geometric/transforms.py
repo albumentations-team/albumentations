@@ -816,8 +816,6 @@ class Affine(DualTransform):
 class ShiftScaleRotate(Affine):
     """Randomly apply affine transforms: translate, scale and rotate the input.
 
-    ShiftScaleRotate is deprecated. Please use Affine transform instead.
-
     Args:
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
