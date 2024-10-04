@@ -88,10 +88,18 @@ class RandomScale(DualTransform):
         self,
         img: np.ndarray,
         scale: float,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.scale(img, scale, self.interpolation)
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        scale: float,
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.scale(img, scale, interpolation)
+        return fgeometric.scale(mask, scale, cv2.INTER_NEAREST)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
@@ -304,13 +312,16 @@ class Resize(DualTransform):
         always_apply: bool | None = None,
         p: float = 1,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.height = height
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img: np.ndarray, interpolation: int, **params: Any) -> np.ndarray:
-        return fgeometric.resize(img, (self.height, self.width), interpolation=interpolation)
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.resize(img, (self.height, self.width), interpolation=self.interpolation)
+
+    def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return fgeometric.resize(mask, (self.height, self.width), interpolation=cv2.INTER_NEAREST)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
