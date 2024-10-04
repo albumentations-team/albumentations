@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, List, Sequence, Union, cast
+from typing import Any, List, Sequence, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -72,13 +72,13 @@ class RandomScale(DualTransform):
 
     def __init__(
         self,
-        scale_limit: ScaleFloatType = 0.1,
+        scale_limit: ScaleFloatType = (-0.1, 0.1),
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.scale_limit = cast(tuple[float, float], scale_limit)
+        self.scale_limit = cast(Tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
     def get_params(self) -> dict[str, float]:
