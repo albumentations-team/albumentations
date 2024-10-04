@@ -1460,13 +1460,46 @@ class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
+    Note:
+        - This transform flips the image upside down. The top of the image becomes the bottom and vice versa.
+        - The dimensions of the image remain unchanged.
+        - For multi-channel images (like RGB), each channel is flipped independently.
+        - Bounding boxes are adjusted to match their new positions in the flipped image.
+        - Keypoints are moved to their new positions in the flipped image.
+
+    Mathematical Details:
+        1. For an input image I of shape (H, W, C), the output O is:
+           O[i, j, k] = I[H-1-i, j, k] for all i in [0, H-1], j in [0, W-1], k in [0, C-1]
+        2. For bounding boxes with coordinates (x_min, y_min, x_max, y_max):
+           new_bbox = (x_min, H-y_max, x_max, H-y_min)
+        3. For keypoints with coordinates (x, y):
+           new_keypoint = (x, H-y)
+        where H is the height of the image.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.array([
+        ...     [[1, 2, 3], [4, 5, 6]],
+        ...     [[7, 8, 9], [10, 11, 12]]
+        ... ])
+        >>> transform = A.VerticalFlip(p=1.0)
+        >>> result = transform(image=image)
+        >>> flipped_image = result['image']
+        >>> print(flipped_image)
+        [[[ 7  8  9]
+          [10 11 12]]
+         [[ 1  2  3]
+          [ 4  5  6]]]
+        # The original image is flipped vertically, with rows reversed
 
     """
 
