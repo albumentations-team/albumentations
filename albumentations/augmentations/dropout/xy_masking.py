@@ -25,20 +25,20 @@ class XYMasking(BaseDropout):
     maximum size along each axis.
 
     Args:
-        num_masks_x (Union[int, tuple[int, int]]): Number or range of horizontal regions to mask. Defaults to 0.
-        num_masks_y (Union[int, tuple[int, int]]): Number or range of vertical regions to mask. Defaults to 0.
-        mask_x_length ([Union[int, tuple[int, int]]): Specifies the length of the masks along
+        num_masks_x (int | tuple[int, int]): Number or range of horizontal regions to mask. Defaults to 0.
+        num_masks_y (int | tuple[int, int]): Number or range of vertical regions to mask. Defaults to 0.
+        mask_x_length (int | tuple[int, int]): Specifies the length of the masks along
             the X (horizontal) axis. If an integer is provided, it sets a fixed mask length.
             If a tuple of two integers (min, max) is provided,
             the mask length is randomly chosen within this range for each mask.
             This allows for variable-length masks in the horizontal direction.
-        mask_y_length (Union[int, tuple[int, int]]): Specifies the height of the masks along
+        mask_y_length (int | tuple[int, int]): Specifies the height of the masks along
             the Y (vertical) axis. Similar to `mask_x_length`, an integer sets a fixed mask height,
             while a tuple (min, max) allows for variable-height masks, chosen randomly
             within the specified range for each mask. This flexibility facilitates creating masks of various
             sizes in the vertical direction.
-        fill_value (Union[int, float, list[int], list[float], str]): Value to fill image masks. Defaults to 0.
-        mask_fill_value (Optional[Union[int, float, list[int], list[float]]]): Value to fill masks in the mask.
+        fill_value (int | float | list[int] | list[float] | str): Value to fill image masks. Defaults to 0.
+        mask_fill_value (int | float | list[int] | list[float] | None): Value to fill masks in the mask.
             If `None`, uses mask is not affected. Default: `None`.
         p (float): Probability of applying the transform. Defaults to 0.5.
 
@@ -113,13 +113,15 @@ class XYMasking(BaseDropout):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, np.ndarray]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
+
+        height, width = image_shape
 
         self.validate_mask_length(self.mask_x_length, width, "mask_x_length")
         self.validate_mask_length(self.mask_y_length, height, "mask_y_length")
 
-        masks_x = self.generate_masks(self.num_masks_x, width, height, self.mask_x_length, axis="x")
-        masks_y = self.generate_masks(self.num_masks_y, width, height, self.mask_y_length, axis="y")
+        masks_x = self.generate_masks(self.num_masks_x, image_shape, self.mask_x_length, axis="x")
+        masks_y = self.generate_masks(self.num_masks_y, image_shape, self.mask_y_length, axis="y")
 
         holes = np.array(masks_x + masks_y)
         return {"holes": holes}
@@ -131,8 +133,7 @@ class XYMasking(BaseDropout):
     def generate_masks(
         self,
         num_masks: tuple[int, int],
-        width: int,
-        height: int,
+        image_shape: tuple[int, int],
         max_length: tuple[int, int] | None,
         axis: str,
     ) -> list[tuple[int, int, int, int]]:
@@ -141,6 +142,8 @@ class XYMasking(BaseDropout):
 
         masks = []
         num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
+
+        height, width = image_shape
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)
