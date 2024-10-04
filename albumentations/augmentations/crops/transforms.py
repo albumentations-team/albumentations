@@ -478,16 +478,19 @@ class _BaseRandomSizedCrop(DualTransform):
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
-    """Crop a random portion of the input and rescale it to a specific size.
+    """Crop a random part of the input and rescale it to a specific size.
+
+    This transform first crops a random portion of the input and then resizes it to a specified size.
+    The size of the random crop is controlled by the 'min_max_height' parameter.
 
     Args:
-        min_max_height (tuple[int, int]): crop size limits.
-        size (tuple[int, int]): target size for the output image, i.e. (height, width) after crop and resize
-        w2h_ratio (float): aspect ratio of crop.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        min_max_height (tuple[int, int]): Minimum and maximum height of the crop in pixels.
+        size (tuple[int, int]): Target size for the output image, i.e. (height, width) after crop and resize.
+        w2h_ratio (float): Aspect ratio (width/height) of crop. Default: 1.0
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
         image, mask, bboxes, keypoints
@@ -495,6 +498,38 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     Image types:
         uint8, float32
 
+    Note:
+        - The crop size is randomly selected for each execution within the range specified by 'min_max_height'.
+        - The aspect ratio of the crop is determined by the 'w2h_ratio' parameter.
+        - After cropping, the result is resized to the specified 'size'.
+        - Bounding boxes that end up fully outside the cropped area will be removed.
+        - Keypoints that end up outside the cropped area will be removed.
+        - This transform differs from RandomResizedCrop in that it allows more control over the crop size
+          through the 'min_max_height' parameter, rather than using a scale parameter.
+
+    Mathematical Details:
+        1. A random crop height h is sampled from the range [min_max_height[0], min_max_height[1]].
+        2. The crop width w is calculated as: w = h * w2h_ratio
+        3. A random location for the crop is selected within the input image.
+        4. The image is cropped to the size (h, w).
+        5. The crop is then resized to the specified 'size'.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.RandomSizedCrop(
+        ...     min_max_height=(50, 80),
+        ...     size=(64, 64),
+        ...     w2h_ratio=1.0,
+        ...     interpolation=cv2.INTER_LINEAR,
+        ...     p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        # transformed_image will be a 64x64 image, resulting from a crop with height
+        # between 50 and 80 pixels, and the same aspect ratio as specified by w2h_ratio,
+        # taken from a random location in the original image and then resized.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -583,7 +618,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     on images of varying sizes and aspect ratios.
 
     Args:
-        size (int, tuple[int, int]): If int, square crop is made of this size.
+        size (int | tuple[int, int]): If int, square crop is made of this size.
             If tuple of two ints (height, width), this size is used.
         scale (tuple[float, float]): Range of the random size of the crop relative to the input size.
             For example, (0.08, 1.0) means the crop size will be between 8% and 100% of the input size.
