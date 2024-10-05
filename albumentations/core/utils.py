@@ -44,10 +44,17 @@ class LabelEncoder:
         self.classes_: dict[str | int | float, int] = {}
         self.inverse_classes_: dict[int, str | int | float] = {}
         self.num_classes: int = 0
+        self.is_numerical: bool = True
 
-    def fit(self, y: list[Any] | np.ndarray) -> LabelEncoder:
+    def fit(self, y: Sequence[Any] | np.ndarray) -> LabelEncoder:
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
+
+        self.is_numerical = all(isinstance(label, (int, float)) for label in y)
+
+        if self.is_numerical:
+            return self
+
         unique_labels = sorted(set(y))
         for label in unique_labels:
             if label not in self.classes_:
@@ -56,18 +63,26 @@ class LabelEncoder:
                 self.num_classes += 1
         return self
 
-    def transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+    def transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
+
+        if self.is_numerical:
+            return np.array(y)
+
         return np.array([self.classes_[label] for label in y])
 
-    def fit_transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+    def fit_transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
         self.fit(y)
         return self.transform(y)
 
-    def inverse_transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+    def inverse_transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
+
+        if self.is_numerical:
+            return np.array(y)
+
         return np.array([self.inverse_classes_[label] for label in y])
 
 
@@ -86,6 +101,7 @@ class DataProcessor(ABC):
         self.data_fields = [self.default_data_name]
         self.label_encoders: dict[str, dict[str, LabelEncoder]] = defaultdict(dict)
         self.is_sequence_input: dict[str, bool] = {}
+        self.is_numerical_label: dict[str, dict[str, bool]] = defaultdict(dict)
 
         if additional_targets is not None:
             self.add_targets(additional_targets)
@@ -190,14 +206,20 @@ class DataProcessor(ABC):
                         f"and {len(data[label_field])} respectively.",
                     )
 
-                # Encode labels
-                encoder = LabelEncoder()
-                encoded_labels = encoder.fit_transform(data[label_field])
-                self.label_encoders[data_name][label_field] = encoder
+                # Check if labels are numerical
+                is_numerical = all(isinstance(label, (int, float)) for label in data[label_field])
+                self.is_numerical_label[data_name][label_field] = is_numerical
 
-                # Attach encoded labels as extra columns
-                encoded_labels = encoded_labels.reshape(-1, 1)
+                if is_numerical:
+                    # For numerical labels, don't encode, just reshape
+                    encoded_labels = np.array(data[label_field], dtype=np.float32).reshape(-1, 1)
+                else:
+                    # Encode non-numerical labels
+                    encoder = LabelEncoder()
+                    encoded_labels = encoder.fit_transform(data[label_field]).reshape(-1, 1)
+                    self.label_encoders[data_name][label_field] = encoder
 
+                # Attach labels as extra columns
                 data_array = np.hstack((data_array, encoded_labels))
 
                 del data[label_field]
@@ -221,12 +243,19 @@ class DataProcessor(ABC):
 
             for idx, label_field in enumerate(self.params.label_fields):
                 encoded_labels = data_array[:, non_label_columns + idx]
-                encoder = self.label_encoders.get(data_name, {}).get(label_field)
-                if encoder:
-                    decoded_labels = encoder.inverse_transform(encoded_labels.astype(int))
-                    data[label_field] = decoded_labels.tolist()
+
+                if self.is_numerical_label[data_name][label_field]:
+                    # For numerical labels, don't decode
+                    decoded_labels = encoded_labels
                 else:
-                    raise ValueError(f"Label encoder for {label_field} not found")
+                    # Decode non-numerical labels
+                    encoder = self.label_encoders.get(data_name, {}).get(label_field)
+                    if encoder:
+                        decoded_labels = encoder.inverse_transform(encoded_labels.astype(int))
+                    else:
+                        raise ValueError(f"Label encoder for {label_field} not found")
+
+                data[label_field] = decoded_labels.tolist()
 
             # Remove label columns from data
             data[data_name] = data_array[:, :non_label_columns]

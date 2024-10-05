@@ -4,13 +4,13 @@ from albumentations.core.utils import LabelEncoder
 
 @pytest.mark.parametrize("input_labels, expected_encoded, expected_decoded", [
     (["a", "b", "c", "a", "b"], [0, 1, 2, 0, 1], ["a", "b", "c", "a", "b"]),
-    ([1, 2, 3, 1, 2], [0, 1, 2, 0, 1], [1, 2, 3, 1, 2]),
-    ([1.1, 2.2, 3.3, 1.1, 2.2], [0, 1, 2, 0, 1], [1.1, 2.2, 3.3, 1.1, 2.2]),
+    ([1, 2, 3, 1, 2], [1, 2, 3, 1, 2], [1, 2, 3, 1, 2]),
+    ([1.1, 2.2, 3.3, 1.1, 2.2], [1.1, 2.2, 3.3, 1.1, 2.2], [1.1, 2.2, 3.3, 1.1, 2.2]),
     (["a", "b", "c", "d", "e"], [0, 1, 2, 3, 4], ["a", "b", "c", "d", "e"]),
     ([], [], []),
     (np.array(["a", "b", "c", "a", "b"]), [0, 1, 2, 0, 1], ["a", "b", "c", "a", "b"]),
-    (np.array([1, 2, 3, 1, 2]), [0, 1, 2, 0, 1], [1, 2, 3, 1, 2]),
-    (np.array([1.1, 2.2, 3.3, 1.1, 2.2]), [0, 1, 2, 0, 1], [1.1, 2.2, 3.3, 1.1, 2.2]),
+    (np.array([1, 2, 3, 1, 2]), np.array([1, 2, 3, 1, 2]), [1, 2, 3, 1, 2]),
+    (np.array([1.1, 2.2, 3.3, 1.1, 2.2]), np.array([1.1, 2.2, 3.3, 1.1, 2.2]), [1.1, 2.2, 3.3, 1.1, 2.2]),
 ])
 def test_label_encoder(input_labels, expected_encoded, expected_decoded):
     encoder = LabelEncoder()
@@ -78,7 +78,7 @@ def test_label_encoder_2d_array():
 
     encoded = encoder.fit_transform(input_array)
     assert encoded.shape == (6,)
-    np.testing.assert_array_equal(encoded, [0, 1, 2, 0, 1, 2])
+    np.testing.assert_array_equal(encoded, [1, 2, 3, 1, 2, 3])
 
     decoded = encoder.inverse_transform(encoded)
     np.testing.assert_array_equal(decoded, [1, 2, 3, 1, 2, 3])
