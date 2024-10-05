@@ -196,70 +196,80 @@ class DataProcessor(ABC):
             return data
 
         for data_name in set(self.data_fields) & set(data.keys()):
-            data_array = data[data_name]
-            if not data_array.size:
+            if not data[data_name].size:
                 continue
-            for label_field in self.params.label_fields:
-                if len(data[data_name]) != len(data[label_field]):
-                    raise ValueError(
-                        f"The lengths of {data_name} and {label_field} do not match. Got {len(data[data_name])} "
-                        f"and {len(data[label_field])} respectively.",
-                    )
+            data[data_name] = self._process_label_fields(data, data_name)
 
-                # Check if labels are numerical
-                is_numerical = all(isinstance(label, (int, float)) for label in data[label_field])
-                self.is_numerical_label[data_name][label_field] = is_numerical
-
-                if is_numerical:
-                    # For numerical labels, don't encode, just reshape
-                    encoded_labels = np.array(data[label_field], dtype=np.float32).reshape(-1, 1)
-                else:
-                    # Encode non-numerical labels
-                    encoder = LabelEncoder()
-                    encoded_labels = encoder.fit_transform(data[label_field]).reshape(-1, 1)
-                    self.label_encoders[data_name][label_field] = encoder
-
-                # Attach labels as extra columns
-                data_array = np.hstack((data_array, encoded_labels))
-
-                del data[label_field]
-
-            data[data_name] = data_array
         return data
+
+    def _process_label_fields(self, data: dict[str, Any], data_name: str) -> np.ndarray:
+        data_array = data[data_name]
+        if self.params.label_fields is not None:
+            for label_field in self.params.label_fields:
+                self._validate_label_field_length(data, data_name, label_field)
+                encoded_labels = self._encode_label_field(data, data_name, label_field)
+                data_array = np.hstack((data_array, encoded_labels))
+                del data[label_field]
+        return data_array
+
+    def _validate_label_field_length(self, data: dict[str, Any], data_name: str, label_field: str) -> None:
+        if len(data[data_name]) != len(data[label_field]):
+            raise ValueError(
+                f"The lengths of {data_name} and {label_field} do not match. "
+                f"Got {len(data[data_name])} and {len(data[label_field])} respectively.",
+            )
+
+    def _encode_label_field(self, data: dict[str, Any], data_name: str, label_field: str) -> np.ndarray:
+        is_numerical = all(isinstance(label, (int, float)) for label in data[label_field])
+        self.is_numerical_label[data_name][label_field] = is_numerical
+
+        if is_numerical:
+            return np.array(data[label_field], dtype=np.float32).reshape(-1, 1)
+
+        encoder = LabelEncoder()
+        encoded_labels = encoder.fit_transform(data[label_field]).reshape(-1, 1)
+        self.label_encoders[data_name][label_field] = encoder
+        return encoded_labels
 
     def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
         if not self.params.label_fields:
             return data
 
         for data_name in set(self.data_fields) & set(data.keys()):
-            data_array = data[data_name]
-            if not data_array.size:
-                for label_field in self.params.label_fields:
-                    data[label_field] = []
+            if not data[data_name].size:
+                self._handle_empty_data_array(data)
                 continue
+            self._remove_label_fields(data, data_name)
 
+        return data
+
+    def _handle_empty_data_array(self, data: dict[str, Any]) -> None:
+        if self.params.label_fields is not None:
+            for label_field in self.params.label_fields:
+                data[label_field] = []
+
+    def _remove_label_fields(self, data: dict[str, Any], data_name: str) -> None:
+        data_array = data[data_name]
+        if self.params.label_fields is not None:
             num_label_fields = len(self.params.label_fields)
             non_label_columns = data_array.shape[1] - num_label_fields
 
             for idx, label_field in enumerate(self.params.label_fields):
                 encoded_labels = data_array[:, non_label_columns + idx]
-
-                if self.is_numerical_label[data_name][label_field]:
-                    # For numerical labels, don't decode
-                    decoded_labels = encoded_labels
-                else:
-                    # Decode non-numerical labels
-                    encoder = self.label_encoders.get(data_name, {}).get(label_field)
-                    if encoder:
-                        decoded_labels = encoder.inverse_transform(encoded_labels.astype(int))
-                    else:
-                        raise ValueError(f"Label encoder for {label_field} not found")
-
+                decoded_labels = self._decode_label_field(data_name, label_field, encoded_labels)
                 data[label_field] = decoded_labels.tolist()
 
-            # Remove label columns from data
             data[data_name] = data_array[:, :non_label_columns]
-        return data
+
+    def _decode_label_field(self, data_name: str, label_field: str, encoded_labels: np.ndarray) -> np.ndarray:
+        if self.is_numerical_label[data_name][label_field]:
+            return encoded_labels
+
+        encoder = self.label_encoders.get(data_name, {}).get(label_field)
+        if encoder:
+            return encoder.inverse_transform(encoded_labels.astype(int))
+
+        raise ValueError(f"Label encoder for {label_field} not found")
 
 
 def validate_args(low: ScaleType | None, bias: ScalarType | None) -> None:
