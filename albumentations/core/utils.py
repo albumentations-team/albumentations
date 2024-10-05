@@ -46,6 +46,8 @@ class LabelEncoder:
         self.num_classes: int = 0
 
     def fit(self, y: list[Any] | np.ndarray) -> LabelEncoder:
+        if isinstance(y, np.ndarray):
+            y = y.flatten().tolist()
         unique_labels = sorted(set(y))
         for label in unique_labels:
             if label not in self.classes_:
@@ -55,6 +57,8 @@ class LabelEncoder:
         return self
 
     def transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+        if isinstance(y, np.ndarray):
+            y = y.flatten().tolist()
         return np.array([self.classes_[label] for label in y])
 
     def fit_transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
@@ -62,6 +66,8 @@ class LabelEncoder:
         return self.transform(y)
 
     def inverse_transform(self, y: list[Any] | np.ndarray) -> np.ndarray:
+        if isinstance(y, np.ndarray):
+            y = y.flatten().tolist()
         return np.array([self.inverse_classes_[label] for label in y])
 
 
