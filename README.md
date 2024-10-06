@@ -51,7 +51,6 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
   - [List of augmentations](#list-of-augmentations)
     - [Pixel-level transforms](#pixel-level-transforms)
     - [Spatial-level transforms](#spatial-level-transforms)
-    - [Mixing-level transforms](#mixing-level-transforms)
   - [A few more examples of **augmentations**](#a-few-more-examples-of-augmentations)
     - [Semantic segmentation on the Inria dataset](#semantic-segmentation-on-the-inria-dataset)
     - [Medical imaging](#medical-imaging)
@@ -236,6 +235,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Morphological](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Morphological)                                   | ✓     | ✓    | ✓      | ✓         |
 | [NoOp](https://albumentations.ai/docs/api_reference/core/transforms_interface/#albumentations.core.transforms_interface.NoOp)                                                   | ✓     | ✓    | ✓      | ✓         |
 | [OpticalDistortion](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.OpticalDistortion)       | ✓     | ✓    | ✓      | ✓         |
+| [OverlayElements](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.OverlayElements)                 | ✓     | ✓    |        |           |
 | [PadIfNeeded](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.PadIfNeeded)                   | ✓     | ✓    | ✓      | ✓         |
 | [Perspective](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.Perspective)                   | ✓     | ✓    | ✓      | ✓         |
 | [PiecewiseAffine](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.PiecewiseAffine)           | ✓     | ✓    | ✓      | ✓         |
@@ -256,15 +256,6 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Transpose](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.Transpose)                       | ✓     | ✓    | ✓      | ✓         |
 | [VerticalFlip](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.VerticalFlip)                 | ✓     | ✓    | ✓      | ✓         |
 | [XYMasking](https://albumentations.ai/docs/api_reference/augmentations/dropout/xy_masking/#albumentations.augmentations.dropout.xy_masking.XYMasking)                           | ✓     | ✓    | ✓      | ✓         |
-
-### Mixing-level transforms
-
-Transforms that mix several images into one
-
-| Transform                                                                                                                                                       | Image | Mask | BBoxes | Keypoints | Global Label |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :--: | :----: | :-------: | :----------: |
-| [MixUp](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.MixUp)                     | ✓     | ✓    |        |           | ✓            |
-| [OverlayElements](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.OverlayElements) | ✓     | ✓    |        |           |              |
 
 ## A few more examples of **augmentations**
 
