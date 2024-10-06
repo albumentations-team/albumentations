@@ -22,7 +22,7 @@ from .types import (
 )
 from .utils import format_args
 
-__all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
+__all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
 
 
 class Interpolation:
@@ -470,15 +470,3 @@ class NoOp(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
-
-
-class ReferenceBasedTransform(DualTransform):
-    @property
-    def targets(self) -> dict[str, Callable[..., Any]]:
-        return {
-            "global_label": self.apply_to_global_label,
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "bboxes": self.apply_to_bboxes,
-            "keypoints": self.apply_to_keypoints,
-        }

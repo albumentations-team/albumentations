@@ -91,7 +91,6 @@ DUAL_TARGETS = {
     A.RandomCropNearBBox: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Perspective: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.MixUp: (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL),
     A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
     A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
@@ -154,12 +153,6 @@ def test_image_only(augmentation_cls, params):
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
-            },
-             A.MixUp: {
-                "reference_data": [{"image": SQUARE_FLOAT_IMAGE,
-                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
-                                    }],
-                "read_fn": lambda x: x,
             },
              A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
