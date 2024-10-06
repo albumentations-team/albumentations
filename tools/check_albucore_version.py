@@ -11,7 +11,7 @@ def check_albucore_version(filename):
         print(f"Error: albucore not found in {filename}")
         return 1
 
-    albucore_req = match.group(1)
+    albucore_req = match[1]
     if not re.match(r'"albucore==\d+\.\d+\.\d+"', albucore_req):
         print(f"Error: albucore version must be exact (==) in {filename}. Found: {albucore_req}")
         return 1
