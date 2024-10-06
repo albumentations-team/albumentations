@@ -2042,9 +2042,9 @@ class Posterize(ImageOnlyTransform):
         @classmethod
         def validate_num_bits(cls, num_bits: Any) -> tuple[int, int] | list[tuple[int, int]]:
             if isinstance(num_bits, int):
-                return cast(Tuple[int, int], to_tuple(num_bits, num_bits))
+                return to_tuple(num_bits, num_bits)
             if isinstance(num_bits, Sequence) and len(num_bits) == NUM_BITS_ARRAY_LENGTH:
-                return [cast(Tuple[int, int], to_tuple(i, 0)) for i in num_bits]
+                return [to_tuple(i, 0) for i in num_bits]
             return cast(Tuple[int, int], to_tuple(num_bits, 0))
 
     def __init__(
