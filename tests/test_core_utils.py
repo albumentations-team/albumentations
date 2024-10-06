@@ -11,6 +11,7 @@ from albumentations.core.utils import LabelEncoder
     (np.array(["a", "b", "c", "a", "b"]), [0, 1, 2, 0, 1], ["a", "b", "c", "a", "b"]),
     (np.array([1, 2, 3, 1, 2]), np.array([1, 2, 3, 1, 2]), [1, 2, 3, 1, 2]),
     (np.array([1.1, 2.2, 3.3, 1.1, 2.2]), np.array([1.1, 2.2, 3.3, 1.1, 2.2]), [1.1, 2.2, 3.3, 1.1, 2.2]),
+    (["a", 1, "b", 2, "a", 1], [2, 0, 3, 1, 2, 0], ["a", 1, "b", 2, "a", 1]),
 ])
 def test_label_encoder(input_labels, expected_encoded, expected_decoded):
     encoder = LabelEncoder()

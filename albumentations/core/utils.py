@@ -39,6 +39,12 @@ def format_args(args_dict: dict[str, Any]) -> str:
     return ", ".join(formatted_args)
 
 
+def custom_sort(item: Any) -> tuple[int, Real | str]:
+    if isinstance(item, Real):
+        return (0, item)  # Numerical items come first
+    return (1, str(item))  # Non-numerical items come second, converted to strings
+
+
 class LabelEncoder:
     def __init__(self) -> None:
         self.classes_: dict[str | int | float, int] = {}
@@ -50,12 +56,12 @@ class LabelEncoder:
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
 
-        self.is_numerical = all(isinstance(label, (int, float)) for label in y)
+        self.is_numerical = all(isinstance(label, Real) for label in y)
 
         if self.is_numerical:
             return self
 
-        unique_labels = sorted(set(y))
+        unique_labels = sorted(set(y), key=custom_sort)
         for label in unique_labels:
             if label not in self.classes_:
                 self.classes_[label] = self.num_classes
@@ -249,17 +255,19 @@ class DataProcessor(ABC):
                 data[label_field] = []
 
     def _remove_label_fields(self, data: dict[str, Any], data_name: str) -> None:
+        if self.params.label_fields is None:
+            return
+
         data_array = data[data_name]
-        if self.params.label_fields is not None:
-            num_label_fields = len(self.params.label_fields)
-            non_label_columns = data_array.shape[1] - num_label_fields
+        num_label_fields = len(self.params.label_fields)
+        non_label_columns = data_array.shape[1] - num_label_fields
 
-            for idx, label_field in enumerate(self.params.label_fields):
-                encoded_labels = data_array[:, non_label_columns + idx]
-                decoded_labels = self._decode_label_field(data_name, label_field, encoded_labels)
-                data[label_field] = decoded_labels.tolist()
+        for idx, label_field in enumerate(self.params.label_fields):
+            encoded_labels = data_array[:, non_label_columns + idx]
+            decoded_labels = self._decode_label_field(data_name, label_field, encoded_labels)
+            data[label_field] = decoded_labels.tolist()
 
-            data[data_name] = data_array[:, :non_label_columns]
+        data[data_name] = data_array[:, :non_label_columns]
 
     def _decode_label_field(self, data_name: str, label_field: str, encoded_labels: np.ndarray) -> np.ndarray:
         if self.is_numerical_label[data_name][label_field]:
