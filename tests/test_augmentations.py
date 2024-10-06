@@ -31,10 +31,6 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
             A.TemplateTransform: {
                 "templates": SQUARE_UINT8_IMAGE,
             },
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_UINT8_IMAGE}],
-                "read_fn": lambda x: x,
-            },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
@@ -79,10 +75,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
                 "templates": SQUARE_FLOAT_IMAGE,
             },
             A.RingingOvershoot: {"blur_limit": (3, 5)},
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_FLOAT_IMAGE}],
-                "read_fn": lambda x: x,
-            },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
@@ -124,12 +116,6 @@ def test_image_only_augmentations(augmentation_cls, params):
                 "fill_value": 0,
                 "mask_fill_value": 1,
             },
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
-                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
-            },
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
@@ -169,13 +155,7 @@ def test_dual_augmentations(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
-                "reference_data": [{"image": SQUARE_FLOAT_IMAGE,
-                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
-                                    }],
-                "read_fn": lambda x: x,
-            },
-             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
@@ -230,12 +210,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
-            },
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
-                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -300,12 +274,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
-                "reference_data": [{"image": SQUARE_FLOAT_IMAGE,
-                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
-                                    }],
-                "read_fn": lambda x: x,
-            },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
@@ -361,12 +329,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
-            },
-            A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 255, (100, 100), dtype=np.uint8),
-                                    "mask": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -457,12 +419,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
-            },
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
-                                    "mask": np.random.randint(0, 1, (100, 100, 3), dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -591,12 +547,6 @@ def test_mask_fill_value(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
-                "reference_data": [{"image": SQUARE_MULTI_UINT8_IMAGE,
-                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
-            },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.ToGray: {"method": "desaturation", "num_output_channels": 5},
@@ -684,12 +634,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_MULTI_FLOAT_IMAGE,
-                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
-                                    }],
-                "read_fn": lambda x: x,
-            },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.ToGray: {"method": "max", "num_output_channels": 5},
@@ -765,12 +709,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
-            },
-             A.MixUp: {
-                "reference_data": [{"image": SQUARE_MULTI_UINT8_IMAGE,
-                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -855,12 +793,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
-            },
-            A.MixUp: {
-                "reference_data": [{"image": SQUARE_MULTI_FLOAT_IMAGE,
-                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
-                                    }],
-                "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -1049,7 +981,7 @@ def test_pad_if_needed_position(params, image_shape):
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.FromFloat, A.ToFloat, A.Normalize, A.CropNonEmptyMaskIfExists,
-            A.MixUp, A.FDA, A.HistogramMatching, A.PixelDistributionAdaptation, A.TemplateTransform, A.OverlayElements, A.TextImage,
+            A.FDA, A.HistogramMatching, A.PixelDistributionAdaptation, A.TemplateTransform, A.OverlayElements, A.TextImage,
             A.Solarize, A.RGBShift, A.HueSaturationValue, A.GaussNoise, A.ColorJitter
             },
     ),

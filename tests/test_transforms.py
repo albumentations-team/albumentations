@@ -81,7 +81,7 @@ def test_rotate_crop_border():
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout,
-                              A.MixUp},
+                              },
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -124,7 +124,6 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.CropAndPad,
             A.PixelDropout,
-            A.MixUp,
             A.XYMasking,
             A.OverlayElements,
             A.TextImage
@@ -179,7 +178,6 @@ def __test_multiprocessing_support_proc(args):
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
-            A.MixUp,
             A.OverlayElements,
             A.TextImage,
             A.MaskDropout,
@@ -1267,7 +1265,6 @@ def test_coarse_dropout_invalid_input(params):
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.MixUp,
             A.NoOp,
             A.Lambda,
             A.ToRGB,
@@ -1337,7 +1334,6 @@ def test_change_image(augmentation_cls, params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.MixUp,
             A.NoOp,
             A.Lambda,
             A.ToRGB,
@@ -1516,7 +1512,6 @@ def test_random_snow_invalid_input(params):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
-            A.MixUp,
             A.OverlayElements,
             A.MaskDropout,
         },
@@ -1846,7 +1841,6 @@ def test_rot90(bboxes, angle, keypoints):
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.MixUp,
             A.OverlayElements,
             A.NoOp,
             A.Lambda,
@@ -1939,7 +1933,7 @@ def test_padding_color(transform, num_channels):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop,
-                              A.MixUp, A.OverlayElements, A.GridElasticDeform, A.CropNonEmptyMaskIfExists},
+                              A.OverlayElements, A.GridElasticDeform, A.CropNonEmptyMaskIfExists},
     ),
 )
 def test_empty_bboxes_keypoints(augmentation_cls, params):

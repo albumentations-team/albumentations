@@ -37,7 +37,6 @@ AUGMENTATION_CLS_EXCEPT = {
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
     A.TemplateTransform,
-    A.MixUp
 }
 
 
@@ -89,7 +88,6 @@ TEST_SEEDS = (42, )
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
-            A.MixUp,
         },
 
     ),
@@ -217,7 +215,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.OpticalDistortion,
             A.TemplateTransform,
             A.XYMasking,
-            A.MixUp,
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
             A.TextImage,
@@ -287,7 +284,6 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
-            A.MixUp,
             A.OverlayElements,
             A.TextImage,
         },
@@ -749,7 +745,6 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
-            A.MixUp,
         },
     ),
 )
