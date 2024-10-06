@@ -39,7 +39,7 @@ def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: flo
     for v in result:
         if v != 0 and v % 2 != 1:
             raise ValueError(f"Blur limit must be 0 or odd. Got: {result}")
-    return cast(Tuple[int, int], result)
+    return result
 
 
 class BlurInitSchema(BaseTransformInitSchema):
@@ -171,7 +171,7 @@ class MotionBlur(Blur):
 
         @model_validator(mode="after")
         def process_blur(self) -> Self:
-            self.blur_limit = cast(Tuple[int, int], to_tuple(self.blur_limit, 3))
+            self.blur_limit = to_tuple(self.blur_limit, 3)
 
             if self.allow_shifted and isinstance(self.blur_limit, tuple) and any(x % 2 != 1 for x in self.blur_limit):
                 raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
