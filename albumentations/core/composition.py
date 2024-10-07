@@ -44,7 +44,7 @@ REPR_INDENT_STEP = 2
 TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
-AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "global_label")
+AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints")
 MASK_KEYS = (
     "mask",
     "masks",

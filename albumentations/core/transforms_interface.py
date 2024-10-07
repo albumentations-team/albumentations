@@ -407,10 +407,6 @@ class DualTransform(BasicTransform):
         msg = f"Method apply_to_keypoints is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-    def apply_to_global_label(self, label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
-        raise NotImplementedError(msg)
-
     def apply_to_bboxes(self, bboxes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         raise NotImplementedError(f"BBoxes not implemented for {self.__class__.__name__}")
 
@@ -430,9 +426,6 @@ class DualTransform(BasicTransform):
             return self.apply_to_mask(masks, **params)
         return [self.apply_to_mask(mask, **params) for mask in masks]
 
-    def apply_to_global_labels(self, labels: Sequence[np.ndarray], **params: Any) -> list[np.ndarray]:
-        return [self.apply_to_global_label(label, **params) for label in labels]
-
 
 class ImageOnlyTransform(BasicTransform):
     """Transform applied to image only."""
@@ -448,10 +441,10 @@ class NoOp(DualTransform):
     """Identity transform (does nothing).
 
     Targets:
-        image, mask, bboxes, keypoints, global_label
+        image, mask, bboxes, keypoints
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return keypoints
@@ -464,9 +457,6 @@ class NoOp(DualTransform):
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
         return mask
-
-    def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
-        return label
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()

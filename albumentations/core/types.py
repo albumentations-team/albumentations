@@ -39,7 +39,6 @@ D4Type = Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 class ReferenceImage(TypedDict):
     image: np.ndarray
     mask: NotRequired[np.ndarray]
-    global_label: NotRequired[np.ndarray]
     bbox: NotRequired[tuple[float, ...] | np.ndarray]
     keypoints: NotRequired[tuple[float, ...] | np.ndarray]
 
@@ -49,7 +48,6 @@ class Targets(Enum):
     MASK = "Mask"
     BBOXES = "BBoxes"
     KEYPOINTS = "Keypoints"
-    GLOBAL_LABEL = "Global Label"
 
 
 NUM_MULTI_CHANNEL_DIMENSIONS = 3

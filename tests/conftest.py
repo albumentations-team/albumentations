@@ -10,10 +10,6 @@ from tests.utils import set_seed
 set_seed(42)
 
 @pytest.fixture
-def global_label():
-    return np.array([1, 0, 0])
-
-@pytest.fixture
 def mask():
     return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
 

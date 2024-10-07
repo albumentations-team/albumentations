@@ -20,7 +20,7 @@ def make_augmentation_docs_link(cls) -> str:
     module_parts = cls.__module__.split(".")
     module_page = "/".join(module_parts[1:])
     return (
-        f"[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
+        f"[{cls.__name__}](https://explore.albumentations.ai/transform/{cls.__name__})"
     )
 
 
@@ -115,7 +115,6 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
     outdated_docs = set()
     image_only_lines_not_in_text = []
     dual_lines_not_in_text = []
-    mixing_lines_not_in_text = []
 
     for line in image_only_transforms_links.split("\n"):
         if line not in text:
@@ -159,7 +158,7 @@ def main() -> None:
     image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
 
     dual_transforms_table = make_transforms_targets_table(
-        dual_transforms, header=["Transform"] + [target.value for target in Targets if target != Targets.GLOBAL_LABEL]
+        dual_transforms, header=["Transform"] + [target.value for target in Targets]
     )
 
     if command == "make":

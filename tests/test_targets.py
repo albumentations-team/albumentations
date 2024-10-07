@@ -23,13 +23,6 @@ def get_targets_from_methods(cls):
     if has_keypoints_method:
         targets.add(Targets.KEYPOINTS)
 
-    has_global_label_method = any(
-        hasattr(cls, attr) and getattr(cls, attr) is not getattr(A.DualTransform, attr, None)
-        for attr in ["apply_to_global_label", "apply_to_global_labels"]
-    )
-    if has_global_label_method:
-        targets.add(Targets.GLOBAL_LABEL)
-
     return targets
 
 
@@ -70,7 +63,7 @@ DUAL_TARGETS = {
     A.PadIfNeeded: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomScale: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.XYMasking: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.NoOp: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
+    A.NoOp: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Resize: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Rotate: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomRotate90: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
@@ -91,7 +84,7 @@ DUAL_TARGETS = {
     A.RandomCropNearBBox: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Perspective: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
+    A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
     A.GridElasticDeform: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
@@ -101,7 +94,7 @@ DUAL_TARGETS = {
 }
 
 str2target = {
-    'image': Targets.IMAGE, 'mask': Targets.MASK, 'bboxes': Targets.BBOXES, 'keypoints': Targets.KEYPOINTS, 'global_label': Targets.GLOBAL_LABEL
+    'image': Targets.IMAGE, 'mask': Targets.MASK, 'bboxes': Targets.BBOXES, 'keypoints': Targets.KEYPOINTS,
 }
 
 @pytest.mark.parametrize(
