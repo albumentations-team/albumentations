@@ -3301,11 +3301,10 @@ class Lambda(NoOp):
         mask: Mask transformation function.
         keypoint: Keypoint transformation function.
         bbox: BBox transformation function.
-        global_label: Global label transformation function.
         p: probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints, global_label
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -3321,7 +3320,6 @@ class Lambda(NoOp):
         mask: Callable[..., Any] | None = None,
         keypoints: Callable[..., Any] | None = None,
         bboxes: Callable[..., Any] | None = None,
-        global_label: Callable[..., Any] | None = None,
         name: str | None = None,
         always_apply: bool | None = None,
         p: float = 1.0,
@@ -3337,7 +3335,6 @@ class Lambda(NoOp):
             "mask": mask,
             "keypoints": keypoints,
             "bboxes": bboxes,
-            "global_label": global_label,
         }.items():
             if custom_apply_fn is not None:
                 if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
@@ -3385,10 +3382,6 @@ class Lambda(NoOp):
             return result.tolist()
 
         return result
-
-    def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
-        fn = self.custom_apply_fns["global_label"]
-        return fn(label, **params)
 
     @classmethod
     def is_serializable(cls) -> bool:
