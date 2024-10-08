@@ -64,7 +64,18 @@ optional-dependencies.text = [ "pillow" ]
 urls.Homepage = "https://albumentations.ai"
 
 [tool.setuptools]
-packages = [ "albumentations" ]
+packages = { find = { include = [
+  "albumentations*",
+], exclude = [
+  "tests",
+  "tools",
+  "benchmark",
+] } }
+
+package-data = { albumentations = [ "*.txt", "*.md" ] }
+
+[tool.setuptools.exclude-package-data]
+"*" = [ "tests*", "tools*", "benchmark*", "conda.recipe*" ]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
