@@ -2,8 +2,8 @@ from .blur.functional import *
 from .blur.transforms import *
 from .crops.functional import *
 from .crops.transforms import *
-from .domain_adaptation import *
-from .domain_adaptation_functional import *
+from .domain_adaptation.functional import *
+from .domain_adaptation.transforms import *
 from .dropout.channel_dropout import *
 from .dropout.coarse_dropout import *
 from .dropout.functional import *

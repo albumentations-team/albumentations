@@ -14,7 +14,6 @@ import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
-    add_weighted,
     clip,
     from_float,
     get_num_channels,
@@ -37,7 +36,6 @@ from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.utils import check_range, non_rgb_error
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
-from albumentations.core.composition import Compose
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import (
     InterpolationType,
@@ -54,7 +52,6 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
-    BasicTransform,
     DualTransform,
     ImageOnlyTransform,
     Interpolation,
@@ -116,7 +113,6 @@ __all__ = [
     "Sharpen",
     "Emboss",
     "Superpixels",
-    "TemplateTransform",
     "RingingOvershoot",
     "UnsharpMask",
     "PixelDropout",
@@ -4076,213 +4072,6 @@ class Superpixels(ImageOnlyTransform):
         **kwargs: Any,
     ) -> np.ndarray:
         return fmain.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
-
-
-class TemplateTransform(ImageOnlyTransform):
-    """Apply blending of input image with specified templates.
-
-    This transform overlays one or more template images onto the input image using alpha blending.
-    It allows for creating complex composite images or simulating various visual effects.
-
-    Args:
-        templates (numpy array | list[np.ndarray]): Images to use as templates for the transform.
-            If a single numpy array is provided, it will be used as the only template.
-            If a list of numpy arrays is provided, one will be randomly chosen for each application.
-
-        img_weight (tuple[float, float]  | float): Weight of the original image in the blend.
-            If a single float, that value will always be used.
-            If a tuple (min, max), the weight will be randomly sampled from the range [min, max) for each application.
-            To use a fixed weight, use (weight, weight).
-            Default: (0.5, 0.5).
-
-        template_weight (tuple[float, float] | float): Weight of the template image in the blend.
-            If a single float, that value will always be used.
-            If a tuple (min, max), the weight will be randomly sampled from the range [min, max) for each application.
-            To use a fixed weight, use (weight, weight).
-            Default: (0.5, 0.5).
-
-        template_transform (A.Compose | None): A composition of Albumentations transforms to apply to the template
-            before blending.
-            This should be an instance of A.Compose containing one or more Albumentations transforms.
-            Default: None.
-
-        name (str | None): Name of the transform instance. Used for serialization purposes.
-            Default: None.
-
-        p (float): Probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-
-    Number of channels:
-        Any
-
-    Note:
-        - The template(s) must have the same number of channels as the input image or be single-channel.
-        - If a single-channel template is used with a multi-channel image, the template will be replicated across
-            all channels.
-        - The template(s) must have the same size as the input image.
-        - The weights determine the contribution of each image (original and template) to the final blend.
-          Higher weights result in a stronger presence of that image in the output.
-        - The weights are automatically normalized before blending. This ensures that
-          the sum of the normalized weights always equals 1, maintaining the overall
-          brightness of the blended image.
-        - The relative proportion of the weights determines the blend ratio. For example,
-          img_weight=2 and template_weight=1 will result in the same blend as
-          img_weight=0.66 and template_weight=0.33.
-        - To make this transform serializable, provide a name when initializing it.
-
-    Mathematical Formulation:
-        Given:
-        - I: Input image
-        - T: Template image
-        - w_i: Weight of input image (sampled from img_weight)
-        - w_t: Weight of template image (sampled from template_weight)
-
-        The normalized weights are computed as:
-        w_i_norm = w_i / (w_i + w_t)
-        w_t_norm = w_t / (w_i + w_t)
-
-        The blended image B is then computed as:
-
-        B = w_i_norm * I + w_t_norm * T
-
-        This ensures that w_i_norm + w_t_norm = 1, maintaining the overall image intensity.
-
-    Examples:
-        >>> import numpy as np
-        >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> template = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-
-        # Apply template transform with a single template
-        >>> transform = A.TemplateTransform(templates=template, name="my_template_transform", p=1.0)
-        >>> blended_image = transform(image=image)['image']
-
-        # Apply template transform with multiple templates and custom weights
-        >>> templates = [np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8) for _ in range(3)]
-        >>> transform = A.TemplateTransform(
-        ...     templates=templates,
-        ...     img_weight=(0.3, 0.7),
-        ...     template_weight=(0.5, 0.8),
-        ...     name="multi_template_transform",
-        ...     p=1.0
-        ... )
-        >>> blended_image = transform(image=image)['image']
-
-    References:
-        - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
-        - Image blending: https://en.wikipedia.org/wiki/Image_blending
-    """
-
-    class InitSchema(BaseTransformInitSchema):
-        templates: np.ndarray | Sequence[np.ndarray]
-        img_weight: ZeroOneRangeType
-        template_weight: ZeroOneRangeType
-        template_transform: Compose | BasicTransform | None = None
-        name: str | None
-
-        @field_validator("templates")
-        @classmethod
-        def validate_templates(cls, v: np.ndarray | list[np.ndarray]) -> list[np.ndarray]:
-            if isinstance(v, np.ndarray):
-                return [v]
-            if isinstance(v, list):
-                if not all(isinstance(item, np.ndarray) for item in v):
-                    msg = "All templates must be numpy arrays."
-                    raise ValueError(msg)
-                return v
-            msg = "Templates must be a numpy array or a list of numpy arrays."
-            raise TypeError(msg)
-
-    def __init__(
-        self,
-        templates: np.ndarray | list[np.ndarray],
-        img_weight: ScaleFloatType = (0.5, 0.5),
-        template_weight: ScaleFloatType = (0.5, 0.5),
-        template_transform: Compose | BasicTransform | None = None,
-        name: str | None = None,
-        always_apply: bool | None = None,
-        p: float = 0.5,
-    ):
-        super().__init__(p=p, always_apply=always_apply)
-        self.templates = templates
-        self.img_weight = cast(Tuple[float, float], img_weight)
-        self.template_weight = cast(Tuple[float, float], template_weight)
-        self.template_transform = template_transform
-        self.name = name
-
-    def apply(
-        self,
-        img: np.ndarray,
-        template: np.ndarray,
-        img_weight: float,
-        template_weight: float,
-        **params: Any,
-    ) -> np.ndarray:
-        if img_weight == 0:
-            return template
-        if template_weight == 0:
-            return img
-
-        total_weight = img_weight + template_weight
-        img_weight_norm = img_weight / total_weight
-        template_weight_norm = template_weight / total_weight
-
-        return add_weighted(img, img_weight_norm, template, template_weight_norm)
-
-    def get_params(self) -> dict[str, float]:
-        return {
-            "img_weight": random.uniform(*self.img_weight),
-            "template_weight": random.uniform(*self.template_weight),
-        }
-
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        img = data["image"] if "image" in data else data["images"][0]
-
-        template = random.choice(self.templates)
-
-        if self.template_transform is not None:
-            template = self.template_transform(image=template)["image"]
-
-        if get_num_channels(template) not in [1, get_num_channels(img)]:
-            msg = (
-                "Template must be a single channel or "
-                "has the same number of channels as input "
-                f"image ({get_num_channels(img)}), got {get_num_channels(template)}"
-            )
-            raise ValueError(msg)
-
-        if template.dtype != img.dtype:
-            msg = "Image and template must be the same image type"
-            raise ValueError(msg)
-
-        if img.shape[:2] != template.shape[:2]:
-            template = fgeometric.resize(template, img.shape[:2], interpolation=cv2.INTER_AREA)
-
-        if get_num_channels(template) == 1 and get_num_channels(img) > 1:
-            template = np.stack((template,) * get_num_channels(img), axis=-1)
-
-        # in order to support grayscale image with dummy dim
-        template = template.reshape(img.shape)
-
-        return {"template": template}
-
-    @classmethod
-    def is_serializable(cls) -> bool:
-        return False
-
-    def to_dict_private(self) -> dict[str, Any]:
-        if self.name is None:
-            msg = (
-                "To make a TemplateTransform serializable you should provide the `name` argument, "
-                "e.g. `TemplateTransform(name='my_transform', ...)`."
-            )
-            raise ValueError(msg)
-        return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
 
 
 class RingingOvershoot(ImageOnlyTransform):
