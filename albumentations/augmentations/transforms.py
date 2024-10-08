@@ -5105,9 +5105,9 @@ class Morphological(DualTransform):
 
 
 PLANKIAN_JITTER_CONST = {
-    "MAX_TEMP": 15_000,
-    "MIN_BLACKBODY_TEMP": 3_000,
-    "MIN_CIED_TEMP": 4_000,
+    "MAX_TEMP": max(*fmain.PLANCKIAN_COEFFS["blackbody"].keys(), *fmain.PLANCKIAN_COEFFS["cied"].keys()),
+    "MIN_BLACKBODY_TEMP": min(fmain.PLANCKIAN_COEFFS["blackbody"].keys()),
+    "MIN_CIED_TEMP": min(fmain.PLANCKIAN_COEFFS["cied"].keys()),
     "WHITE_TEMP": 6_000,
     "SAMPLING_TEMP_PROB": 0.4,
 }
@@ -5127,7 +5127,7 @@ class PlanckianJitter(ImageOnlyTransform):
     2. Natural effects: This transform produces color shifts that correspond to natural lighting
        variations, making it ideal for outdoor scene simulation or color constancy problems.
     3. Single parameter: Color changes are controlled by a single, physically meaningful parameter
-       (color temperature), unlike ColorJitter's multiple abstract parameters.
+       (color temperature), unlike ColorJitter's multiple abstract parncoameters.
     4. Correlated changes: Color shifts are correlated across channels in a way that mimics natural
        light, whereas ColorJitter can make independent channel adjustments.
 
@@ -5256,18 +5256,14 @@ class PlanckianJitter(ImageOnlyTransform):
         if self.sampling_method == "uniform":
             # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
             if random.random() < sampling_prob_boundary:
-                temperature = (
-                    random.uniform(
-                        self.temperature_limit[0],
-                        sampling_temp_boundary,
-                    ),
+                temperature = random.uniform(
+                    self.temperature_limit[0],
+                    sampling_temp_boundary,
                 )
             else:
-                temperature = (
-                    random.uniform(
-                        sampling_temp_boundary,
-                        self.temperature_limit[1],
-                    ),
+                temperature = random.uniform(
+                    sampling_temp_boundary,
+                    self.temperature_limit[1],
                 )
         elif self.sampling_method == "gaussian":
             # Sample values from asymmetric gaussian distribution
@@ -5279,20 +5275,23 @@ class PlanckianJitter(ImageOnlyTransform):
                         np.abs(sampling_temp_boundary - self.temperature_limit[0]) / 3,
                     ),
                 )
+                temperature = sampling_temp_boundary - shift
             else:
                 # Right side
-                shift = -np.abs(
+                shift = np.abs(
                     random.gauss(
                         0,
                         np.abs(self.temperature_limit[1] - sampling_temp_boundary) / 3,
                     ),
                 )
-
-            temperature = sampling_temp_boundary - shift
+                temperature = sampling_temp_boundary + shift
         else:
             raise ValueError(f"Unknown sampling method: {self.sampling_method}")
 
-        return {"temperature": int(np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1]))}
+        # Ensure temperature is within the valid range
+        temperature = np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1])
+
+        return {"temperature": int(temperature)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "mode", "temperature_limit", "sampling_method"

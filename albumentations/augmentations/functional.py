@@ -1808,21 +1808,30 @@ PLANCKIAN_COEFFS = {
 
 @float32_io
 @clipped
-def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMode = "blackbody") -> np.ndarray:
+def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMode) -> np.ndarray:
     img = img.copy()
+    # Get the min and max temperatures for the given mode
+    min_temp = min(PLANCKIAN_COEFFS[mode].keys())
+    max_temp = max(PLANCKIAN_COEFFS[mode].keys())
+
+    # Clamp the temperature to the available range
+    temperature = np.clip(temperature, min_temp, max_temp)
+
     # Linearly interpolate between 2 closest temperatures
     step = 500
-    t_left = (temperature // step) * step
-    t_right = (temperature // step + 1) * step
+    t_left = max((temperature // step) * step, min_temp)  # Ensure t_left doesn't go below min_temp
+    t_right = min((temperature // step + 1) * step, max_temp)  # Ensure t_right doesn't exceed max_temp
 
-    w_left = (t_right - temperature) / step
-    w_right = (temperature - t_left) / step
-
-    coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
+    # Handle the case where temperature is at or near min_temp or max_temp
+    if t_left == t_right:
+        coeffs = np.array(PLANCKIAN_COEFFS[mode][t_left])
+    else:
+        w_right = (temperature - t_left) / (t_right - t_left)
+        w_left = 1 - w_right
+        coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
 
     img[:, :, 0] = img[:, :, 0] * (coeffs[0] / coeffs[1])
     img[:, :, 2] = img[:, :, 2] * (coeffs[2] / coeffs[1])
-    img[img > 1] = 1
 
     return img
 
