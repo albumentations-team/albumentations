@@ -6,7 +6,7 @@ from typing import Any, Callable, Literal, Sequence, Tuple, cast
 import cv2
 import numpy as np
 from albucore import add_weighted, get_num_channels
-from pydantic import AfterValidator, field_validator
+from pydantic import AfterValidator, Field, field_validator
 from typing_extensions import Annotated
 
 import albumentations.augmentations.geometric.functional as fgeometric
@@ -362,12 +362,6 @@ class TemplateTransform(ImageOnlyTransform):
             To use a fixed weight, use (weight, weight).
             Default: (0.5, 0.5).
 
-        template_weight (tuple[float, float] | float): Weight of the template image in the blend.
-            If a single float, that value will always be used.
-            If a tuple (min, max), the weight will be randomly sampled from the range [min, max) for each application.
-            To use a fixed weight, use (weight, weight).
-            Default: (0.5, 0.5).
-
         template_transform (A.Compose | None): A composition of Albumentations transforms to apply to the template
             before blending.
             This should be an instance of A.Compose containing one or more Albumentations transforms.
@@ -390,16 +384,8 @@ class TemplateTransform(ImageOnlyTransform):
     Note:
         - The template(s) must have the same number of channels as the input image or be single-channel.
         - If a single-channel template is used with a multi-channel image, the template will be replicated across
-            all channels.
-        - The template(s) must have the same size as the input image.
-        - The weights determine the contribution of each image (original and template) to the final blend.
-          Higher weights result in a stronger presence of that image in the output.
-        - The weights are automatically normalized before blending. This ensures that
-          the sum of the normalized weights always equals 1, maintaining the overall
-          brightness of the blended image.
-        - The relative proportion of the weights determines the blend ratio. For example,
-          img_weight=2 and template_weight=1 will result in the same blend as
-          img_weight=0.66 and template_weight=0.33.
+          all channels.
+        - The template(s) will be resized to match the input image size if they differ.
         - To make this transform serializable, provide a name when initializing it.
 
     Mathematical Formulation:
@@ -407,17 +393,10 @@ class TemplateTransform(ImageOnlyTransform):
         - I: Input image
         - T: Template image
         - w_i: Weight of input image (sampled from img_weight)
-        - w_t: Weight of template image (sampled from template_weight)
 
-        The normalized weights are computed as:
-        w_i_norm = w_i / (w_i + w_t)
-        w_t_norm = w_t / (w_i + w_t)
+        The blended image B is computed as:
 
-        The blended image B is then computed as:
-
-        B = w_i_norm * I + w_t_norm * T
-
-        This ensures that w_i_norm + w_t_norm = 1, maintaining the overall image intensity.
+        B = w_i * I + (1 - w_i) * T
 
     Examples:
         >>> import numpy as np
@@ -434,8 +413,18 @@ class TemplateTransform(ImageOnlyTransform):
         >>> transform = A.TemplateTransform(
         ...     templates=templates,
         ...     img_weight=(0.3, 0.7),
-        ...     template_weight=(0.5, 0.8),
         ...     name="multi_template_transform",
+        ...     p=1.0
+        ... )
+        >>> blended_image = transform(image=image)['image']
+
+        # Apply template transform with additional transforms on the template
+        >>> template_transform = A.Compose([A.RandomBrightnessContrast(p=1)])
+        >>> transform = A.TemplateTransform(
+        ...     templates=template,
+        ...     img_weight=0.6,
+        ...     template_transform=template_transform,
+        ...     name="transformed_template",
         ...     p=1.0
         ... )
         >>> blended_image = transform(image=image)['image']
@@ -448,7 +437,9 @@ class TemplateTransform(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         templates: np.ndarray | Sequence[np.ndarray]
         img_weight: ZeroOneRangeType
-        template_weight: ZeroOneRangeType
+        template_weight: ZeroOneRangeType | None = Field(
+            deprecated="Template_weight is deprecated. Computed automatically as (1 - img_weight)",
+        )
         template_transform: Compose | BasicTransform | None = None
         name: str | None
 
@@ -469,7 +460,7 @@ class TemplateTransform(ImageOnlyTransform):
         self,
         templates: np.ndarray | list[np.ndarray],
         img_weight: ScaleFloatType = (0.5, 0.5),
-        template_weight: ScaleFloatType = (0.5, 0.5),
+        template_weight: None = None,
         template_transform: Compose | BasicTransform | None = None,
         name: str | None = None,
         always_apply: bool | None = None,
@@ -478,7 +469,6 @@ class TemplateTransform(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
         self.templates = templates
         self.img_weight = cast(Tuple[float, float], img_weight)
-        self.template_weight = cast(Tuple[float, float], template_weight)
         self.template_transform = template_transform
         self.name = name
 
@@ -487,24 +477,18 @@ class TemplateTransform(ImageOnlyTransform):
         img: np.ndarray,
         template: np.ndarray,
         img_weight: float,
-        template_weight: float,
         **params: Any,
     ) -> np.ndarray:
         if img_weight == 0:
             return template
-        if template_weight == 0:
+        if img_weight == 1:
             return img
 
-        total_weight = img_weight + template_weight
-        img_weight_norm = img_weight / total_weight
-        template_weight_norm = template_weight / total_weight
-
-        return add_weighted(img, img_weight_norm, template, template_weight_norm)
+        return add_weighted(img, img_weight, template, 1 - img_weight)
 
     def get_params(self) -> dict[str, float]:
         return {
             "img_weight": random.uniform(*self.img_weight),
-            "template_weight": random.uniform(*self.template_weight),
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
