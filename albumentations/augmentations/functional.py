@@ -706,13 +706,19 @@ def add_fog(
 
     fog_layer = np.zeros((height, width, num_channels), dtype=np.uint8)
 
-    max_fog_radius = int(
-        min(height, width) * 0.1 * fog_intensity,
-    )  # Maximum radius scales with image size and intensity
+    max_value = MAX_VALUES_BY_DTYPE[np.uint8]
+
+    max_fog_radius = max(
+        2,
+        int(
+            min(height, width) * 0.1 * fog_intensity,
+        ),
+    )
 
     for x, y in fog_particle_positions:
-        radius = random_utils.randint(max_fog_radius // 2, max_fog_radius, random_state=random_state)
-        color = 255 if num_channels == 1 else (255,) * num_channels
+        min_radius = max(1, max_fog_radius // 2)
+        radius = random_utils.randint(min_radius, max_fog_radius, random_state=random_state)
+        color = max_value if num_channels == 1 else (max_value,) * num_channels
         cv2.circle(
             fog_layer,
             center=(x, y),
@@ -725,7 +731,7 @@ def add_fog(
     fog_layer = cv2.GaussianBlur(fog_layer, (25, 25), 0)
 
     # Blend the fog layer with the original image
-    alpha = np.mean(fog_layer, axis=2, keepdims=True) / 255 * alpha_coef * fog_intensity
+    alpha = np.mean(fog_layer, axis=2, keepdims=True) / max_value * alpha_coef * fog_intensity
     fog_image = img * (1 - alpha) + fog_layer * alpha
 
     return fog_image.astype(np.uint8)
