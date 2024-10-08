@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import cv2
-from albumentations.augmentations.domain_adaptation_functional import MinMaxScaler, StandardScaler, PCA, apply_histogram
+from albumentations.augmentations.domain_adaptation.functional import MinMaxScaler, StandardScaler, PCA, apply_histogram
 
 
 @pytest.mark.parametrize("feature_range, data, expected", [
