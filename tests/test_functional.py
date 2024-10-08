@@ -785,6 +785,73 @@ def test_planckian_jitter_cied():
     assert np.allclose(cied_plankian_jitter, expected_cied_plankian_jitter, atol=1e-4)
 
 
+@pytest.mark.parametrize("mode", ["blackbody", "cied"])
+def test_planckian_jitter_edge_cases(mode):
+    # Create a sample image
+    img = np.ones((10, 10, 3), dtype=np.float32)
+
+    # Get min and max temperatures for the mode
+    min_temp = min(F.PLANCKIAN_COEFFS[mode].keys())
+    max_temp = max(F.PLANCKIAN_COEFFS[mode].keys())
+
+    # Test cases
+    test_temperatures = [
+        min_temp - 500,  # Below minimum
+        min_temp,        # At minimum
+        min_temp + 100,  # Just above minimum
+        (min_temp + max_temp) // 2,  # Middle of the range
+        max_temp - 100,  # Just below maximum
+        max_temp,        # At maximum
+        max_temp + 500,  # Above maximum
+    ]
+
+    for temp in test_temperatures:
+        result = F.planckian_jitter(img, temp, mode)
+
+        # Check that the output is a valid image
+        assert result.shape == img.shape
+        assert result.dtype == img.dtype
+        assert np.all(result >= 0) and np.all(result <= 1)
+
+        # Check that the function didn't modify the input image
+        assert not np.array_equal(result, img)
+
+        # For temperatures outside the range, check if they're clamped correctly
+        if temp < min_temp:
+            np.testing.assert_allclose(result, F.planckian_jitter(img, min_temp, mode))
+        elif temp > max_temp:
+            np.testing.assert_allclose(result, F.planckian_jitter(img, max_temp, mode))
+
+def test_planckian_jitter_interpolation():
+    img = np.ones((10, 10, 3), dtype=np.float32)
+    mode = "blackbody"
+
+    # Test interpolation between two known temperatures
+    temp1, temp2 = 4000, 4500
+    result1 = F.planckian_jitter(img, temp1, mode)
+    result2 = F.planckian_jitter(img, temp2, mode)
+    result_mid = F.planckian_jitter(img, (temp1 + temp2) // 2, mode)
+
+    # The mid-temperature result should be between the two extremes
+    assert np.all((result_mid >= np.minimum(result1, result2)) & (result_mid <= np.maximum(result1, result2)))
+
+@pytest.mark.parametrize("mode", ["blackbody", "cied"])
+def test_planckian_jitter_consistency(mode):
+    img = np.ones((10, 10, 3), dtype=np.float32)
+
+    # Test consistency of results for the same temperature
+    temp = 5000
+    result1 = F.planckian_jitter(img, temp, mode)
+    result2 = F.planckian_jitter(img, temp, mode)
+    np.testing.assert_allclose(result1, result2)
+
+def test_planckian_jitter_invalid_mode():
+    img = np.ones((10, 10, 3), dtype=np.float32)
+
+    with pytest.raises(KeyError):
+        F.planckian_jitter(img, 5000, "invalid_mode")
+
+
 @pytest.mark.parametrize("image", IMAGES)
 def test_random_tone_curve(image):
     low_y = 0.1
