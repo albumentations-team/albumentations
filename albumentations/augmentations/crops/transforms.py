@@ -618,8 +618,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     on images of varying sizes and aspect ratios.
 
     Args:
-        size (int | tuple[int, int]): If int, square crop is made of this size.
-            If tuple of two ints (height, width), this size is used.
+        size (tuple[int, int]): Target size for the output image, i.e. (height, width) after crop and resize.
         scale (tuple[float, float]): Range of the random size of the crop relative to the input size.
             For example, (0.08, 1.0) means the crop size will be between 8% and 100% of the input size.
             Default: (0.08, 1.0)
