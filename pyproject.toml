@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 
-requires = [ "setuptools>=45", "setuptools-scm[toml]>=6.2", "wheel" ]
+requires = [ "setuptools>=45", "wheel" ]
 
 [project]
 name = "albumentations"
