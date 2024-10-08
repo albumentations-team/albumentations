@@ -1108,7 +1108,7 @@ class RandomFog(ImageOnlyTransform):
         img: np.ndarray,
         particle_positions: np.ndarray,
         intensity: float,
-        random_state: np.random.RandomState | None = None,
+        random_state: np.random.RandomState,
         **params: Any,
     ) -> np.ndarray:
         return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions, random_state)

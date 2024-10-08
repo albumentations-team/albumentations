@@ -688,7 +688,7 @@ def add_fog(
     fog_intensity: float,
     alpha_coef: float,
     fog_particle_positions: list[tuple[int, int]],
-    random_state: np.random.RandomState | None = None,
+    random_state: np.random.RandomState,
 ) -> np.ndarray:
     """Add fog to the input image.
 
@@ -697,7 +697,7 @@ def add_fog(
         fog_intensity (float): Intensity of the fog effect, between 0 and 1.
         alpha_coef (float): Base alpha (transparency) value for fog particles.
         fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
-        random_state (np.random.RandomState | None): If specified, this will be random state used
+        random_state (np.random.RandomState): Random state used
     Returns:
         np.ndarray: Image with added fog effect.
     """
