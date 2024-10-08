@@ -270,4 +270,6 @@ def test_to_tensor_v2_on_non_contiguous_array_with_random_rotate90():
 
     img = np.random.randint(0, 256, (640, 480, 3)).astype(np.uint8)
     masks = [np.random.randint(0, 2, (640, 480)).astype(np.uint8) for _ in range(4)]
-    transforms(image=img, masks=masks)
+    transformed = transforms(image=img, masks=masks)
+    assert transformed["image"].numpy().shape == (3, 640, 480)
+    assert transformed["masks"][0].shape == (640, 480)
