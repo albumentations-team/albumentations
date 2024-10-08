@@ -1108,10 +1108,10 @@ class RandomFog(ImageOnlyTransform):
         img: np.ndarray,
         particle_positions: np.ndarray,
         intensity: float,
-        random_seed: int,
+        random_state: np.random.RandomState,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions, np.random.RandomState(random_seed))
+        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions, random_state)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         # Select a random fog intensity within the specified range
@@ -1159,7 +1159,7 @@ class RandomFog(ImageOnlyTransform):
         return {
             "particle_positions": particle_positions,
             "intensity": intensity,
-            "random_seed": random_utils.get_random_seed(),
+            "random_state": random_utils.get_random_state(),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
