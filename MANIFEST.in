@@ -5,3 +5,13 @@ prune docs/_build
 global-exclude docs/augs_overview/*/images/*.jpg
 
 global-exclude *.py[co] .DS_Store
+
+# Exclude test, tools, and benchmark directories
+prune tests
+prune tools
+prune benchmark
+prune conda.recipe
+prune codecov.yaml
+prune pre-commit-config.yaml
+prune .github
+prune requirements-dev.txt

@@ -1,11 +1,81 @@
-# NOTE: you have to use single-quoted strings in TOML for regular expressions.
-# It's the equivalent of r-strings in Python.  Multiline strings are treated as
-# verbose regular expressions by Black.  Use [ ] to denote a significant space
-# character.
-
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [ "setuptools", "wheel" ]
+
+requires = [ "setuptools>=45", "wheel" ]
+
+[project]
+name = "albumentations"
+description = "Fast, flexible, and advanced image augmentation library for deep learning and computer vision. Albumentations offers a wide range of transformations for images, masks, bounding boxes, and keypoints, with optimized performance and seamless integration into ML workflows."
+readme = "README.md"
+keywords = [
+  "artificial intelligence",
+  "bounding box",
+  "computer vision",
+  "computer vision library",
+  "data augmentation",
+  "data preprocessing",
+  "deep learning",
+  "fast augmentation",
+  "image augmentation",
+  "image classification",
+  "image processing",
+  "image transformation",
+  "instance segmentation",
+  "keras",
+  "keypoint detection",
+  "machine learning",
+  "object detection",
+  "pytorch",
+  "semantic segmentation",
+  "tensorflow",
+]
+license = { file = "LICENSE" }
+authors = [
+  { name = "Vladimir I. Iglovikov" },
+  { name = "Mikhail Druzhinin" },
+  { name = "Alex Parinov" },
+  { name = "Alexander Buslaev" },
+  { name = "Eugene Khvedchenya" },
+]
+requires-python = ">=3.8"
+
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+]
+dynamic = [ "dependencies", "version" ]
+optional-dependencies.hub = [ "huggingface-hub" ]
+optional-dependencies.text = [ "pillow" ]
+urls.Homepage = "https://albumentations.ai"
+
+[tool.setuptools]
+packages = { find = { include = [
+  "albumentations*",
+], exclude = [
+  "tests",
+  "tools",
+  "benchmark",
+] } }
+
+package-data = { albumentations = [ "*.txt", "*.md" ] }
+
+[tool.setuptools.exclude-package-data]
+"*" = [ "tests*", "tools*", "benchmark*", "conda.recipe*" ]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
