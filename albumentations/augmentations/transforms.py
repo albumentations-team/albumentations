@@ -5127,7 +5127,7 @@ class PlanckianJitter(ImageOnlyTransform):
     2. Natural effects: This transform produces color shifts that correspond to natural lighting
        variations, making it ideal for outdoor scene simulation or color constancy problems.
     3. Single parameter: Color changes are controlled by a single, physically meaningful parameter
-       (color temperature), unlike ColorJitter's multiple abstract parncoameters.
+       (color temperature), unlike ColorJitter's multiple abstract parameters.
     4. Correlated changes: Color shifts are correlated across channels in a way that mimics natural
        light, whereas ColorJitter can make independent channel adjustments.
 
