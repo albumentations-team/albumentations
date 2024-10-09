@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from itertools import product
 from math import ceil
-from typing import Literal, Sequence
+from typing import Literal
 
 import cv2
 import numpy as np

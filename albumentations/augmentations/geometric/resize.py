@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import random
-from typing import Any, List, Sequence, Tuple, Union, cast
+from collections.abc import Sequence
+from typing import Any, Union, cast
 
 import cv2
 import numpy as np
@@ -78,7 +79,7 @@ class RandomScale(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.scale_limit = cast(Tuple[float, float], scale_limit)
+        self.scale_limit = cast(tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
     def get_params(self) -> dict[str, float]:
@@ -129,7 +130,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
             if not value >= 1:
                 raise ValueError(f"{info.field_name} must be bigger or equal to 1.")
 
-        return cast(Union[int, List[int]], result)
+        return cast(Union[int, list[int]], result)
 
 
 class LongestMaxSize(DualTransform):

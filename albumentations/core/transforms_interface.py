@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Callable, Literal
 from warnings import warn
 
 import cv2

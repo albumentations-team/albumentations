@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Callable, Literal, Sequence, Tuple, cast
+from collections.abc import Sequence
+from typing import Annotated, Any, Callable, Literal, cast
 
 import cv2
 import numpy as np
 from albucore import add_weighted, get_num_channels
 from pydantic import AfterValidator, Field, field_validator
-from typing_extensions import Annotated
 
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.domain_adaptation.functional import (
@@ -205,7 +205,7 @@ class FDA(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        self.beta_limit = cast(Tuple[float, float], beta_limit)
+        self.beta_limit = cast(tuple[float, float], beta_limit)
 
     def apply(
         self,
@@ -468,7 +468,7 @@ class TemplateTransform(ImageOnlyTransform):
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.templates = templates
-        self.img_weight = cast(Tuple[float, float], img_weight)
+        self.img_weight = cast(tuple[float, float], img_weight)
         self.template_transform = template_transform
         self.name = name
 

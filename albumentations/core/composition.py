@@ -3,7 +3,8 @@ from __future__ import annotations
 import random
 import warnings
 from collections import OrderedDict, defaultdict
-from typing import Any, Iterator, List, Sequence, Union, cast
+from collections.abc import Iterator, Sequence
+from typing import Any, Union, cast
 
 import cv2
 import numpy as np
@@ -42,7 +43,7 @@ NUM_ONEOF_TRANSFORMS = 2
 REPR_INDENT_STEP = 2
 
 TransformType = Union[BasicTransform, "BaseCompose"]
-TransformsSeqType = List[TransformType]
+TransformsSeqType = list[TransformType]
 
 AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints")
 MASK_KEYS = (

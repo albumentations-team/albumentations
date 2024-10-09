@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np

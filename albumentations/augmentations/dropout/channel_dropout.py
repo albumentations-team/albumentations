@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Annotated, Any
 
 import numpy as np
 from albucore import get_num_channels
 from pydantic import AfterValidator, Field
-from typing_extensions import Annotated
 
 from albumentations.core.pydantic import check_1plus
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform

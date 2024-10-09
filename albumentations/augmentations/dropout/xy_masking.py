@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
 import numpy as np
 from pydantic import model_validator
@@ -86,11 +86,11 @@ class XYMasking(BaseDropout):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply, fill_value=fill_value, mask_fill_value=mask_fill_value)
-        self.num_masks_x = cast(Tuple[int, int], num_masks_x)
-        self.num_masks_y = cast(Tuple[int, int], num_masks_y)
+        self.num_masks_x = cast(tuple[int, int], num_masks_x)
+        self.num_masks_y = cast(tuple[int, int], num_masks_y)
 
-        self.mask_x_length = cast(Tuple[int, int], mask_x_length)
-        self.mask_y_length = cast(Tuple[int, int], mask_y_length)
+        self.mask_x_length = cast(tuple[int, int], mask_x_length)
+        self.mask_y_length = cast(tuple[int, int], mask_y_length)
 
     def validate_mask_length(
         self,

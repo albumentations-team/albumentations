@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any, Sequence, Tuple, cast
+from collections.abc import Sequence
+from typing import Annotated, Any, cast
 from warnings import warn
 
 import cv2
 import numpy as np
 from pydantic import AfterValidator, Field, field_validator, model_validator
-from typing_extensions import Annotated, Self
+from typing_extensions import Self
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import union_of_bboxes
@@ -583,7 +584,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
+        super().__init__(size=cast(tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
@@ -714,7 +715,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
+        super().__init__(size=cast(tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
         self.scale = scale
         self.ratio = ratio
 
@@ -828,7 +829,7 @@ class RandomCropNearBBox(BaseCrop):
             # Ensure the new parameter is used even if the old one is passed
             cropping_bbox_key = cropping_box_key
 
-        self.max_part_shift = cast(Tuple[float, float], max_part_shift)
+        self.max_part_shift = cast(tuple[float, float], max_part_shift)
         self.cropping_bbox_key = cropping_bbox_key
 
     def get_params_dependent_on_data(

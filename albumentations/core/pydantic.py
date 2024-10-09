@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Tuple, overload
+from typing import Annotated, overload
 
 import cv2
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
-from typing_extensions import Annotated
 
 from albumentations.core.types import NumericType, ScalarType, ScaleFloatType, ScaleIntType, ScaleType
 from albumentations.core.utils import to_tuple
@@ -114,7 +113,7 @@ OnePlusIntRangeType = Annotated[
 ]
 
 OnePlusIntNonDecreasingRangeType = Annotated[
-    Tuple[ScalarType, ScalarType],
+    tuple[ScalarType, ScalarType],
     AfterValidator(check_1plus),
     AfterValidator(nondecreasing),
     AfterValidator(float2int),

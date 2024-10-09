@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Literal, Tuple, cast
+from typing import Annotated, Any, Literal, cast
 from warnings import warn
 
 import cv2
@@ -9,7 +9,7 @@ import numpy as np
 import skimage.transform
 from albucore import hflip, vflip
 from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
-from typing_extensions import Annotated, Self
+from typing_extensions import Self
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import check_range
@@ -339,7 +339,7 @@ class Perspective(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p, always_apply=always_apply)
-        self.scale = cast(Tuple[float, float], scale)
+        self.scale = cast(tuple[float, float], scale)
         self.keep_size = keep_size
         self.pad_mode = pad_mode
         self.pad_val = pad_val
@@ -923,10 +923,10 @@ class ShiftScaleRotate(Affine):
             DeprecationWarning,
             stacklevel=2,
         )
-        self.shift_limit_x = cast(Tuple[float, float], shift_limit_x)
-        self.shift_limit_y = cast(Tuple[float, float], shift_limit_y)
-        self.scale_limit = cast(Tuple[float, float], scale_limit)
-        self.rotate_limit = cast(Tuple[int, int], rotate_limit)
+        self.shift_limit_x = cast(tuple[float, float], shift_limit_x)
+        self.shift_limit_y = cast(tuple[float, float], shift_limit_y)
+        self.scale_limit = cast(tuple[float, float], scale_limit)
+        self.rotate_limit = cast(tuple[int, int], rotate_limit)
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -1059,9 +1059,9 @@ class PiecewiseAffine(DualTransform):
             stacklevel=2,
         )
 
-        self.scale = cast(Tuple[float, float], scale)
-        self.nb_rows = cast(Tuple[int, int], nb_rows)
-        self.nb_cols = cast(Tuple[int, int], nb_cols)
+        self.scale = cast(tuple[float, float], scale)
+        self.nb_rows = cast(tuple[int, int], nb_rows)
+        self.nb_cols = cast(tuple[int, int], nb_cols)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
         self.cval = cval
@@ -1720,8 +1720,8 @@ class OpticalDistortion(BaseDistortion):
             always_apply=always_apply,
             p=p,
         )
-        self.shift_limit = cast(Tuple[float, float], shift_limit)
-        self.distort_limit = cast(Tuple[float, float], distort_limit)
+        self.shift_limit = cast(tuple[float, float], shift_limit)
+        self.distort_limit = cast(tuple[float, float], distort_limit)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
@@ -1835,7 +1835,7 @@ class GridDistortion(BaseDistortion):
             p=p,
         )
         self.num_steps = num_steps
-        self.distort_limit = cast(Tuple[float, float], distort_limit)
+        self.distort_limit = cast(tuple[float, float], distort_limit)
         self.normalized = normalized
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:

@@ -1,9 +1,7 @@
-
 import cv2
-
-import albumentations as A
 import numpy as np
 
+import albumentations as A
 
 AUGMENTATION_CLS_PARAMS = [
     [
@@ -201,7 +199,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
     [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
-    [A.RandomToneCurve, {"scale": 0.2, "per_channel": False}, ],
+    [A.RandomToneCurve, {"scale": 0.2, "per_channel": False}],
     [A.RandomToneCurve, {"scale": 0.3, "per_channel": True}],
     [
         A.CropAndPad,
@@ -343,13 +341,16 @@ AUGMENTATION_CLS_PARAMS = [
             "fill_value": 0,
         },
     ],
-     [A.PadIfNeeded, {
+    [
+        A.PadIfNeeded,
+        {
             "min_height": 512,
             "min_width": 512,
             "border_mode": 0,
             "value": [124, 116, 104],
-            "position": "top_left"
-            }],
+            "position": "top_left",
+        },
+    ],
     [A.GlassBlur, dict(sigma=0.8, max_delta=5, iterations=3, mode="exact")],
     [
         A.GridDropout,
@@ -360,14 +361,21 @@ AUGMENTATION_CLS_PARAMS = [
             random_offset=True,
             fill_value=10,
             mask_fill_value=20,
-        )
+        ),
     ],
     [A.Morphological, {}],
     [A.D4, {}],
     [A.PlanckianJitter, {}],
     [A.OverlayElements, {}],
     [A.RandomCropNearBBox, {}],
-    [A.TextImage, dict(font_path="./tests/filesLiberationSerif-Bold.ttf", font_size_range=(0.8, 0.9), color="red",
-                       stopwords=["a", "the", "is", "of", "it", "and", "to", "in", "on", "with", "for", "at", "by"])],
+    [
+        A.TextImage,
+        dict(
+            font_path="./tests/filesLiberationSerif-Bold.ttf",
+            font_size_range=(0.8, 0.9),
+            color="red",
+            stopwords=["a", "the", "is", "of", "it", "and", "to", "in", "on", "with", "for", "at", "by"],
+        ),
+    ],
     [A.GridElasticDeform, {"num_grid_xy": (10, 10), "magnitude": 10}],
 ]

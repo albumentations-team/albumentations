@@ -6,12 +6,13 @@ import pytest
 
 from tests.utils import set_seed
 
-
 set_seed(42)
+
 
 @pytest.fixture
 def mask():
     return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
 
 @pytest.fixture
 def bboxes():
@@ -26,6 +27,7 @@ def albumentations_bboxes():
 @pytest.fixture
 def keypoints():
     return np.array([[30, 20, 0, 50, 1], [20, 30, 60, 80, 2]], dtype=np.float32)
+
 
 @pytest.fixture
 def template():
