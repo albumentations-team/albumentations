@@ -2,6 +2,11 @@ import numpy as np
 import pytest
 
 from albumentations.augmentations.domain_adaptation.functional import PCA, MinMaxScaler, StandardScaler, apply_histogram
+import numpy as np
+import pytest
+from skimage.exposure import match_histograms as skimage_match_histograms
+from skimage.metrics import structural_similarity as ssim
+from albumentations.augmentations.domain_adaptation.functional import match_histograms as our_match_histograms
 
 
 @pytest.mark.parametrize(
@@ -356,3 +361,62 @@ def test_apply_histogram_identity():
     result = apply_histogram(img, img, blend_ratio)
 
     np.testing.assert_array_almost_equal(result, img)
+
+def generate_random_image(shape, dtype=np.uint8):
+    if dtype == np.uint8:
+        return np.random.randint(0, 256, shape, dtype=dtype)
+    else:  # Assume float32
+        return np.random.rand(*shape).astype(dtype)
+
+
+@pytest.mark.parametrize("shape, channel_axis", [
+    ((100, 100, 1), -1),  # Grayscale uint8
+    ((100, 100, 3), -1),  # RGB uint8
+    ((100, 100, 4), -1),  # RGBA uint8
+])
+def test_match_histograms(shape, channel_axis):
+    dtype = np.uint8
+    source = generate_random_image(shape, dtype)
+    reference = generate_random_image(shape, dtype)
+
+    our_result = our_match_histograms(source, reference)
+    skimage_result = skimage_match_histograms(source, reference, channel_axis=channel_axis)
+
+    # Check shape and dtype
+    assert our_result.shape == skimage_result.shape
+    assert our_result.dtype == source.dtype
+
+    # Compare histograms
+
+    for channel in range(shape[channel_axis]):
+        our_hist, _ = np.histogram(np.take(our_result, channel, axis=channel_axis).ravel(), bins=256, range=(0, 1 if dtype == np.float32 else 255))
+        skimage_hist, _ = np.histogram(np.take(skimage_result, channel, axis=channel_axis).ravel(), bins=256, range=(0, 1 if dtype == np.float32 else 255))
+        np.testing.assert_allclose(our_hist, skimage_hist, rtol=1e-5, atol=1)
+
+    # Compare mean and standard deviation
+    np.testing.assert_allclose(our_result.mean(), skimage_result.mean(), rtol=1e-5)
+    np.testing.assert_allclose(our_result.std(), skimage_result.std(), rtol=1e-5)
+
+    # Compare structural similarity
+    similarity = ssim(our_result, skimage_result, channel_axis=channel_axis, data_range=255)
+    assert similarity > 0.99, f"SSIM should be > 0.99, got {similarity}"
+
+    # Compare pixel-wise differences
+    max_diff = np.max(np.abs(our_result.astype(np.float64) - skimage_result.astype(np.float64)))
+    assert max_diff <= 1e-5, f"Max pixel-wise difference should be <= 1e-5, got {max_diff}"
+
+
+@pytest.mark.parametrize("shape, dtype", [
+    ((100, 100), np.uint8),
+    ((100, 100, 3), np.uint8),
+])
+def test_match_histograms_identity(shape, dtype):
+    image = generate_random_image(shape, dtype)
+    result = our_match_histograms(image, image)
+    np.testing.assert_allclose(result, image, rtol=1e-5, atol=1e-8)
+
+def test_match_histograms_different_shapes():
+    source = generate_random_image((100, 100, 3), np.uint8)
+    reference = generate_random_image((50, 50, 3), np.uint8)
+    result = our_match_histograms(source, reference)
+    assert result.shape == source.shape
