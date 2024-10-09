@@ -740,8 +740,8 @@ def test_bbox_params_is_not_set(image, bboxes):
     + get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}}),  # type: ignore
 )
 def test_single_transform_compose(
-    compose_transform: typing.Tuple[typing.Type[BaseCompose], dict],
-    inner_transform: typing.Tuple[typing.Union[typing.Type[BaseCompose], typing.Type[A.BasicTransform]], dict],
+    compose_transform: tuple[type[BaseCompose], dict],
+    inner_transform: tuple[typing.Union[type[BaseCompose], type[A.BasicTransform]], dict],
 ):
     compose_cls, compose_kwargs = compose_transform
     cls, kwargs = inner_transform

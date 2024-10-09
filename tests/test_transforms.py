@@ -590,7 +590,7 @@ def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
     assert np.allclose(res, F.unsharp_mask(img, result_blur, result_sigma))
 
 
-@pytest.mark.parametrize("val_uint8", [[0], [1], [128], [255]])
+@pytest.mark.parametrize("val_uint8", [0, 1, 128, 255])
 def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
     x_uint8[2, 2] = val_uint8
@@ -814,9 +814,9 @@ def test_template_transform_incorrect_channels(img_channels, template_channels):
 @pytest.mark.parametrize(
     "params",
     [
-        [{"scale": (0.5, 1.0)}],
-        [{"scale": (0.5, 1.0), "keep_ratio": False}],
-        [{"scale": (0.5, 1.0), "keep_ratio": True}],
+        {"scale": (0.5, 1.0)},
+        {"scale": (0.5, 1.0), "keep_ratio": False},
+        {"scale": (0.5, 1.0), "keep_ratio": True},
     ],
 )
 def test_affine_scale_ratio(params):
@@ -844,8 +844,8 @@ def test_affine_scale_ratio(params):
 @pytest.mark.parametrize(
     "params",
     [
-        [{"scale": {"x": (0.5, 1.0), "y": (1.0, 1.5)}, "keep_ratio": True}],
-        [{"scale": {"x": 0.5, "y": 1.0}, "keep_ratio": True}],
+        {"scale": {"x": (0.5, 1.0), "y": (1.0, 1.5)}, "keep_ratio": True},
+        {"scale": {"x": 0.5, "y": 1.0}, "keep_ratio": True},
     ],
 )
 def test_affine_incorrect_scale_range(params):

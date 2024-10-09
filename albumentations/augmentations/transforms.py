@@ -3149,7 +3149,7 @@ class FromFloat(ImageOnlyTransform):
         return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
-class Interpolationdict(TypedDict):
+class InterpolationDict(TypedDict):
     upscale: int
     downscale: int
 
@@ -3215,7 +3215,7 @@ class Downscale(ImageOnlyTransform):
         scale_min: float | None
         scale_max: float | None
 
-        interpolation: int | Interpolation | Interpolationdict | None = Field(
+        interpolation: int | Interpolation | InterpolationDict | None = Field(
             default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
         )
         interpolation_pair: InterpolationPydantic
@@ -3262,9 +3262,9 @@ class Downscale(ImageOnlyTransform):
         self,
         scale_min: float | None = None,
         scale_max: float | None = None,
-        interpolation: int | Interpolation | Interpolationdict | None = None,
+        interpolation: int | Interpolation | InterpolationDict | None = None,
         scale_range: tuple[float, float] = (0.25, 0.25),
-        interpolation_pair: Interpolationdict = Interpolationdict(
+        interpolation_pair: InterpolationDict = InterpolationDict(
             {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
         ),
         always_apply: bool | None = None,

@@ -15,7 +15,7 @@ requirements:
   build:
     - python
     - numpy>=1.24.4
-    - scipyz
+    - scipy
     - pydantic>=2.7
     - pytorch
     - typing_extensions

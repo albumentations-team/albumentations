@@ -1,4 +1,3 @@
-from typing import Dict, List, Tuple
 
 import numpy as np
 import pytest
@@ -19,8 +18,8 @@ from tests.utils import set_seed
 def test_blur_kernel_generation(
     image: np.ndarray,
     aug: BasicTransform,
-    blur_limit_input: Tuple[int, int],
-    blur_limit_used: Tuple[int, int],
+    blur_limit_input: tuple[int, int],
+    blur_limit_used: tuple[int, int],
 ) -> None:
     aug = aug(blur_limit=blur_limit_input, p=1)
 
@@ -28,8 +27,8 @@ def test_blur_kernel_generation(
     aug(image=image)["image"]
 
 
-@pytest.mark.parametrize("val_uint8", [[0], [1], [128], [255]])
-def test_glass_blur_float_uint8_diff_less_than_two(val_uint8: List[int]) -> None:
+@pytest.mark.parametrize("val_uint8", [0, 1, 128, 255])
+def test_glass_blur_float_uint8_diff_less_than_two(val_uint8: list[int]) -> None:
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
     x_uint8[2, 2] = val_uint8
 
@@ -51,8 +50,8 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8: List[int]) -> None
     assert np.all(diff <= 2.0)
 
 
-@pytest.mark.parametrize("val_uint8", [[0], [1], [128], [255]])
-def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8: List[int]) -> None:
+@pytest.mark.parametrize("val_uint8", [0, 1, 128, 255])
+def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8: list[int]) -> None:
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
     x_uint8[2, 2] = val_uint8
 
@@ -77,15 +76,15 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8: List[int]) -> N
 @pytest.mark.parametrize(
     "params",
     [
-        [{"blur_limit": (2, 5)}],
-        [{"blur_limit": (3, 6)}],
-        [{"sigma_x_limit": (0.0, 1.0), "sigma_y_limit": (0.0, 1.0)}],
-        [{"beta_limit": (0.1, 0.9)}],
-        [{"beta_limit": (1.1, 8.0)}],
+        {"blur_limit": (2, 5)},
+        {"blur_limit": (3, 6)},
+        {"sigma_x_limit": (0.0, 1.0), "sigma_y_limit": (0.0, 1.0)},
+        {"beta_limit": (0.1, 0.9)},
+        {"beta_limit": (1.1, 8.0)},
     ],
 )
 def test_advanced_blur_raises_on_incorrect_params(
-    params: Dict[str, List[float]],
+    params: dict[str, list[float]],
 ) -> None:
     with pytest.raises(ValueError):
         A.AdvancedBlur(**params)
@@ -103,8 +102,8 @@ def test_advanced_blur_raises_on_incorrect_params(
     ],
 )
 def test_gaus_blur_limits(
-    blur_limit: List[float],
-    sigma: List[float],
+    blur_limit: list[float],
+    sigma: list[float],
     result_blur: int,
     result_sigma: float,
 ) -> None:

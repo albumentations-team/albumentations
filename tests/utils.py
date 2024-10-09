@@ -78,13 +78,15 @@ def get_filtered_transforms(
     result = []
 
     for _, cls in inspect.getmembers(albumentations):
-        if not isinstance(cls, type):
+        if not isinstance(cls, type) or not issubclass(cls, type):
             continue
+
 
         try:
             if not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):
                 continue
-        except TypeError:
+        except TypeError as e:
+            print(f"TypeError for {cls.__name__}: {e}")
             continue  # Skip if issubclass raises a TypeError
 
         if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
@@ -101,7 +103,7 @@ def get_filtered_transforms(
             continue  # Skip if issubclass raises a TypeError
 
         result.append((cls, custom_arguments_dict.get(cls, {})))
-    return tuple(result)
+    return result
 
 
 def get_image_only_transforms(
