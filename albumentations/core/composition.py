@@ -4,7 +4,7 @@ import random
 import warnings
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator, Sequence
-from typing import Any, Union, cast
+from typing import Any, List, Union, cast  # noqa: UP035
 
 import cv2
 import numpy as np
@@ -43,7 +43,7 @@ NUM_ONEOF_TRANSFORMS = 2
 REPR_INDENT_STEP = 2
 
 TransformType = Union[BasicTransform, "BaseCompose"]
-TransformsSeqType = list[TransformType]
+TransformsSeqType = List[TransformType]  # noqa: UP006
 
 AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints")
 MASK_KEYS = (

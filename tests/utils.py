@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import inspect
 import random
 from io import StringIO
@@ -67,42 +68,38 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-def get_filtered_transforms(
-    base_classes: tuple[type, ...],
-    custom_arguments: frozenset | None = None,
-    except_augmentations: frozenset | None = None,
-) -> tuple[tuple[type, dict], ...]:
-    custom_arguments_dict = dict(custom_arguments) if custom_arguments else {}
-    except_augmentations_set = set(except_augmentations) if except_augmentations else set()
-
-    result = []
-
+@functools.lru_cache(maxsize=None)
+def get_all_valid_transforms():
+    """
+    Find all transforms that are children of BasicTransform or BaseCompose,
+    and do not have DeprecationWarning or FutureWarning.
+    """
+    valid_transforms = []
     for _, cls in inspect.getmembers(albumentations):
-        if not isinstance(cls, type) or not issubclass(cls, type):
+        if not inspect.isclass(cls) or not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):
             continue
-
-
-        try:
-            if not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):
-                continue
-        except TypeError as e:
-            print(f"TypeError for {cls.__name__}: {e}")
-            continue  # Skip if issubclass raises a TypeError
 
         if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
             continue
 
-        try:
-            if (
-                not issubclass(cls, base_classes)
-                or any(cls == i for i in base_classes)
-                or cls in except_augmentations_set
-            ):
-                continue
-        except TypeError:
-            continue  # Skip if issubclass raises a TypeError
+        valid_transforms.append(cls)
+    return valid_transforms
 
-        result.append((cls, custom_arguments_dict.get(cls, {})))
+
+def get_filtered_transforms(
+    base_classes,
+    custom_arguments=None,
+    except_augmentations=None,
+):
+    custom_arguments = custom_arguments or {}
+    except_augmentations = except_augmentations or set()
+
+    result = []
+    for cls in get_all_valid_transforms():
+        if not issubclass(cls, base_classes) or any(cls == i for i in base_classes) or cls in except_augmentations:
+            continue
+
+        result.append((cls, custom_arguments.get(cls, {})))
     return result
 
 
