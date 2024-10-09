@@ -3174,7 +3174,7 @@ class Downscale(ImageOnlyTransform):
             Lower values result in more aggressive downscaling.
             Default: (0.25, 0.25)
 
-        interpolation_pair (Interpolationdict): A dictionary specifying the interpolation methods to use for
+        interpolation_pair (InterpolationDict): A dictionary specifying the interpolation methods to use for
             downscaling and upscaling. Should contain two keys:
             - 'downscale': Interpolation method for downscaling
             - 'upscale': Interpolation method for upscaling

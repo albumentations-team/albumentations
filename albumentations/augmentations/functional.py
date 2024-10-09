@@ -1026,17 +1026,17 @@ def brightness_contrast_adjust(
 @clipped
 def iso_noise(
     image: np.ndarray,
-    color_shift: float = 0.05,
-    intensity: float = 0.5,
+    color_shift: float,
+    intensity: float,
     random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Apply poisson noise to an image to simulate camera sensor noise.
 
     Args:
         image (np.ndarray): Input image. Currently, only RGB images are supported.
-        color_shift (float): The amount of color shift to apply. Default is 0.05.
+        color_shift (float): The amount of color shift to apply.
         intensity (float): Multiplication factor for noise values. Values of ~0.5 produce a noticeable,
-                           yet acceptable level of noise. Default is 0.5.
+                           yet acceptable level of noise.
         random_state (np.random.RandomState | None): If specified, this will be random state used
             for noise generation.
 
@@ -1052,17 +1052,14 @@ def iso_noise(
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_utils.poisson(stddev[1] * intensity * 255, size=hls.shape[:2], random_state=random_state)
-    color_noise = random_utils.normal(0, color_shift * 360 * intensity, size=hls.shape[:2], random_state=random_state)
+    luminance_noise = random_utils.poisson(stddev[1] * intensity, size=hls.shape[:2], random_state=random_state)
+    color_noise = random_utils.normal(0, color_shift * intensity, size=hls.shape[:2], random_state=random_state)
 
-    hue = hls[..., 0]
-    hue += color_noise
-    hue %= 360
+    hls[..., 0] += color_noise
+    hls[..., 1] = add_array(hls[..., 1], luminance_noise * intensity * (1.0 - hls[..., 1]))
 
-    luminance = hls[..., 1]
-    luminance += (luminance_noise / 255) * (1.0 - luminance)
-
-    return cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)
+    noised_hls = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)
+    return np.clip(noised_hls, 0, 1)  # Ensure output is in [0, 1] range
 
 
 def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
