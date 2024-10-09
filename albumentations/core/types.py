@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import Enum
-from typing import List, Literal, Sequence, Tuple, TypeVar, Union
+from typing import Literal, TypeVar, Union
 
 import cv2
 import numpy as np
@@ -13,8 +14,8 @@ ColorType = Union[float, Sequence[float]]
 
 NumericType = TypeVar("NumericType", float, int)
 
-ScaleIntType = Union[int, Tuple[int, int]]
-ScaleFloatType = Union[float, Tuple[float, float]]
+ScaleIntType = Union[int, tuple[int, int]]
+ScaleFloatType = Union[float, tuple[float, float]]
 
 ScaleType = Union[ScaleIntType, ScaleFloatType]
 
@@ -69,26 +70,26 @@ LENGTH_RAW_BBOX = 4
 
 PercentType = Union[
     float,
-    Tuple[float, float],
-    Tuple[float, float, float, float],
-    Tuple[
-        Union[float, Tuple[float, float], List[float]],
-        Union[float, Tuple[float, float], List[float]],
-        Union[float, Tuple[float, float], List[float]],
-        Union[float, Tuple[float, float], List[float]],
+    tuple[float, float],
+    tuple[float, float, float, float],
+    tuple[
+        Union[float, tuple[float, float], list[float]],
+        Union[float, tuple[float, float], list[float]],
+        Union[float, tuple[float, float], list[float]],
+        Union[float, tuple[float, float], list[float]],
     ],
 ]
 
 
 PxType = Union[
     int,
-    Tuple[int, int],
-    Tuple[int, int, int, int],
-    Tuple[
-        Union[int, Tuple[int, int], List[int]],
-        Union[int, Tuple[int, int], List[int]],
-        Union[int, Tuple[int, int], List[int]],
-        Union[int, Tuple[int, int], List[int]],
+    tuple[int, int],
+    tuple[int, int, int, int],
+    tuple[
+        Union[int, tuple[int, int], list[int]],
+        Union[int, tuple[int, int], list[int]],
+        Union[int, tuple[int, int], list[int]],
+        Union[int, tuple[int, int], list[int]],
     ],
 ]
 

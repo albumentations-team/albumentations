@@ -1,6 +1,6 @@
 import warnings
 from inspect import Parameter, signature
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import cv2
 import pytest
@@ -73,7 +73,7 @@ def test_check_valid_border_modes(border_mode: int, exception: bool) -> None:
 )
 def test_process_non_negative_range_valid(
     value: Optional[Tuple[float, float]],
-    expected: Tuple[float, float]
+    expected: Tuple[float, float],
 ) -> None:
     assert process_non_negative_range(value) == expected
 
@@ -100,7 +100,7 @@ def test_process_non_negative_range_invalid(value: Tuple[float, float]) -> None:
 )
 def test_create_symmetric_range(
     value: Union[int, Tuple[int, int]],
-    expected: Tuple[float, float]
+    expected: Tuple[float, float],
 ) -> None:
     assert create_symmetric_range(value) == expected
 
@@ -115,7 +115,7 @@ def test_create_symmetric_range(
 )
 def test_process_non_negative_range_with_valid_input(
     value: Optional[Tuple[float, float]],
-    expected: Tuple[float, float]
+    expected: Tuple[float, float],
 ) -> None:
     assert process_non_negative_range(value) == expected
 
@@ -235,7 +235,8 @@ def test_probability_invalid(probability: float) -> None:
 
 
 @pytest.mark.parametrize(
-    "non_negative_range", [(-1, 5), -10]
+    "non_negative_range",
+    [(-1, 5), -10],
 )  # Invalid non-negative ranges
 def test_non_negative_range_invalid(non_negative_range: Union[int, Tuple[int, int]]) -> None:
     with pytest.raises(ValueError):
@@ -337,19 +338,16 @@ def test_transform_without_schema() -> None:
     # Test instantiation with both parameters
     transform = SimpleTransform(param_a=20, param_b="custom")
     assert transform.param_a == 20
-    assert (
-        transform.param_b == "custom"
-    ), "Custom parameter should be correctly assigned"
+    assert transform.param_b == "custom", "Custom parameter should be correctly assigned"
 
     # Test instantiation with an incorrect type for param_a, acknowledging no validation is performed
     # This demonstrates the class's behavior without InitSchema validation,
     # but since Python does not enforce type annotations at runtime, this won't raise a TypeError.
     transform = SimpleTransform(
-        param_a="should not fail due to type annotations not enforcing type checks at runtime"
+        param_a="should not fail due to type annotations not enforcing type checks at runtime",
     )
     assert (
-        transform.param_a
-        == "should not fail due to type annotations not enforcing type checks at runtime"
+        transform.param_a == "should not fail due to type annotations not enforcing type checks at runtime"
     ), "Parameter accepted without type validation"
 
 
@@ -381,7 +379,10 @@ def test_custom_image_transform_signature() -> None:
 
     assert "p" in expected_params
     assert expected_params["p"] == Parameter(
-        "p", kind=Parameter.POSITIONAL_OR_KEYWORD, default=0.5, annotation=float
+        "p",
+        kind=Parameter.POSITIONAL_OR_KEYWORD,
+        default=0.5,
+        annotation=float,
     )
 
     # Ensure the correct defaults and types
@@ -398,8 +399,5 @@ def test_wrong_argument() -> None:
         assert not hasattr(transform, "wrong_param")
         assert len(w) == 1
         assert issubclass(w[0].category, UserWarning)
-        assert (
-            str(w[0].message)
-            == "Argument 'wrong_param' is not valid and will be ignored."
-        )
+        assert str(w[0].message) == "Argument 'wrong_param' is not valid and will be ignored."
     warnings.resetwarnings()

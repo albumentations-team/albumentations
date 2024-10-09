@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import random
-from typing import Any, Tuple, cast
+from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
 from skimage.measure import label
-from typing_extensions import Literal
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
@@ -88,7 +87,7 @@ class MaskDropout(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.max_objects = cast(Tuple[int, int], max_objects)
+        self.max_objects = cast(tuple[int, int], max_objects)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
 

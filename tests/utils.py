@@ -1,15 +1,13 @@
 from __future__ import annotations
 
+import functools
 import inspect
 import random
-import typing
 from io import StringIO
-from typing import Optional, Set
 
 import numpy as np
 
 import albumentations
-
 
 
 def set_seed(seed: int = 0):
@@ -49,8 +47,7 @@ class InMemoryFile(StringIO):
 
 
 class OpenMock:
-    """
-    Mocks the `open` built-in function. A call to the instance of OpenMock returns an in-memory file which is
+    """Mocks the `open` built-in function. A call to the instance of OpenMock returns an in-memory file which is
     readable and writable. The actual in-memory file implementation should call the passed `save_value` method
     to save the file content in the cache when the file is being closed to preserve the file content.
     """
@@ -71,16 +68,13 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-def get_filtered_transforms(
-    base_classes: typing.Tuple[typing.Type, ...],
-    custom_arguments: typing.Optional[typing.Dict[typing.Type, dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type]] = None,
-) -> typing.List[typing.Tuple[typing.Type, dict]]:
-    custom_arguments = custom_arguments or {}
-    except_augmentations = except_augmentations or set()
-
-    result = []
-
+@functools.lru_cache(maxsize=None)
+def get_all_valid_transforms():
+    """
+    Find all transforms that are children of BasicTransform or BaseCompose,
+    and do not have DeprecationWarning or FutureWarning.
+    """
+    valid_transforms = []
     for _, cls in inspect.getmembers(albumentations):
         if not inspect.isclass(cls) or not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):
             continue
@@ -88,6 +82,20 @@ def get_filtered_transforms(
         if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
             continue
 
+        valid_transforms.append(cls)
+    return valid_transforms
+
+
+def get_filtered_transforms(
+    base_classes,
+    custom_arguments=None,
+    except_augmentations=None,
+):
+    custom_arguments = custom_arguments or {}
+    except_augmentations = except_augmentations or set()
+
+    result = []
+    for cls in get_all_valid_transforms():
         if not issubclass(cls, base_classes) or any(cls == i for i in base_classes) or cls in except_augmentations:
             continue
 
@@ -96,31 +104,33 @@ def get_filtered_transforms(
 
 
 def get_image_only_transforms(
-    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.ImageOnlyTransform], dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.ImageOnlyTransform]]] = None,
-) -> typing.List[typing.Tuple[typing.Type, dict]]:
+    custom_arguments: dict[type[albumentations.ImageOnlyTransform], dict] | None = None,
+    except_augmentations: set[type[albumentations.ImageOnlyTransform]] | None = None,
+) -> list[tuple[type, dict]]:
     return get_filtered_transforms((albumentations.ImageOnlyTransform,), custom_arguments, except_augmentations)
 
 
 def get_dual_transforms(
-    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.DualTransform], dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.DualTransform]]] = None,
-) -> typing.List[typing.Tuple[typing.Type, dict]]:
-    return get_filtered_transforms((albumentations.DualTransform, ), custom_arguments, except_augmentations)
+    custom_arguments: dict[type[albumentations.DualTransform], dict] | None = None,
+    except_augmentations: set[type[albumentations.DualTransform]] | None = None,
+) -> list[tuple[type, dict]]:
+    return get_filtered_transforms((albumentations.DualTransform,), custom_arguments, except_augmentations)
 
 
 def get_transforms(
-    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.BasicTransform], dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
-) -> typing.List[typing.Tuple[typing.Type, dict]]:
+    custom_arguments: dict[type[albumentations.BasicTransform], dict] | None = None,
+    except_augmentations: set[type[albumentations.BasicTransform]] | None = None,
+) -> list[tuple[type, dict]]:
     return get_filtered_transforms(
-        (albumentations.ImageOnlyTransform, albumentations.DualTransform), custom_arguments, except_augmentations
+        (albumentations.ImageOnlyTransform, albumentations.DualTransform),
+        custom_arguments,
+        except_augmentations,
     )
 
 
 def check_all_augs_exists(
     augmentations: list[list],
-    except_augmentations: Optional[Set] = None,
+    except_augmentations: set | None = None,
 ) -> list[list]:
     existed_augs = {i[0] for i in augmentations}
     except_augmentations = except_augmentations or set()

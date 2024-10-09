@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Literal, Sequence, Tuple, TypedDict, cast
+from collections.abc import Sequence
+from typing import Any, Callable, Literal, TypedDict, cast
 
 import cv2
 import numpy as np
@@ -2399,7 +2400,7 @@ def compute_affine_warp_output_shape(
     height, width = input_shape[:2]
 
     if height == 0 or width == 0:
-        return matrix, cast(Tuple[int, int], input_shape[:2])
+        return matrix, cast(tuple[int, int], input_shape[:2])
 
     min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
     minc, minr = min_coords
@@ -2418,7 +2419,7 @@ def compute_affine_warp_output_shape(
     translation = -minc, -minr
     matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
     matrix += matrix_to_fit
-    return matrix, cast(Tuple[int, int], output_shape_tuple)
+    return matrix, cast(tuple[int, int], output_shape_tuple)
 
 
 def center(image_shape: tuple[int, int]) -> tuple[float, float]:

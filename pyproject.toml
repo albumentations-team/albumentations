@@ -37,7 +37,7 @@ authors = [
   { name = "Alexander Buslaev" },
   { name = "Eugene Khvedchenya" },
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -47,7 +47,6 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -79,12 +78,12 @@ package-data = { albumentations = [ "*.txt", "*.md" ] }
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
-target-version = "py38"
+target-version = "py39"
 
 line-length = 120
 indent-width = 4
 
-# Assume Python 3.8
+# Assume Python 3.9
 exclude = [
   ".bzr",
   ".direnv",
@@ -175,7 +174,7 @@ lint.pydocstyle.convention = "google"
 [tool.mypy]
 plugins = [ "pydantic.mypy" ]
 
-python_version = "3.8"
+python_version = "3.9"
 ignore_missing_imports = true
 follow_imports = "silent"
 warn_redundant_casts = true

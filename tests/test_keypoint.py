@@ -7,8 +7,9 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.augmentations.functional import swap_tiles_on_keypoints
 import albumentations.augmentations.geometric.functional as fgeometric
+from albumentations.augmentations.functional import swap_tiles_on_keypoints
+from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
     check_keypoints,
@@ -16,29 +17,30 @@ from albumentations.core.keypoints_utils import (
     convert_keypoints_to_albumentations,
     filter_keypoints,
 )
-from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.transforms_interface import BasicTransform
 from tests.conftest import RECTANGULAR_UINT8_IMAGE
 
 
-
-@pytest.mark.parametrize("input_angles, expected_angles", [
-    (np.array([0, np.pi, 2*np.pi]), np.array([0, np.pi, 0])),
-    (np.array([-np.pi, 3*np.pi]), np.array([np.pi, np.pi])),
-    (np.array([0.5, 2.5, 7.5]), np.array([0.5, 2.5, 7.5 - 2*np.pi])),
-    (np.array([]), np.array([])),
-    (np.array([10*np.pi, 100*np.pi]), np.array([0, 0])),
-])
+@pytest.mark.parametrize(
+    "input_angles, expected_angles",
+    [
+        (np.array([0, np.pi, 2 * np.pi]), np.array([0, np.pi, 0])),
+        (np.array([-np.pi, 3 * np.pi]), np.array([np.pi, np.pi])),
+        (np.array([0.5, 2.5, 7.5]), np.array([0.5, 2.5, 7.5 - 2 * np.pi])),
+        (np.array([]), np.array([])),
+        (np.array([10 * np.pi, 100 * np.pi]), np.array([0, 0])),
+    ],
+)
 def test_angle_to_2pi_range(input_angles, expected_angles):
     result = angle_to_2pi_range(input_angles)
     np.testing.assert_allclose(result, expected_angles, atol=1e-7)
 
 
 def test_angle_to_2pi_range_large_array():
-    input_angles = np.random.uniform(-10*np.pi, 10*np.pi, 1000)
+    input_angles = np.random.uniform(-10 * np.pi, 10 * np.pi, 1000)
     result = angle_to_2pi_range(input_angles)
-    assert np.all((result >= 0) & (result < 2*np.pi))
-    np.testing.assert_allclose((input_angles - result) % (2*np.pi), 0, atol=1e-8)
+    assert np.all((result >= 0) & (result < 2 * np.pi))
+    np.testing.assert_allclose((input_angles - result) % (2 * np.pi), 0, atol=1e-8)
 
 
 def test_angle_to_2pi_range_precision():
@@ -54,29 +56,27 @@ def test_angle_to_2pi_range_negative_zero():
     assert not np.signbit(result[0])  # Ensure -0.0 is converted to +0.0
 
 
-@pytest.mark.parametrize("keypoints, image_shape, expected_error", [
-    # Valid keypoints
-    (np.array([[10, 20, 0.5], [30, 40, 1.5]]), (100, 100), None),
-    (np.array([[0, 0, 0], [99, 99, math.pi]]), (100, 100), None),
-
-    # Invalid x coordinate
-    (np.array([[100, 50, 1.0]]), (100, 100), "Expected x for keypoint"),
-    (np.array([[-1, 50, 1.0]]), (100, 100), "Expected x for keypoint"),
-
-    # Invalid y coordinate
-    (np.array([[50, 100, 1.0]]), (100, 100), "Expected y for keypoint"),
-    (np.array([[50, -1, 1.0]]), (100, 100), "Expected y for keypoint"),
-
-    # Invalid angle
-    (np.array([[50, 50, -0.1]]), (100, 100), "Keypoint angle must be in range"),
-    (np.array([[50, 50, 2 * math.pi]]), (100, 100), "Keypoint angle must be in range"),
-
-    # Multiple invalid keypoints
-    (np.array([[100, 50, 1.0], [50, 100, 1.0]]), (100, 100), "Expected x for keypoint"),
-
-    # Keypoints without angle
-    (np.array([[10, 20], [30, 40]]), (100, 100), None),
-])
+@pytest.mark.parametrize(
+    "keypoints, image_shape, expected_error",
+    [
+        # Valid keypoints
+        (np.array([[10, 20, 0.5], [30, 40, 1.5]]), (100, 100), None),
+        (np.array([[0, 0, 0], [99, 99, math.pi]]), (100, 100), None),
+        # Invalid x coordinate
+        (np.array([[100, 50, 1.0]]), (100, 100), "Expected x for keypoint"),
+        (np.array([[-1, 50, 1.0]]), (100, 100), "Expected x for keypoint"),
+        # Invalid y coordinate
+        (np.array([[50, 100, 1.0]]), (100, 100), "Expected y for keypoint"),
+        (np.array([[50, -1, 1.0]]), (100, 100), "Expected y for keypoint"),
+        # Invalid angle
+        (np.array([[50, 50, -0.1]]), (100, 100), "Keypoint angle must be in range"),
+        (np.array([[50, 50, 2 * math.pi]]), (100, 100), "Keypoint angle must be in range"),
+        # Multiple invalid keypoints
+        (np.array([[100, 50, 1.0], [50, 100, 1.0]]), (100, 100), "Expected x for keypoint"),
+        # Keypoints without angle
+        (np.array([[10, 20], [30, 40]]), (100, 100), None),
+    ],
+)
 def test_check_keypoints(keypoints, image_shape, expected_error):
     if expected_error is None:
         check_keypoints(keypoints, image_shape)  # Should not raise an error
@@ -85,68 +85,80 @@ def test_check_keypoints(keypoints, image_shape, expected_error):
             check_keypoints(keypoints, image_shape)
         assert expected_error in str(exc_info.value)
 
-@pytest.mark.parametrize("keypoints, image_shape", [
-    (np.array([[10, 20, 0.5, 1.0], [30, 40, 1.5, 2.0]]), (100, 100)),
-    (np.array([[0, 0, 0, 1.0], [99, 99, math.pi, 2.0]]), (100, 100)),
-])
+
+@pytest.mark.parametrize(
+    "keypoints, image_shape",
+    [
+        (np.array([[10, 20, 0.5, 1.0], [30, 40, 1.5, 2.0]]), (100, 100)),
+        (np.array([[0, 0, 0, 1.0], [99, 99, math.pi, 2.0]]), (100, 100)),
+    ],
+)
 def test_check_keypoints_with_scale(keypoints, image_shape):
     check_keypoints(keypoints, image_shape)  # Should not raise an error
 
-@pytest.mark.parametrize("keypoints, image_shape", [
-    (np.array([[10, 20, 0.5, 1.0, 1], [30, 40, 1.5, 2.0, 2]]), (100, 100)),
-    (np.array([[0, 0, 0, 1.0, 1], [99, 99, math.pi, 2.0, 2]]), (100, 100)),
-])
+
+@pytest.mark.parametrize(
+    "keypoints, image_shape",
+    [
+        (np.array([[10, 20, 0.5, 1.0, 1], [30, 40, 1.5, 2.0, 2]]), (100, 100)),
+        (np.array([[0, 0, 0, 1.0, 1], [99, 99, math.pi, 2.0, 2]]), (100, 100)),
+    ],
+)
 def test_check_keypoints_with_extra_data(keypoints, image_shape):
     check_keypoints(keypoints, image_shape)  # Should not raise an error
 
 
-@pytest.mark.parametrize("keypoints, image_shape, remove_invisible, expected", [
-    # Test case 1: All keypoints are visible
-    (
-        np.array([[10, 20, 0.5], [30, 40, 1.0], [50, 60, 1.5]]),
-        (100, 100),
-        True,
-        np.array([[10, 20, 0.5], [30, 40, 1.0], [50, 60, 1.5]])
-    ),
-    # Test case 2: Some keypoints are outside the image
-    (
-        np.array([[-10, 20, 0.5], [30, 40, 1.0], [110, 60, 1.5], [50, 120, 2.0]]),
-        (100, 100),
-        True,
-        np.array([[30, 40, 1.0]])
-    ),
-    # Test case 3: All keypoints are outside the image
-    (
-        np.array([[-10, -20, 0.5], [110, 120, 1.0]]),
-        (100, 100),
-        True,
-        np.array([], dtype=float).reshape(0, 3)
-    ),
-    # Test case 4: remove_invisible is False
-    (
-        np.array([[-10, 20, 0.5], [30, 40, 1.0], [110, 60, 1.5]]),
-        (100, 100),
-        False,
-        np.array([[-10, 20, 0.5], [30, 40, 1.0], [110, 60, 1.5]])
-    ),
-    # Test case 5: Empty input array
-    (
-        np.array([], dtype=float).reshape(0, 3),
-        (100, 100),
-        True,
-        np.array([], dtype=float).reshape(0, 3)
-    ),
-    # Test case 6: Keypoints with additional data
-    (
-        np.array([[10, 20, 0.5, 1], [30, 40, 1.0, 2], [110, 60, 1.5, 3]]),
-        (100, 100),
-        True,
-        np.array([[10, 20, 0.5, 1], [30, 40, 1.0, 2]])
-    ),
-])
+@pytest.mark.parametrize(
+    "keypoints, image_shape, remove_invisible, expected",
+    [
+        # Test case 1: All keypoints are visible
+        (
+            np.array([[10, 20, 0.5], [30, 40, 1.0], [50, 60, 1.5]]),
+            (100, 100),
+            True,
+            np.array([[10, 20, 0.5], [30, 40, 1.0], [50, 60, 1.5]]),
+        ),
+        # Test case 2: Some keypoints are outside the image
+        (
+            np.array([[-10, 20, 0.5], [30, 40, 1.0], [110, 60, 1.5], [50, 120, 2.0]]),
+            (100, 100),
+            True,
+            np.array([[30, 40, 1.0]]),
+        ),
+        # Test case 3: All keypoints are outside the image
+        (
+            np.array([[-10, -20, 0.5], [110, 120, 1.0]]),
+            (100, 100),
+            True,
+            np.array([], dtype=float).reshape(0, 3),
+        ),
+        # Test case 4: remove_invisible is False
+        (
+            np.array([[-10, 20, 0.5], [30, 40, 1.0], [110, 60, 1.5]]),
+            (100, 100),
+            False,
+            np.array([[-10, 20, 0.5], [30, 40, 1.0], [110, 60, 1.5]]),
+        ),
+        # Test case 5: Empty input array
+        (
+            np.array([], dtype=float).reshape(0, 3),
+            (100, 100),
+            True,
+            np.array([], dtype=float).reshape(0, 3),
+        ),
+        # Test case 6: Keypoints with additional data
+        (
+            np.array([[10, 20, 0.5, 1], [30, 40, 1.0, 2], [110, 60, 1.5, 3]]),
+            (100, 100),
+            True,
+            np.array([[10, 20, 0.5, 1], [30, 40, 1.0, 2]]),
+        ),
+    ],
+)
 def test_filter_keypoints(keypoints, image_shape, remove_invisible, expected):
     result = filter_keypoints(keypoints, image_shape, remove_invisible)
     np.testing.assert_array_equal(result, expected)
+
 
 def test_filter_keypoints_with_float_coordinates():
     keypoints = np.array([[0.5, 0.5, 0.5], [99.9, 99.9, 1.0], [100.1, 100.1, 1.5]])
@@ -156,6 +168,7 @@ def test_filter_keypoints_with_float_coordinates():
     result = filter_keypoints(keypoints, image_shape, remove_invisible)
     np.testing.assert_array_almost_equal(result, expected)
 
+
 def test_filter_keypoints_with_int_image_shape():
     keypoints = np.array([[10, 20, 0.5], [30, 40, 1.0], [50, 60, 1.5]])
     image_shape = np.array([100, 100])  # numpy array instead of tuple
@@ -164,201 +177,249 @@ def test_filter_keypoints_with_int_image_shape():
     result = filter_keypoints(keypoints, image_shape, remove_invisible)
     np.testing.assert_array_equal(result, expected)
 
-@pytest.mark.parametrize("keypoints, source_format, image_shape, check_validity, angle_in_degrees, expected", [
-    # Test case 1: xy format
-    (
-        np.array([[10, 20], [30, 40]]),
-        "xy",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 0, 0], [30, 40, 0, 0]])
-    ),
-    # Test case 2: yx format
-    (
-        np.array([[20, 10], [40, 30]]),
-        "yx",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 0, 0], [30, 40, 0, 0]])
-    ),
-    # Test case 3: xya format with degrees
-    (
-        np.array([[10, 20, 45], [30, 40, 90]]),
-        "xya",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, np.pi/4, 0], [30, 40, np.pi/2, 0]])
-    ),
-    # Test case 4: xya format with radians
-    (
-        np.array([[10, 20, np.pi/4], [30, 40, np.pi/2]]),
-        "xya",
-        (100, 100),
-        False,
-        False,
-        np.array([[10, 20, np.pi/4, 0], [30, 40, np.pi/2, 0]])
-    ),
-    # Test case 5: xys format
-    (
-        np.array([[10, 20, 2], [30, 40, 3]]),
-        "xys",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 0, 2], [30, 40, 0, 3]])
-    ),
-    # Test case 6: xyas format with degrees
-    (
-        np.array([[10, 20, 45, 2], [30, 40, 90, 3]]),
-        "xyas",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, np.pi/4, 2], [30, 40, np.pi/2, 3]])
-    ),
-    # Test case 7: xysa format with degrees
-    (
-        np.array([[10, 20, 2, 45], [30, 40, 3, 90]]),
-        "xysa",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, np.pi/4, 2], [30, 40, np.pi/2, 3]])
-    ),
-    # Test case 8: with additional columns
-    (
-        np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]]),
-        "xyas",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, np.pi/4, 2, 1], [30, 40, np.pi/2, 3, 2]])
-    ),
-])
-def test_convert_keypoints_to_albumentations(keypoints, source_format, image_shape, check_validity, angle_in_degrees, expected):
-    result = convert_keypoints_to_albumentations(keypoints, source_format, image_shape, check_validity, angle_in_degrees)
+
+@pytest.mark.parametrize(
+    "keypoints, source_format, image_shape, check_validity, angle_in_degrees, expected",
+    [
+        # Test case 1: xy format
+        (
+            np.array([[10, 20], [30, 40]]),
+            "xy",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
+        ),
+        # Test case 2: yx format
+        (
+            np.array([[20, 10], [40, 30]]),
+            "yx",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
+        ),
+        # Test case 3: xya format with degrees
+        (
+            np.array([[10, 20, 45], [30, 40, 90]]),
+            "xya",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, np.pi / 4, 0], [30, 40, np.pi / 2, 0]]),
+        ),
+        # Test case 4: xya format with radians
+        (
+            np.array([[10, 20, np.pi / 4], [30, 40, np.pi / 2]]),
+            "xya",
+            (100, 100),
+            False,
+            False,
+            np.array([[10, 20, np.pi / 4, 0], [30, 40, np.pi / 2, 0]]),
+        ),
+        # Test case 5: xys format
+        (
+            np.array([[10, 20, 2], [30, 40, 3]]),
+            "xys",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 0, 2], [30, 40, 0, 3]]),
+        ),
+        # Test case 6: xyas format with degrees
+        (
+            np.array([[10, 20, 45, 2], [30, 40, 90, 3]]),
+            "xyas",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, np.pi / 4, 2], [30, 40, np.pi / 2, 3]]),
+        ),
+        # Test case 7: xysa format with degrees
+        (
+            np.array([[10, 20, 2, 45], [30, 40, 3, 90]]),
+            "xysa",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, np.pi / 4, 2], [30, 40, np.pi / 2, 3]]),
+        ),
+        # Test case 8: with additional columns
+        (
+            np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]]),
+            "xyas",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, np.pi / 4, 2, 1], [30, 40, np.pi / 2, 3, 2]]),
+        ),
+    ],
+)
+def test_convert_keypoints_to_albumentations(
+    keypoints,
+    source_format,
+    image_shape,
+    check_validity,
+    angle_in_degrees,
+    expected,
+):
+    result = convert_keypoints_to_albumentations(
+        keypoints,
+        source_format,
+        image_shape,
+        check_validity,
+        angle_in_degrees,
+    )
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-8)
+
 
 def test_convert_keypoints_to_albumentations_invalid_format():
     with pytest.raises(ValueError, match="Unknown source_format"):
         convert_keypoints_to_albumentations(np.array([[10, 20]]), "invalid_format", (100, 100))
 
-@pytest.mark.parametrize("angle, expected", [
-    (0, 0),
-    (np.pi, np.pi),
-    (2*np.pi, 0),
-    (3*np.pi, np.pi),
-    (-np.pi, np.pi),
-    (-2*np.pi, 0),
-])
+
+@pytest.mark.parametrize(
+    "angle, expected",
+    [
+        (0, 0),
+        (np.pi, np.pi),
+        (2 * np.pi, 0),
+        (3 * np.pi, np.pi),
+        (-np.pi, np.pi),
+        (-2 * np.pi, 0),
+    ],
+)
 def test_angle_to_2pi_range(angle, expected):
     result = angle_to_2pi_range(np.array([angle]))
     np.testing.assert_allclose(result, [expected], rtol=1e-5, atol=1e-8)
 
-@pytest.mark.parametrize("keypoints, source_format, image_shape", [
-    (np.array([[10, 20], [-10, 30]]), "xy", (100, 100)),
-    (np.array([[10, 20], [110, 30]]), "xy", (100, 100)),
-    (np.array([[10, -20], [30, 40]]), "xy", (100, 100)),
-    (np.array([[10, 120], [30, 40]]), "xy", (100, 100)),
-])
+
+@pytest.mark.parametrize(
+    "keypoints, source_format, image_shape",
+    [
+        (np.array([[10, 20], [-10, 30]]), "xy", (100, 100)),
+        (np.array([[10, 20], [110, 30]]), "xy", (100, 100)),
+        (np.array([[10, -20], [30, 40]]), "xy", (100, 100)),
+        (np.array([[10, 120], [30, 40]]), "xy", (100, 100)),
+    ],
+)
 def test_convert_keypoints_to_albumentations_check_validity(keypoints, source_format, image_shape):
     with pytest.raises(ValueError):
         convert_keypoints_to_albumentations(keypoints, source_format, image_shape, check_validity=True)
 
-@pytest.mark.parametrize("keypoints, target_format, image_shape, check_validity, angle_in_degrees, expected", [
-    # Test case 1: xy format
-    (
-        np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
-        "xy",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20], [30, 40]])
-    ),
-    # Test case 2: yx format
-    (
-        np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
-        "yx",
-        (100, 100),
-        False,
-        True,
-        np.array([[20, 10], [40, 30]])
-    ),
-    # Test case 3: xya format with degrees
-    (
-        np.array([[10, 20, np.pi/4, 0], [30, 40, np.pi/2, 0]]),
-        "xya",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 45], [30, 40, 90]])
-    ),
-    # Test case 4: xya format with radians
-    (
-        np.array([[10, 20, np.pi/4, 0], [30, 40, np.pi/2, 0]]),
-        "xya",
-        (100, 100),
-        False,
-        False,
-        np.array([[10, 20, np.pi/4], [30, 40, np.pi/2]])
-    ),
-    # Test case 5: xys format
-    (
-        np.array([[10, 20, 0, 2], [30, 40, 0, 3]]),
-        "xys",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 2], [30, 40, 3]])
-    ),
-    # Test case 6: xyas format with degrees
-    (
-        np.array([[10, 20, np.pi/4, 2], [30, 40, np.pi/2, 3]]),
-        "xyas",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 45, 2], [30, 40, 90, 3]])
-    ),
-    # Test case 7: xysa format with degrees
-    (
-        np.array([[10, 20, np.pi/4, 2], [30, 40, np.pi/2, 3]]),
-        "xysa",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 2, 45], [30, 40, 3, 90]])
-    ),
-    # Test case 8: with additional columns
-    (
-        np.array([[10, 20, np.pi/4, 2, 1], [30, 40, np.pi/2, 3, 2]]),
-        "xyas",
-        (100, 100),
-        False,
-        True,
-        np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]])
-    ),
-])
-def test_convert_keypoints_from_albumentations(keypoints, target_format, image_shape, check_validity, angle_in_degrees, expected):
-    result = convert_keypoints_from_albumentations(keypoints, target_format, image_shape, check_validity, angle_in_degrees)
+
+@pytest.mark.parametrize(
+    "keypoints, target_format, image_shape, check_validity, angle_in_degrees, expected",
+    [
+        # Test case 1: xy format
+        (
+            np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
+            "xy",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20], [30, 40]]),
+        ),
+        # Test case 2: yx format
+        (
+            np.array([[10, 20, 0, 0], [30, 40, 0, 0]]),
+            "yx",
+            (100, 100),
+            False,
+            True,
+            np.array([[20, 10], [40, 30]]),
+        ),
+        # Test case 3: xya format with degrees
+        (
+            np.array([[10, 20, np.pi / 4, 0], [30, 40, np.pi / 2, 0]]),
+            "xya",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 45], [30, 40, 90]]),
+        ),
+        # Test case 4: xya format with radians
+        (
+            np.array([[10, 20, np.pi / 4, 0], [30, 40, np.pi / 2, 0]]),
+            "xya",
+            (100, 100),
+            False,
+            False,
+            np.array([[10, 20, np.pi / 4], [30, 40, np.pi / 2]]),
+        ),
+        # Test case 5: xys format
+        (
+            np.array([[10, 20, 0, 2], [30, 40, 0, 3]]),
+            "xys",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 2], [30, 40, 3]]),
+        ),
+        # Test case 6: xyas format with degrees
+        (
+            np.array([[10, 20, np.pi / 4, 2], [30, 40, np.pi / 2, 3]]),
+            "xyas",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 45, 2], [30, 40, 90, 3]]),
+        ),
+        # Test case 7: xysa format with degrees
+        (
+            np.array([[10, 20, np.pi / 4, 2], [30, 40, np.pi / 2, 3]]),
+            "xysa",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 2, 45], [30, 40, 3, 90]]),
+        ),
+        # Test case 8: with additional columns
+        (
+            np.array([[10, 20, np.pi / 4, 2, 1], [30, 40, np.pi / 2, 3, 2]]),
+            "xyas",
+            (100, 100),
+            False,
+            True,
+            np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]]),
+        ),
+    ],
+)
+def test_convert_keypoints_from_albumentations(
+    keypoints,
+    target_format,
+    image_shape,
+    check_validity,
+    angle_in_degrees,
+    expected,
+):
+    result = convert_keypoints_from_albumentations(
+        keypoints,
+        target_format,
+        image_shape,
+        check_validity,
+        angle_in_degrees,
+    )
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-8)
+
 
 def test_convert_keypoints_from_albumentations_invalid_format():
     with pytest.raises(ValueError, match="Unknown target_format"):
         convert_keypoints_from_albumentations(np.array([[10, 20, 0, 0]]), "invalid_format", (100, 100))
 
-@pytest.mark.parametrize("keypoints, source_format, image_shape", [
-    (np.array([[10, 20], [30, 40]]), "xy", (100, 100)),
-    (np.array([[20, 10], [40, 30]]), "yx", (100, 100)),
-    (np.array([[10, 20, 45], [30, 40, 90]]), "xya", (100, 100)),
-    (np.array([[10, 20, 2], [30, 40, 3]]), "xys", (100, 100)),
-    (np.array([[10, 20, 45, 2], [30, 40, 90, 3]]), "xyas", (100, 100)),
-    (np.array([[10, 20, 2, 45], [30, 40, 3, 90]]), "xysa", (100, 100)),
-    (np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]]), "xyas", (100, 100)),
-])
+
+@pytest.mark.parametrize(
+    "keypoints, source_format, image_shape",
+    [
+        (np.array([[10, 20], [30, 40]]), "xy", (100, 100)),
+        (np.array([[20, 10], [40, 30]]), "yx", (100, 100)),
+        (np.array([[10, 20, 45], [30, 40, 90]]), "xya", (100, 100)),
+        (np.array([[10, 20, 2], [30, 40, 3]]), "xys", (100, 100)),
+        (np.array([[10, 20, 45, 2], [30, 40, 90, 3]]), "xyas", (100, 100)),
+        (np.array([[10, 20, 2, 45], [30, 40, 3, 90]]), "xysa", (100, 100)),
+        (np.array([[10, 20, 45, 2, 1], [30, 40, 90, 3, 2]]), "xyas", (100, 100)),
+    ],
+)
 def test_keypoint_conversion_roundtrip(keypoints, source_format, image_shape):
     # original => to_albumentations => from_albumentations
     albumentations_format = convert_keypoints_to_albumentations(keypoints, source_format, image_shape)
@@ -370,12 +431,16 @@ def test_keypoint_conversion_roundtrip(keypoints, source_format, image_shape):
     result = convert_keypoints_to_albumentations(other_format, source_format, image_shape)
     np.testing.assert_allclose(result, albumentations_format, rtol=1e-5, atol=1e-8)
 
-@pytest.mark.parametrize("keypoints, image_shape", [
-    (np.array([[10, 20, 0, 0], [-10, 30, 0, 0]]), (100, 100)),
-    (np.array([[10, 20, 0, 0], [110, 30, 0, 0]]), (100, 100)),
-    (np.array([[10, -20, 0, 0], [30, 40, 0, 0]]), (100, 100)),
-    (np.array([[10, 120, 0, 0], [30, 40, 0, 0]]), (100, 100)),
-])
+
+@pytest.mark.parametrize(
+    "keypoints, image_shape",
+    [
+        (np.array([[10, 20, 0, 0], [-10, 30, 0, 0]]), (100, 100)),
+        (np.array([[10, 20, 0, 0], [110, 30, 0, 0]]), (100, 100)),
+        (np.array([[10, -20, 0, 0], [30, 40, 0, 0]]), (100, 100)),
+        (np.array([[10, 120, 0, 0], [30, 40, 0, 0]]), (100, 100)),
+    ],
+)
 def test_convert_keypoints_from_albumentations_check_validity(keypoints, image_shape):
     with pytest.raises(ValueError):
         convert_keypoints_from_albumentations(keypoints, "xy", image_shape, check_validity=True)
@@ -405,8 +470,11 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format: str, labels: Opt
     np.testing.assert_array_equal(transformed["image"], image)
     np.testing.assert_allclose(transformed["keypoints"], keypoints)
 
+
 @pytest.mark.parametrize(
-    ["keypoints", "keypoint_format"], [([[20, 30, 40, 50]], "xyas"), (np.array([[20, 30, 40, 50]]), "xyas")])
+    ["keypoints", "keypoint_format"],
+    [([[20, 30, 40, 50]], "xyas"), (np.array([[20, 30, 40, 50]]), "xyas")],
+)
 def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format: str) -> None:
     image = np.ones((100, 100, 3))
     aug = A.Compose(
@@ -452,12 +520,10 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format: st
         [A.HorizontalFlip, [[2, 0]], [[0, 0]]],
         [A.HorizontalFlip, [[0, 2]], [[2, 2]]],
         [A.HorizontalFlip, [[2, 2]], [[0, 2]]],
-        #
         [A.VerticalFlip, [[0, 0]], [[0, 2]]],
         [A.VerticalFlip, [[2, 0]], [[2, 2]]],
         [A.VerticalFlip, [[0, 2]], [[0, 0]]],
         [A.VerticalFlip, [[2, 2]], [[2, 0]]],
-        #
         [A.HorizontalFlip, [[1, 1]], [[1, 1]]],
         [A.VerticalFlip, [[1, 1]], [[1, 1]]],
     ],
@@ -467,7 +533,9 @@ def test_keypoint_flips_transform_3x3(aug: BasicTransform, keypoints, expected) 
 
     image = np.ones((3, 3, 3))
     transformed = transform(
-        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+        image=image,
+        keypoints=keypoints,
+        labels=np.ones(len(keypoints)),
     )
     assert np.allclose(expected, transformed["keypoints"])
 
@@ -495,7 +563,9 @@ def test_keypoint_transform_format_xyas(aug: BasicTransform, keypoints, expected
 
     image = np.ones((100, 100, 3))
     transformed = transform(
-        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+        image=image,
+        keypoints=keypoints,
+        labels=np.ones(len(keypoints)),
     )
     assert np.allclose(expected, transformed["keypoints"])
 
@@ -582,26 +652,40 @@ def test_angle_to_2pi_range(angle, expected) -> None:
     assert np.isclose(angle_to_2pi_range(angle), expected)
 
 
-@pytest.mark.parametrize("keypoints, image_shape, expected", [
-    (
-        np.array([[0, 0], [50, 50], [100, 100], [-10, 50], [50, -10], [110, 50], [50, 110]]),
-        (100, 100),
-        np.array([[0, 0], [50, 50]])
-    ),
-    (
-        np.array([[0, 0, 0], [50, 50, 90], [100, 100, 180], [-10, 50, 45], [50, -10, 135], [110, 50, 270], [50, 110, 315]]),
-        (100, 100),
-        np.array([[0, 0, 0], [50, 50, 90]])
-    ),
-    (
-        np.array([[10, 10], [20, 20]]),
-        (30, 30),
-        np.array([[10, 10], [20, 20]])
-    ),
-])
+@pytest.mark.parametrize(
+    "keypoints, image_shape, expected",
+    [
+        (
+            np.array([[0, 0], [50, 50], [100, 100], [-10, 50], [50, -10], [110, 50], [50, 110]]),
+            (100, 100),
+            np.array([[0, 0], [50, 50]]),
+        ),
+        (
+            np.array(
+                [
+                    [0, 0, 0],
+                    [50, 50, 90],
+                    [100, 100, 180],
+                    [-10, 50, 45],
+                    [50, -10, 135],
+                    [110, 50, 270],
+                    [50, 110, 315],
+                ],
+            ),
+            (100, 100),
+            np.array([[0, 0, 0], [50, 50, 90]]),
+        ),
+        (
+            np.array([[10, 10], [20, 20]]),
+            (30, 30),
+            np.array([[10, 10], [20, 20]]),
+        ),
+    ],
+)
 def test_validate_keypoints(keypoints, image_shape, expected):
     result = fgeometric.validate_keypoints(keypoints, image_shape)
     np.testing.assert_array_almost_equal(result, expected)
+
 
 def test_validate_keypoints_all_invalid():
     keypoints = np.array([[-1, -1], [101, 101]])
@@ -609,13 +693,15 @@ def test_validate_keypoints_all_invalid():
     assert result.shape == (0, 2)
 
 
-@pytest.mark.parametrize("keypoint, rows, cols", [
-    ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
-    ((200, 100, np.pi/4, 0.5), 300, 400),
-    ((50, 250, np.pi/2, 2), 300, 400),
-])
+@pytest.mark.parametrize(
+    "keypoint, rows, cols",
+    [
+        ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
+        ((200, 100, np.pi / 4, 0.5), 300, 400),
+        ((50, 250, np.pi / 2, 2), 300, 400),
+    ],
+)
 def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
-
     keypoints = np.array([keypoint])
 
     # Perform vertical and then horizontal flip
@@ -625,10 +711,12 @@ def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
     vflipped_keypoints = fgeometric.keypoints_vflip(keypoints, rows)
     hvflipped_keypoints = fgeometric.keypoints_hflip(vflipped_keypoints, cols)
 
-    assert vhflipped_keypoints == pytest.approx(hvflipped_keypoints), \
-        "Sequential vflip + hflip not equivalent to hflip + vflip"
-    assert vhflipped_keypoints == pytest.approx(fgeometric.keypoints_rot90(keypoints, 2, (rows, cols))), \
-        "rot180 not equivalent to vflip + hflip"
+    assert vhflipped_keypoints == pytest.approx(
+        hvflipped_keypoints,
+    ), "Sequential vflip + hflip not equivalent to hflip + vflip"
+    assert vhflipped_keypoints == pytest.approx(
+        fgeometric.keypoints_rot90(keypoints, 2, (rows, cols)),
+    ), "rot180 not equivalent to vflip + hflip"
 
 
 def test_swap_tiles_on_keypoints_basic():
@@ -651,6 +739,7 @@ def test_swap_tiles_on_keypoints_no_change():
 
     np.testing.assert_array_equal(new_keypoints, keypoints)
 
+
 def test_swap_tiles_on_keypoints_out_of_bounds():
     keypoints = np.array([[10, 10], [30, 30], [70, 70]])
     tiles = np.array([[0, 0, 20, 20], [20, 20, 40, 40], [40, 40, 60, 60]])
@@ -662,6 +751,7 @@ def test_swap_tiles_on_keypoints_out_of_bounds():
     expected = np.array([[50, 50], [30, 30], [70, 70]])  # Last keypoint unchanged
     np.testing.assert_array_equal(new_keypoints, expected)
 
+
 def test_swap_tiles_on_keypoints_complex_mapping():
     keypoints = np.array([[5, 5], [15, 15], [25, 25], [35, 35]])
     tiles = np.array([[0, 0, 10, 10], [10, 10, 20, 20], [20, 20, 30, 30], [30, 30, 40, 40]])
@@ -671,6 +761,7 @@ def test_swap_tiles_on_keypoints_complex_mapping():
 
     expected = np.array([[35, 35], [25, 25], [5, 5], [15, 15]])
     np.testing.assert_array_equal(new_keypoints, expected)
+
 
 def test_swap_tiles_on_keypoints_empty_input():
     keypoints = np.array([])
@@ -685,24 +776,30 @@ def test_swap_tiles_on_keypoints_empty_input():
 def dummy_keypoint_func(keypoints):
     return keypoints
 
-@pytest.mark.parametrize("input_keypoints, expected_output", [
-    (np.array([[1, 2, 0], [3, 4, np.pi], [5, 6, 2*np.pi]]),
-     np.array([[1, 2, 0], [3, 4, np.pi], [5, 6, 0]])),
-    (np.array([[1, 2, -np.pi], [3, 4, 3*np.pi]]),
-     np.array([[1, 2, np.pi], [3, 4, np.pi]])),
-    (np.array([]), np.array([])),
-    (np.array([[1, 2]]), np.array([[1, 2]])),
-])
+
+@pytest.mark.parametrize(
+    "input_keypoints, expected_output",
+    [
+        (np.array([[1, 2, 0], [3, 4, np.pi], [5, 6, 2 * np.pi]]), np.array([[1, 2, 0], [3, 4, np.pi], [5, 6, 0]])),
+        (np.array([[1, 2, -np.pi], [3, 4, 3 * np.pi]]), np.array([[1, 2, np.pi], [3, 4, np.pi]])),
+        (np.array([]), np.array([])),
+        (np.array([[1, 2]]), np.array([[1, 2]])),
+    ],
+)
 def test_angle_2pi_range(input_keypoints, expected_output):
     wrapped_func = angle_2pi_range(dummy_keypoint_func)
     result = wrapped_func(input_keypoints)
     np.testing.assert_allclose(result, expected_output, atol=1e-7)
 
-@pytest.mark.parametrize("input_keypoints", [
-    np.array([[1, 2, 3], [4, 5, 6]]),
-    np.array([]),
-    np.array([[1, 2]]),
-])
+
+@pytest.mark.parametrize(
+    "input_keypoints",
+    [
+        np.array([[1, 2, 3], [4, 5, 6]]),
+        np.array([]),
+        np.array([[1, 2]]),
+    ],
+)
 def test_angle_2pi_range_preserves_input(input_keypoints):
     def modify_input(keypoints):
         keypoints = keypoints.copy()
@@ -721,7 +818,10 @@ def test_angle_2pi_range_preserves_input(input_keypoints):
         np.testing.assert_array_equal(result, input_keypoints)
 
 
-@pytest.mark.parametrize("transform, params", [ (A.CoarseDropout, {"hole_height_range": (98, 98), "hole_width_range": (98, 98)})])
+@pytest.mark.parametrize(
+    "transform, params",
+    [(A.CoarseDropout, {"hole_height_range": (98, 98), "hole_width_range": (98, 98)})],
+)
 def test_remove_invisible_keypoints_false(transform, params):
     image = RECTANGULAR_UINT8_IMAGE
 
@@ -738,51 +838,59 @@ def test_remove_invisible_keypoints_false(transform, params):
     assert len(result["keypoints"]) == 0
 
 
-@pytest.mark.parametrize("keypoints, image_shape, matrix, max_width, max_height, keep_size, expected", [
-    # Test case 1: Identity transformation
-    (
-        np.array([[10, 10, 0, 1], [50, 50, np.pi/4, 2]]),
-        (100, 100),
-        np.eye(3, dtype=np.float32),
-        100,
-        100,
-        True,
-        np.array([[10, 10, 0, 1], [50, 50, np.pi/4, 2]])
-    ),
-    # Test case 3: Scaling
-    (
-        np.array([[10, 10, 0, 1], [50, 50, 0, 1]]),
-        (100, 100),
-        np.array([[2, 0, 0], [0, 2, 0], [0, 0, 1]], dtype=np.float32),
-        200,
-        200,
-        False,
-        np.array([[20, 20, 0, 2], [100, 100, 0, 2]])
-    ),
-    # Test case 4: Single keypoint
-    (
-        np.array([[10, 10, 0, 1]]),
-        (100, 100),
-        np.eye(3, dtype=np.float32),
-        100,
-        100,
-        True,
-        np.array([[10, 10, 0, 1]])
-    ),
-])
+@pytest.mark.parametrize(
+    "keypoints, image_shape, matrix, max_width, max_height, keep_size, expected",
+    [
+        # Test case 1: Identity transformation
+        (
+            np.array([[10, 10, 0, 1], [50, 50, np.pi / 4, 2]]),
+            (100, 100),
+            np.eye(3, dtype=np.float32),
+            100,
+            100,
+            True,
+            np.array([[10, 10, 0, 1], [50, 50, np.pi / 4, 2]]),
+        ),
+        # Test case 3: Scaling
+        (
+            np.array([[10, 10, 0, 1], [50, 50, 0, 1]]),
+            (100, 100),
+            np.array([[2, 0, 0], [0, 2, 0], [0, 0, 1]], dtype=np.float32),
+            200,
+            200,
+            False,
+            np.array([[20, 20, 0, 2], [100, 100, 0, 2]]),
+        ),
+        # Test case 4: Single keypoint
+        (
+            np.array([[10, 10, 0, 1]]),
+            (100, 100),
+            np.eye(3, dtype=np.float32),
+            100,
+            100,
+            True,
+            np.array([[10, 10, 0, 1]]),
+        ),
+    ],
+)
 def test_perspective_keypoints(keypoints, image_shape, matrix, max_width, max_height, keep_size, expected):
     result = fgeometric.perspective_keypoints(keypoints, image_shape, matrix, max_width, max_height, keep_size)
     np.testing.assert_allclose(result, expected, atol=1e-6)
+
 
 def test_perspective_keypoints_empty():
     result = fgeometric.perspective_keypoints(np.array([]), (100, 100), np.eye(3, dtype=np.float32), 100, 100, True)
     assert result.size == 0
 
-@pytest.mark.parametrize("input_angle, expected_angle", [
-    (3*np.pi, np.pi),
-    (-np.pi/2, 3*np.pi/2),
-    (5*np.pi/2, np.pi/2)
-])
+
+@pytest.mark.parametrize(
+    "input_angle, expected_angle",
+    [
+        (3 * np.pi, np.pi),
+        (-np.pi / 2, 3 * np.pi / 2),
+        (5 * np.pi / 2, np.pi / 2),
+    ],
+)
 def test_perspective_keypoints_angle_wrapping(input_angle, expected_angle):
     keypoints = np.array([[0.5, 0.5, input_angle, 1]])
     result = fgeometric.perspective_keypoints(keypoints, (100, 100), np.eye(3, dtype=np.float32), 100, 100, True)

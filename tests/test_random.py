@@ -2,11 +2,13 @@ import numpy as np
 import pytest
 
 from albumentations import random_utils
+
 from .utils import set_seed
 
 
 def _calc(args):
     return args[0](*args[1])
+
 
 @pytest.mark.parametrize(
     ["func", "args"],
@@ -21,7 +23,7 @@ def _calc(args):
         [random_utils.random, [100]],
         [random_utils.choice, [np.arange(1000), 100]],
         [random_utils.beta, [0.3, 0.4]],
-        [random_utils.shuffle, [np.arange(1000)]]
+        [random_utils.shuffle, [np.arange(1000)]],
     ],
 )
 def test_multiprocessing(func, args, mp_pool):
@@ -37,19 +39,26 @@ def test_multiprocessing(func, args, mp_pool):
     assert status
 
 
-@pytest.mark.parametrize("array, random_state", [
-    (np.array([1, 2, 3, 4, 5]), np.random.RandomState(42)),
-    (np.array([10, 20, 30]), np.random.RandomState(99)),
-    (np.array([1.5, 2.5, 3.5]), np.random.RandomState(43)),  # Float array
-])
+@pytest.mark.parametrize(
+    "array, random_state",
+    [
+        (np.array([1, 2, 3, 4, 5]), np.random.RandomState(42)),
+        (np.array([10, 20, 30]), np.random.RandomState(99)),
+        (np.array([1.5, 2.5, 3.5]), np.random.RandomState(43)),  # Float array
+    ],
+)
 def test_shuffle_effectiveness(array, random_state):
     shuffled_array = random_utils.shuffle(array, random_state)
     assert len(array) == len(shuffled_array), "Shuffled array length differs"
 
-@pytest.mark.parametrize("array", [
-    (np.array([1, 2, 3, 4, 5])),
-    (np.array([10, 20, 30])),
-])
+
+@pytest.mark.parametrize(
+    "array",
+    [
+        (np.array([1, 2, 3, 4, 5])),
+        (np.array([10, 20, 30])),
+    ],
+)
 def test_inplace_shuffle_check(array):
     original_array = array.copy()
     random_utils.shuffle(array)

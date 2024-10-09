@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import random
-from typing import Any
+from typing import Annotated, Any
 from warnings import warn
 
 import numpy as np
 from pydantic import AfterValidator, Field, model_validator
-from typing_extensions import Annotated, Literal, Self
+from typing_extensions import Literal, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.dropout.transforms import BaseDropout

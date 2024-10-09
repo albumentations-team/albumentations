@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any, Tuple, cast
+from typing import Any, cast
 
 import cv2
 import numpy as np
@@ -146,7 +146,7 @@ class Rotate(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.limit = cast(Tuple[float, float], limit)
+        self.limit = cast(tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
@@ -355,7 +355,7 @@ class SafeRotate(Affine):
             p=p,
             always_apply=always_apply,
         )
-        self.limit = cast(Tuple[float, float], limit)
+        self.limit = cast(tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value

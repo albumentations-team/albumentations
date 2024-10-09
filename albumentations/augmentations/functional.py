@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Literal, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 from warnings import warn
 
 import cv2

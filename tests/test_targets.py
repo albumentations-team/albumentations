@@ -1,10 +1,13 @@
-from tests.conftest import SQUARE_FLOAT_IMAGE
-from .utils import get_dual_transforms, get_image_only_transforms
-import pytest
-from albumentations.core.types import Targets
-import albumentations as A
-import numpy as np
 import re
+
+import numpy as np
+import pytest
+
+import albumentations as A
+from albumentations.core.types import Targets
+
+from .utils import get_dual_transforms, get_image_only_transforms
+
 
 def get_targets_from_methods(cls):
     targets = {Targets.IMAGE, Targets.MASK}
@@ -40,10 +43,9 @@ def extract_targets_from_docstring(cls):
     if matches:
         # Extract the targets string and split it by commas or spaces
         targets_str = matches.group(1)
-        targets = re.split(r'[,\s]+', targets_str)  # Split by comma or whitespace
+        targets = re.split(r"[,\s]+", targets_str)  # Split by comma or whitespace
         return [target.strip() for target in targets if target.strip()]  # Remove any extra whitespace
-    else:
-        return []  # Return an empty list if the 'Targets:' section isn't found
+    return []  # Return an empty list if the 'Targets:' section isn't found
 
 
 DUAL_TARGETS = {
@@ -94,8 +96,12 @@ DUAL_TARGETS = {
 }
 
 str2target = {
-    'image': Targets.IMAGE, 'mask': Targets.MASK, 'bboxes': Targets.BBOXES, 'keypoints': Targets.KEYPOINTS,
+    "image": Targets.IMAGE,
+    "mask": Targets.MASK,
+    "bboxes": Targets.BBOXES,
+    "keypoints": Targets.KEYPOINTS,
 }
+
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
@@ -117,7 +123,7 @@ str2target = {
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf"),
         },
     ),
 )
@@ -125,6 +131,7 @@ def test_image_only(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
 
     assert aug._targets == (Targets.IMAGE)
+
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
@@ -147,7 +154,7 @@ def test_image_only(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
     ),
 )
@@ -156,6 +163,6 @@ def test_dual(augmentation_cls, params):
     assert set(aug._targets) == set(DUAL_TARGETS.get(augmentation_cls, {Targets.IMAGE, Targets.MASK}))
     assert set(aug._targets) <= get_targets_from_methods(augmentation_cls)
 
-    targets_from_docstring = {str2target[target] for target in  extract_targets_from_docstring(augmentation_cls)}
+    targets_from_docstring = {str2target[target] for target in extract_targets_from_docstring(augmentation_cls)}
 
     assert set(aug._targets) == targets_from_docstring

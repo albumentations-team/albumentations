@@ -1,7 +1,8 @@
-from albumentations.augmentations.dropout.functional import filter_bboxes_by_holes, cutout
 import numpy as np
 import pytest
 from albucore import MAX_VALUES_BY_DTYPE
+
+from albumentations.augmentations.dropout.functional import cutout, filter_bboxes_by_holes
 from tests.utils import set_seed
 
 
@@ -42,21 +43,30 @@ def test_cutout_with_various_fill_values(img, fill_value):
     assert np.all(result == expected_result), "The result does not match the expected output."
 
 
-@pytest.mark.parametrize("dtype, max_value", [
-    (np.uint8, MAX_VALUES_BY_DTYPE[np.uint8]),
-    (np.float32, MAX_VALUES_BY_DTYPE[np.float32]),
-])
-@pytest.mark.parametrize("shape", [
-    (100, 100),
-    (100, 100, 1),
-    (100, 100, 3),
-    (100, 100, 7),
-])
-@pytest.mark.parametrize("fill_type", [
-    "random",
-    "single_value",
-    "channel_specific",
-])
+@pytest.mark.parametrize(
+    "dtype, max_value",
+    [
+        (np.uint8, MAX_VALUES_BY_DTYPE[np.uint8]),
+        (np.float32, MAX_VALUES_BY_DTYPE[np.float32]),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (100, 100),
+        (100, 100, 1),
+        (100, 100, 3),
+        (100, 100, 7),
+    ],
+)
+@pytest.mark.parametrize(
+    "fill_type",
+    [
+        "random",
+        "single_value",
+        "channel_specific",
+    ],
+)
 def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
     set_seed(0)
     img = np.zeros(shape, dtype=dtype)
@@ -70,7 +80,11 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
         if len(shape) == 2:  # Grayscale image, no channel dimension
             fill_value = [max_value] if dtype != np.float32 else [0.5]
         else:
-            fill_value = [i % max_value for i in range(shape[2])] if dtype != np.float32 else [(i / shape[2]) for i in range(shape[2])]
+            fill_value = (
+                [i % max_value for i in range(shape[2])]
+                if dtype != np.float32
+                else [(i / shape[2]) for i in range(shape[2])]
+            )
 
     result_img = cutout(img, holes, fill_value)
 
@@ -105,7 +119,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.5,
-            np.array([[10, 10, 20, 20]])
+            np.array([[10, 10, 20, 20]]),
         ),
         # Test case 2: Small intersection
         (
@@ -114,7 +128,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.5,
-            np.array([[10, 10, 30, 30]])
+            np.array([[10, 10, 30, 30]]),
         ),
         # Test case 3: Large intersection
         (
@@ -132,7 +146,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (100, 100),
             100,
             0.5,
-            np.array([[30, 30, 40, 40]])
+            np.array([[30, 30, 40, 40]]),
         ),
         # Test case 5: Multiple holes
         (
@@ -141,7 +155,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (100, 100),
             100,
             0.5,
-            np.array([[10, 10, 30, 30], [40, 40, 60, 60]])
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]]),
         ),
         # Test case 6: Empty bboxes
         (
@@ -150,7 +164,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.5,
-            np.array([])
+            np.array([]),
         ),
         # Test case 7: Empty holes
         (
@@ -159,7 +173,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.5,
-            np.array([[10, 10, 20, 20]])
+            np.array([[10, 10, 20, 20]]),
         ),
         # Test case 8: Bbox exactly equal to min_area
         (
@@ -168,7 +182,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.5,
-            np.array([]).reshape(0, 4)
+            np.array([]).reshape(0, 4),
         ),
         # Test case 9: High min_visibility
         (
@@ -177,7 +191,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.9,
-            np.array([]).reshape(0, 4)
+            np.array([]).reshape(0, 4),
         ),
         # Test case 10: Low min_visibility
         (
@@ -186,27 +200,32 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             (50, 50),
             100,
             0.1,
-            np.array([[10, 10, 30, 30]])
+            np.array([[10, 10, 30, 30]]),
         ),
-    ]
+    ],
 )
 def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility, expected_bboxes):
     filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
     np.testing.assert_array_equal(filtered_bboxes, expected_bboxes)
 
-@pytest.mark.parametrize("min_area, min_visibility, expected", [
-    (50, 0.5, np.array([[10, 10, 30, 30]])),
-    (150, 0.5, np.array([[10, 10, 30, 30]])),
-    (310, 0.5, np.array([]).reshape(0, 4)),
-    (50, 0.9, np.array([]).reshape(0, 4)),
-    (50, 0.1, np.array([[10, 10, 30, 30]])),
-])
+
+@pytest.mark.parametrize(
+    "min_area, min_visibility, expected",
+    [
+        (50, 0.5, np.array([[10, 10, 30, 30]])),
+        (150, 0.5, np.array([[10, 10, 30, 30]])),
+        (310, 0.5, np.array([]).reshape(0, 4)),
+        (50, 0.9, np.array([]).reshape(0, 4)),
+        (50, 0.1, np.array([[10, 10, 30, 30]])),
+    ],
+)
 def test_filter_bboxes_by_holes_different_params(min_area, min_visibility, expected):
     bboxes = np.array([[10, 10, 30, 30]])
     holes = np.array([[15, 15, 25, 25]])
     image_shape = (50, 50)
     filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
     np.testing.assert_array_equal(filtered_bboxes, expected)
+
 
 def test_filter_bboxes_by_holes_edge_cases():
     # Test with min_visibility = 0 (should keep all bboxes)

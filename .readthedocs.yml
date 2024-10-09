@@ -9,7 +9,7 @@ formats:
   - epub
 
 python:
-  version: 3.8
+  version: 3.9
   system_packages: true
   install:
     - requirements: docs/requirements.txt

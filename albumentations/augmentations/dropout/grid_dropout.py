@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from warnings import warn
 
 from pydantic import AfterValidator, Field, model_validator
-from typing_extensions import Annotated, Self
+from typing_extensions import Self
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations import random_utils
