@@ -54,11 +54,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        uv pip install --system --verbose torch==2.3.1+cpu torchvision==0.18.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+        uv pip install --system --verbose torch==2.4.1+cpu torchvision==0.19.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
       run: >
-        uv pip install --system --verbose torch==2.3.1 torchvision==0.18.1
+        uv pip install --system --verbose torch==2.4.1 torchvision==0.19.1
     - name: Install dev requirements
       run: uv pip install --system -r requirements-dev.txt
     - name: Install dependencies
