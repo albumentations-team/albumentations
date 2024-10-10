@@ -21,7 +21,7 @@ from .types import (
     ColorType,
     Targets,
 )
-from .utils import format_args
+from .utils import ensure_contiguous_output, format_args
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
 
@@ -141,14 +141,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
                 target_function = self._key2func[key]
-                if isinstance(arg, np.ndarray):
-                    result = target_function(np.require(arg, requirements=["C_CONTIGUOUS"]), **params)
-                    if isinstance(result, np.ndarray):
-                        res[key] = np.require(result, requirements=["C_CONTIGUOUS"])
-                    else:
-                        res[key] = result
-                else:
-                    res[key] = target_function(arg, **params)
+                res[key] = ensure_contiguous_output(
+                    target_function(ensure_contiguous_output(arg), **params),
+                )
             else:
                 res[key] = arg
         return res

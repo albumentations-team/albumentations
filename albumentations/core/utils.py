@@ -310,6 +310,14 @@ def ensure_int_output(
     return (int(min_val), int(max_val)) if isinstance(param, int) else (float(min_val), float(max_val))
 
 
+def ensure_contiguous_output(arg: np.ndarray | Sequence[np.ndarray]) -> np.ndarray | list[np.ndarray]:
+    if isinstance(arg, np.ndarray):
+        arg = np.require(arg, requirements=["C_CONTIGUOUS"])
+    elif isinstance(arg, Sequence):
+        arg = list(map(ensure_contiguous_output, arg))
+    return arg
+
+
 @overload
 def to_tuple(param: ScaleIntType, low: ScaleType | None = None, bias: ScalarType | None = None) -> tuple[int, int]: ...
 
