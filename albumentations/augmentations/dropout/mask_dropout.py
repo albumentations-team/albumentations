@@ -5,7 +5,6 @@ from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
-from skimage.measure import label
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
@@ -98,7 +97,7 @@ class MaskDropout(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         mask = data["mask"]
 
-        label_image, num_labels = label(mask, return_num=True)
+        label_image, num_labels = fdropout.label(mask, return_num=True)
 
         if num_labels == 0:
             dropout_mask = None
