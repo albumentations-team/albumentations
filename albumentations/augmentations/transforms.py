@@ -3944,8 +3944,6 @@ class Emboss(ImageOnlyTransform):
 class Superpixels(ImageOnlyTransform):
     """Transform images partially/completely to their superpixel representation.
 
-    This implementation uses skimage's version of the SLIC (Simple Linear Iterative Clustering) algorithm.
-
     Args:
         p_replace (tuple[float, float] | float): Defines for any segment the probability that the pixels within that
             segment are replaced by their average color (otherwise, the pixels are not changed).
