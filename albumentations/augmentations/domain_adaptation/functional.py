@@ -6,13 +6,12 @@ from typing import Literal
 
 import cv2
 import numpy as np
-from albucore import add_weighted, clip, clipped, from_float, get_num_channels, preserve_channel_dim, to_float
-from skimage.exposure import match_histograms
+from albucore import add_weighted, clip, clipped, from_float, get_num_channels, preserve_channel_dim, to_float, uint8_io
 from typing_extensions import Protocol
 
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.utils import PCA
-from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS
+from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
 
 __all__ = [
     "fourier_domain_adaptation",
@@ -345,16 +344,9 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     Note:
         - If the input and reference images have different sizes, the reference image
           will be resized to match the input image's dimensions.
-        - The function uses `match_histograms` from scikit-image for the core histogram matching.
+        - The function uses a custom implementation of histogram matching based on OpenCV and NumPy.
         - The @clipped and @preserve_channel_dim decorators ensure the output is within
           the valid range and maintains the original number of dimensions.
-
-    Example:
-        >>> import numpy as np
-        >>> from albumentations.augmentations.domain_adaptation_functional import apply_histogram
-        >>> input_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> reference_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> result = apply_histogram(input_image, reference_image, blend_ratio=0.7)
     """
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
@@ -364,11 +356,66 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     reference_image = np.squeeze(reference_image)
 
     # Match histograms between the images
-    matched = match_histograms(
-        img,
-        reference_image,
-        channel_axis=2 if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and img.shape[2] > 1 else None,
-    )
+    matched = match_histograms(img, reference_image)
 
     # Blend the original image and the matched image
     return add_weighted(matched, blend_ratio, img, 1 - blend_ratio)
+
+
+@uint8_io
+@preserve_channel_dim
+def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
+    """Adjust an image so that its cumulative histogram matches that of another.
+
+    The adjustment is applied separately for each channel.
+
+    Args:
+        image: Input image. Can be gray-scale or in color.
+        reference: Image to match histogram of. Must have the same number of channels as image.
+        channel_axis: If None, the image is assumed to be a grayscale (single channel) image.
+            Otherwise, this parameter indicates which axis of the array corresponds to channels.
+
+    Returns:
+        np.ndarray: Transformed input image.
+
+    Raises:
+        ValueError: Thrown when the number of channels in the input image and the reference differ.
+    """
+    if reference.dtype != np.uint8:
+        reference = from_float(reference, np.uint8)
+
+    if image.ndim != reference.ndim:
+        raise ValueError("Image and reference must have the same number of dimensions.")
+
+    # Expand dimensions for grayscale images
+    if image.ndim == 2:  # noqa: PLR2004
+        image = np.expand_dims(image, axis=-1)
+    if reference.ndim == 2:  # noqa: PLR2004
+        reference = np.expand_dims(reference, axis=-1)
+
+    matched = np.empty(image.shape, dtype=np.uint8)
+
+    num_channels = image.shape[-1]
+
+    for channel in range(num_channels):
+        matched_channel = _match_cumulative_cdf(image[..., channel], reference[..., channel]).astype(np.uint8)
+        matched[..., channel] = matched_channel
+
+    return matched
+
+
+def _match_cumulative_cdf(source: np.ndarray, template: np.ndarray) -> np.ndarray:
+    src_lookup = source.reshape(-1)
+    src_counts = np.bincount(src_lookup)
+    tmpl_counts = np.bincount(template.reshape(-1))
+
+    # omit values where the count was 0
+    tmpl_values = np.nonzero(tmpl_counts)[0]
+    tmpl_counts = tmpl_counts[tmpl_values]
+
+    # calculate normalized quantiles for each array
+    src_quantiles = np.cumsum(src_counts) / source.size
+    tmpl_quantiles = np.cumsum(tmpl_counts) / template.size
+
+    interp_a_values = np.interp(src_quantiles, tmpl_quantiles, tmpl_values)
+    return interp_a_values[src_lookup].reshape(source.shape).astype(np.uint8)

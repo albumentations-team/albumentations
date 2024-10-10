@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import cv2
 import numpy as np
 from albucore import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_dim
 from typing_extensions import Literal
@@ -410,3 +411,46 @@ def mask_dropout_bboxes(
 def mask_dropout_keypoints(keypoints: np.ndarray, dropout_mask: np.ndarray) -> np.ndarray:
     keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])] for kp in keypoints])
     return keypoints[keep_indices]
+
+
+def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> np.ndarray | tuple[np.ndarray, int]:
+    """Label connected regions of an integer array.
+
+    This function uses OpenCV's connectedComponents under the hood but mimics
+    the behavior of scikit-image's label function.
+
+    Args:
+        mask (np.ndarray): The array to label. Must be of integer type.
+        return_num (bool): If True, return the number of labels (default: False).
+        connectivity (int): Maximum number of orthogonal hops to consider a pixel/voxel
+                            as a neighbor. Accepted values are 1 or 2. Default is 2.
+
+    Returns:
+        np.ndarray | tuple[np.ndarray, int]: Labeled array, where all connected regions are
+        assigned the same integer value. If return_num is True, it also returns the number of labels.
+    """
+    # Create a copy of the original mask
+    labeled = np.zeros_like(mask, dtype=np.int32)
+
+    # Get unique non-zero values from the original mask
+    unique_values = np.unique(mask[mask != 0])
+
+    # Label each unique value separately
+    next_label = 1
+    for value in unique_values:
+        binary_mask = (mask == value).astype(np.uint8)
+
+        # Set connectivity for OpenCV (4 or 8)
+        cv2_connectivity = 4 if connectivity == 1 else 8
+
+        # Use OpenCV's connectedComponents
+        num_labels, labels = cv2.connectedComponents(binary_mask, connectivity=cv2_connectivity)
+
+        # Assign new labels
+        for i in range(1, num_labels):
+            labeled[labels == i] = next_label
+            next_label += 1
+
+    num_labels = next_label - 1
+
+    return (labeled, num_labels) if return_num else labeled

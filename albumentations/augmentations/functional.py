@@ -1485,6 +1485,7 @@ def adjust_hue_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
 
 
+@uint8_io
 @preserve_channel_dim
 def superpixels(
     image: np.ndarray,
@@ -1505,11 +1506,10 @@ def superpixels(
             new_height, new_width = int(height * scale), int(width * scale)
             image = fgeometric.resize(image, (new_height, new_width), interpolation)
 
-    segments = skimage.segmentation.slic(
+    segments = slic(
         image,
         n_segments=n_segments,
         compactness=10,
-        channel_axis=-1 if image.ndim > MONO_CHANNEL_DIMENSIONS else None,
     )
 
     min_value = 0
@@ -1937,3 +1937,65 @@ def swap_tiles_on_keypoints(
     new_keypoints[not_in_any_tile] = keypoints[not_in_any_tile]
 
     return new_keypoints
+
+
+def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iterations: int = 10) -> np.ndarray:
+    """Simple Linear Iterative Clustering (SLIC) superpixel segmentation using OpenCV and NumPy.
+
+    Args:
+        image (np.ndarray): Input image (2D or 3D numpy array).
+        n_segments (int): Approximate number of superpixels to generate.
+        compactness (float): Balance between color proximity and space proximity.
+        max_iterations (int): Maximum number of iterations for k-means.
+
+    Returns:
+        np.ndarray: Segmentation mask where each superpixel has a unique label.
+    """
+    if image.ndim == MONO_CHANNEL_DIMENSIONS:
+        image = image[..., np.newaxis]
+
+    height, width = image.shape[:2]
+    num_pixels = height * width
+
+    # Normalize image to [0, 1] range
+    image_normalized = image.astype(np.float32) / np.max(image)
+
+    # Initialize cluster centers
+    grid_step = int((num_pixels / n_segments) ** 0.5)
+    x_range = np.arange(grid_step // 2, width, grid_step)
+    y_range = np.arange(grid_step // 2, height, grid_step)
+    centers = np.array([(x, y) for y in y_range for x in x_range if x < width and y < height])
+
+    # Initialize labels and distances
+    labels = -1 * np.ones((height, width), dtype=np.int32)
+    distances = np.full((height, width), np.inf)
+
+    for _ in range(max_iterations):
+        for i, center in enumerate(centers):
+            y, x = int(center[1]), int(center[0])
+
+            # Define the neighborhood
+            y_low, y_high = max(0, y - grid_step), min(height, y + grid_step + 1)
+            x_low, x_high = max(0, x - grid_step), min(width, x + grid_step + 1)
+
+            # Compute distances
+            crop = image_normalized[y_low:y_high, x_low:x_high]
+            color_diff = crop - image_normalized[y, x]
+            color_distance = np.sum(color_diff**2, axis=-1)
+
+            yy, xx = np.ogrid[y_low:y_high, x_low:x_high]
+            spatial_distance = ((yy - y) ** 2 + (xx - x) ** 2) / (grid_step**2)
+
+            distance = color_distance + compactness * spatial_distance
+
+            mask = distance < distances[y_low:y_high, x_low:x_high]
+            distances[y_low:y_high, x_low:x_high][mask] = distance[mask]
+            labels[y_low:y_high, x_low:x_high][mask] = i
+
+        # Update centers
+        for i in range(len(centers)):
+            mask = labels == i
+            if np.any(mask):
+                centers[i] = np.mean(np.argwhere(mask), axis=0)[::-1]
+
+    return labels
