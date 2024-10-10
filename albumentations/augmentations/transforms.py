@@ -3942,35 +3942,94 @@ class Emboss(ImageOnlyTransform):
 
 
 class Superpixels(ImageOnlyTransform):
-    """Apply superpixel segmentation to the input image and optionally replace superpixels with their mean color.
+    """Transform images partially/completely to their superpixel representation.
 
-    This function uses a custom implementation of the SLIC (Simple Linear Iterative Clustering) algorithm
-    based on OpenCV and NumPy. It segments the image into approximately n_segments superpixels and then
-    selectively replaces some superpixels with their mean color based on the replace_samples parameter.
+    This implementation uses skimage's version of the SLIC (Simple Linear Iterative Clustering) algorithm.
 
     Args:
-        image (np.ndarray): Input image. Can be 2D (grayscale) or 3D (multi-channel) array.
-        n_segments (int): Approximate number of superpixels to generate.
-        replace_samples (Sequence[bool]): Boolean mask indicating which superpixels to replace with their mean color.
-        max_size (int | None): Maximum image size. If the image is larger, it will be resized before processing.
-        interpolation (int): Interpolation method to use for resizing (OpenCV interpolation flag).
+        p_replace (tuple[float, float] | float): Defines for any segment the probability that the pixels within that
+            segment are replaced by their average color (otherwise, the pixels are not changed).
 
-    Returns:
-        np.ndarray: Processed image with superpixel segmentation applied and selected superpixels replaced.
+
+            * A probability of ``0.0`` would mean, that the pixels in no
+                segment are replaced by their average color (image is not
+                changed at all).
+            * A probability of ``0.5`` would mean, that around half of all
+                segments are replaced by their average color.
+            * A probability of ``1.0`` would mean, that all segments are
+                replaced by their average color (resulting in a voronoi
+                image).
+
+            Behavior based on chosen data types for this parameter:
+            * If a ``float``, then that ``float`` will always be used.
+            * If ``tuple`` ``(a, b)``, then a random probability will be
+            sampled from the interval ``[a, b]`` per image.
+            Default: (0.1, 0.3)
+
+        n_segments (tuple[int, int] | int): Rough target number of how many superpixels to generate.
+            The algorithm may deviate from this number.
+            Lower value will lead to coarser superpixels.
+            Higher values are computationally more intensive and will hence lead to a slowdown.
+            If tuple ``(a, b)``, then a value from the discrete interval ``[a..b]`` will be sampled per image.
+            Default: (15, 120)
+
+        max_size (int | None): Maximum image size at which the augmentation is performed.
+            If the width or height of an image exceeds this value, it will be
+            downscaled before the augmentation so that the longest side matches `max_size`.
+            This is done to speed up the process. The final output image has the same size as the input image.
+            Note that in case `p_replace` is below ``1.0``,
+            the down-/upscaling will affect the not-replaced pixels too.
+            Use ``None`` to apply no down-/upscaling.
+            Default: 128
+
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
 
     Note:
-        - The SLIC implementation used here is a simplified version and may produce results slightly different
-          from scikit-image's implementation.
-        - The function handles both 2D (grayscale) and 3D (multi-channel) images.
-        - If max_size is specified and the image is larger, it will be resized before processing and then
-          resized back to its original dimensions after processing.
-        - The replace_samples sequence is used cyclically if its length is less than the number of superpixels.
+        - This transform can significantly change the visual appearance of the image.
+        - The transform makes use of a superpixel algorithm, which tends to be slow.
+        If performance is a concern, consider using `max_size` to limit the image size.
+        - The effect of this transform can vary greatly depending on the `p_replace` and `n_segments` parameters.
+        - When `p_replace` is high, the image can become highly abstracted, resembling a voronoi diagram.
+        - The transform preserves the original image type (uint8 or float32).
 
-    Example:
+    Mathematical Formulation:
+        1. The image is segmented into approximately `n_segments` superpixels using the SLIC algorithm.
+        2. For each superpixel:
+        - With probability `p_replace`, all pixels in the superpixel are replaced with their mean color.
+        - With probability `1 - p_replace`, the superpixel is left unchanged.
+        3. If the image was resized due to `max_size`, it is resized back to its original dimensions.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> n_segments = 50
-        >>> replace_samples = [True, False] * 25  # Replace every other superpixel
-        >>> result = superpixels(image, n_segments, replace_samples, max_size=None, interpolation=cv2.INTER_LINEAR)
+
+        # Apply superpixels with default parameters
+        >>> transform = A.Superpixels(p=1.0)
+        >>> augmented_image = transform(image=image)['image']
+
+        # Apply superpixels with custom parameters
+        >>> transform = A.Superpixels(
+        ...     p_replace=(0.5, 0.7),
+        ...     n_segments=(50, 100),
+        ...     max_size=None,
+        ...     interpolation=cv2.INTER_NEAREST,
+        ...     p=1.0
+        ... )
+        >>> augmented_image = transform(image=image)['image']
     """
 
     class InitSchema(BaseTransformInitSchema):
