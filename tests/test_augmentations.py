@@ -1096,3 +1096,18 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     transformed_float32 = transform(**data)["image"]
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)
+
+
+def test_solarize_threshold():
+    image = SQUARE_UINT8_IMAGE
+    image[20:40, 20:40] = 255
+    transform = A.Solarize(threshold=128, p=1)
+    transformed_image = transform(image=image)["image"]
+    assert (transformed_image[20:40, 20:40] == 0).all()
+
+    transform = A.Solarize(threshold=0.5, p=1)
+
+    float_image = SQUARE_FLOAT_IMAGE
+    float_image[20:40, 20:40] = 1
+    transformed_image = transform(image=float_image)["image"]
+    assert (transformed_image[20:40, 20:40] == 0).all()

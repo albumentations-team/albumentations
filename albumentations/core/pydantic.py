@@ -130,4 +130,13 @@ def check_01(value: tuple[NumericType, NumericType]) -> tuple[NumericType, Numer
     return value
 
 
-ZeroOneRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(check_01)]
+ZeroOneRangeType = Annotated[
+    ScaleType,
+    AfterValidator(convert_to_0plus_range),
+    AfterValidator(check_01),
+    AfterValidator(nondecreasing),
+]
+
+
+def repeat_if_scalar(value: ScaleType) -> tuple[float, float]:
+    return (value, value) if isinstance(value, (int, float)) else value

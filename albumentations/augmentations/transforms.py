@@ -50,6 +50,7 @@ from albumentations.core.pydantic import (
     check_01,
     check_1plus,
     nondecreasing,
+    repeat_if_scalar,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -1944,7 +1945,7 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: OnePlusFloatRangeType = (128, 128)
+        threshold: Annotated[ScaleFloatType, AfterValidator(repeat_if_scalar), AfterValidator(check_0plus)]
 
     def __init__(self, threshold: ScaleFloatType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
