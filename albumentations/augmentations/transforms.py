@@ -46,6 +46,7 @@ from albumentations.core.pydantic import (
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
+    ZeroPlusRangeType,
     check_0plus,
     check_01,
     check_1plus,
@@ -1944,7 +1945,7 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: OnePlusFloatRangeType = (128, 128)
+        threshold: ZeroPlusRangeType = (128, 128)
 
     def __init__(self, threshold: ScaleFloatType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)

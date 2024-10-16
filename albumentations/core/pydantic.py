@@ -130,4 +130,11 @@ def check_01(value: tuple[NumericType, NumericType]) -> tuple[NumericType, Numer
     return value
 
 
-ZeroOneRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(check_01)]
+ZeroOneRangeType = Annotated[
+    ScaleType,
+    AfterValidator(convert_to_0plus_range),
+    AfterValidator(check_01),
+    AfterValidator(nondecreasing),
+]
+
+ZeroPlusRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(nondecreasing)]
