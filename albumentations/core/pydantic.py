@@ -137,4 +137,6 @@ ZeroOneRangeType = Annotated[
     AfterValidator(nondecreasing),
 ]
 
-ZeroPlusRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(nondecreasing)]
+
+def repeat_if_scalar(value: ScaleType) -> tuple[float, float]:
+    return (value, value) if isinstance(value, (int, float)) else value
