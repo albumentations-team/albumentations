@@ -468,10 +468,7 @@ def perspective(
     )
     warped = perspective_func(img)
 
-    if keep_size:
-        return resize(warped, image_shape, interpolation=interpolation)
-
-    return warped
+    return resize(warped, image_shape, interpolation=interpolation) if keep_size else warped
 
 
 @handle_empty_array

@@ -149,7 +149,7 @@ class LongestMaxSize(DualTransform):
         uint8, float32
 
     Note:
-        - If the longest side of the image is already less than or equal to max_size, the image will not be resized.
+        - If the longest side of the image is already equal to max_size, the image will not be resized.
         - This transform will not crop the image. The resulting image may be smaller than max_size in both dimensions.
         - For non-square images, the shorter side will be scaled proportionally to maintain the aspect ratio.
 
@@ -233,7 +233,7 @@ class SmallestMaxSize(DualTransform):
         uint8, float32
 
     Note:
-        - If the smallest side of the image is already less than or equal to max_size, the image will not be resized.
+        - If the smallest side of the image is already equal to max_size, the image will not be resized.
         - This transform will not crop the image. The resulting image may be larger than max_size in both dimensions.
         - For non-square images, the larger side will be scaled proportionally to maintain the aspect ratio.
         - Bounding boxes and keypoints are scaled accordingly.
