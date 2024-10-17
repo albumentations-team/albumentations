@@ -1551,7 +1551,7 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_limit: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
         num_shadows_lower: int | None
         num_shadows_upper: int | None
-        shadow_dimension: int = Field(ge=1)
+        shadow_dimension: int = Field(ge=3)
 
         shadow_intensity_range: Annotated[
             tuple[float, float],
@@ -1639,7 +1639,7 @@ class RandomShadow(ImageOnlyTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[np.ndarray]]:
         height, width = params["shape"][:2]
 
-        num_shadows = random.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
+        num_shadows = random.randint(*self.num_shadows_limit)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -1651,8 +1651,8 @@ class RandomShadow(ImageOnlyTransform):
         vertices_list = [
             np.stack(
                 [
-                    random_utils.randint(x_min, x_max, size=5),
-                    random_utils.randint(y_min, y_max, size=5),
+                    random_utils.randint(x_min, x_max, size=self.shadow_dimension),
+                    random_utils.randint(y_min, y_max, size=self.shadow_dimension),
                 ],
                 axis=1,
             )
@@ -1661,8 +1661,7 @@ class RandomShadow(ImageOnlyTransform):
 
         # Sample shadow intensity for each shadow
         intensities = random_utils.uniform(
-            self.shadow_intensity_range[0],
-            self.shadow_intensity_range[1],
+            *self.shadow_intensity_range,
             size=num_shadows,
         )
 
