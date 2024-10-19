@@ -1531,7 +1531,7 @@ def test_random_resized_crop():
     ],
     bbox_params=A.BboxParams(
         format="coco",
-        label_fields=["label"],  # clip=True  # , min_area=25
+        label_fields=["label"],
     ),
     )
     boxes = [[10,10,20,20], [5,5,10,10], [450, 450, 5,5], [250,250,5,5]]
