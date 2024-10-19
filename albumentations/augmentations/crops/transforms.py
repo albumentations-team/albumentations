@@ -20,6 +20,7 @@ from albumentations.core.pydantic import (
     ZeroOneRangeType,
     check_0plus,
     check_01,
+    nondecreasing,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
@@ -672,8 +673,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: Annotated[tuple[float, float], AfterValidator(check_01)]
-        ratio: Annotated[tuple[float, float], AfterValidator(check_0plus)]
+        scale: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
+        ratio: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
         width: int | None = Field(
             None,
             deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
