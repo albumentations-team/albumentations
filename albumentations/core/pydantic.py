@@ -46,6 +46,12 @@ def check_valid_border_modes(value: int) -> int:
     return value
 
 
+def nondecreasing(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
+    if not value[0] <= value[1]:
+        raise ValueError(f"First value should be less than the second value, got {value} instead")
+    return value
+
+
 BorderModeType = Annotated[int, Field(description="Border Mode"), AfterValidator(check_valid_border_modes)]
 
 ProbabilityType = Annotated[float, Field(description="Probability of applying the transform", ge=0, le=1)]
@@ -63,7 +69,11 @@ def float2int(value: tuple[float, float]) -> tuple[int, int]:
     return int(value[0]), int(value[1])
 
 
-NonNegativeFloatRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]
+NonNegativeFloatRangeType = Annotated[
+    ScaleType,
+    AfterValidator(process_non_negative_range),
+    AfterValidator(nondecreasing),
+]
 NonNegativeIntRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range), AfterValidator(float2int)]
 
 
@@ -95,12 +105,6 @@ def check_1plus(value: tuple[NumericType, NumericType]) -> tuple[NumericType, Nu
 def check_0plus(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
     if any(x < 0 for x in value):
         raise ValueError(f"All values should be >= 0, got {value} instead")
-    return value
-
-
-def nondecreasing(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
-    if not value[0] <= value[1]:
-        raise ValueError(f"First value should be less than the second value, got {value} instead")
     return value
 
 

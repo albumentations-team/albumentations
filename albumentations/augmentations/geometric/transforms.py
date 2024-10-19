@@ -251,7 +251,6 @@ class ElasticTransform(BaseDistortion):
             self.sigma,
             same_dxdy=self.same_dxdy,
             kernel_size=kernel_size,
-            random_state=random_utils.get_random_state(),
         )
 
         x, y = np.meshgrid(np.arange(width), np.arange(height))
@@ -424,8 +423,9 @@ class Perspective(DualTransform):
 
         scale = random.uniform(*self.scale)
 
-        random_state = random_utils.get_random_state()
-        points = fgeometric.generate_perspective_points(image_shape, scale, random_state)
+        generator = random_utils.get_random_generator()
+
+        points = fgeometric.generate_perspective_points(image_shape, scale, generator)
         points = fgeometric.order_points(points)
 
         matrix, max_width, max_height = fgeometric.compute_perspective_params(points)

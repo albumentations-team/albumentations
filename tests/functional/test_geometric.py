@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from albumentations import random_utils
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.functional import from_distance_maps, to_distance_maps
 from tests.utils import set_seed
@@ -129,7 +130,7 @@ def test_to_distance_maps_extra_columns(image_shape, keypoints, inverted):
 )
 def test_split_uniform_grid(image_shape, grid, expected):
     random_seed = 42
-    result = fgeometric.split_uniform_grid(image_shape, grid, random_state=np.random.RandomState(random_seed))
+    result = fgeometric.split_uniform_grid(image_shape, grid, random_generator=random_utils.get_random_generator(random_seed))
     np.testing.assert_array_equal(result, expected)
 
 
@@ -149,10 +150,10 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
     result = fgeometric.generate_shuffled_splits(
         size,
         divisions,
-        random_state=np.random.RandomState(random_state) if random_state else None,
+        random_generator=random_utils.get_random_generator(random_state),
     )
     assert len(result) == divisions + 1
-    assert np.array_equal(
+    np.testing.assert_array_equal(
         result,
         expected,
     ), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
@@ -169,9 +170,9 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
 )
 def test_consistent_shuffling(size, divisions, random_state):
     set_seed(random_state)
-    result1 = fgeometric.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state))
+    result1 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_state))
     assert len(result1) == divisions + 1
     set_seed(random_state)
-    result2 = fgeometric.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state))
+    result2 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_state))
     assert len(result2) == divisions + 1
-    assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"
+    np.testing.assert_array_equal(result1, result2), "Shuffling is not consistent with the given random state"

@@ -661,7 +661,7 @@ def add_fog(
     fog_intensity: float,
     alpha_coef: float,
     fog_particle_positions: list[tuple[int, int]],
-    random_state: np.random.RandomState,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Add fog to the input image.
 
@@ -670,7 +670,8 @@ def add_fog(
         fog_intensity (float): Intensity of the fog effect, between 0 and 1.
         alpha_coef (float): Base alpha (transparency) value for fog particles.
         fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
-        random_state (np.random.RandomState): Random state used
+        random_generator (np.random.Generator): Random generator used.
+
     Returns:
         np.ndarray: Image with added fog effect.
     """
@@ -690,7 +691,7 @@ def add_fog(
 
     for x, y in fog_particle_positions:
         min_radius = max(1, max_fog_radius // 2)
-        radius = random_utils.randint(min_radius, max_fog_radius, random_state=random_state)
+        radius = random_utils.randint(min_radius, max_fog_radius, random_generator=random_generator)
         color = max_value if num_channels == 1 else (max_value,) * num_channels
         cv2.circle(
             fog_layer,
@@ -1002,7 +1003,7 @@ def iso_noise(
     image: np.ndarray,
     color_shift: float,
     intensity: float,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Apply poisson noise to an image to simulate camera sensor noise.
 
@@ -1011,7 +1012,7 @@ def iso_noise(
         color_shift (float): The amount of color shift to apply.
         intensity (float): Multiplication factor for noise values. Values of ~0.5 produce a noticeable,
                            yet acceptable level of noise.
-        random_state (np.random.RandomState | None): If specified, this will be random state used
+        random_generator (np.random.Generator | None): If specified, this will be random generator used
             for noise generation.
 
     Returns:
@@ -1026,8 +1027,8 @@ def iso_noise(
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_utils.poisson(stddev[1] * intensity, size=hls.shape[:2], random_state=random_state)
-    color_noise = random_utils.normal(0, color_shift * intensity, size=hls.shape[:2], random_state=random_state)
+    luminance_noise = random_utils.poisson(stddev[1] * intensity, size=hls.shape[:2], random_generator=random_generator)
+    color_noise = random_utils.normal(0, color_shift * intensity, size=hls.shape[:2], random_generator=random_generator)
 
     hls[..., 0] += color_noise
     hls[..., 1] = add_array(hls[..., 1], luminance_noise * intensity * (1.0 - hls[..., 1]))
@@ -1594,14 +1595,14 @@ def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
 
 def shuffle_tiles_within_shape_groups(
     shape_groups: dict[tuple[int, int], list[int]],
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> list[int]:
     """Shuffles indices within each group of similar shapes and creates a list where each
     index points to the index of the tile it should be mapped to.
 
     Args:
         shape_groups (dict[tuple[int, int], list[int]]): Groups of tile indices categorized by shape.
-        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
+        random_generator (Optional[np.random.Generator]): The random generator to use for shuffling the indices.
 
     Returns:
         list[int]: A list where each index is mapped to the new index of the tile after shuffling.
@@ -1613,7 +1614,7 @@ def shuffle_tiles_within_shape_groups(
     # Prepare the random number generator
 
     for indices in shape_groups.values():
-        shuffled_indices = random_utils.shuffle(indices.copy(), random_state=random_state)
+        shuffled_indices = random_utils.shuffle(indices.copy(), random_generator=random_generator)
         for old, new in zip(indices, shuffled_indices):
             mapping[old] = new
 

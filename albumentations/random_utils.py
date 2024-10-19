@@ -16,83 +16,85 @@ def get_random_seed() -> int:
     return py_random.randint(0, (1 << 32) - 1)
 
 
-def get_random_state() -> np.random.RandomState:
-    return np.random.RandomState(get_random_seed())
+def get_random_generator(random_seed: int | None = None) -> np.random.Generator:
+    if random_seed is None:
+        random_seed = get_random_seed()
+    return np.random.default_rng(random_seed)
 
 
 def uniform(
     low: NumType = 0.0,
     high: NumType = 1.0,
     size: tuple[int, ...] | int | None = None,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> FloatNumType:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.uniform(low, high, size)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.uniform(low, high, size)
 
 
 def beta(
     alpha: NumType = 0.5,
     beta: NumType = 0.5,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> FloatNumType:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.beta(alpha, beta)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.beta(alpha, beta)
 
 
 def rand(
     d0: NumType,
     d1: NumType,
     *more: Any,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
     **kwargs: Any,
 ) -> np.ndarray:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.rand(d0, d1, *more, **kwargs)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.random((d0, d1, *more), **kwargs)
 
 
 def randn(
     d0: NumType,
     d1: NumType,
     *more: Any,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
     **kwargs: Any,
 ) -> np.ndarray:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.randn(d0, d1, *more, **kwargs)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.standard_normal((d0, d1, *more), **kwargs)
 
 
 def normal(
     loc: NumType = 0.0,
     scale: NumType = 1.0,
     size: tuple[int, ...] | int | None = None,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> FloatNumType:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.normal(loc, scale, size)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.normal(loc, scale, size)
 
 
 def poisson(
     lam: NumType = 1.0,
     size: tuple[int, ...] | int | None = None,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> IntNumType:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.poisson(lam, size)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.poisson(lam, size)
 
 
 def permutation(
     x: int | Sequence[float] | np.ndarray,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.permutation(x)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.permutation(x)
 
 
 def randint(
@@ -100,17 +102,17 @@ def randint(
     high: IntNumType | None = None,
     size: tuple[int, ...] | int | None = None,
     dtype: DTypeLike = np.int32,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> IntNumType:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.randint(low, high, size, dtype)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.integers(low, high, size, dtype=dtype)
 
 
-def random(size: NumType | None = None, random_state: np.random.RandomState | None = None) -> FloatNumType:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.random(size)
+def random(size: NumType | None = None, random_generator: np.random.Generator | None = None) -> FloatNumType:
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.random(size)
 
 
 def choice(
@@ -118,27 +120,28 @@ def choice(
     size: tuple[int, int] | int | None = None,
     replace: bool = True,
     p: Sequence[float] | np.ndarray | None = None,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
-    if random_state is None:
-        random_state = get_random_state()
-    return random_state.choice(a, size, replace, p)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    return random_generator.choice(a, size, replace, p)
 
 
 def shuffle(
     a: np.ndarray,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
-    """Shuffles an array in-place, using a specified random state or creating a new one if not provided.
+    """Shuffles an array in-place, using a specified random generator or creating a new one if not provided.
 
     Args:
         a (np.ndarray): The array to be shuffled.
-        random_state (Optional[np.random.RandomState], optional): The random state used for shuffling. Defaults to None.
+        random_generator (Optional[np.random.Generator], optional): The random generator used for shuffling.
+        Defaults to None.
 
     Returns:
         np.ndarray: The shuffled array (note: the shuffle is in-place, so the original array is modified).
     """
-    if random_state is None:
-        random_state = get_random_state()
-    random_state.shuffle(a)
+    if random_generator is None:
+        random_generator = get_random_generator()
+    random_generator.shuffle(a)
     return a

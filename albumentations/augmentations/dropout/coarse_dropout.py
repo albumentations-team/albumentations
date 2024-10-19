@@ -177,8 +177,8 @@ class CoarseDropout(BaseDropout):
             hole_widths = random_utils.randint(int(min_width), int(max_width + 1), size=size)
 
         else:  # Assume float
-            hole_heights = (height * random_utils.uniform(height_range[0], height_range[1], size=size)).astype(int)
-            hole_widths = (width * random_utils.uniform(width_range[0], width_range[1], size=size)).astype(int)
+            hole_heights = (height * random_utils.uniform(*height_range, size=size)).astype(int)
+            hole_widths = (width * random_utils.uniform(*width_range, size=size)).astype(int)
 
         return hole_heights, hole_widths
 

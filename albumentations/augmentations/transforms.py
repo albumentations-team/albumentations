@@ -213,14 +213,12 @@ class RandomGridShuffle(DualTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         image_shape = params["shape"][:2]
-        random_state = random_utils.get_random_state()
         original_tiles = fgeometric.split_uniform_grid(
             image_shape,
             self.grid,
-            random_state=random_state,
         )
         shape_groups = fmain.create_shape_groups(original_tiles)
-        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups, random_state=random_state)
+        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups)
 
         return {"tiles": original_tiles, "mapping": mapping}
 
@@ -1106,10 +1104,9 @@ class RandomFog(ImageOnlyTransform):
         img: np.ndarray,
         particle_positions: np.ndarray,
         intensity: float,
-        random_state: np.random.RandomState,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions, random_state)
+        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         # Select a random fog intensity within the specified range
@@ -1157,7 +1154,6 @@ class RandomFog(ImageOnlyTransform):
         return {
             "particle_positions": particle_positions,
             "intensity": intensity,
-            "random_state": random_utils.get_random_state(),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
@@ -2567,7 +2563,7 @@ class ISONoise(ImageOnlyTransform):
         **params: Any,
     ) -> np.ndarray:
         non_rgb_error(img)
-        return fmain.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
+        return fmain.iso_noise(img, color_shift, intensity, random_utils.get_random_generator(random_seed))
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -4451,9 +4447,8 @@ class PixelDropout(DualTransform):
         img = data["image"] if "image" in data else data["images"][0]
         shape = img.shape if self.per_channel else img.shape[:2]
 
-        rnd = random_utils.get_random_state()
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
-        drop_mask = rnd.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
+        drop_mask = random_utils.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
         drop_value: float | Sequence[float] | np.ndarray
 
@@ -4463,9 +4458,14 @@ class PixelDropout(DualTransform):
             drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
 
             if img.dtype == np.uint8:
-                drop_value = rnd.randint(0, int(MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
+                drop_value = random_utils.randint(
+                    0,
+                    int(MAX_VALUES_BY_DTYPE[img.dtype]),
+                    size=drop_shape,
+                    dtype=img.dtype,
+                )
             elif img.dtype == np.float32:
-                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtype)
+                drop_value = random_utils.uniform(0, 1, size=drop_shape).astype(img.dtype)
             else:
                 raise ValueError(f"Unsupported dtype: {img.dtype}")
         else:

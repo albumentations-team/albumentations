@@ -1681,19 +1681,19 @@ def generate_displacement_fields(
     sigma: float,
     same_dxdy: bool,
     kernel_size: tuple[int, int],
-    random_state: np.random.RandomState,
+    random_generator: np.random.Generator | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate displacement fields for elastic transform."""
     height, width = image_shape[:2]
 
-    dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dx = random_utils.rand(height, width, random_generator=random_generator).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, kernel_size, sigma, dst=dx)
     dx *= alpha
 
     if same_dxdy:
         dy = dx
     else:
-        dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+        dy = random_utils.rand(height, width, random_generator=random_generator).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dy, kernel_size, sigma, dst=dy)
         dy *= alpha
 
@@ -2572,34 +2572,35 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
 def generate_shuffled_splits(
     size: int,
     divisions: int,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Generate shuffled splits for a given dimension size and number of divisions.
 
     Args:
         size (int): Total size of the dimension (height or width).
         divisions (int): Number of divisions (rows or columns).
-        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
+        random_generator (Optional[np.random.Generator]): The random generator to use for shuffling the splits.
+            If None, the splits are not shuffled.
 
     Returns:
         np.ndarray: Cumulative edges of the shuffled intervals.
     """
     intervals = almost_equal_intervals(size, divisions)
-    intervals = random_utils.shuffle(intervals, random_state=random_state)
+    intervals = random_utils.shuffle(intervals, random_generator=random_generator)
     return np.insert(np.cumsum(intervals), 0, 0)
 
 
 def split_uniform_grid(
     image_shape: tuple[int, int],
     grid: tuple[int, int],
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Splits an image shape into a uniform grid specified by the grid dimensions.
 
     Args:
         image_shape (tuple[int, int]): The shape of the image as (height, width).
         grid (tuple[int, int]): The grid size as (rows, columns).
-        random_state (Optional[np.random.RandomState]): The random state to use for shuffling the splits.
+        random_generator (Optional[np.random.Generator]): The random generator to use for shuffling the splits.
             If None, the splits are not shuffled.
 
     Returns:
@@ -2611,8 +2612,8 @@ def split_uniform_grid(
     """
     n_rows, n_cols = grid
 
-    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_state)
-    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_state)
+    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_generator=random_generator)
+    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_generator=random_generator)
 
     # Calculate tiles coordinates
     tiles = [
@@ -2627,10 +2628,10 @@ def split_uniform_grid(
 def generate_perspective_points(
     image_shape: tuple[int, int],
     scale: float,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     height, width = image_shape[:2]
-    points = random_utils.normal(0, scale, (4, 2), random_state=random_state)
+    points = random_utils.normal(0, scale, (4, 2), random_generator=random_generator)
     points = np.mod(np.abs(points), 0.32)
 
     # top left -- no changes needed, just use jitter
