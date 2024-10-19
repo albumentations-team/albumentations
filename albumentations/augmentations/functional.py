@@ -150,9 +150,7 @@ def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
         prev_shape = img.shape
         img = sz_lut(img, np.array(lut, dtype=dtype), inplace=False)
 
-        if len(prev_shape) != len(img.shape):
-            return np.expand_dims(img, -1)
-        return img
+        return np.expand_dims(img, -1) if len(prev_shape) != len(img.shape) else img
 
     cond = img >= threshold
     img[cond] = max_val - img[cond]
