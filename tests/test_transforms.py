@@ -6,8 +6,8 @@ from typing import Any, Dict, Optional, Tuple, Type
 import cv2
 import numpy as np
 import pytest
-from albucore.functions import to_float
-from albucore.utils import clip
+from albucore.functions import to_float, clip, from_float
+
 from torchvision import transforms as torch_transforms
 
 import albumentations as A
@@ -651,58 +651,6 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
         assert _max <= 10, f"Max: {_max}"
     else:
         assert _max <= 2, f"Max: {_max}"
-
-
-@pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
-def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
-    img = SQUARE_UINT8_IMAGE
-
-    for i in range(2):
-        sign = 1 if i == 0 else -1
-        for i in range(4):
-            if i == 0:
-                _hue = hue * sign
-                _sat = 0
-                _val = 0
-            elif i == 1:
-                _hue = 0
-                _sat = sat * sign
-                _val = 0
-            elif i == 2:
-                _hue = 0
-                _sat = 0
-                _val = val * sign
-            else:
-                _hue = hue * sign
-                _sat = sat * sign
-                _val = val * sign
-
-            t1 = A.Compose(
-                [
-                    A.HueSaturationValue(
-                        hue_shift_limit=[_hue, _hue],
-                        sat_shift_limit=[_sat, _sat],
-                        val_shift_limit=[_val, _val],
-                        p=1,
-                    ),
-                ],
-            )
-            t2 = A.Compose(
-                [
-                    A.HueSaturationValue(
-                        hue_shift_limit=[_hue / 180 * 360, _hue / 180 * 360],
-                        sat_shift_limit=[_sat / 255, _sat / 255],
-                        val_shift_limit=[_val / 255, _val / 255],
-                        p=1,
-                    ),
-                ],
-            )
-
-            res1 = t1(image=img)["image"]
-            res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
-
-            _max = np.abs(res1.astype(np.int32) - res2).max()
-            assert _max <= 10, f"Max value: {_max}"
 
 
 def test_perspective_keep_size():

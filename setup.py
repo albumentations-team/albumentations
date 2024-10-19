@@ -10,7 +10,7 @@ INSTALL_REQUIRES = [
     "PyYAML",
     "typing-extensions>=4.9.0; python_version<'3.10'",
     "pydantic>=2.7.0",
-    "albucore==0.0.17",
+    "albucore==0.0.18",
     "eval-type-backport"
 ]
 
