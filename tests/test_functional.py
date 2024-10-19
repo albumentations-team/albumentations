@@ -887,7 +887,7 @@ def test_random_tone_curve(image):
     result_float_value = F.move_tone_curve(image, low_y, high_y)
     result_array_value = F.move_tone_curve(image, np.array([low_y] * num_channels), np.array([high_y] * num_channels))
 
-    assert np.array_equal(result_float_value, result_array_value)
+    np.testing.assert_allclose(result_float_value, result_array_value)
 
     assert result_float_value.dtype == image.dtype
     assert result_float_value.shape == image.shape

@@ -25,6 +25,7 @@ from albucore import (
     multiply_add,
     normalize_per_image,
     preserve_channel_dim,
+    sz_lut,
     to_float,
     uint8_io,
 )
@@ -89,54 +90,14 @@ __all__ = [
 ]
 
 
-def _shift_hsv_uint8(
-    img: np.ndarray,
-    hue_shift: np.ndarray,
-    sat_shift: np.ndarray,
-    val_shift: np.ndarray,
-) -> np.ndarray:
-    dtype = img.dtype
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    hue, sat, val = cv2.split(img)
-
-    if hue_shift != 0:
-        lut_hue = np.arange(0, 256, dtype=np.int16)
-        lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
-        hue = cv2.LUT(hue, lut_hue)
-
-    sat = add(sat, sat_shift)
-    val = add(val, val_shift)
-
-    img = cv2.merge((hue, sat, val)).astype(dtype)
-    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
-
-
-def _shift_hsv_non_uint8(
-    img: np.ndarray,
-    hue_shift: np.ndarray,
-    sat_shift: np.ndarray,
-    val_shift: np.ndarray,
-) -> np.ndarray:
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    hue, sat, val = cv2.split(img)
-
-    if hue_shift != 0:
-        hue = cv2.add(hue, hue_shift)
-        hue = np.mod(hue, 360)  # OpenCV fails with negative values
-
-    sat = add(sat, sat_shift)
-    val = add(val, val_shift)
-
-    img = cv2.merge((hue, sat, val))
-    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
-
-
+@uint8_io
 @preserve_channel_dim
-def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val_shift: np.ndarray) -> np.ndarray:
+def shift_hsv(img: np.ndarray, hue_shift: float, sat_shift: float, val_shift: float) -> np.ndarray:
     if hue_shift == 0 and sat_shift == 0 and val_shift == 0:
         return img
 
     is_gray = is_grayscale_image(img)
+
     if is_gray:
         if hue_shift != 0 or sat_shift != 0:
             hue_shift = 0
@@ -148,16 +109,28 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
             )
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-    if img.dtype == np.uint8:
-        img = _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
-    else:
-        img = _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    hue, sat, val = cv2.split(img)
+
+    if hue_shift != 0:
+        lut_hue = np.arange(0, 256, dtype=np.int16)
+        lut_hue = np.mod(lut_hue + hue_shift, 180).astype(np.uint8)
+        hue = sz_lut(hue, lut_hue, inplace=False)
+
+    if sat_shift != 0:
+        sat = add(sat, sat_shift, inplace=False)
+
+    if val_shift != 0:
+        val = add(val, val_shift, inplace=False)
+
+    img = cv2.merge((hue, sat, val))
+    img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
 
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if is_gray else img
 
 
 @clipped
-def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
+def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
     """Invert all pixel values above a threshold.
 
     Args:
@@ -175,16 +148,13 @@ def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
         lut = [(i if i < threshold else max_val - i) for i in range(int(max_val) + 1)]
 
         prev_shape = img.shape
-        img = cv2.LUT(img, np.array(lut, dtype=dtype))
+        img = sz_lut(img, np.array(lut, dtype=dtype), inplace=False)
 
-        if len(prev_shape) != len(img.shape):
-            img = np.expand_dims(img, -1)
-        return img
+        return np.expand_dims(img, -1) if len(prev_shape) != len(img.shape) else img
 
-    result_img = img.copy()
     cond = img >= threshold
-    result_img[cond] = max_val - result_img[cond]
-    return result_img
+    img[cond] = max_val - img[cond]
+    return img
 
 
 @uint8_io
@@ -213,7 +183,7 @@ def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.n
         mask = ~np.uint8(2 ** (8 - bits_array) - 1)
         lut &= mask
 
-        return cv2.LUT(img, lut)
+        return sz_lut(img, lut, inplace=False)
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits_array):
@@ -226,7 +196,7 @@ def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.n
             mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
             lut &= mask
 
-            result_img[..., i] = cv2.LUT(img[..., i], lut)
+            result_img[..., i] = sz_lut(img[..., i], lut, inplace=True)
 
     return result_img
 
@@ -248,7 +218,7 @@ def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray
         lut[i] = min(n // step, 255)
         n += histogram[i]
 
-    return cv2.LUT(img, np.array(lut))
+    return sz_lut(img, np.array(lut), inplace=True)
 
 
 def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
@@ -276,7 +246,7 @@ def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
         _sum += histogram[idx]
         lut[idx] = clip(round(_sum * scale), np.uint8)
 
-    return cv2.LUT(img, lut)
+    return sz_lut(img, lut, inplace=True)
 
 
 def _check_preconditions(img: np.ndarray, mask: np.ndarray | None, by_channels: bool) -> None:
@@ -393,10 +363,12 @@ def move_tone_curve(
 
     if np.isscalar(low_y) and np.isscalar(high_y):
         lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8)
-        return cv2.LUT(img, lut)
+        return sz_lut(img, lut, inplace=False)
     if isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
         luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
-        return cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
+        return cv2.merge(
+            [sz_lut(img[:, :, i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
+        )
 
     raise TypeError(
         f"low_y and high_y must both be of type float or np.ndarray. Got {type(low_y)} and {type(high_y)}",
@@ -614,7 +586,7 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
     snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_point).astype(np.float32)
 
     # Blend snow with original image
-    img_with_snow = cv2.addWeighted(img_hsv, 1, snow_layer, 1, 0)
+    img_with_snow = cv2.add(img_hsv, snow_layer)
 
     # Add a slight blue tint to simulate cool snow color
     blue_tint = np.full_like(img_with_snow, (0.6, 0.75, 1))  # Slight blue in HSV
@@ -814,6 +786,7 @@ def add_sun_flare_overlay(
     num_times = src_radius // 10
     alpha = np.linspace(0.0, 1, num=num_times)
     rad = np.linspace(1, src_radius, num=num_times)
+
     for i in range(num_times):
         cv2.circle(overlay, point, int(rad[i]), src_color, -1)
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
@@ -1003,7 +976,8 @@ def channel_shuffle(img: np.ndarray, channels_shuffled: np.ndarray) -> np.ndarra
 def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
     if img.dtype == np.uint8:
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** gamma) * 255
-        return cv2.LUT(img, table.astype(np.uint8))
+        return sz_lut(img, table.astype(np.uint8), inplace=False)
+
     return np.power(img, gamma)
 
 
@@ -1019,7 +993,7 @@ def brightness_contrast_adjust(
     else:
         value = beta * np.mean(img)
 
-    return multiply_add(img, alpha, value)
+    return multiply_add(img, alpha, value, inplace=False)
 
 
 @float32_io
@@ -1427,7 +1401,7 @@ def adjust_brightness_torchvision(img: np.ndarray, factor: np.ndarray) -> np:
     if factor == 1:
         return img
 
-    return multiply(img, factor)
+    return multiply(img, factor, inplace=False)
 
 
 @preserve_channel_dim
@@ -1442,25 +1416,19 @@ def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
             mean = int(mean + 0.5)
         return np.full_like(img, mean, dtype=img.dtype)
 
-    return multiply_add(img, factor, mean * (1 - factor))
+    return multiply_add(img, factor, mean * (1 - factor), inplace=False)
 
 
 @clipped
 @preserve_channel_dim
 def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float = 0) -> np.ndarray:
-    if factor == 1:
-        return img
-
-    if is_grayscale_image(img):
+    if factor == 1 or is_grayscale_image(img):
         return img
 
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    if factor == 0:
-        return gray
-
-    return cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
+    return gray if factor == 0 else cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
 
 
 def _adjust_hue_torchvision_uint8(img: np.ndarray, factor: float) -> np.ndarray:
@@ -1468,7 +1436,7 @@ def _adjust_hue_torchvision_uint8(img: np.ndarray, factor: float) -> np.ndarray:
 
     lut = np.arange(0, 256, dtype=np.int16)
     lut = np.mod(lut + 180 * factor, 180).astype(np.uint8)
-    img[..., 0] = cv2.LUT(img[..., 0], lut)
+    img[..., 0] = sz_lut(img[..., 0], lut, inplace=False)
 
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
 

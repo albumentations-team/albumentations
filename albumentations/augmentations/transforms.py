@@ -2251,7 +2251,7 @@ class RGBShift(ImageOnlyTransform):
 
     def apply(self, img: np.ndarray, shift: np.ndarray, **params: Any) -> np.ndarray:
         non_rgb_error(img)
-        return albucore.add_vector(img, shift)
+        return albucore.add_vector(img, shift, inplace=False)
 
     def get_params(self) -> dict[str, Any]:
         return {
