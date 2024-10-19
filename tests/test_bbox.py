@@ -1522,3 +1522,19 @@ def test_bboxes_from_masks_output_type():
     result = bboxes_from_masks(masks)
     assert isinstance(result, np.ndarray)
     assert result.dtype == np.int32
+
+
+def test_random_resized_crop():
+    transform = A.Compose(
+    [
+        A.RandomResizedCrop((100, 100), scale=(0.01, 0.1), ratio=(1, 1)),
+    ],
+    bbox_params=A.BboxParams(
+        format="coco",
+        label_fields=["label"],  # clip=True  # , min_area=25
+    ),
+    )
+    boxes = [[10,10,20,20], [5,5,10,10], [450, 450, 5,5], [250,250,5,5]]
+    labels = [1,2,3,4]
+    res = transform(image=np.zeros((500,500,3), dtype='uint8'), bboxes=boxes, label=labels)
+    assert len(res['bboxes']) == len(res['label'])
