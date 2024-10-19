@@ -141,7 +141,6 @@ def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
         Solarized image.
 
     """
-    img = img.copy()
     dtype = img.dtype
     max_val = MAX_VALUES_BY_DTYPE[dtype]
 
@@ -149,7 +148,7 @@ def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
         lut = [(i if i < threshold else max_val - i) for i in range(int(max_val) + 1)]
 
         prev_shape = img.shape
-        img = sz_lut(img, np.array(lut, dtype=dtype), inplace=True)
+        img = sz_lut(img, np.array(lut, dtype=dtype), inplace=False)
 
         if len(prev_shape) != len(img.shape):
             return np.expand_dims(img, -1)
@@ -589,12 +588,12 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
     snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_point).astype(np.float32)
 
     # Blend snow with original image
-    img_with_snow = add_weighted(img_hsv, 1, snow_layer, 1, 0)
+    img_with_snow = cv2.add(img_hsv, snow_layer)
 
     # Add a slight blue tint to simulate cool snow color
     blue_tint = np.full_like(img_with_snow, (0.6, 0.75, 1))  # Slight blue in HSV
 
-    img_with_snow = add_weighted(img_with_snow, 0.85, blue_tint, 0.15 * snow_point, 0)
+    img_with_snow = cv2.addWeighted(img_with_snow, 0.85, blue_tint, 0.15 * snow_point, 0)
 
     # Convert back to RGB
     img_with_snow = cv2.cvtColor(img_with_snow.astype(np.uint8), cv2.COLOR_HSV2RGB)
