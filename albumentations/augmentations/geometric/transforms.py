@@ -251,6 +251,7 @@ class ElasticTransform(BaseDistortion):
             self.sigma,
             same_dxdy=self.same_dxdy,
             kernel_size=kernel_size,
+            random_generator=random_utils.get_random_generator(),
         )
 
         x, y = np.meshgrid(np.arange(width), np.arange(height))

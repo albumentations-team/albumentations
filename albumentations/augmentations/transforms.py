@@ -218,7 +218,7 @@ class RandomGridShuffle(DualTransform):
             self.grid,
         )
         shape_groups = fmain.create_shape_groups(original_tiles)
-        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups)
+        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups, random_utils.get_random_generator())
 
         return {"tiles": original_tiles, "mapping": mapping}
 

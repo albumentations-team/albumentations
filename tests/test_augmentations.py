@@ -1055,6 +1055,7 @@ def test_pad_if_needed_position(params, image_shape):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.MedianBlur: {"blur_limit": (3, 5)},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
