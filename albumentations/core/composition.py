@@ -101,7 +101,7 @@ class BaseCompose(Serializable):
     check_each_transform: tuple[DataProcessor, ...] | None = None
     main_compose: bool = True
 
-    def __init__(self, transforms: TransformsSeqType, p: float):
+    def __init__(self, transforms: TransformsSeqType, p: float, mask_interpolation: int | None = None):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
                 "transforms is single transform, but a sequence is expected! Transform will be wrapped into list.",
@@ -118,6 +118,19 @@ class BaseCompose(Serializable):
         self._available_keys: set[str] = set()
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self._set_keys()
+        self.set_mask_interpolation(mask_interpolation)
+
+    def set_mask_interpolation(self, mask_interpolation: int | None) -> None:
+        self.mask_interpolation = mask_interpolation
+        self._set_mask_interpolation_recursive(self.transforms)
+
+    def _set_mask_interpolation_recursive(self, transforms: TransformsSeqType) -> None:
+        for transform in transforms:
+            if isinstance(transform, BasicTransform):
+                if hasattr(transform, "mask_interpolation") and self.mask_interpolation is not None:
+                    transform.mask_interpolation = self.mask_interpolation
+            elif isinstance(transform, BaseCompose):
+                transform.set_mask_interpolation(self.mask_interpolation)
 
     def __iter__(self) -> Iterator[TransformType]:
         return iter(self.transforms)
@@ -228,20 +241,43 @@ class BaseCompose(Serializable):
 
 
 class Compose(BaseCompose, HubMixin):
-    """Compose transforms and handle all transformations regarding bounding boxes
+    """Compose multiple transforms together and apply them sequentially to input data.
+
+    This class allows you to chain multiple image augmentation transforms and apply them
+    in a specified order. It also handles bounding box and keypoint transformations if
+    the appropriate parameters are provided.
 
     Args:
-        transforms (list): list of transformations to compose.
-        bbox_params (BboxParams): Parameters for bounding boxes transforms
-        keypoint_params (KeypointParams): Parameters for keypoints transforms
-        additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
-        p (float): probability of applying all list of transforms. Default: 1.0.
-        is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
-            would like to disable this check - pass False (do it only if you are sure in your data consistency).
-        strict (bool): If True, unknown keys will raise an error. If False, unknown keys will be ignored. Default: True.
-        return_params (bool): if True returns params of each applied transform
-        save_key (str): key to save applied params, default is 'applied_params'
+        transforms (List[Union[BasicTransform, BaseCompose]]): A list of transforms to apply.
+        bbox_params (Union[dict, BboxParams, None]): Parameters for bounding box transforms.
+            Can be a dict of params or a BboxParams object. Default is None.
+        keypoint_params (Union[dict, KeypointParams, None]): Parameters for keypoint transforms.
+            Can be a dict of params or a KeypointParams object. Default is None.
+        additional_targets (Dict[str, str], optional): A dictionary mapping additional target names
+            to their types. For example, {'image2': 'image'}. Default is None.
+        p (float): Probability of applying all transforms. Should be in range [0, 1]. Default is 1.0.
+        is_check_shapes (bool): If True, checks consistency of shapes for image/mask/masks on each call.
+            Disable only if you are sure about your data consistency. Default is True.
+        strict (bool): If True, raises an error on unknown input keys. If False, ignores them. Default is True.
+        return_params (bool): If True, returns parameters of applied transforms. Default is False.
+        save_key (str): Key to save applied params if return_params is True. Default is 'applied_params'.
+        mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
+            it overrides the interpolation method specified in individual transforms. Default is None.
 
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.RandomCrop(width=256, height=256),
+        ...     A.HorizontalFlip(p=0.5),
+        ...     A.RandomBrightnessContrast(p=0.2),
+        ... ])
+        >>> transformed = transform(image=image)
+
+    Note:
+        - The class checks the validity of input data and shapes if is_check_args and is_check_shapes are True.
+        - When bbox_params or keypoint_params are provided, it sets up the corresponding processors.
+        - The transform can handle additional targets specified in the additional_targets dictionary.
+        - If return_params is True, it will return the parameters of applied transforms in the output.
     """
 
     def __init__(
@@ -255,8 +291,9 @@ class Compose(BaseCompose, HubMixin):
         strict: bool = True,
         return_params: bool = False,
         save_key: str = "applied_params",
+        mask_interpolation: int | None = None,  # Add this parameter
     ):
-        super().__init__(transforms, p)
+        super().__init__(transforms=transforms, p=p, mask_interpolation=mask_interpolation)
 
         if bbox_params:
             if isinstance(bbox_params, dict):
@@ -506,18 +543,40 @@ class OneOf(BaseCompose):
 
 
 class SomeOf(BaseCompose):
-    """Select N transforms to apply. Selected transforms will be called with `force_apply=True`.
-    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
+    """Apply a random subset of transforms from the given list.
+
+    This class selects a specified number of transforms from the provided list
+    and applies them to the input data. The selection can be done with or without
+    replacement, allowing for the same transform to be potentially applied multiple times.
 
     Args:
-        transforms (list): list of transformations to compose.
-        n (int): number of transforms to apply.
-        replace (bool): Whether the sampled transforms are with or without replacement. Default: True.
-        p (float): probability of applying selected transform. Default: 1.
+        transforms (List[Union[BasicTransform, BaseCompose]]): A list of transforms to choose from.
+        n (int): The number of transforms to apply. If greater than the number of
+                 transforms and replace=False, it will be set to the number of transforms.
+        replace (bool): Whether to sample transforms with replacement. Default is True.
+        p (float): Probability of applying the selected transforms. Should be in the range [0, 1].
+                   Default is 1.0.
+        mask_interpolation (int, optional): Interpolation method for mask transforms.
+                                            When defined, it overrides the interpolation method
+                                            specified in individual transforms. Default is None.
 
+    Note:
+        - If `n` is greater than the number of transforms and `replace` is False,
+          `n` will be set to the number of transforms with a warning.
+        - The probabilities of individual transforms are used as weights for sampling.
+        - When `replace` is True, the same transform can be selected multiple times.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.SomeOf([
+        ...     A.HorizontalFlip(p=1),
+        ...     A.VerticalFlip(p=1),
+        ...     A.RandomBrightnessContrast(p=1),
+        ... ], n=2, replace=False, p=0.5)
+        >>> # This will apply 2 out of the 3 transforms with 50% probability
     """
 
-    def __init__(self, transforms: TransformsSeqType, n: int, replace: bool = True, p: float = 1):
+    def __init__(self, transforms: TransformsSeqType, n: int = 1, replace: bool = False, p: float = 1):
         super().__init__(transforms, p)
         self.n = n
         if not replace and n > len(self.transforms):

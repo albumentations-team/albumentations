@@ -424,28 +424,39 @@ class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
 
     class InitSchema(BaseRandomSizedCropInitSchema):
-        interpolation: InterpolationType = cv2.INTER_LINEAR
+        interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
     def __init__(
         self,
         size: tuple[int, int],
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.size = size
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def apply(
         self,
         img: np.ndarray,
         crop_coords: tuple[int, int, int, int],
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         crop = fcrops.crop(img, *crop_coords)
-        return fgeometric.resize(crop, self.size, interpolation)
+        return fgeometric.resize(crop, self.size, self.interpolation)
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        crop = fcrops.crop(mask, *crop_coords)
+        return fgeometric.resize(crop, self.size, self.mask_interpolation)
 
     def apply_to_bboxes(
         self,
@@ -476,7 +487,7 @@ class _BaseRandomSizedCrop(DualTransform):
         return fgeometric.keypoints_scale(cropped_keypoints, scale_x, scale_y)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "size", "interpolation"
+        return "size", "interpolation", "mask_interpolation"
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
@@ -492,6 +503,9 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
@@ -538,6 +552,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
     class InitSchema(BaseTransformInitSchema):
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
         width: int | None = Field(
@@ -582,10 +597,17 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         *,
         w2h_ratio: float = 1.0,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(size=cast(tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
+        super().__init__(
+            size=cast(tuple[int, int], size),
+            interpolation=interpolation,
+            mask_interpolation=mask_interpolation,
+            p=p,
+            always_apply=always_apply,
+        )
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
@@ -630,6 +652,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
@@ -685,6 +710,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         )
         size: ScaleIntType | None
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
         @model_validator(mode="after")
         def process(self) -> Self:
@@ -713,10 +739,17 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         scale: tuple[float, float] = (0.08, 1.0),
         ratio: tuple[float, float] = (0.75, 1.3333333333333333),
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(size=cast(tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
+        super().__init__(
+            size=cast(tuple[int, int], size),
+            interpolation=interpolation,
+            mask_interpolation=mask_interpolation,
+            p=p,
+            always_apply=always_apply,
+        )
         self.scale = scale
         self.ratio = ratio
 
@@ -776,7 +809,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         return {"crop_coords": crop_coords}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "size", "scale", "ratio", "interpolation"
+        return "size", "scale", "ratio", "interpolation", "mask_interpolation"
 
 
 class RandomCropNearBBox(BaseCrop):
@@ -993,6 +1026,9 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -1042,6 +1078,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
             le=1.0,
         )
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
     def __init__(
         self,
@@ -1049,6 +1086,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         width: int,
         erosion_rate: float = 0.0,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
@@ -1056,6 +1094,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         self.height = height
         self.width = width
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def apply(
         self,
@@ -1065,6 +1104,15 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     ) -> np.ndarray:
         crop = fcrops.crop(img, *crop_coords)
         return fgeometric.resize(crop, (self.height, self.width), self.interpolation)
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        crop = fcrops.crop(mask, *crop_coords)
+        return fgeometric.resize(crop, (self.height, self.width), self.mask_interpolation)
 
     def apply_to_keypoint(
         self,
@@ -1082,7 +1130,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         return fgeometric.keypoints_scale(keypoints, scale_x=scale_x, scale_y=scale_y)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (*super().get_transform_init_args_names(), "height", "width", "interpolation")
+        return (*super().get_transform_init_args_names(), "height", "width", "interpolation", "mask_interpolation")
 
 
 class CropAndPad(DualTransform):
@@ -1136,6 +1184,11 @@ class CropAndPad(DualTransform):
             OpenCV interpolation flag used for resizing if keep_size is True.
             Default: cv2.INTER_LINEAR.
 
+        mask_interpolation (int):
+            OpenCV interpolation flag used for resizing if keep_size is True.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
+
         p (float):
             Probability of applying the transform. Default: 1.0.
 
@@ -1175,6 +1228,7 @@ class CropAndPad(DualTransform):
         keep_size: bool
         sample_independently: bool
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
@@ -1196,6 +1250,7 @@ class CropAndPad(DualTransform):
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
@@ -1212,6 +1267,7 @@ class CropAndPad(DualTransform):
         self.sample_independently = sample_independently
 
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def apply(
         self,
@@ -1219,7 +1275,6 @@ class CropAndPad(DualTransform):
         crop_params: Sequence[int],
         pad_params: Sequence[int],
         pad_value: ColorType,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_and_pad(
@@ -1228,7 +1283,7 @@ class CropAndPad(DualTransform):
             pad_params,
             pad_value,
             params["shape"][:2],
-            interpolation,
+            self.interpolation,
             self.pad_mode,
             self.keep_size,
         )
@@ -1239,7 +1294,6 @@ class CropAndPad(DualTransform):
         crop_params: Sequence[int],
         pad_params: Sequence[int],
         pad_value_mask: float,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_and_pad(
@@ -1248,7 +1302,7 @@ class CropAndPad(DualTransform):
             pad_params,
             pad_value_mask,
             params["shape"][:2],
-            interpolation,
+            self.mask_interpolation,
             self.pad_mode,
             self.keep_size,
         )
@@ -1424,6 +1478,7 @@ class CropAndPad(DualTransform):
             "keep_size",
             "sample_independently",
             "interpolation",
+            "mask_interpolation",
         )
 
 

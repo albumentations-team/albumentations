@@ -107,25 +107,32 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.RandomResizedCrop: {"size": (113, 103)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (113, 103)},
+            A.Resize: {"height": 113, "width": 113},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.CropAndPad: {"px": 10},
         },
         except_augmentations={
-            A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
-            A.BBoxSafeRandomCrop,
-            A.CropAndPad,
             A.PixelDropout,
-            A.XYMasking,
+            A.CropNonEmptyMaskIfExists,
+            A.PixelDistributionAdaptation,
+            A.PadIfNeeded,
+            A.RandomCrop,
+            A.Crop,
+            A.CenterCrop,
+            A.FDA,
+            A.HistogramMatching,
+            A.Lambda,
+            A.TemplateTransform,
+            A.CropNonEmptyMaskIfExists,
+            A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
+            A.FromFloat,
+            A.MaskDropout,
+            A.XYMasking,
         },
     ),
 )
@@ -136,7 +143,7 @@ def test_semantic_mask_interpolation(augmentation_cls, params):
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
 
     data = aug(image=image, mask=mask)
-    assert np.array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))
+    np.testing.assert_array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))
 
 
 def __test_multiprocessing_support_proc(args):
