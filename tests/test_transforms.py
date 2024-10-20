@@ -258,7 +258,7 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
         aug2 = res["image2"]
-        assert np.array_equal(aug1, aug2)
+        np.testing.assert_array_equal(aug1, aug2)
 
     aug = A.Compose([augmentation_cls(p=1, **params)])
     aug.add_targets(additional_targets={"image2": "image"})
@@ -268,7 +268,7 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
         aug2 = res["image2"]
-        assert np.array_equal(aug1, aug2)
+        np.testing.assert_array_equal(aug1, aug2)
 
 
 def test_image_invert():
@@ -654,16 +654,16 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
 
 
 def test_perspective_keep_size():
-    h, w = 100, 100
-    img = np.zeros([h, w, 3], dtype=np.uint8)
+    height, width = 100, 100
+    img = np.zeros([height, width, 3], dtype=np.uint8)
     bboxes = []
     for _ in range(10):
-        x1 = np.random.randint(0, w - 1)
-        y1 = np.random.randint(0, h - 1)
-        x2 = np.random.randint(x1 + 1, w)
-        y2 = np.random.randint(y1 + 1, h)
+        x1 = np.random.randint(0, width - 1)
+        y1 = np.random.randint(0, height - 1)
+        x2 = np.random.randint(x1 + 1, width)
+        y2 = np.random.randint(y1 + 1, height)
         bboxes.append([x1, y1, x2, y2])
-    keypoints = [(np.random.randint(0, w), np.random.randint(0, h), np.random.random()) for _ in range(10)]
+    keypoints = [(np.random.randint(0, width), np.random.randint(0, height), np.random.random()) for _ in range(10)]
 
     transform_1 = A.Compose(
         [A.Perspective(keep_size=True, p=1)],
@@ -671,7 +671,7 @@ def test_perspective_keep_size():
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
     transform_2 = A.Compose(
-        [A.Perspective(keep_size=False, p=1), A.Resize(h, w, p=1)],
+        [A.Perspective(keep_size=False, p=1), A.Resize(height, width, p=1)],
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
@@ -1750,7 +1750,7 @@ def test_random_fog_invalid_input(params):
         A.RandomFog(**params)
 
 
-@pytest.mark.parametrize("image", IMAGES + [np.full((10, 10), 128, dtype=np.uint8)])
+@pytest.mark.parametrize("image", IMAGES + [np.full((100, 100), 128, dtype=np.uint8)])
 @pytest.mark.parametrize("mean", (0, 10, -10))
 def test_gauss_noise(mean, image):
     set_seed(42)

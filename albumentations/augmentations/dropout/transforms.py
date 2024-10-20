@@ -20,7 +20,7 @@ class BaseDropout(DualTransform):
     Args:
         fill_value (Union[int, float, list[int], list[float], str]): Value to fill dropped regions.
             If "random", fills with random values.
-        mask_fill_value (Optional[Union[int, float, list[int], list[float]]]): Value to fill
+        mask_fill_value (Union[int, float, list[int], list[float]] | None): Value to fill
             dropped regions in the mask. If None, the mask is not modified.
         p (float): Probability of applying the transform.
 

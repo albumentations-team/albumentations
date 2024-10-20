@@ -457,7 +457,7 @@ def perspective(
     keep_size: bool,
     interpolation: int,
 ) -> np.ndarray:
-    image_shape = img.shape[:2]
+    height, width = img.shape[:2]
     perspective_func = maybe_process_in_chunks(
         cv2.warpPerspective,
         M=matrix,
@@ -468,7 +468,22 @@ def perspective(
     )
     warped = perspective_func(img)
 
-    return resize(warped, image_shape, interpolation=interpolation) if keep_size else warped
+    if keep_size:
+        scale_x = width / max_width
+        scale_y = height / max_height
+        scale_matrix = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
+        adjusted_matrix = np.dot(scale_matrix, matrix)
+
+        warped = cv2.warpPerspective(
+            img,
+            adjusted_matrix,
+            (width, height),
+            borderMode=border_mode,
+            borderValue=border_val,
+            flags=interpolation,
+        )
+
+    return warped
 
 
 @handle_empty_array
@@ -512,39 +527,29 @@ def perspective_bboxes(
         >>> transformed_bboxes = perspective_bboxes(bboxes, image_shape, matrix, 150, 150, False)
     """
     height, width = image_shape[:2]
-
-    # Create a copy of the input bboxes to avoid modifying the original array
     transformed_bboxes = bboxes.copy()
-
-    # Denormalize bboxes
     denormalized_coords = denormalize_bboxes(bboxes[:, :4], image_shape)
 
-    # Create points for each bbox
     x_min, y_min, x_max, y_max = denormalized_coords.T
     points = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(2, 0, 1)
-    # Shape is: (num_bboxes, 4, 2)
+    points_reshaped = points.reshape(-1, 1, 2)
 
-    # Reshape points to (num_bboxes * 4, 2)
-    points_reshaped = points.reshape(-1, 2)
+    transformed_points = cv2.perspectiveTransform(points_reshaped.astype(np.float32), matrix)
+    transformed_points = transformed_points.reshape(-1, 4, 2)
 
-    # Pad points_reshaped with two columns of zeros
-    points_padded = np.pad(points_reshaped, ((0, 0), (0, 2)), mode="constant")
-
-    # Apply perspective transformation to all points at once
-    transformed_points = perspective_keypoints(points_padded, image_shape, matrix, max_width, max_height, keep_size)
-
-    # Reshape back to (num_bboxes, 4, 2)
-    transformed_points = transformed_points[:, :2].reshape(-1, 4, 2)
-    # Get new bounding boxes
     new_coords = np.array(
         [[np.min(box[:, 0]), np.min(box[:, 1]), np.max(box[:, 0]), np.max(box[:, 1])] for box in transformed_points],
     )
 
-    # Normalize the new bounding boxes
-    output_shape = (height if keep_size else max_height, width if keep_size else max_width)
-    normalized_coords = normalize_bboxes(new_coords, output_shape)
+    if keep_size:
+        scale_x, scale_y = width / max_width, height / max_height
+        new_coords[:, [0, 2]] *= scale_x
+        new_coords[:, [1, 3]] *= scale_y
+        output_shape = image_shape
+    else:
+        output_shape = (max_height, max_width)
 
-    # Update only the first 4 columns of the bboxes array
+    normalized_coords = normalize_bboxes(new_coords, output_shape)
     transformed_bboxes[:, :4] = normalized_coords
 
     return transformed_bboxes
@@ -598,7 +603,6 @@ def perspective_keypoints(
     scale *= max(scale_x, scale_y)
 
     if keep_size:
-        width, height = image_shape[:2]
         scale_x = width / max_width
         scale_y = height / max_height
         x *= scale_x
@@ -1681,19 +1685,19 @@ def generate_displacement_fields(
     sigma: float,
     same_dxdy: bool,
     kernel_size: tuple[int, int],
-    random_state: np.random.RandomState,
+    random_generator: np.random.Generator | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate displacement fields for elastic transform."""
     height, width = image_shape[:2]
 
-    dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dx = random_utils.rand(height, width, random_generator=random_generator).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, kernel_size, sigma, dst=dx)
     dx *= alpha
 
     if same_dxdy:
         dy = dx
     else:
-        dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+        dy = random_utils.rand(height, width, random_generator=random_generator).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dy, kernel_size, sigma, dst=dy)
         dy *= alpha
 
@@ -2572,34 +2576,35 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
 def generate_shuffled_splits(
     size: int,
     divisions: int,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Generate shuffled splits for a given dimension size and number of divisions.
 
     Args:
         size (int): Total size of the dimension (height or width).
         divisions (int): Number of divisions (rows or columns).
-        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
+        random_generator (np.random.Generator | None): The random generator to use for shuffling the splits.
+            If None, the splits are not shuffled.
 
     Returns:
         np.ndarray: Cumulative edges of the shuffled intervals.
     """
     intervals = almost_equal_intervals(size, divisions)
-    intervals = random_utils.shuffle(intervals, random_state=random_state)
+    intervals = random_utils.shuffle(intervals, random_generator=random_generator)
     return np.insert(np.cumsum(intervals), 0, 0)
 
 
 def split_uniform_grid(
     image_shape: tuple[int, int],
     grid: tuple[int, int],
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """Splits an image shape into a uniform grid specified by the grid dimensions.
 
     Args:
         image_shape (tuple[int, int]): The shape of the image as (height, width).
         grid (tuple[int, int]): The grid size as (rows, columns).
-        random_state (Optional[np.random.RandomState]): The random state to use for shuffling the splits.
+        random_generator (np.random.Generator | None): The random generator to use for shuffling the splits.
             If None, the splits are not shuffled.
 
     Returns:
@@ -2611,8 +2616,8 @@ def split_uniform_grid(
     """
     n_rows, n_cols = grid
 
-    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_state)
-    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_state)
+    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_generator=random_generator)
+    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_generator=random_generator)
 
     # Calculate tiles coordinates
     tiles = [
@@ -2627,10 +2632,10 @@ def split_uniform_grid(
 def generate_perspective_points(
     image_shape: tuple[int, int],
     scale: float,
-    random_state: np.random.RandomState | None = None,
+    random_generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     height, width = image_shape[:2]
-    points = random_utils.normal(0, scale, (4, 2), random_state=random_state)
+    points = random_utils.normal(0, scale, (4, 2), random_generator=random_generator)
     points = np.mod(np.abs(points), 0.32)
 
     # top left -- no changes needed, just use jitter
@@ -2665,7 +2670,8 @@ def order_points(pts: np.ndarray) -> np.ndarray:
     return np.array([tl, tr, br, bl], dtype=np.float32)
 
 
-def compute_perspective_params(points: np.ndarray) -> tuple[np.ndarray, int, int]:
+def compute_perspective_params(points: np.ndarray, image_shape: tuple[int, int]) -> tuple[np.ndarray, int, int]:
+    height, width = image_shape
     top_left, top_right, bottom_right, bottom_left = points
 
     def adjust_dimension(dim1: np.ndarray, dim2: np.ndarray, min_size: int = 2) -> float:
@@ -2682,12 +2688,10 @@ def compute_perspective_params(points: np.ndarray) -> tuple[np.ndarray, int, int
     max_width = max(adjust_dimension(top_right, top_left), adjust_dimension(bottom_right, bottom_left))
     max_height = max(adjust_dimension(bottom_right, top_right), adjust_dimension(bottom_left, top_left))
 
-    max_width, max_height = int(max_width), int(max_height)
-
-    dst = np.array([[0, 0], [max_width, 0], [max_width, max_height], [0, max_height]], dtype=np.float32)
+    dst = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
     matrix = cv2.getPerspectiveTransform(points, dst)
 
-    return matrix, max_width, max_height
+    return matrix, int(max_width), int(max_height)
 
 
 def expand_transform(matrix: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, int, int]:

@@ -1,9 +1,12 @@
 import numpy as np
 import pytest
 
+from albumentations import random_utils
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.functional import from_distance_maps, to_distance_maps
 from tests.utils import set_seed
+import cv2
+import albumentations as A
 
 
 @pytest.mark.parametrize(
@@ -109,57 +112,44 @@ def test_to_distance_maps_extra_columns(image_shape, keypoints, inverted):
             (105, 205),
             (3, 4),
             np.array(
-                [
-                    [0, 0, 35, 51],
-                    [0, 51, 35, 102],
-                    [0, 102, 35, 153],
-                    [0, 153, 35, 205],  # First row splits
-                    [35, 0, 70, 51],
-                    [35, 51, 70, 102],
-                    [35, 102, 70, 153],
-                    [35, 153, 70, 205],  # Second row splits
-                    [70, 0, 105, 51],
-                    [70, 51, 105, 102],
-                    [70, 102, 105, 153],
-                    [70, 153, 105, 205],  # Third row splits
-                ],
+                    [[0, 0, 35, 51], [0, 51, 35, 103], [0, 103, 35, 154], [0, 154, 35, 205], [35, 0, 70, 51], [35, 51, 70, 103], [35, 103, 70, 154], [35, 154, 70, 205], [70, 0, 105, 51], [70, 51, 105, 103], [70, 103, 105, 154], [70, 154, 105, 205]]
             ),
         ),
     ],
 )
 def test_split_uniform_grid(image_shape, grid, expected):
     random_seed = 42
-    result = fgeometric.split_uniform_grid(image_shape, grid, random_state=np.random.RandomState(random_seed))
+    result = fgeometric.split_uniform_grid(image_shape, grid, random_generator=random_utils.get_random_generator(random_seed))
     np.testing.assert_array_equal(result, expected)
 
 
 @pytest.mark.parametrize(
-    "size, divisions, random_state, expected",
+    "size, divisions, random_seed, expected",
     [
         (10, 2, None, [0, 5, 10]),
         (10, 2, 42, [0, 5, 10]),  # Consistent shuffling with seed
         (9, 3, None, [0, 3, 6, 9]),
         (9, 3, 42, [0, 3, 6, 9]),  # Expected shuffle result with a specific seed
         (20, 5, 42, [0, 4, 8, 12, 16, 20]),  # Regular intervals
-        (7, 3, 42, [0, 3, 5, 7]),  # Irregular intervals, specific seed
-        (7, 3, 41, [0, 2, 4, 7]),  # Irregular intervals, specific seed
+        (7, 3, 42, [0, 2, 4, 7]),  # Irregular intervals, specific seed
+        (7, 3, 41, [0, 3, 5, 7]),  # Irregular intervals, specific seed
     ],
 )
-def test_generate_shuffled_splits(size, divisions, random_state, expected):
+def test_generate_shuffled_splits(size, divisions, random_seed, expected):
     result = fgeometric.generate_shuffled_splits(
         size,
         divisions,
-        random_state=np.random.RandomState(random_state) if random_state else None,
+        random_generator=random_utils.get_random_generator(random_seed),
     )
     assert len(result) == divisions + 1
-    assert np.array_equal(
+    np.testing.assert_array_equal(
         result,
         expected,
-    ), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
+    ), f"Failed for size={size}, divisions={divisions}, random_seed={random_seed}"
 
 
 @pytest.mark.parametrize(
-    "size, divisions, random_state",
+    "size, divisions, random_seed",
     [
         (10, 2, 42),
         (9, 3, 99),
@@ -167,11 +157,11 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
         (7, 3, 42),
     ],
 )
-def test_consistent_shuffling(size, divisions, random_state):
-    set_seed(random_state)
-    result1 = fgeometric.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state))
+def test_consistent_shuffling(size, divisions, random_seed):
+    set_seed(random_seed)
+    result1 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_seed))
     assert len(result1) == divisions + 1
-    set_seed(random_state)
-    result2 = fgeometric.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state))
+    set_seed(random_seed)
+    result2 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_seed))
     assert len(result2) == divisions + 1
-    assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"
+    np.testing.assert_array_equal(result1, result2), "Shuffling is not consistent with the given random state"
