@@ -90,6 +90,9 @@ class Rotate(DualTransform):
             Default: 'largest_box'
         crop_border (bool): Whether to crop border after rotation. If True, the output image size might differ
             from the input. Default: False
+        mask_interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -296,6 +299,9 @@ class SafeRotate(Affine):
             for masks.
         rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
             Default: 'largest_box'
+        mask_interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
