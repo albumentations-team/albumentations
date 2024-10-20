@@ -65,6 +65,7 @@ class RandomScale(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         scale_limit: ScaleFloatType
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
         @field_validator("scale_limit")
         @classmethod
@@ -75,12 +76,14 @@ class RandomScale(DualTransform):
         self,
         scale_limit: ScaleFloatType = (-0.1, 0.1),
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.scale_limit = cast(tuple[float, float], scale_limit)
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def get_params(self) -> dict[str, float]:
         return {"scale": random.uniform(*self.scale_limit)}
@@ -100,7 +103,7 @@ class RandomScale(DualTransform):
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.scale(mask, scale, cv2.INTER_NEAREST)
+        return fgeometric.scale(mask, scale, self.mask_interpolation)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
@@ -115,12 +118,17 @@ class RandomScale(DualTransform):
         return fgeometric.keypoints_scale(keypoints, scale, scale)
 
     def get_transform_init_args(self) -> dict[str, Any]:
-        return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
+        return {
+            "interpolation": self.interpolation,
+            "mask_interpolation": self.mask_interpolation,
+            "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
+        }
 
 
 class MaxSizeInitSchema(BaseTransformInitSchema):
     max_size: int | list[int]
     interpolation: InterpolationType
+    mask_interpolation: InterpolationType | None = None
 
     @field_validator("max_size")
     @classmethod
@@ -177,21 +185,30 @@ class LongestMaxSize(DualTransform):
         self,
         max_size: int | Sequence[int] = 1024,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1,
     ):
         super().__init__(p, always_apply)
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
         self.max_size = max_size
 
     def apply(
         self,
         img: np.ndarray,
         max_size: int,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.longest_max_size(img, max_size=max_size, interpolation=interpolation)
+        return fgeometric.longest_max_size(img, max_size=max_size, interpolation=self.interpolation)
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        max_size: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.longest_max_size(mask, max_size=max_size, interpolation=self.mask_interpolation)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
@@ -212,7 +229,7 @@ class LongestMaxSize(DualTransform):
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "max_size", "interpolation"
+        return "max_size", "interpolation", "mask_interpolation"
 
 
 class SmallestMaxSize(DualTransform):
@@ -268,21 +285,30 @@ class SmallestMaxSize(DualTransform):
         self,
         max_size: int | Sequence[int] = 1024,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
         self.max_size = max_size
 
     def apply(
         self,
         img: np.ndarray,
         max_size: int,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
+        return fgeometric.smallest_max_size(img, max_size=max_size, interpolation=self.interpolation)
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        max_size: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.smallest_max_size(mask, max_size=max_size, interpolation=self.mask_interpolation)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
@@ -303,7 +329,7 @@ class SmallestMaxSize(DualTransform):
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "max_size", "interpolation"
+        return "max_size", "interpolation", "mask_interpolation"
 
 
 class Resize(DualTransform):
@@ -331,12 +357,14 @@ class Resize(DualTransform):
         height: int = Field(ge=1)
         width: int = Field(ge=1)
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
     def __init__(
         self,
         height: int,
         width: int,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1,
     ):
@@ -344,12 +372,13 @@ class Resize(DualTransform):
         self.height = height
         self.width = width
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.resize(img, (self.height, self.width), interpolation=self.interpolation)
 
-    def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        return fgeometric.resize(mask, (self.height, self.width), interpolation=cv2.INTER_NEAREST)
+    def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
+        return fgeometric.resize(mask, (self.height, self.width), interpolation=self.mask_interpolation)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         # Bounding box coordinates are scale invariant
@@ -362,4 +391,4 @@ class Resize(DualTransform):
         return fgeometric.keypoints_scale(keypoints, scale_x, scale_y)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "height", "width", "interpolation"
+        return "height", "width", "interpolation", "mask_interpolation"

@@ -1360,3 +1360,54 @@ def test_masks_as_target(augmentation_cls, params, masks):
     np.testing.assert_array_equal(transformed["masks"][0], transformed["masks"][1])
 
     assert transformed["masks"][0].dtype == masks[0].dtype
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+            A.RandomResizedCrop: {"size": (113, 103)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (113, 103)},
+            A.Resize: {"height": 113, "width": 113},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+        },
+        except_augmentations={
+            A.RandomSizedBBoxSafeCrop,
+            A.PixelDropout,
+            A.CropNonEmptyMaskIfExists,
+            A.PixelDistributionAdaptation,
+            A.PadIfNeeded,
+            A.CropAndPad,
+            A.RandomCrop,
+            A.Crop,
+            A.CenterCrop,
+            A.FDA,
+            A.HistogramMatching,
+            A.Lambda,
+            A.TemplateTransform,
+            A.CropNonEmptyMaskIfExists,
+            A.BBoxSafeRandomCrop,
+            A.OverlayElements,
+            A.TextImage,
+            A.FromFloat,
+            A.MaskDropout,
+            A.XYMasking,
+        },
+    ),
+)
+@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST,
+                                                cv2.INTER_LINEAR,
+                                                cv2.INTER_CUBIC,
+                                                cv2.INTER_AREA
+                                                ])
+def test_mask_interpolation(augmentation_cls, params, interpolation):
+    image = SQUARE_UINT8_IMAGE
+    mask = image.copy()
+
+    aug = A.Compose([augmentation_cls(p=1, interpolation=interpolation, mask_interpolation=interpolation, **params)])
+
+    transformed = aug(image=image, mask=mask)
+
+    assert transformed["mask"].flags["C_CONTIGUOUS"]
+
+    np.testing.assert_array_equal(transformed["mask"], transformed["image"])

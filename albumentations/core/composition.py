@@ -255,8 +255,9 @@ class Compose(BaseCompose, HubMixin):
         strict: bool = True,
         return_params: bool = False,
         save_key: str = "applied_params",
+        mask_interpolation: int | None = None,  # Add this parameter
     ):
-        super().__init__(transforms, p)
+        super().__init__(transforms=transforms, p=p)
 
         if bbox_params:
             if isinstance(bbox_params, dict):
@@ -303,6 +304,17 @@ class Compose(BaseCompose, HubMixin):
             self.set_deterministic(True, save_key=save_key)
 
         self._set_processors_for_transforms(self.transforms)
+
+        self.mask_interpolation = mask_interpolation
+        self._set_mask_interpolation(self.transforms)
+
+    def _set_mask_interpolation(self, transforms: TransformsSeqType) -> None:
+        for transform in transforms:
+            if isinstance(transform, BasicTransform):
+                if hasattr(transform, "mask_interpolation") and self.mask_interpolation is not None:
+                    transform.mask_interpolation = self.mask_interpolation
+            elif isinstance(transform, BaseCompose):
+                self._set_mask_interpolation(transform.transforms)
 
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:

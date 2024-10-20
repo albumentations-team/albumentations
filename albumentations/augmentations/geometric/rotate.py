@@ -63,6 +63,8 @@ class RotateInitSchema(BaseTransformInitSchema):
     limit: SymmetricRangeType
 
     interpolation: InterpolationType
+    mask_interpolation: InterpolationType
+
     border_mode: BorderModeType
 
     value: ColorType | None
@@ -142,12 +144,14 @@ class Rotate(DualTransform):
         mask_value: ColorType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.limit = cast(tuple[float, float], limit)
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -179,7 +183,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = fgeometric.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        img_out = fgeometric.rotate(mask, angle, self.mask_interpolation, self.border_mode, self.mask_value)
         if self.crop_border:
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
@@ -259,7 +263,16 @@ class Rotate(DualTransform):
         return out_params
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border"
+        return (
+            "limit",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+            "rotate_method",
+            "crop_border",
+            "mask_interpolation",
+        )
 
 
 class SafeRotate(Affine):
@@ -339,6 +352,7 @@ class SafeRotate(Affine):
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -352,6 +366,7 @@ class SafeRotate(Affine):
             cval_mask=mask_value,
             rotate_method=rotate_method,
             fit_output=True,
+            mask_interpolation=mask_interpolation,
             p=p,
             always_apply=always_apply,
         )
@@ -361,9 +376,18 @@ class SafeRotate(Affine):
         self.value = value
         self.mask_value = mask_value
         self.rotate_method = rotate_method
+        self.mask_interpolation = mask_interpolation
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method"
+        return (
+            "limit",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+            "rotate_method",
+            "mask_interpolation",
+        )
 
     def _create_safe_rotate_matrix(
         self,
