@@ -1411,3 +1411,21 @@ def test_mask_interpolation(augmentation_cls, params, interpolation):
     assert transformed["mask"].flags["C_CONTIGUOUS"]
 
     np.testing.assert_array_equal(transformed["mask"], transformed["image"])
+
+
+
+@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST,
+                                                cv2.INTER_LINEAR,
+                                                cv2.INTER_CUBIC,
+                                                cv2.INTER_AREA
+                                                ])
+@pytest.mark.parametrize("compose", [A.Compose, A.OneOf, A.Sequential, A.SomeOf])
+def test_mask_interpolation_someof(interpolation, compose):
+    transform = A.Compose([compose([A.Affine(p=1), A.RandomSizedCrop(min_max_height=(4, 8), size= (113, 103), p=1)], p=1)], mask_interpolation=interpolation)
+
+    image = SQUARE_UINT8_IMAGE
+    mask = image.copy()
+
+    transformed = transform(image=image, mask=mask)
+
+    assert transformed["mask"].flags["C_CONTIGUOUS"]

@@ -73,6 +73,9 @@ class BaseDistortion(DualTransform):
             cv2.BORDER_CONSTANT. Default: None
         mask_value (ColorType | None): Padding value for mask if
             border_mode is cv2.BORDER_CONSTANT. Default: None
+        mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -182,6 +185,9 @@ class ElasticTransform(BaseDistortion):
             less accurate for large sigma values. Default: False
         same_dxdy (bool): Whether to use the same random displacement field for both x and y
             directions. Can speed up the transform at the cost of less diverse distortions. Default: False
+        mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -227,8 +233,8 @@ class ElasticTransform(BaseDistortion):
         mask_value: ScalarType | list[ScalarType] | None = None,
         always_apply: bool | None = None,
         approximate: bool = False,
-        mask_interpolation: int = cv2.INTER_NEAREST,
         same_dxdy: bool = False,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
     ):
         super().__init__(
@@ -291,6 +297,11 @@ class Perspective(DualTransform):
             to True. If False, parts of the transformed image may be outside of the image plane.
             This setting should not be set to True when using large scale values as it could lead to very large images.
             Default: False.
+        interpolation (int): Interpolation method to be used for image transformation. Should be one
+            of the OpenCV interpolation types. Default: cv2.INTER_LINEAR
+        mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -850,6 +861,9 @@ class ShiftScaleRotate(Affine):
             in the range [-, 1]. Default: None.
         rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
             Default: "largest_box"
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -873,6 +887,7 @@ class ShiftScaleRotate(Affine):
         shift_limit_x: ScaleFloatType | None = Field(default=None)
         shift_limit_y: ScaleFloatType | None = Field(default=None)
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
+        mask_interpolation: InterpolationType
 
         @model_validator(mode="after")
         def check_shift_limit(self) -> Self:
@@ -903,6 +918,7 @@ class ShiftScaleRotate(Affine):
         shift_limit_x: ScaleFloatType | None = None,
         shift_limit_y: ScaleFloatType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
+        mask_interpolation: InterpolationType = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -912,7 +928,7 @@ class ShiftScaleRotate(Affine):
             rotate=rotate_limit,
             shear=(0, 0),
             interpolation=interpolation,
-            mask_interpolation=cv2.INTER_NEAREST,
+            mask_interpolation=mask_interpolation,
             cval=value,
             cval_mask=mask_value,
             mode=border_mode,
@@ -946,6 +962,7 @@ class ShiftScaleRotate(Affine):
             "value": self.value,
             "mask_value": self.mask_value,
             "rotate_method": self.rotate_method,
+            "mask_interpolation": self.mask_interpolation,
         }
 
 
@@ -978,8 +995,9 @@ class PiecewiseAffine(DualTransform):
              - 3: Bi-cubic
              - 4: Bi-quartic
              - 5: Bi-quintic
-        mask_interpolation (int): The order of interpolation for masks. Similar to 'interpolation' but for masks.
-            Default: 0 (Nearest-neighbor).
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         cval (number): The constant value to use when filling in newly created pixels.
             Default: 0.
         cval_mask (number): The constant value to use when filling in newly created pixels in masks.
@@ -1673,8 +1691,9 @@ class OpticalDistortion(BaseDistortion):
             is cv2.BORDER_CONSTANT. Default: None.
         mask_value (int, float, list of int, list of float): Padding value for mask
             if border_mode is cv2.BORDER_CONSTANT. Default: None.
-        always_apply (bool): If True, the transform will be always applied.
-            Default: None.
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1779,7 +1798,9 @@ class GridDistortion(BaseDistortion):
         normalized (bool): If True, ensures that the distortion does not move pixels
             outside the image boundaries. This can result in less extreme distortions
             but guarantees that no information is lost. Default: True.
-        always_apply (bool): If True, the transform will be always applied. Default: None.
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:

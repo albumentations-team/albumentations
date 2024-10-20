@@ -753,7 +753,7 @@ class Defocus(ImageOnlyTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.radius = cast(tuple[int, int], radius)
         self.alias_blur = cast(tuple[float, float], alias_blur)
 
@@ -803,7 +803,7 @@ class ZoomBlur(ImageOnlyTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.max_factor = cast(tuple[float, float], max_factor)
         self.step_factor = cast(tuple[float, float], step_factor)
 
