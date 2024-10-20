@@ -213,12 +213,13 @@ class RandomGridShuffle(DualTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         image_shape = params["shape"][:2]
+
         original_tiles = fgeometric.split_uniform_grid(
             image_shape,
             self.grid,
         )
         shape_groups = fmain.create_shape_groups(original_tiles)
-        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups, random_utils.get_random_generator())
+        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups)
 
         return {"tiles": original_tiles, "mapping": mapping}
 
@@ -1104,9 +1105,16 @@ class RandomFog(ImageOnlyTransform):
         img: np.ndarray,
         particle_positions: np.ndarray,
         intensity: float,
+        random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_fog(img, intensity, self.alpha_coef, particle_positions)
+        return fmain.add_fog(
+            img,
+            intensity,
+            self.alpha_coef,
+            particle_positions,
+            random_utils.get_random_generator(random_seed),
+        )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         # Select a random fog intensity within the specified range
@@ -1154,6 +1162,7 @@ class RandomFog(ImageOnlyTransform):
         return {
             "particle_positions": particle_positions,
             "intensity": intensity,
+            "random_seed": random_utils.get_random_seed(),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:

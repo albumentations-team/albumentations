@@ -5,6 +5,8 @@ from albumentations import random_utils
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.functional import from_distance_maps, to_distance_maps
 from tests.utils import set_seed
+import cv2
+import albumentations as A
 
 
 @pytest.mark.parametrize(

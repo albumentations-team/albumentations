@@ -1087,7 +1087,7 @@ def test_bbox_clipping(
 
 
 def test_bbox_clipping_perspective() -> None:
-    set_seed(0)
+    set_seed(1)
     transform = A.Compose(
         [A.Perspective(scale=(0.05, 0.05), p=1)],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6),

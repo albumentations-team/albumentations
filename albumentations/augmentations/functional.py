@@ -1602,7 +1602,8 @@ def shuffle_tiles_within_shape_groups(
 
     Args:
         shape_groups (dict[tuple[int, int], list[int]]): Groups of tile indices categorized by shape.
-        random_generator (Optional[np.random.Generator]): The random generator to use for shuffling the indices.
+        random_generator (np.random.Generator | None): The random generator to use for shuffling the indices.
+            If None, a new random generator will be used.
 
     Returns:
         list[int]: A list where each index is mapped to the new index of the tile after shuffling.
