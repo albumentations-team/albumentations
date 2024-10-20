@@ -1214,6 +1214,7 @@ class CropAndPad(DualTransform):
         keep_size: bool
         sample_independently: bool
         interpolation: InterpolationType
+        mask_interpolation: InterpolationType
 
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
@@ -1235,6 +1236,7 @@ class CropAndPad(DualTransform):
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
@@ -1251,6 +1253,7 @@ class CropAndPad(DualTransform):
         self.sample_independently = sample_independently
 
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def apply(
         self,
@@ -1258,7 +1261,6 @@ class CropAndPad(DualTransform):
         crop_params: Sequence[int],
         pad_params: Sequence[int],
         pad_value: ColorType,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_and_pad(
@@ -1267,7 +1269,7 @@ class CropAndPad(DualTransform):
             pad_params,
             pad_value,
             params["shape"][:2],
-            interpolation,
+            self.interpolation,
             self.pad_mode,
             self.keep_size,
         )
@@ -1278,7 +1280,6 @@ class CropAndPad(DualTransform):
         crop_params: Sequence[int],
         pad_params: Sequence[int],
         pad_value_mask: float,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_and_pad(
@@ -1287,7 +1288,7 @@ class CropAndPad(DualTransform):
             pad_params,
             pad_value_mask,
             params["shape"][:2],
-            interpolation,
+            self.mask_interpolation,
             self.pad_mode,
             self.keep_size,
         )
@@ -1463,6 +1464,7 @@ class CropAndPad(DualTransform):
             "keep_size",
             "sample_independently",
             "interpolation",
+            "mask_interpolation",
         )
 
 

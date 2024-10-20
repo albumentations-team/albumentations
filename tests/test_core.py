@@ -1370,6 +1370,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (113, 103)},
             A.Resize: {"height": 113, "width": 113},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.CropAndPad: {"px": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1377,7 +1378,6 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.CropNonEmptyMaskIfExists,
             A.PixelDistributionAdaptation,
             A.PadIfNeeded,
-            A.CropAndPad,
             A.RandomCrop,
             A.Crop,
             A.CenterCrop,
