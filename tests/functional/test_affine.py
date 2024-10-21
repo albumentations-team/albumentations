@@ -846,3 +846,66 @@ def test_rotate_by_90_bboxes_symmetric_bbox(transform_class, transform_params, f
     bbox_out1 = transform(image=img, bboxes=[bbox], cl=[0])["bboxes"][0]
 
     np.testing.assert_allclose(bbox_out1, bbox, atol=1e-6)
+
+
+
+@pytest.mark.parametrize("scale, keep_ratio, balanced_scale, expected", [
+    ({"x": 1, "y": 1}, False, False, {"x": 1, "y": 1}),
+    ({"x": 1, "y": 1}, True, False, {"x": 1, "y": 1}),
+    ({"x": (0.5, 1.5), "y": (0.5, 1.5)}, False, False, {"x": pytest.approx(1, abs=0.5), "y": pytest.approx(1, abs=0.5)}),
+    ({"x": (0.5, 1.5), "y": (0.5, 1.5)}, True, False, lambda x: x["x"] == x["y"] and 0.5 <= x["x"] <= 1.5),
+    ({"x": (0.5, 1.5), "y": (0.5, 1.5)}, False, True, lambda x: all(0.5 <= v <= 1.5 for v in x.values())),
+    ({"x": (0.5, 2.0), "y": 1}, False, False, lambda x: 0.5 <= x["x"] <= 2.0 and x["y"] == 1),
+    ({"x": 0.5, "y": (0.5, 1.5)}, True, False, lambda x: x["x"] == 0.5 and x["y"] == 0.5),
+    ({"x": (0.8, 1.2), "y": (0.8, 1.2)}, False, True, lambda x: all(0.8 <= v <= 1.2 for v in x.values())),
+])
+def test_get_scale(scale, keep_ratio, balanced_scale, expected):
+    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale)
+
+    if callable(expected):
+        assert expected(result)
+    else:
+        assert result == expected
+
+def test_get_scale_balanced_scale_behavior():
+    scale = {"x": (0.5, 2.0), "y": (0.5, 2.0)}
+    result = A.Affine.get_scale(scale, keep_ratio=False, balanced_scale=True)
+
+    assert all(0.5 <= v <= 2.0 for v in result.values())
+    assert any(v < 1.0 for v in result.values()) or any(v > 1.0 for v in result.values())
+
+def test_get_scale_keep_ratio():
+    scale = {"x": (0.5, 1.5), "y": (0.8, 1.2)}
+    result = A.Affine.get_scale(scale, keep_ratio=True, balanced_scale=False)
+
+    assert result["x"] == result["y"]
+    assert 0.5 <= result["x"] <= 1.5
+
+
+@pytest.mark.parametrize(
+    "scale, keep_ratio, balanced_scale, expected_x_range, expected_y_range",
+    [
+        ({"x": (0.5, 2), "y": (0.5, 2)}, False, True, (0.5, 2), (0.5, 2)),
+        ({"x": (1, 2), "y": (1, 2)}, True, True, (1, 2), (1, 2)),
+        ({"x": (0.5, 1), "y": (0.5, 1)}, True, True, (0.5, 1), (0.5, 1)),
+        ({"x": (0.5, 2), "y": (0.5, 2)}, False, False, (0.5, 2), (0.5, 2)),
+        ({"x": (0.5, 2), "y": (0.5, 2)}, True, False, (0.5, 2), (0.5, 2)),
+    ],
+)
+def test_get_random_scale(scale, keep_ratio, balanced_scale, expected_x_range, expected_y_range):
+    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale)
+
+    assert expected_x_range[0] <= result["x"] <= expected_x_range[1], "x is out of range"
+
+    if keep_ratio:
+        assert result["y"] == result["x"], "y should be equal to x when keep_ratio is True"
+    else:
+        assert expected_y_range[0] <= result["y"] <= expected_y_range[1], "y is out of range"
+
+    if balanced_scale:
+        assert (
+            expected_x_range[0] <= result["x"] < 1 or 1 < result["x"] <= expected_x_range[1]
+        ), "x should be in the balanced range"
+        assert (
+            expected_y_range[0] <= result["y"] < 1 or 1 < result["y"] <= expected_x_range[1]
+        ), "x should be in the balanced range"
