@@ -756,28 +756,36 @@ class Affine(DualTransform):
 
     @staticmethod
     def get_scale(
-        scale: dict[str, tuple[float, float]],
+        scale: dict[str, float | tuple[float, float]],
         keep_ratio: bool,
         balanced_scale: bool,
     ) -> fgeometric.ScaleDict:
         result_scale = {}
-        if balanced_scale:
-            for key, value in scale.items():
-                lower_interval = (value[0], 1.0) if value[0] < 1 else None
-                upper_interval = (1.0, value[1]) if value[1] > 1 else None
+        for key, value in scale.items():
+            if isinstance(value, (int, float)):
+                result_scale[key] = float(value)
+            elif isinstance(value, tuple):
+                if balanced_scale:
+                    lower_interval = (value[0], 1.0) if value[0] < 1 else None
+                    upper_interval = (1.0, value[1]) if value[1] > 1 else None
 
-                if lower_interval is not None and upper_interval is not None:
-                    selected_interval = random.choice([lower_interval, upper_interval])
-                elif lower_interval is not None:
-                    selected_interval = lower_interval
-                elif upper_interval is not None:
-                    selected_interval = upper_interval
+                    if lower_interval is not None and upper_interval is not None:
+                        selected_interval = random.choice([lower_interval, upper_interval])
+                    elif lower_interval is not None:
+                        selected_interval = lower_interval
+                    elif upper_interval is not None:
+                        selected_interval = upper_interval
+                    else:
+                        result_scale[key] = 1.0
+                        continue
+
+                    result_scale[key] = random.uniform(*selected_interval)
                 else:
-                    raise ValueError(f"Both lower_interval and upper_interval are None for key: {key}")
-
-                result_scale[key] = random.uniform(*selected_interval)
-        else:
-            result_scale = {key: random.uniform(*value) for key, value in scale.items()}
+                    result_scale[key] = random.uniform(*value)
+            else:
+                raise TypeError(
+                    f"Invalid scale value for key {key}: {value}. Expected a float or a tuple of two floats.",
+                )
 
         if keep_ratio:
             result_scale["y"] = result_scale["x"]
