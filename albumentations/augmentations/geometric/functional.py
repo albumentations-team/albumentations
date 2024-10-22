@@ -707,7 +707,7 @@ def calculate_affine_transform_padding(
 
 
 @handle_empty_array
-def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.AffineTransform) -> np.ndarray:
+def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
 
     This function transforms each corner of every bounding box using the given affine transformation
