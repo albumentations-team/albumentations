@@ -29,7 +29,6 @@ __all__ = [
     "distortion_bboxes",
     "pad",
     "pad_with_params",
-    "rotate",
     "resize",
     "scale",
     "_func_max_size",
@@ -44,8 +43,6 @@ __all__ = [
     "from_distance_maps",
     "transpose",
     "d4",
-    "bboxes_rotate",
-    "keypoints_rotate",
     "bboxes_d4",
     "keypoints_d4",
     "bboxes_rot90",
@@ -250,128 +247,6 @@ def keypoints_d4(
         return transformations[group_member](keypoints)
 
     raise ValueError(f"Invalid group member: {group_member}")
-
-
-@preserve_channel_dim
-def rotate(
-    img: np.ndarray,
-    angle: float,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-) -> np.ndarray:
-    image_shape = img.shape[:2]
-
-    image_center = center(image_shape)
-    matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-
-    height, width = image_shape
-
-    warp_fn = maybe_process_in_chunks(
-        warp_affine_with_value_extension,
-        matrix=matrix,
-        dsize=(width, height),
-        flags=interpolation,
-        border_mode=border_mode,
-        border_value=value,
-    )
-    return warp_fn(img)
-
-
-@handle_empty_array
-def bboxes_rotate(
-    bboxes: np.ndarray,
-    angle: float,
-    method: Literal["largest_box", "ellipse"],
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    """Rotates bounding boxes by angle degrees.
-
-    Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-        angle: Angle of rotation in degrees.
-        method: Rotation method used. Should be one of: "largest_box", "ellipse".
-        image_shape: Image shape (height, width).
-
-    Returns:
-        np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
-
-    Reference:
-        https://arxiv.org/abs/2109.13488
-    """
-    bboxes = bboxes.copy()
-    rows, cols = image_shape[:2]
-    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
-    scale = cols / float(rows)
-
-    if method == "largest_box":
-        x = np.column_stack([x_min, x_max, x_max, x_min]) - 0.5
-        y = np.column_stack([y_min, y_min, y_max, y_max]) - 0.5
-    elif method == "ellipse":
-        w = (x_max - x_min) / 2
-        h = (y_max - y_min) / 2
-        data = np.arange(0, 360, dtype=np.float32)
-        x = w[:, np.newaxis] * np.sin(np.radians(data)) + (w + x_min - 0.5)[:, np.newaxis]
-        y = h[:, np.newaxis] * np.cos(np.radians(data)) + (h + y_min - 0.5)[:, np.newaxis]
-    else:
-        raise ValueError(f"Method {method} is not a valid rotation method.")
-
-    angle_rad = np.deg2rad(angle)
-    x_t = (np.cos(angle_rad) * x * scale + np.sin(angle_rad) * y) / scale
-    y_t = -np.sin(angle_rad) * x * scale + np.cos(angle_rad) * y
-    x_t = x_t + 0.5
-    y_t = y_t + 0.5
-
-    # Update the first 4 columns of the input array
-    bboxes[:, 0] = np.min(x_t, axis=1)
-    bboxes[:, 1] = np.min(y_t, axis=1)
-    bboxes[:, 2] = np.max(x_t, axis=1)
-    bboxes[:, 3] = np.max(y_t, axis=1)
-
-    return bboxes
-
-
-@handle_empty_array
-@angle_2pi_range
-def keypoints_rotate(
-    keypoints: np.ndarray,
-    angle: float,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    """Rotate keypoints by a specified angle.
-
-    Args:
-        keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
-        angle (float): The angle by which to rotate the keypoints, in degrees.
-        image_shape (tuple[int, int]): The shape of the image the keypoints belong to (height, width).
-        **params: Additional parameters.
-
-    Returns:
-        np.ndarray: The rotated keypoints with the same shape as the input.
-
-    Note:
-        The rotation is performed around the center of the image.
-    """
-    image_center = center(image_shape)
-    matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-
-    # Create a copy of the input keypoints to avoid modifying the original array
-    rotated_keypoints = keypoints.copy().astype(np.float32)
-
-    # Extract x and y coordinates
-    xy = rotated_keypoints[:, :2]
-
-    # Rotate x and y coordinates
-    xy_rotated = cv2.transform(xy.reshape(-1, 1, 2), matrix).squeeze()
-
-    # Update x and y coordinates
-    rotated_keypoints[:, :2] = xy_rotated
-
-    # Update angles
-    rotated_keypoints[:, 2] += np.radians(angle)
-
-    return rotated_keypoints
 
 
 @preserve_channel_dim
@@ -886,7 +761,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Affi
 
 
 @handle_empty_array
-def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply an affine transformation to bounding boxes using an ellipse approximation method.
 
     This function transforms bounding boxes by approximating each box with an ellipse,
@@ -945,7 +820,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
 @handle_empty_array
 def bboxes_affine(
     bboxes: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: np.ndarray,
     rotate_method: Literal["largest_box", "ellipse"],
     image_shape: tuple[int, int],
     border_mode: int,
@@ -964,7 +839,7 @@ def bboxes_affine(
 
     Args:
         bboxes (np.ndarray): Input bounding boxes
-        matrix (skimage.transform.ProjectiveTransform): Affine transformation matrix
+        matrix (np.ndarray): Affine transformation matrix
         rotate_method (str): Method for rotating bounding boxes ('largest_box' or 'ellipse')
         image_shape (Sequence[int]): Shape of the input image
         border_mode (int): OpenCV border mode

@@ -7,6 +7,8 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.geometric.functional as fgeometric
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
+from tests.conftest import SQUARE_UINT8_IMAGE
 
 # Define your parameter sets
 image_shapes = [
@@ -117,7 +119,7 @@ def test_rotation(rotate):
         rotate=rotate,
         shift=(0, 0)
     )
-    opencv_result = cv2.getRotationMatrix2D((0, 0), rotate, 1.0)  # OpenCV uses opposite angle convention
+    opencv_result = cv2.getRotationMatrix2D((0, 0), rotate, 1.0)
     np.testing.assert_array_almost_equal(result[:2], opencv_result)
 
 @pytest.mark.parametrize("shear", [
@@ -1205,3 +1207,49 @@ def test_apply_affine_to_points(points, matrix, expected):
 def test_apply_affine_to_points_invalid_input(points, matrix):
     with pytest.raises((ValueError, IndexError)):
         fgeometric.apply_affine_to_points(points, matrix)
+
+
+@pytest.mark.parametrize(
+    "angle",
+    [
+        90,
+        180,
+        -90,
+    ],
+)
+def test_rot90(bboxes, angle, keypoints):
+    image = SQUARE_UINT8_IMAGE
+
+    mask = image.copy()
+
+    bboxes = np.array(bboxes, dtype=np.float32)
+    keypoints = np.array(keypoints, dtype=np.float32)
+
+    image_shape = image.shape[:2]
+    normalized_bboxes = normalize_bboxes(bboxes, image_shape)
+
+    angle2factor = {90: 1, 180: 2, -90: 3}
+
+    transform = A.Compose(
+        [A.Affine(rotate=(angle, angle), p=1)],
+        bbox_params=A.BboxParams(format="pascal_voc"),
+        keypoint_params=A.KeypointParams(format="xyas"),
+    )
+
+    transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+
+    factor = angle2factor[angle]
+
+    image_rotated = fgeometric.rot90(image, factor)
+    mask_rotated = fgeometric.rot90(image, factor)
+    bboxes_rotated = fgeometric.bboxes_rot90(normalized_bboxes, factor)
+    bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_shape)
+
+    keypoints_rotated = fgeometric.keypoints_rot90(keypoints, factor, image_shape)
+
+    np.testing.assert_array_equal(transformed["image"], image_rotated)
+    np.testing.assert_array_equal(transformed["mask"], mask_rotated)
+
+    np.testing.assert_array_almost_equal(transformed["bboxes"], bboxes_rotated, decimal=1e-5)
+    # If we want to check all coordinates we need additionally to convert for keypoints angle to radians and back as Compose does it for us
+    np.testing.assert_array_almost_equal(transformed["keypoints"][:, :2], keypoints_rotated[:, :2])

@@ -798,7 +798,7 @@ class Affine(DualTransform):
         translate = self._get_translate_params(image_shape)
         shear = self._get_shear_params()
         scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
-        rotate = -random.uniform(*self.rotate)
+        rotate = random.uniform(*self.rotate)
 
         image_shift = fgeometric.center(image_shape)
         bbox_shift = fgeometric.center_bbox(image_shape)

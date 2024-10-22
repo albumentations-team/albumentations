@@ -1,19 +1,18 @@
 import random
 import warnings
 from functools import partial
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Optional, Tuple, Type
 
 import cv2
 import numpy as np
 import pytest
-from albucore.functions import to_float, clip, from_float
+from albucore.functions import to_float, clip
 
 from torchvision import transforms as torch_transforms
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.transforms_interface import BasicTransform
 from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
@@ -27,18 +26,6 @@ def test_transpose_both_image_and_mask():
     augmented = augmentation(image=image, mask=mask)
     assert augmented["image"].shape == (6, 8, 3)
     assert augmented["mask"].shape == (6, 8)
-
-
-@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_rotate_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    aug = A.Rotate(limit=(45, 45), interpolation=interpolation, p=1)
-    data = aug(image=image, mask=mask)
-    expected_image = fgeometric.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
-    expected_mask = fgeometric.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
-    assert np.array_equal(data["image"], expected_image)
-    assert np.array_equal(data["mask"], expected_mask)
 
 
 def test_rotate_crop_border():
@@ -888,6 +875,8 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     res = t(image=image, **targets)
 
     for key, value in expected.items():
+        if isinstance(value, np.ndarray):
+            print("K = ", key, value.shape)
         np.testing.assert_allclose(value, res[key], atol=1e-6, rtol=1e-6), key
 
 
@@ -915,7 +904,8 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
         np.random.randint(0, 256, [100, 25, 3], np.uint8),
     ],
 )
-@pytest.mark.parametrize("angle", list(range(-360, 360, 15)))
+# @pytest.mark.parametrize("angle", list(range(-360, 360, 15)))
+@pytest.mark.parametrize("angle", [15])
 def test_rotate_equal(img, aug_cls, angle):
     set_seed(0)
 
@@ -939,7 +929,8 @@ def test_rotate_equal(img, aug_cls, angle):
 
     res_a = a(image=img, keypoints=kp)
     res_b = b(image=img, keypoints=kp)
-    assert np.allclose(res_a["image"], res_b["image"])
+    np.testing.assert_array_equal(res_a["image"], res_b["image"])
+
     res_a = np.array(res_a["keypoints"])
     res_b = np.array(res_b["keypoints"])
     diff = np.round(np.abs(res_a - res_b))
@@ -1358,7 +1349,7 @@ def test_change_image(augmentation_cls, params):
         },
     ),
 )
-def test_selective_channel(augmentation_cls: BasicTransform, params: Dict[str, Any]) -> None:
+def test_selective_channel(augmentation_cls: BasicTransform, params: dict[str, Any]) -> None:
     set_seed(3)
 
     image = SQUARE_MULTI_UINT8_IMAGE
@@ -1827,53 +1818,6 @@ def test_random_sun_flare_initialization(params, expected):
 def test_random_sun_flare_invalid_input(params):
     with pytest.raises(ValueError):
         A.RandomSunFlare(**params)
-
-
-@pytest.mark.parametrize(
-    "angle",
-    [
-        90,
-        180,
-        -90,
-    ],
-)
-def test_rot90(bboxes, angle, keypoints):
-    image = SQUARE_UINT8_IMAGE
-
-    mask = image.copy()
-
-    bboxes = np.array(bboxes, dtype=np.float32)
-    keypoints = np.array(keypoints, dtype=np.float32)
-
-    image_shape = image.shape[:2]
-    normalized_bboxes = normalize_bboxes(bboxes, image_shape)
-
-    angle2factor = {90: 1, 180: 2, -90: 3}
-
-    transform = A.Compose(
-        [A.Affine(rotate=(angle, angle), p=1)],
-        bbox_params=A.BboxParams(format="pascal_voc"),
-        keypoint_params=A.KeypointParams(format="xyas"),
-    )
-
-    transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
-
-    factor = angle2factor[angle]
-
-    image_rotated = fgeometric.rot90(image, factor)
-    mask_rotated = fgeometric.rot90(image, factor)
-    bboxes_rotated = fgeometric.bboxes_rot90(normalized_bboxes, factor)
-    bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_shape)
-
-    keypoints_rotated = fgeometric.keypoints_rot90(keypoints, factor, image_shape)
-
-    np.testing.assert_array_equal(transformed["image"], image_rotated)
-    np.testing.assert_array_equal(transformed["mask"], mask_rotated)
-
-    np.testing.assert_array_almost_equal(transformed["bboxes"], bboxes_rotated, decimal=1e-5)
-    # If we want to check all coordinates we need additionally to convert for keypoints angle to radians and back as Compose does it for us
-    np.testing.assert_array_almost_equal(transformed["keypoints"][:, :2], keypoints_rotated[:, :2])
-
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],

@@ -103,46 +103,6 @@ def test_rot90_float(target):
     assert_array_almost_equal_nulp(rotated, expected)
 
 
-def generate_rotation_matrix(image: np.ndarray, angle: float) -> np.ndarray:
-    """Generates a rotation matrix for the given angle with rotation around the center of the image."""
-    height, width = image.shape[:2]
-    center = (width / 2 - 0.5, height / 2 - 0.5)
-    return cv2.getRotationMatrix2D(center, angle, 1.0)
-
-
-@pytest.mark.parametrize("image", IMAGES)
-@pytest.mark.parametrize("angle", [60, 90, 180])
-def test_compare_rotate_and_affine(image, angle):
-    # Generate the rotation matrix for a 60-degree rotation around the image center
-    rotation_matrix = generate_rotation_matrix(image, angle)
-
-    # Apply rotation using FGeometric.rotate
-    rotated_img_1 = fgeometric.rotate(
-        image,
-        angle=angle,
-        border_mode=cv2.BORDER_CONSTANT,
-        value=0,
-        interpolation=cv2.INTER_LINEAR,
-    )
-
-    # Convert 2x3 cv2 matrix to 3x3 for skimage's ProjectiveTransform
-    full_matrix = np.vstack([rotation_matrix, [0, 0, 1]])
-
-    # Apply rotation using warp_affine
-    rotated_img_2 = fgeometric.warp_affine(
-        img=image,
-        matrix=full_matrix,
-        interpolation=cv2.INTER_LINEAR,
-        cval=0,
-        mode=cv2.BORDER_CONSTANT,
-        output_shape=image.shape[:2],
-    )
-
-    # Assert that the two rotated images are equal
-    np.testing.assert_allclose(rotated_img_1, rotated_img_2, rtol=1e-5, atol=1e-5,
-                               err_msg=f"Rotated images should be identical for angle {angle}.")
-
-
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_pad(target):
     img = np.array([[1, 2], [3, 4]], dtype=np.uint8)
@@ -603,15 +563,6 @@ def test_downscale_random():
     assert downscaled.shape == img.shape
     downscaled = F.downscale(img, scale=1)
     assert np.all(img == downscaled)
-
-
-def test_maybe_process_in_chunks():
-    image = np.random.randint(0, 256, (100, 100, 6), np.uint8)
-
-    for i in range(1, image.shape[-1] + 1):
-        before = image[:, :, :i]
-        after = fgeometric.rotate(before, angle=1, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101)
-        assert before.shape == after.shape
 
 
 @pytest.mark.parametrize(
