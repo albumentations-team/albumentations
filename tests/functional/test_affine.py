@@ -1154,3 +1154,54 @@ def test_get_random_scale(scale, keep_ratio, balanced_scale, expected_x_range, e
         assert (
             expected_y_range[0] <= result["y"] < 1 or 1 < result["y"] <= expected_x_range[1]
         ), "x should be in the balanced range"
+
+
+@pytest.mark.parametrize("points, matrix, expected", [
+    # Test case 1: Identity transformation
+    (
+        np.array([[1, 1], [2, 2], [3, 3]]),
+        np.eye(3),
+        np.array([[1, 1], [2, 2], [3, 3]])
+    ),
+    # Test case 2: Translation
+    (
+        np.array([[1, 1], [2, 2], [3, 3]]),
+        np.array([[1, 0, 1], [0, 1, 2], [0, 0, 1]]),
+        np.array([[2, 3], [3, 4], [4, 5]])
+    ),
+    # Test case 3: Scaling
+    (
+        np.array([[1, 1], [2, 2], [3, 3]]),
+        np.array([[2, 0, 0], [0, 2, 0], [0, 0, 1]]),
+        np.array([[2, 2], [4, 4], [6, 6]])
+    ),
+    # Test case 4: Rotation (90 degrees)
+    (
+        np.array([[1, 0], [0, 1], [1, 1]]),
+        np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]),
+        np.array([[0, 1], [-1, 0], [-1, 1]])
+    ),
+    # Test case 5: Shear
+    (
+        np.array([[1, 1], [2, 2], [3, 3]]),
+        np.array([[1, 0.5, 0], [0, 1, 0], [0, 0, 1]]),
+        np.array([[1.5, 1], [3, 2], [4.5, 3]])
+    ),
+    (
+        np.array([]),
+        np.array([[1, 0.5, 0], [0, 1, 0], [0, 0, 1]]),
+        np.array([])
+    ),
+])
+def test_apply_affine_to_points(points, matrix, expected):
+    result = fgeometric.apply_affine_to_points(points, matrix)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-8)
+
+@pytest.mark.parametrize("points, matrix", [
+    # Test case for invalid input shapes
+    (np.array([[1, 1]]), np.eye(2)),  # Invalid matrix shape
+    (np.array([1, 1]), np.eye(3)),    # Invalid points shape
+])
+def test_apply_affine_to_points_invalid_input(points, matrix):
+    with pytest.raises((ValueError, IndexError)):
+        fgeometric.apply_affine_to_points(points, matrix)

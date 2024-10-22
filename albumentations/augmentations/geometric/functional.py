@@ -14,7 +14,6 @@ from albumentations.augmentations.utils import angle_2pi_range, handle_empty_arr
 from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
 from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
-    NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS,
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
@@ -761,6 +760,7 @@ def keypoints_affine(
     return keypoints
 
 
+@handle_empty_array
 def apply_affine_to_points(points: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply affine transformation to a set of points.
 
@@ -785,7 +785,7 @@ def apply_affine_to_points(points: np.ndarray, matrix: np.ndarray) -> np.ndarray
         transformed_points[:, 2],
     )
 
-    return transformed_points[:, :2] / transformed_points[:, 2:][:, np.newaxis]
+    return transformed_points[:, :2] / transformed_points[:, 2:]
 
 
 def calculate_affine_transform_padding(
@@ -868,13 +868,13 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Affi
     """
     # Extract corners of all bboxes
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
-    corners = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(2, 0, 1)
 
-    # Reshape corners to 2D array for transformation
-    corners_2d = corners.reshape(-1, 2)
+    corners = (
+        np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(2, 0, 1).reshape(-1, 2)
+    )
 
     # Transform all corners at once
-    transformed_corners = apply_affine_to_points(corners_2d, matrix).reshape(-1, 4, 2)
+    transformed_corners = apply_affine_to_points(corners, matrix).reshape(-1, 4, 2)
 
     # Compute new bounding boxes
     new_x_min = np.min(transformed_corners[:, :, 0], axis=1)
@@ -882,18 +882,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Affi
     new_y_min = np.min(transformed_corners[:, :, 1], axis=1)
     new_y_max = np.max(transformed_corners[:, :, 1], axis=1)
 
-    # Create the new bounding boxes array
-    new_bboxes = np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max])
-
-    # Add any additional columns if they exist
-    if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS:
-        additional_cols = bboxes[:, 4:]
-        # Ensure additional_cols has the same number of rows as new_bboxes
-        if additional_cols.shape[0] == 1 and new_bboxes.shape[0] > 1:
-            additional_cols = np.tile(additional_cols, (new_bboxes.shape[0], 1))
-        new_bboxes = np.column_stack([new_bboxes, additional_cols])
-
-    return new_bboxes
+    return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
 
 
 @handle_empty_array
