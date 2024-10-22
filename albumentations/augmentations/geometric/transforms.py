@@ -700,7 +700,7 @@ class Affine(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        matrix: skimage.transform.ProjectiveTransform,
+        matrix: np.ndarray,
         output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
@@ -716,7 +716,7 @@ class Affine(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        matrix: skimage.transform.ProjectiveTransform,
+        matrix: np.ndarray,
         output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
@@ -732,7 +732,7 @@ class Affine(DualTransform):
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
-        bbox_matrix: skimage.transform.AffineTransform,
+        bbox_matrix: np.ndarray,
         output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
@@ -748,7 +748,7 @@ class Affine(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        matrix: skimage.transform.AffineTransform,
+        matrix: np.ndarray,
         scale: dict[str, Any],
         **params: Any,
     ) -> np.ndarray:

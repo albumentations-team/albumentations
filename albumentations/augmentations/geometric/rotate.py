@@ -6,7 +6,6 @@ from typing import Any, cast
 
 import cv2
 import numpy as np
-from skimage.transform import ProjectiveTransform
 from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
@@ -400,7 +399,19 @@ class SafeRotate(Affine):
         angle: float,
         center: tuple[float, float],
         image_shape: tuple[int, int],
-    ) -> tuple[ProjectiveTransform, dict[str, float]]:
+    ) -> tuple[np.ndarray, dict[str, float]]:
+        """Create a rotation matrix that keeps the image size constant.
+
+        Args:
+            angle (float): Rotation angle in degrees.
+            center (Tuple[float, float]): Center of rotation (x, y).
+            image_shape (Tuple[int, int]): Shape of the image (height, width).
+
+        Returns:
+            Tuple[np.ndarray, Dict[str, float]]: A tuple containing:
+                - 3x3 affine transformation matrix
+                - Dictionary with scaling factors {'x': scale_x, 'y': scale_y}
+        """
         height, width = image_shape[:2]
         rotation_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
 
@@ -422,13 +433,14 @@ class SafeRotate(Affine):
         scale_mat = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
 
         # Combine rotation and scaling
-        matrix = scale_mat @ np.vstack([rotation_mat, [0, 0, 1]])
+        rotation_mat_3x3 = np.vstack([rotation_mat, [0, 0, 1]])
+        matrix = scale_mat @ rotation_mat_3x3
 
-        return ProjectiveTransform(matrix=matrix), {"x": scale_x, "y": scale_y}
+        return matrix, {"x": scale_x, "y": scale_y}
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
-        angle = random.uniform(self.limit[0], self.limit[1])
+        angle = random.uniform(*self.limit)
 
         # Calculate centers for image and bbox
         image_center = fgeometric.center(image_shape)
