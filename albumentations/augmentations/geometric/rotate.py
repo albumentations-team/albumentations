@@ -400,41 +400,29 @@ class SafeRotate(Affine):
         center: tuple[float, float],
         image_shape: tuple[int, int],
     ) -> tuple[np.ndarray, dict[str, float]]:
-        """Create a rotation matrix that keeps the image size constant.
-
-        Args:
-            angle (float): Rotation angle in degrees.
-            center (Tuple[float, float]): Center of rotation (x, y).
-            image_shape (Tuple[int, int]): Shape of the image (height, width).
-
-        Returns:
-            Tuple[np.ndarray, Dict[str, float]]: A tuple containing:
-                - 3x3 affine transformation matrix
-                - Dictionary with scaling factors {'x': scale_x, 'y': scale_y}
-        """
         height, width = image_shape[:2]
-        rotation_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
 
         # Calculate new image size
-        abs_cos = abs(rotation_mat[0, 0])
-        abs_sin = abs(rotation_mat[0, 1])
+        abs_cos = abs(np.cos(np.deg2rad(angle)))
+        abs_sin = abs(np.sin(np.deg2rad(angle)))
         new_w = int(height * abs_sin + width * abs_cos)
         new_h = int(height * abs_cos + width * abs_sin)
-
-        # Adjust the rotation matrix to take into account the new size
-        rotation_mat[0, 2] += new_w / 2 - center[0]
-        rotation_mat[1, 2] += new_h / 2 - center[1]
 
         # Calculate scaling factors
         scale_x = width / new_w
         scale_y = height / new_h
 
-        # Create scaling matrix
-        scale_mat = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
+        scale: fgeometric.ScaleDict = {"x": scale_x, "y": scale_y}
+        translate: fgeometric.TranslateDict = {"x": new_w / 2 - center[0], "y": new_h / 2 - center[1]}
+        shear: fgeometric.ShearDict = {"x": 0, "y": 0}
 
-        # Combine rotation and scaling
-        rotation_mat_3x3 = np.vstack([rotation_mat, [0, 0, 1]])
-        matrix = scale_mat @ rotation_mat_3x3
+        matrix = fgeometric.create_affine_transformation_matrix(
+            translate=translate,
+            shear=shear,
+            scale=scale,
+            rotate=angle,
+            shift=center,
+        )
 
         return matrix, {"x": scale_x, "y": scale_y}
 

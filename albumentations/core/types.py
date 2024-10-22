@@ -101,6 +101,7 @@ REFLECT_BORDER_MODES = {
 }
 
 NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS = 4
+NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS = 4
 
 
 PositionType = Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]
