@@ -2262,7 +2262,7 @@ def compute_transformed_image_bounds(
         image_shape (Tuple[int, int]): The shape of the image as (height, width).
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing:
+        tuple[np.ndarray, np.ndarray]: A tuple containing:
             - min_coords: An array with the minimum x and y coordinates.
             - max_coords: An array with the maximum x and y coordinates.
     """

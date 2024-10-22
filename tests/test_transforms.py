@@ -875,8 +875,6 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        if isinstance(value, np.ndarray):
-            print("K = ", key, value.shape)
         np.testing.assert_allclose(value, res[key], atol=1e-6, rtol=1e-6), key
 
 
