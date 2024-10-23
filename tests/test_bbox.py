@@ -1539,3 +1539,87 @@ def test_random_resized_crop():
     labels = [1,2,3,4]
     res = transform(image=np.zeros((500,500,3), dtype='uint8'), bboxes=boxes, label=labels)
     assert len(res['bboxes']) == len(res['label'])
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "map_x", "map_y", "image_shape", "expected"],
+    [
+        # Test case 1: Identity mapping (no distortion)
+        (
+            np.array([[10, 20, 30, 40]]),  # single bbox
+            np.tile(np.arange(100), (100, 1)),  # identity map_x
+            np.tile(np.arange(100).reshape(-1, 1), (1, 100)),  # identity map_y
+            (100, 100),
+            np.array([[10, 20, 30, 40]]),
+        ),
+
+        # Test case 2: Simple translation
+        (
+            np.array([[10, 20, 30, 40]]),
+            np.tile(np.arange(100) - 5, (100, 1)),  # shift right by 5
+            np.tile(np.arange(100).reshape(-1, 1) - 5, (1, 100)),  # shift down by 5
+            (100, 100),
+            np.array([[15, 25, 35, 45]]),
+        ),
+
+        # Test case 3: Multiple bboxes with additional attributes
+        (
+            np.array([
+                [10, 20, 30, 40, 1],  # bbox with class label
+                [50, 60, 70, 80, 2],
+            ]),
+            np.tile(np.arange(100), (100, 1)),  # identity map_x
+            np.tile(np.arange(100).reshape(-1, 1), (1, 100)),  # identity map_y
+            (100, 100),
+            np.array([
+                [10, 20, 30, 40, 1],
+                [50, 60, 70, 80, 2],
+            ]),
+        ),
+
+        # Test case 4: Boundary conditions
+        (
+            np.array([[0, 0, 10, 10]]),  # bbox at image corner
+            np.tile(np.arange(100), (100, 1)),
+            np.tile(np.arange(100).reshape(-1, 1), (1, 100)),
+            (100, 100),
+            np.array([[0, 0, 10, 10]]),
+        ),
+
+        # Test case 5: Empty array
+        (
+            np.zeros((0, 4)),  # empty bbox array
+            np.tile(np.arange(100), (100, 1)),
+            np.tile(np.arange(100).reshape(-1, 1), (1, 100)),
+            (100, 100),
+            np.zeros((0, 4)),
+        ),
+    ],
+)
+def test_distortion_bboxes(bboxes, map_x, map_y, image_shape, expected):
+    result = fgeometric.distortion_bboxes(bboxes, map_x, map_y, image_shape)
+    np.testing.assert_array_almost_equal(result, expected)
+
+
+def test_distortion_bboxes_complex_distortion():
+    # Test with a more complex distortion pattern
+    bboxes = np.array([[25, 25, 75, 75]])  # center box
+    image_shape = (100, 100)
+
+    # Create a radial distortion pattern
+    y, x = np.mgrid[0:100, 0:100]
+    c_x, c_y = 50, 50  # distortion center
+    r = np.sqrt((x - c_x)**2 + (y - c_y)**2)
+    factor = 1 + r/100  # increasing distortion with radius
+
+    map_x = x + (x - c_x) / factor
+    map_y = y + (y - c_y) / factor
+
+    result = fgeometric.distortion_bboxes(bboxes, map_x, map_y, image_shape)
+
+    # Check that the result is different from input but still valid
+    assert not np.array_equal(result, bboxes)
+    assert np.all(result >= 0)
+    assert np.all(result[:, [0, 2]] <= image_shape[1])  # x coordinates
+    assert np.all(result[:, [1, 3]] <= image_shape[0])  # y coordinates
+    assert np.all(result[:, [0, 1]] <= result[:, [2, 3]])  # min <= max

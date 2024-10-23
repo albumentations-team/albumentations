@@ -140,7 +140,7 @@ class BaseDistortion(DualTransform):
     def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        bboxes_returned = fgeometric.distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape, self.border_mode)
+        bboxes_returned = fgeometric.distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape)
         return normalize_bboxes(bboxes_returned, image_shape)
 
     def apply_to_keypoints(
