@@ -6,7 +6,7 @@ from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
-from tests.conftest import RECTANGULAR_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 
 from .utils import set_seed
 
@@ -283,3 +283,23 @@ def test_to_tensor_v2_on_non_contiguous_array_with_random_rotate90():
         assert isinstance(transformed["masks"][0], torch.Tensor)
         assert transformed["image"].numpy().shape in ((3, 640, 480), (3, 480, 640))
         assert transformed["masks"][0].shape in ((640, 480), (480, 640))
+
+
+def test_to_tensor_v2_images_masks():
+    transform = A.Compose([ToTensorV2(p=1)])
+    image = SQUARE_UINT8_IMAGE
+    mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+
+    transformed = transform(
+        image=image,
+        mask=mask,
+        masks=[mask] * 2,
+        images=[image] * 2
+    )
+
+    # Check all outputs are torch.Tensor
+    for key in ['image', 'mask']:
+        assert isinstance(transformed[key], torch.Tensor)
+
+    for key in ['masks', 'images']:
+        assert all(isinstance(t, torch.Tensor) for t in transformed[key])

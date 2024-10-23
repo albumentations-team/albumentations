@@ -48,9 +48,6 @@ class ToTensorV2(BasicTransform):
 
         return torch.from_numpy(img.transpose(2, 0, 1))
 
-    def apply_to_images(self, images: list[np.ndarray], **params: Any) -> list[torch.Tensor]:
-        return [self.apply(image, **params) for image in images]
-
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> torch.Tensor:
         if self.transpose_mask and mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
             mask = mask.transpose(2, 0, 1)
