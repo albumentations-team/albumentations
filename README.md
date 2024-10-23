@@ -38,6 +38,8 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
   - [Sponsors](#sponsors)
   - [Table of contents](#table-of-contents)
   - [Authors](#authors)
+    - [Current Maintainer](#current-maintainer)
+    - [Emeritus Core Team Members](#emeritus-core-team-members)
   - [Installation](#installation)
   - [Documentation](#documentation)
   - [A simple example](#a-simple-example)
@@ -64,19 +66,23 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 ## Authors
 
+### Current Maintainer
+
 [**Vladimir I. Iglovikov**](https://www.linkedin.com/in/iglovikov/) | [Kaggle Grandmaster](https://www.kaggle.com/iglovikov)
+
+### Emeritus Core Team Members
 
 [**Mikhail Druzhinin**](https://www.linkedin.com/in/mikhail-druzhinin-548229100/) | [Kaggle Expert](https://www.kaggle.com/dipetm)
 
 [**Alex Parinov**](https://www.linkedin.com/in/alex-parinov/) | [Kaggle Master](https://www.kaggle.com/creafz)
 
-[**Alexander Buslaev** — Computer Vision Engineer at Mapbox](https://www.linkedin.com/in/al-buslaev/) | [Kaggle Master](https://www.kaggle.com/albuslaev)
+[**Alexander Buslaev**](https://www.linkedin.com/in/al-buslaev/) | [Kaggle Master](https://www.kaggle.com/albuslaev)
 
-[**Evegene Khvedchenya** — Computer Vision Research Engineer at Piñata Farms](https://www.linkedin.com/in/cvtalks/) | [Kaggle Grandmaster](https://www.kaggle.com/bloodaxe)
+[**Eugene Khvedchenya**](https://www.linkedin.com/in/cvtalks/) | [Kaggle Grandmaster](https://www.kaggle.com/bloodaxe)
 
 ## Installation
 
-Albumentations requires Python 3.8 or higher. To install the latest version from PyPI:
+Albumentations requires Python 3.9 or higher. To install the latest version from PyPI:
 
 ```bash
 pip install -U albumentations
