@@ -31,7 +31,12 @@ class ToTensorV2(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Any]:
-        return {"image": self.apply, "images": self.apply_to_images, "mask": self.apply_to_mask, "masks": self.apply_to_masks}
+        return {
+            "image": self.apply,
+            "images": self.apply_to_images,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+        }
 
     def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
         if len(img.shape) not in [2, 3]:
