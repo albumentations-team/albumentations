@@ -165,20 +165,6 @@ def test_shift(shift):
     np.testing.assert_array_almost_equal(result, expected)
 
 
-def test_combined_transformation():
-    result = fgeometric.create_affine_transformation_matrix(
-        translate={"x": 10, "y": 20},
-        shear={"x": 15, "y": 0},
-        scale={"x": 2, "y": 2},
-        rotate=45,
-        shift=(100, 100)
-    )
-    # We can't easily compare this with OpenCV as it doesn't have a single function for all these transformations
-    # Instead, we'll check if the matrix has the expected structure
-    assert result.shape == (3, 3)
-    assert not np.allclose(result, np.eye(3))  # The matrix should not be identity
-
-
 @pytest.mark.parametrize("translate, shear, scale, rotate, shift", [
     ({"x": 10, "y": 20}, {"x": 0, "y": 0}, {"x": 1, "y": 1}, 0, (0, 0)),
     ({"x": 0, "y": 0}, {"x": 30, "y": 0}, {"x": 2, "y": 2}, 45, (100, 100)),
