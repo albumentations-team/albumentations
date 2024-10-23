@@ -6,8 +6,7 @@ from typing import Any, Callable, Literal, TypedDict, cast
 
 import cv2
 import numpy as np
-import skimage.transform
-from albucore import clipped, get_num_channels, hflip, maybe_process_in_chunks, preserve_channel_dim, vflip
+from albucore import get_num_channels, hflip, maybe_process_in_chunks, preserve_channel_dim, vflip
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
@@ -37,7 +36,6 @@ __all__ = [
     "rotation2d_matrix_to_euler_angles",
     "is_identity_matrix",
     "warp_affine",
-    "piecewise_affine",
     "to_distance_maps",
     "from_distance_maps",
     "transpose",
@@ -872,28 +870,6 @@ def bboxes_affine(
     return normalize_bboxes(validated_bboxes, output_shape)
 
 
-@clipped
-def piecewise_affine(
-    img: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform | None,
-    interpolation: int,
-    mode: str,
-    cval: float,
-) -> np.ndarray:
-    if matrix is None:
-        return img
-
-    return skimage.transform.warp(
-        img,
-        matrix,
-        order=interpolation,
-        mode=mode,
-        cval=cval,
-        preserve_range=True,
-        output_shape=img.shape,
-    )
-
-
 def to_distance_maps(
     keypoints: np.ndarray,
     image_shape: tuple[int, int],
@@ -1063,101 +1039,6 @@ def from_distance_maps(
             return keypoints[valid_mask]
 
     return keypoints
-
-
-@handle_empty_array
-def keypoints_piecewise_affine(
-    keypoints: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform | None,
-    image_shape: tuple[int, int],
-    keypoints_threshold: float,
-) -> np.ndarray:
-    if matrix is None:
-        return keypoints
-
-    a, s = keypoints[:, 2], keypoints[:, 3]
-
-    # Create distance maps for all keypoints
-    dist_maps = to_distance_maps(keypoints[:, :2], image_shape, True)
-
-    # Apply piecewise affine transformation to all distance maps
-    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-
-    # Convert distance maps back to keypoints
-    transformed_xy = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
-
-    # Combine transformed x, y with original a, s
-    transformed_keypoints = np.column_stack([transformed_xy, a, s])
-
-    # If there are additional columns, preserve them
-    if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        return np.column_stack(
-            [transformed_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
-        )
-
-    return transformed_keypoints
-
-
-@handle_empty_array
-def bboxes_piecewise_affine(
-    bboxes: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
-    image_shape: tuple[int, int],
-    keypoints_threshold: float,
-) -> np.ndarray:
-    if matrix is None:
-        return bboxes
-
-    height, width = image_shape[:2]
-
-    # Denormalize bboxes
-    denorm_bboxes = denormalize_bboxes(bboxes, image_shape)
-
-    # Create keypoints for all bboxes
-    keypoints = np.array(
-        [
-            denorm_bboxes[:, [0, 1]],  # x_min, y_min
-            denorm_bboxes[:, [2, 1]],  # x_max, y_min
-            denorm_bboxes[:, [2, 3]],  # x_max, y_max
-            denorm_bboxes[:, [0, 3]],  # x_min, y_max
-        ],
-    )
-    keypoints = keypoints.transpose(1, 0, 2).reshape(-1, 2)
-
-    # Create distance maps for all keypoints
-    dist_maps = to_distance_maps(keypoints, image_shape, True)
-
-    # Apply piecewise affine transformation to all distance maps
-    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-
-    # Convert distance maps back to keypoints
-    transformed_keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
-
-    # Reshape transformed keypoints back to (N, 4, 2) where N is the number of bboxes
-    transformed_keypoints = transformed_keypoints.reshape(-1, 4, 2)
-
-    # Filter out keypoints outside the image
-    mask = (
-        (transformed_keypoints[:, :, 0] >= 0)
-        & (transformed_keypoints[:, :, 0] < width)
-        & (transformed_keypoints[:, :, 1] >= 0)
-        & (transformed_keypoints[:, :, 1] < height)
-    )
-
-    # Compute new bboxes
-    new_bboxes = np.zeros_like(bboxes)
-    for i in range(len(bboxes)):
-        valid_points = transformed_keypoints[i][mask[i]]
-        if len(valid_points) > 0:
-            new_bboxes[i, 0] = valid_points[:, 0].min()
-            new_bboxes[i, 1] = valid_points[:, 1].min()
-            new_bboxes[i, 2] = valid_points[:, 0].max()
-            new_bboxes[i, 3] = valid_points[:, 1].max()
-        else:
-            new_bboxes[i] = bboxes[i]  # Keep original bbox if all points are outside
-
-    # Normalize the new bboxes
-    return normalize_bboxes(new_bboxes, image_shape)
 
 
 def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
