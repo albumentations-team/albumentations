@@ -7,7 +7,6 @@ from warnings import warn
 
 import cv2
 import numpy as np
-import skimage
 from albucore import (
     MAX_VALUES_BY_DTYPE,
     add,
@@ -1491,14 +1490,19 @@ def superpixels(
     num_channels = get_num_channels(image)
 
     for c in range(num_channels):
-        # segments+1 here because otherwise regionprops always misses the last label
-        regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
-        for region_idx, region in enumerate(regions):
+        image_sp_c = image[..., c]
+        # Get unique segment labels (skip 0 if it exists as it's typically background)
+        unique_labels = np.unique(segments)
+        if unique_labels[0] == 0:
+            unique_labels = unique_labels[1:]
+
+        # Calculate mean intensity for each segment
+        for idx, label in enumerate(unique_labels):
             # with mod here, because slic can sometimes create more superpixel than requested.
             # replace_samples then does not have enough values, so we just start over with the first one again.
-            if replace_samples[region_idx % len(replace_samples)]:
-                mean_intensity = region.mean_intensity
-                image_sp_c = image[..., c]
+            if replace_samples[idx % len(replace_samples)]:
+                mask = segments == label
+                mean_intensity = np.mean(image_sp_c[mask])
 
                 if image_sp_c.dtype.kind in ["i", "u", "b"]:
                     # After rounding the value can end up slightly outside of the value_range. Hence, we need to clip.
@@ -1510,7 +1514,7 @@ def superpixels(
                 else:
                     value = mean_intensity
 
-                image_sp_c[segments == region_idx] = value
+                image_sp_c[mask] = value
 
     return fgeometric.resize(image, orig_shape[:2], interpolation) if orig_shape != image.shape else image
 

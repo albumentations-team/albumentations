@@ -6,7 +6,8 @@ from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import setup, find_packages
 
 INSTALL_REQUIRES = [
-    "numpy>=1.24.4", "scipy>=1.10.0", "scikit-image>=0.21.0",
+    "numpy>=1.24.4",
+    "scipy>=1.10.0",
     "PyYAML",
     "typing-extensions>=4.9.0; python_version<'3.10'",
     "pydantic>=2.7.0",
