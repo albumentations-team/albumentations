@@ -31,7 +31,12 @@ class ToTensorV2(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Any]:
-        return {"image": self.apply, "mask": self.apply_to_mask, "masks": self.apply_to_masks}
+        return {
+            "image": self.apply,
+            "images": self.apply_to_images,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+        }
 
     def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
         if len(img.shape) not in [2, 3]:
@@ -42,6 +47,9 @@ class ToTensorV2(BasicTransform):
             img = np.expand_dims(img, 2)
 
         return torch.from_numpy(img.transpose(2, 0, 1))
+
+    def apply_to_images(self, images: list[np.ndarray], **params: Any) -> list[torch.Tensor]:
+        return [self.apply(image, **params) for image in images]
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> torch.Tensor:
         if self.transpose_mask and mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
