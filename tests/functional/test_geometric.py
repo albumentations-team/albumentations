@@ -165,3 +165,164 @@ def test_consistent_shuffling(size, divisions, random_seed):
     result2 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_seed))
     assert len(result2) == divisions + 1
     np.testing.assert_array_equal(result1, result2), "Shuffling is not consistent with the given random state"
+
+
+@pytest.mark.parametrize(
+    ["image_shape", "grid", "scale", "absolute_scale", "expected_shape"],
+    [
+        # Basic test cases
+        ((100, 100), (4, 4), 0.05, False, ((100, 100), (100, 100))),
+        ((200, 100), (3, 5), 0.03, False, ((200, 100), (200, 100))),
+
+        # Test different image shapes
+        ((50, 75), (2, 2), 0.05, False, ((50, 75), (50, 75))),
+        ((300, 200), (5, 5), 0.05, False, ((300, 200), (300, 200))),
+
+        # Test different grid sizes
+        ((100, 100), (2, 3), 0.05, False, ((100, 100), (100, 100))),
+        ((100, 100), (6, 6), 0.05, False, ((100, 100), (100, 100))),
+
+        # Test with absolute scale
+        ((100, 100), (4, 4), 5.0, True, ((100, 100), (100, 100))),
+        ((200, 200), (3, 3), 10.0, True, ((200, 200), (200, 200))),
+    ]
+)
+def test_create_piecewise_affine_maps_shapes(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    scale: float,
+    absolute_scale: bool,
+    expected_shape: tuple[tuple[int, int], tuple[int, int]]
+):
+    """Test that output maps have correct shapes and types."""
+    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, absolute_scale)
+
+    assert map_x is not None and map_y is not None
+    assert map_x.shape == expected_shape[0]
+    assert map_y.shape == expected_shape[1]
+    assert map_x.dtype == np.float32
+    assert map_y.dtype == np.float32
+
+@pytest.mark.parametrize(
+    ["image_shape", "grid", "scale"],
+    [
+        ((100, 100), (4, 4), 0.05),
+        ((200, 100), (3, 5), 0.03),
+    ]
+)
+def test_create_piecewise_affine_maps_bounds(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    scale: float
+):
+    """Test that output maps stay within image bounds."""
+    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, False)
+
+    assert map_x is not None and map_y is not None
+    height, width = image_shape
+
+    # Check bounds
+    assert np.all(map_x >= 0)
+    assert np.all(map_x <= width - 1)
+    assert np.all(map_y >= 0)
+    assert np.all(map_y <= height - 1)
+
+@pytest.mark.parametrize(
+    ["scale", "expected_result"],
+    [
+        (0.0, (None, None)),  # Zero scale should return None
+        (-1.0, (None, None)), # Negative scale should return None
+    ]
+)
+def test_create_piecewise_affine_maps_edge_cases(
+    scale: float,
+    expected_result: tuple[None, None]
+):
+    """Test edge cases with zero or negative scale."""
+    result = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), scale, False)
+    assert result == expected_result
+
+def test_create_piecewise_affine_maps_reproducibility():
+    """Test that the function produces the same output with the same random seed."""
+    result1 = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), 0.05, False, random_generator=random_utils.get_random_generator(42))
+
+    result2 = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), 0.05, False, random_generator=random_utils.get_random_generator(42))
+
+    assert result1[0] is not None and result1[1] is not None
+    assert result2[0] is not None and result2[1] is not None
+    np.testing.assert_array_almost_equal(result1[0], result2[0])
+    np.testing.assert_array_almost_equal(result1[1], result2[1])
+
+@pytest.mark.parametrize(
+    ["image_shape", "grid"],
+    [
+        ((0, 100), (4, 4)),    # Zero height
+        ((100, 0), (4, 4)),    # Zero width
+        ((100, 100), (0, 4)),  # Zero grid rows
+        ((100, 100), (4, 0)),  # Zero grid columns
+    ]
+)
+def test_create_piecewise_affine_maps_zero_dimensions(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int]
+):
+    """Test handling of zero dimensions."""
+    with pytest.raises(ValueError):
+        fgeometric.create_piecewise_affine_maps(image_shape, grid, 0.05, False)
+
+@pytest.mark.parametrize(
+    ["image_shape", "grid", "scale", "absolute_scale"],
+    [
+        ((100, 100), (4, 4), 0.05, False),
+        ((200, 100), (3, 5), 0.03, True),
+    ]
+)
+def test_create_piecewise_affine_maps_grid_points(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    scale: float,
+    absolute_scale: bool
+):
+    """Test that grid points are properly distributed."""
+    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, absolute_scale)
+
+    assert map_x is not None and map_y is not None
+
+    height, width = image_shape
+    nb_rows, nb_cols = grid
+
+    # Sample points should roughly correspond to grid intersections
+    y_steps = np.linspace(0, height - 1, nb_rows)
+    x_steps = np.linspace(0, width - 1, nb_cols)
+
+    # Check that grid points are present in the maps
+    for y in y_steps:
+        for x in x_steps:
+            y_idx = int(y)
+            x_idx = int(x)
+
+            # Calculate neighborhood size based on scale
+            if absolute_scale:
+                radius = int(scale * 3)  # 3 sigma radius
+            else:
+                radius = int(min(width, height) * scale * 3)
+            radius = max(1, min(radius, 5))  # Keep radius reasonable
+
+            # Get valid slice bounds
+            y_start = max(0, y_idx - radius)
+            y_end = min(height, y_idx + radius + 1)
+            x_start = max(0, x_idx - radius)
+            x_end = min(width, x_idx + radius + 1)
+
+            # Extract neighborhood
+            neighborhood = map_x[y_start:y_end, x_start:x_end]
+
+            # Calculate maximum allowed deviation
+            if absolute_scale:
+                max_deviation = scale * 3
+            else:
+                max_deviation = min(width, height) * scale * 3
+
+            # Check if any point in neighborhood is close to expected x coordinate
+            assert np.any(np.abs(neighborhood - x) < max_deviation), \
+                f"No points near grid intersection ({x}, {y}) within allowed deviation"

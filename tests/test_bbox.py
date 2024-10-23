@@ -1597,7 +1597,7 @@ def test_random_resized_crop():
     ],
 )
 def test_distortion_bboxes(bboxes, map_x, map_y, image_shape, expected):
-    result = fgeometric.distortion_bboxes(bboxes, map_x, map_y, image_shape)
+    result = fgeometric.remap_bboxes(bboxes, map_x, map_y, image_shape)
     np.testing.assert_array_almost_equal(result, expected)
 
 
@@ -1615,7 +1615,7 @@ def test_distortion_bboxes_complex_distortion():
     map_x = x + (x - c_x) / factor
     map_y = y + (y - c_y) / factor
 
-    result = fgeometric.distortion_bboxes(bboxes, map_x, map_y, image_shape)
+    result = fgeometric.remap_bboxes(bboxes, map_x, map_y, image_shape)
 
     # Check that the result is different from input but still valid
     assert not np.array_equal(result, bboxes)
