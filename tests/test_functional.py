@@ -3,7 +3,6 @@ import hashlib
 import cv2
 import numpy as np
 import pytest
-import skimage
 from albucore import MAX_VALUES_BY_DTYPE, clip, get_num_channels, is_multispectral_image, to_float
 from numpy.testing import assert_array_almost_equal_nulp
 
@@ -102,45 +101,6 @@ def test_rot90_float(target):
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated = fgeometric.rot90(img, factor=1)
     assert_array_almost_equal_nulp(rotated, expected)
-
-
-def generate_rotation_matrix(image: np.ndarray, angle: float) -> np.ndarray:
-    """Generates a rotation matrix for the given angle with rotation around the center of the image."""
-    height, width = image.shape[:2]
-    center = (width / 2 - 0.5, height / 2 - 0.5)
-    return cv2.getRotationMatrix2D(center, angle, 1.0)
-
-
-@pytest.mark.parametrize("image", IMAGES)
-def test_compare_rotate_and_affine(image):
-    # Generate the rotation matrix for a 60-degree rotation around the image center
-    rotation_matrix = generate_rotation_matrix(image, 60)
-
-    # Apply rotation using FGeometric.rotate
-    rotated_img_1 = fgeometric.rotate(
-        image,
-        angle=60,
-        border_mode=cv2.BORDER_CONSTANT,
-        value=0,
-        interpolation=cv2.INTER_LINEAR,
-    )
-
-    # Convert 2x3 cv2 matrix to 3x3 for skimage's ProjectiveTransform
-    full_matrix = np.vstack([rotation_matrix, [0, 0, 1]])
-    projective_transform = skimage.transform.ProjectiveTransform(matrix=full_matrix)
-
-    # Apply rotation using warp_affine
-    rotated_img_2 = fgeometric.warp_affine(
-        img=image,
-        matrix=projective_transform,
-        interpolation=cv2.INTER_LINEAR,
-        cval=0,
-        mode=cv2.BORDER_CONSTANT,
-        output_shape=image.shape[:2],
-    )
-
-    # Assert that the two rotated images are equal
-    assert np.array_equal(rotated_img_1, rotated_img_2), "Rotated images should be identical."
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -603,15 +563,6 @@ def test_downscale_random():
     assert downscaled.shape == img.shape
     downscaled = F.downscale(img, scale=1)
     assert np.all(img == downscaled)
-
-
-def test_maybe_process_in_chunks():
-    image = np.random.randint(0, 256, (100, 100, 6), np.uint8)
-
-    for i in range(1, image.shape[-1] + 1):
-        before = image[:, :, :i]
-        after = fgeometric.rotate(before, angle=1, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101)
-        assert before.shape == after.shape
 
 
 @pytest.mark.parametrize(

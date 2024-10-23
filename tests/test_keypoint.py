@@ -585,22 +585,6 @@ def test_keypoint_rotate90(keypoint, expected, factor: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ["keypoint", "expected", "angle"],
-    [
-        [[20, 30, math.pi / 2, 0], [20, 30, math.pi / 2, 0], 0],
-        [[20, 30, math.pi / 2, 0], [30, 79, math.pi, 0], 90],
-        [[20, 30, math.pi / 2, 0], [79, 69, 3 * math.pi / 2, 0], 180],
-        [[20, 30, math.pi / 2, 0], [69, 20, 0, 0], 270],
-        [[0, 0, 0, 0], [99, 99, math.pi, 0], 180],
-        [[99, 99, 0, 0], [0, 0, math.pi, 0], 180],
-    ],
-)
-def test_keypoint_rotate(keypoint, expected, angle: float) -> None:
-    actual = fgeometric.keypoints_rotate(np.array([keypoint]), angle, (100, 100))
-    np.testing.assert_allclose(actual, [expected], atol=1e-7)
-
-
-@pytest.mark.parametrize(
     ["keypoint", "expected", "scale"],
     [
         [[0.0, 0.0, math.pi / 2, 1], [0.0, 0.0, math.pi / 2, 1], 1],

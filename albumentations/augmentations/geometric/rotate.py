@@ -6,7 +6,6 @@ from typing import Any, cast
 
 import cv2
 import numpy as np
-from skimage.transform import ProjectiveTransform
 from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
@@ -164,14 +163,21 @@ class Rotate(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        angle: float,
+        matrix: np.ndarray,
         x_min: int,
         x_max: int,
         y_min: int,
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = fgeometric.rotate(img, angle, self.interpolation, self.border_mode, self.value)
+        img_out = fgeometric.warp_affine(
+            img,
+            matrix,
+            self.interpolation,
+            self.value,
+            self.border_mode,
+            params["shape"][:2],
+        )
         if self.crop_border:
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
@@ -179,14 +185,21 @@ class Rotate(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        angle: float,
+        matrix: np.ndarray,
         x_min: int,
         x_max: int,
         y_min: int,
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = fgeometric.rotate(mask, angle, self.mask_interpolation, self.border_mode, self.mask_value)
+        img_out = fgeometric.warp_affine(
+            mask,
+            matrix,
+            self.mask_interpolation,
+            self.mask_value,
+            self.border_mode,
+            params["shape"][:2],
+        )
         if self.crop_border:
             return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
@@ -194,7 +207,7 @@ class Rotate(DualTransform):
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
-        angle: float,
+        bbox_matrix: np.ndarray,
         x_min: int,
         x_max: int,
         y_min: int,
@@ -202,7 +215,14 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         image_shape = params["shape"][:2]
-        bboxes_out = fgeometric.bboxes_rotate(bboxes, angle, self.rotate_method, image_shape)
+        bboxes_out = fgeometric.bboxes_affine(
+            bboxes,
+            bbox_matrix,
+            self.rotate_method,
+            image_shape,
+            self.border_mode,
+            image_shape,
+        )
         if self.crop_border:
             return fcrops.crop_bboxes_by_coords(bboxes_out, (x_min, y_min, x_max, y_max), image_shape)
         return bboxes_out
@@ -210,14 +230,20 @@ class Rotate(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        angle: float,
+        matrix: np.ndarray,
         x_min: int,
         x_max: int,
         y_min: int,
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        keypoints_out = fgeometric.keypoints_rotate(keypoints, angle, params["shape"][:2])
+        keypoints_out = fgeometric.keypoints_affine(
+            keypoints,
+            matrix,
+            params["shape"][:2],
+            scale={"x": 1, "y": 1},
+            mode=self.border_mode,
+        )
         if self.crop_border:
             return fcrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
         return keypoints_out
@@ -256,12 +282,26 @@ class Rotate(DualTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        out_params = {"angle": random.uniform(*self.limit)}
+        angle = random.uniform(*self.limit)
+
         if self.crop_border:
             height, width = params["shape"][:2]
-            out_params.update(self._rotated_rect_with_max_area(height, width, out_params["angle"]))
+            out_params = self._rotated_rect_with_max_area(height, width, angle)
         else:
-            out_params.update({"x_min": -1, "x_max": -1, "y_min": -1, "y_max": -1})
+            out_params = {"x_min": -1, "x_max": -1, "y_min": -1, "y_max": -1}
+
+        center = fgeometric.center(params["shape"][:2])
+        bbox_center = fgeometric.center_bbox(params["shape"][:2])
+
+        translate: fgeometric.TranslateDict = {"x": 0, "y": 0}
+        shear: fgeometric.ShearDict = {"x": 0, "y": 0}
+        scale: fgeometric.ScaleDict = {"x": 1, "y": 1}
+        rotate = angle
+
+        matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, center)
+        bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_center)
+        out_params["matrix"] = matrix
+        out_params["bbox_matrix"] = bbox_matrix
 
         return out_params
 
@@ -330,8 +370,8 @@ class SafeRotate(Affine):
                [s*sin(θ)   s*cos(θ)  ty]
            where tx and ty are translation factors to keep the image centered.
         6. Each point (x, y) in the image is transformed to (x', y') by:
-           [x']   [s*cos(θ)  -s*sin(θ)] [x - cx]   [cx]
-           [y'] = [s*sin(θ)   s*cos(θ)] [y - cy] + [cy]
+           [x']   [s*cos(θ)   s*sin(θ)] [x - cx]   [cx]
+           [y'] = [-s*sin(θ)  s*cos(θ)] [y - cy] + [cy]
            where (cx, cy) is the center of the image.
 
     Example:
@@ -400,7 +440,7 @@ class SafeRotate(Affine):
         angle: float,
         center: tuple[float, float],
         image_shape: tuple[int, int],
-    ) -> tuple[ProjectiveTransform, dict[str, float]]:
+    ) -> tuple[np.ndarray, dict[str, float]]:
         height, width = image_shape[:2]
         rotation_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
 
@@ -424,11 +464,11 @@ class SafeRotate(Affine):
         # Combine rotation and scaling
         matrix = scale_mat @ np.vstack([rotation_mat, [0, 0, 1]])
 
-        return ProjectiveTransform(matrix=matrix), {"x": scale_x, "y": scale_y}
+        return matrix, {"x": scale_x, "y": scale_y}
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
-        angle = random.uniform(self.limit[0], self.limit[1])
+        angle = random.uniform(*self.limit)
 
         # Calculate centers for image and bbox
         image_center = fgeometric.center(image_shape)

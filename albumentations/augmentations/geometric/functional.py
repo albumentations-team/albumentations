@@ -29,7 +29,6 @@ __all__ = [
     "distortion_bboxes",
     "pad",
     "pad_with_params",
-    "rotate",
     "resize",
     "scale",
     "_func_max_size",
@@ -44,8 +43,6 @@ __all__ = [
     "from_distance_maps",
     "transpose",
     "d4",
-    "bboxes_rotate",
-    "keypoints_rotate",
     "bboxes_d4",
     "keypoints_d4",
     "bboxes_rot90",
@@ -250,128 +247,6 @@ def keypoints_d4(
         return transformations[group_member](keypoints)
 
     raise ValueError(f"Invalid group member: {group_member}")
-
-
-@preserve_channel_dim
-def rotate(
-    img: np.ndarray,
-    angle: float,
-    interpolation: int,
-    border_mode: int,
-    value: ColorType | None = None,
-) -> np.ndarray:
-    image_shape = img.shape[:2]
-
-    image_center = center(image_shape)
-    matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-
-    height, width = image_shape
-
-    warp_fn = maybe_process_in_chunks(
-        warp_affine_with_value_extension,
-        matrix=matrix,
-        dsize=(width, height),
-        flags=interpolation,
-        border_mode=border_mode,
-        border_value=value,
-    )
-    return warp_fn(img)
-
-
-@handle_empty_array
-def bboxes_rotate(
-    bboxes: np.ndarray,
-    angle: float,
-    method: Literal["largest_box", "ellipse"],
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    """Rotates bounding boxes by angle degrees.
-
-    Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-        angle: Angle of rotation in degrees.
-        method: Rotation method used. Should be one of: "largest_box", "ellipse".
-        image_shape: Image shape (height, width).
-
-    Returns:
-        np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
-
-    Reference:
-        https://arxiv.org/abs/2109.13488
-    """
-    bboxes = bboxes.copy()
-    rows, cols = image_shape[:2]
-    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
-    scale = cols / float(rows)
-
-    if method == "largest_box":
-        x = np.column_stack([x_min, x_max, x_max, x_min]) - 0.5
-        y = np.column_stack([y_min, y_min, y_max, y_max]) - 0.5
-    elif method == "ellipse":
-        w = (x_max - x_min) / 2
-        h = (y_max - y_min) / 2
-        data = np.arange(0, 360, dtype=np.float32)
-        x = w[:, np.newaxis] * np.sin(np.radians(data)) + (w + x_min - 0.5)[:, np.newaxis]
-        y = h[:, np.newaxis] * np.cos(np.radians(data)) + (h + y_min - 0.5)[:, np.newaxis]
-    else:
-        raise ValueError(f"Method {method} is not a valid rotation method.")
-
-    angle_rad = np.deg2rad(angle)
-    x_t = (np.cos(angle_rad) * x * scale + np.sin(angle_rad) * y) / scale
-    y_t = -np.sin(angle_rad) * x * scale + np.cos(angle_rad) * y
-    x_t = x_t + 0.5
-    y_t = y_t + 0.5
-
-    # Update the first 4 columns of the input array
-    bboxes[:, 0] = np.min(x_t, axis=1)
-    bboxes[:, 1] = np.min(y_t, axis=1)
-    bboxes[:, 2] = np.max(x_t, axis=1)
-    bboxes[:, 3] = np.max(y_t, axis=1)
-
-    return bboxes
-
-
-@handle_empty_array
-@angle_2pi_range
-def keypoints_rotate(
-    keypoints: np.ndarray,
-    angle: float,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    """Rotate keypoints by a specified angle.
-
-    Args:
-        keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
-        angle (float): The angle by which to rotate the keypoints, in degrees.
-        image_shape (tuple[int, int]): The shape of the image the keypoints belong to (height, width).
-        **params: Additional parameters.
-
-    Returns:
-        np.ndarray: The rotated keypoints with the same shape as the input.
-
-    Note:
-        The rotation is performed around the center of the image.
-    """
-    image_center = center(image_shape)
-    matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-
-    # Create a copy of the input keypoints to avoid modifying the original array
-    rotated_keypoints = keypoints.copy().astype(np.float32)
-
-    # Extract x and y coordinates
-    xy = rotated_keypoints[:, :2]
-
-    # Rotate x and y coordinates
-    xy_rotated = cv2.transform(xy.reshape(-1, 1, 2), matrix).squeeze()
-
-    # Update x and y coordinates
-    rotated_keypoints[:, :2] = xy_rotated
-
-    # Update angles
-    rotated_keypoints[:, 2] += np.radians(angle)
-
-    return rotated_keypoints
 
 
 @preserve_channel_dim
@@ -621,14 +496,22 @@ def perspective_keypoints(
     return transformed_keypoints
 
 
-def is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
-    return np.allclose(matrix.params, np.eye(3, dtype=np.float32))
+def is_identity_matrix(matrix: np.ndarray) -> bool:
+    """Check if the given matrix is an identity matrix.
+
+    Args:
+        matrix (np.ndarray): A 3x3 affine transformation matrix.
+
+    Returns:
+        bool: True if the matrix is an identity matrix, False otherwise.
+    """
+    return np.allclose(matrix, np.eye(3, dtype=matrix.dtype))
 
 
 def warp_affine_with_value_extension(
     image: np.ndarray,
     matrix: np.ndarray,
-    dsize: Sequence[int],
+    dsize: tuple[int, int],
     flags: int,
     border_mode: int,
     border_value: ColorType,
@@ -649,11 +532,11 @@ def warp_affine_with_value_extension(
 @preserve_channel_dim
 def warp_affine(
     image: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: np.ndarray,
     interpolation: int,
     cval: ColorType,
     mode: int,
-    output_shape: Sequence[int],
+    output_shape: tuple[int, int],
 ) -> np.ndarray:
     if is_identity_matrix(matrix):
         return image
@@ -661,12 +544,12 @@ def warp_affine(
     height = int(np.round(output_shape[0]))
     width = int(np.round(output_shape[1]))
 
-    dsize = (width, height)
+    cv2_matrix = matrix[:2, :]
 
     warp_fn = maybe_process_in_chunks(
         warp_affine_with_value_extension,
-        matrix=matrix.params[:2],
-        dsize=dsize,
+        matrix=cv2_matrix,
+        dsize=(width, height),
         flags=interpolation,
         border_mode=mode,
         border_value=cval,
@@ -678,9 +561,9 @@ def warp_affine(
 @angle_2pi_range
 def keypoints_affine(
     keypoints: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: np.ndarray,
     image_shape: tuple[int, int],
-    scale: dict[str, Any],
+    scale: dict[str, float],
     mode: int,
 ) -> np.ndarray:
     """Apply an affine transformation to keypoints.
@@ -691,10 +574,10 @@ def keypoints_affine(
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (N, 4+) where N is the number of keypoints.
                                 Each keypoint is represented as [x, y, angle, scale, ...].
-        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix.
+        matrix (np.ndarray): The 2x3 or 3x3 affine transformation matrix.
         image_shape (tuple[int, int]): Shape of the image (height, width).
-        scale (dict[str, Any]): Dictionary containing scale factors for x and y directions.
-                                Expected keys are 'x' and 'y'.
+        scale (dict[str, float]): Dictionary containing scale factors for x and y directions.
+                                  Expected keys are 'x' and 'y'.
         mode (int): Border mode for handling keypoints near image edges.
                     Use cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT, etc.
 
@@ -710,7 +593,7 @@ def keypoints_affine(
 
     Example:
         >>> keypoints = np.array([[100, 100, 0, 1]])
-        >>> matrix = skimage.transform.ProjectiveTransform(...)
+        >>> matrix = np.array([[1.5, 0, 10], [0, 1.2, 20]])
         >>> scale = {'x': 1.5, 'y': 1.2}
         >>> transformed_keypoints = keypoints_affine(keypoints, matrix, (480, 640), scale, cv2.BORDER_REFLECT_101)
     """
@@ -728,11 +611,15 @@ def keypoints_affine(
     # Extract x, y coordinates
     xy = keypoints[:, :2]
 
+    # Ensure matrix is 2x3
+    if matrix.shape == (3, 3):
+        matrix = matrix[:2]
+
     # Transform x, y coordinates
-    xy_transformed = cv2.transform(xy.reshape(-1, 1, 2), matrix.params[:2]).squeeze()
+    xy_transformed = cv2.transform(xy.reshape(-1, 1, 2), matrix).squeeze()
 
     # Calculate angle adjustment
-    angle_adjustment = rotation2d_matrix_to_euler_angles(matrix.params[:2], y_up=False)
+    angle_adjustment = rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=False)
 
     # Update angles
     keypoints[:, 2] = keypoints[:, 2] + angle_adjustment
@@ -748,9 +635,37 @@ def keypoints_affine(
     return keypoints
 
 
+@handle_empty_array
+def apply_affine_to_points(points: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    """Apply affine transformation to a set of points.
+
+    This function handles potential division by zero by replacing zero values
+    in the homogeneous coordinate with a small epsilon value.
+
+    Args:
+        points (np.ndarray): Array of points with shape (N, 2).
+        matrix (np.ndarray): 3x3 affine transformation matrix.
+
+    Returns:
+        np.ndarray: Transformed points with shape (N, 2).
+    """
+    homogeneous_points = np.column_stack([points, np.ones(points.shape[0])])
+    transformed_points = homogeneous_points @ matrix.T
+
+    # Handle potential division by zero
+    epsilon = np.finfo(transformed_points.dtype).eps
+    transformed_points[:, 2] = np.where(
+        np.abs(transformed_points[:, 2]) < epsilon,
+        np.sign(transformed_points[:, 2]) * epsilon,
+        transformed_points[:, 2],
+    )
+
+    return transformed_points[:, :2] / transformed_points[:, 2:]
+
+
 def calculate_affine_transform_padding(
-    matrix: skimage.transform.ProjectiveTransform,
-    image_shape: Sequence[int],
+    matrix: np.ndarray,
+    image_shape: tuple[int, int],
 ) -> tuple[int, int, int, int]:
     """Calculate the necessary padding for an affine transformation to avoid empty spaces."""
     height, width = image_shape[:2]
@@ -763,19 +678,22 @@ def calculate_affine_transform_padding(
     corners = np.array([[0, 0], [width, 0], [width, height], [0, height]])
 
     # Transform corners
-    transformed_corners = matrix(corners)
+    transformed_corners = apply_affine_to_points(corners, matrix)
+
+    # Ensure transformed_corners is 2D
+    transformed_corners = transformed_corners.reshape(-1, 2)
 
     # Find box that includes both original and transformed corners
     all_corners = np.vstack((corners, transformed_corners))
     min_x, min_y = all_corners.min(axis=0)
     max_x, max_y = all_corners.max(axis=0)
+
     # Compute the inverse transform
-    inverse_matrix = matrix.inverse
+    inverse_matrix = np.linalg.inv(matrix)
 
     # Apply inverse transform to all corners of the bounding box
     bbox_corners = np.array([[min_x, min_y], [max_x, min_y], [max_x, max_y], [min_x, max_y]])
-
-    inverse_corners = inverse_matrix(bbox_corners)
+    inverse_corners = apply_affine_to_points(bbox_corners, inverse_matrix).reshape(-1, 2)
 
     min_x, min_y = inverse_corners.min(axis=0)
     max_x, max_y = inverse_corners.max(axis=0)
@@ -789,7 +707,7 @@ def calculate_affine_transform_padding(
 
 
 @handle_empty_array
-def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
 
     This function transforms each corner of every bounding box using the given affine transformation
@@ -799,7 +717,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
         bboxes (np.ndarray): An array of bounding boxes with shape (N, 4+) where N is the number of
                              bounding boxes. Each row should contain [x_min, y_min, x_max, y_max]
                              followed by any additional attributes (e.g., class labels).
-        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix to apply.
+        matrix (np.ndarray): The 3x3 affine transformation matrix to apply.
 
     Returns:
         np.ndarray: An array of transformed bounding boxes with the same shape as the input.
@@ -817,7 +735,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
 
     Example:
         >>> bboxes = np.array([[10, 10, 20, 20, 1], [30, 30, 40, 40, 2]])  # Two boxes with class labels
-        >>> matrix = skimage.transform.AffineTransform(scale=(2, 2), translation=(5, 5))
+        >>> matrix = np.array([[2, 0, 5], [0, 2, 5], [0, 0, 1]])  # Scale by 2 and translate by (5, 5)
         >>> transformed_bboxes = bboxes_affine_largest_box(bboxes, matrix)
         >>> print(transformed_bboxes)
         [[ 25.  25.  45.  45.   1.]
@@ -825,15 +743,13 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
     """
     # Extract corners of all bboxes
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
-    corners = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(
-        2,
-        0,
-        1,
-    )  # Shape: (num_bboxes, 4, 2)
+
+    corners = (
+        np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(2, 0, 1).reshape(-1, 2)
+    )
 
     # Transform all corners at once
-    transformed_corners = skimage.transform.matrix_transform(corners.reshape(-1, 2), matrix.params)
-    transformed_corners = transformed_corners.reshape(-1, 4, 2)
+    transformed_corners = apply_affine_to_points(corners, matrix).reshape(-1, 4, 2)
 
     # Compute new bounding boxes
     new_x_min = np.min(transformed_corners[:, :, 0], axis=1)
@@ -845,7 +761,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.Proj
 
 
 @handle_empty_array
-def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply an affine transformation to bounding boxes using an ellipse approximation method.
 
     This function transforms bounding boxes by approximating each box with an ellipse,
@@ -856,7 +772,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
         bboxes (np.ndarray): An array of bounding boxes with shape (N, 4+) where N is the number of
                              bounding boxes. Each row should contain [x_min, y_min, x_max, y_max]
                              followed by any additional attributes (e.g., class labels).
-        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix to apply.
+        matrix (np.ndarray): The 3x3 affine transformation matrix to apply.
 
     Returns:
         np.ndarray: An array of transformed bounding boxes with the same shape as the input.
@@ -871,14 +787,6 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
           accuracy and computational efficiency.
         - Any additional attributes beyond the first 4 coordinates are preserved unchanged.
         - This method may be more suitable for objects that are roughly elliptical in shape.
-
-    Example:
-        >>> bboxes = np.array([[10, 10, 30, 20, 1], [40, 40, 60, 60, 2]])  # Two boxes with class labels
-        >>> matrix = skimage.transform.AffineTransform(rotation=np.pi/4)  # 45-degree rotation
-        >>> transformed_bboxes = bboxes_affine_ellipse(bboxes, matrix)
-        >>> print(transformed_bboxes)
-        [[ 5.86  5.86 34.14 24.14  1.  ]
-         [30.   30.   70.   70.    2.  ]]
     """
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     bbox_width = (x_max - x_min) / 2
@@ -895,23 +803,8 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
     y = bbox_height[:, np.newaxis] * cos_angles + center_y[:, np.newaxis]
     points = np.stack([x, y], axis=-1).reshape(-1, 2)
 
-    # Transform all points at once
-    # Replacing skimage.transform.matrix_transform with numpy ops:
-    # points reshape from N, 2 to N, 3 with extra dim filled with 1
-    points = np.concatenate([points, np.ones((points.shape[0], 1))], axis=1)
-
-    # change matrix.params.T to matrix.T if matrix is np.ndarray and no longer skimage.transform.ProjectiveTransform
-    transformed_points = points @ matrix.params.T
-
-    # set zero to very small number before homogeneous divide
-    transformed_points[:, -1:] = np.where(
-        transformed_points[:, -1:] == 0,
-        np.finfo(float).eps,
-        transformed_points[:, -1:],
-    )
-
-    # homogeneous divide and then get x, y
-    transformed_points = (transformed_points / transformed_points[:, -1:])[:, :2]
+    # Transform all points at once using the helper function
+    transformed_points = apply_affine_to_points(points, matrix)
 
     transformed_points = transformed_points.reshape(len(bboxes), -1, 2)
 
@@ -927,7 +820,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.Projecti
 @handle_empty_array
 def bboxes_affine(
     bboxes: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: np.ndarray,
     rotate_method: Literal["largest_box", "ellipse"],
     image_shape: tuple[int, int],
     border_mode: int,
@@ -946,7 +839,7 @@ def bboxes_affine(
 
     Args:
         bboxes (np.ndarray): Input bounding boxes
-        matrix (skimage.transform.ProjectiveTransform): Affine transformation matrix
+        matrix (np.ndarray): Affine transformation matrix
         rotate_method (str): Method for rotating bounding boxes ('largest_box' or 'ellipse')
         image_shape (Sequence[int]): Shape of the input image
         border_mode (int): OpenCV border mode
@@ -2308,71 +2201,65 @@ def create_affine_transformation_matrix(
     scale: ScaleDict,
     rotate: float,
     shift: tuple[float, float],
-) -> skimage.transform.ProjectiveTransform:
+) -> np.ndarray:
     """Create an affine transformation matrix combining translation, shear, scale, and rotation.
 
-    This function creates a complex affine transformation by combining multiple transformations
-    in a specific order. The transformations are applied as follows:
-    1. Shift to top-left: Moves the center of transformation to (0, 0)
-    2. Apply main transformations: scale, rotation, shear, and translation
-    3. Shift back to center: Moves the center of transformation back to its original position
-
-    The order of these transformations is crucial as matrix multiplications are not commutative.
-
     Args:
-        translate (TranslateDict): Translation in x and y directions.
-                                   Keys: 'x', 'y'. Values: translation amounts in pixels.
-        shear (ShearDict): Shear in x and y directions.
-                           Keys: 'x', 'y'. Values: shear angles in degrees.
-        scale (ScaleDict): Scale factors for x and y directions.
-                           Keys: 'x', 'y'. Values: scale factors (1.0 means no scaling).
-        rotate (float): Rotation angle in degrees. Positive values rotate counter-clockwise.
+        translate (dict[str, float]): Translation in x and y directions.
+        shear (dict[str, float]): Shear in x and y directions (in degrees).
+        scale (dict[str, float]): Scale factors for x and y directions.
+        rotate (float): Rotation angle in degrees.
         shift (tuple[float, float]): Shift to apply before and after transformations.
-                                     Typically the image center (width/2, height/2).
 
     Returns:
-        skimage.transform.ProjectiveTransform: The resulting affine transformation matrix.
-
-    Note:
-        - All angle inputs (rotate, shear) are in degrees and are converted to radians internally.
-        - The order of transformations in the AffineTransform is: scale, rotation, shear, translation.
-        - The resulting transformation can be applied to coordinates using the __call__ method.
+        np.ndarray: The resulting 3x3 affine transformation matrix.
     """
-    # Step 1: Create matrix to shift to top-left
-    # This moves the center of transformation to (0, 0)
-    matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[shift[0], shift[1]])
+    # Convert angles to radians
+    rotate_rad = np.deg2rad(rotate % 360)
 
-    # Step 2: Create matrix for main transformations
-    # This includes scaling, translation, rotation, and x-shear
-    matrix_transforms = skimage.transform.AffineTransform(
-        scale=(scale["x"], scale["y"]),
-        rotation=np.deg2rad(rotate),
-        shear=(np.deg2rad(shear["x"]), np.deg2rad(shear["y"])),  # Both x and y shear
-        translation=(translate["x"], translate["y"]),
+    shear_x_rad = np.deg2rad(shear["x"])
+    shear_y_rad = np.deg2rad(shear["y"])
+
+    # Create individual transformation matrices
+    # 1. Shift to top-left
+    m_shift_topleft = np.array([[1, 0, -shift[0]], [0, 1, -shift[1]], [0, 0, 1]])
+
+    # 2. Scale
+    m_scale = np.array([[scale["x"], 0, 0], [0, scale["y"], 0], [0, 0, 1]])
+
+    # 3. Rotation
+    m_rotate = np.array(
+        [[np.cos(rotate_rad), np.sin(rotate_rad), 0], [-np.sin(rotate_rad), np.cos(rotate_rad), 0], [0, 0, 1]],
     )
 
-    # Step 3: Create matrix to shift back to center
-    # This is the inverse of the top-left shift
-    matrix_to_center = matrix_to_topleft.inverse
+    # 4. Shear
+    m_shear = np.array([[1, np.tan(shear_x_rad), 0], [np.tan(shear_y_rad), 1, 0], [0, 0, 1]])
+
+    # 5. Translation
+    m_translate = np.array([[1, 0, translate["x"]], [0, 1, translate["y"]], [0, 0, 1]])
+
+    # 6. Shift back to center
+    m_shift_center = np.array([[1, 0, shift[0]], [0, 1, shift[1]], [0, 0, 1]])
 
     # Combine all transformations
     # The order is important: transformations are applied from right to left
-    return (
-        matrix_to_center  # 3. Shift back to original center
-        + matrix_transforms  # 2. Apply main transformations
-        + matrix_to_topleft  # 1. Shift to top-left
-    )
+    m = m_shift_center @ m_translate @ m_shear @ m_rotate @ m_scale @ m_shift_topleft
+
+    # Ensure the last row is exactly [0, 0, 1]
+    m[2] = [0, 0, 1]
+
+    return m
 
 
 def compute_transformed_image_bounds(
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: np.ndarray,
     image_shape: tuple[int, int],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute the bounds of an image after applying an affine transformation.
 
     Args:
-        matrix (skimage.transform.ProjectiveTransform): The affine transformation matrix.
-        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        matrix (np.ndarray): The 3x3 affine transformation matrix.
+        image_shape (Tuple[int, int]): The shape of the image as (height, width).
 
     Returns:
         tuple[np.ndarray, np.ndarray]: A tuple containing:
@@ -2382,10 +2269,11 @@ def compute_transformed_image_bounds(
     height, width = image_shape[:2]
 
     # Define the corners of the image
-    corners = np.array([[0, 0], [width, 0], [width, height], [0, height]])
+    corners = np.array([[0, 0, 1], [width, 0, 1], [width, height, 1], [0, height, 1]])
 
     # Transform the corners
-    transformed_corners = matrix(corners)
+    transformed_corners = corners @ matrix.T
+    transformed_corners = transformed_corners[:, :2] / transformed_corners[:, 2:]
 
     # Calculate the bounding box of the transformed corners
     min_coords = np.floor(transformed_corners.min(axis=0)).astype(int)
@@ -2395,9 +2283,9 @@ def compute_transformed_image_bounds(
 
 
 def compute_affine_warp_output_shape(
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: np.ndarray,
     input_shape: tuple[int, ...],
-) -> tuple[skimage.transform.ProjectiveTransform, tuple[int, int]]:
+) -> tuple[np.ndarray, tuple[int, int]]:
     height, width = input_shape[:2]
 
     if height == 0 or width == 0:
@@ -2416,10 +2304,11 @@ def compute_affine_warp_output_shape(
         output_shape = np.ceil((out_height, out_width))
 
     output_shape_tuple = tuple(int(v) for v in output_shape.tolist())
+
     # fit output image in new shape
-    translation = -minc, -minr
-    matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
-    matrix += matrix_to_fit
+    translation = np.array([[1, 0, -minc], [0, 1, -minr], [0, 0, 1]])
+    matrix = translation @ matrix
+
     return matrix, cast(tuple[int, int], output_shape_tuple)
 
 
