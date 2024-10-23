@@ -1,11 +1,19 @@
-__author__ = "Vladimir Iglovikov"
-__maintainer__ = "Vladimir Iglovikov"
+from importlib.metadata import metadata
+
+try:
+    _metadata = metadata("albucore")
+    __version__ = _metadata["Version"]
+    __author__ = _metadata["Author"]
+    __maintainer__ = _metadata["Maintainer"]
+except Exception:  # noqa: BLE001
+    __version__ = "unknown"
+    __author__ = "Vladimir Iglovikov"
+    __maintainer__ = "Vladimir Iglovikov"
 
 import os
 
 from albumentations.check_version import check_for_updates
 
-from ._version import __version__  # noqa: F401
 from .augmentations import *
 from .core.composition import *
 from .core.serialization import *

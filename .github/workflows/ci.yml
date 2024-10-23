@@ -4,9 +4,8 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'CONTRIBUTORS.md'
+      - '**.md'
       - 'benchmark/**'
-      - 'albumentations/_version.py'
 
 jobs:
   test_and_lint:
@@ -36,38 +35,34 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ matrix.path }}
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
+        key: ${{ runner.os }}-uv-${{ hashFiles('**/requirements-dev.txt') }}
         restore-keys: |
-          ${{ runner.os }}-pip-${{ matrix.python-version }}-
-          ${{ runner.os }}-pip-
+          ${{ runner.os }}-uv-${{ matrix.python-version }}-
+          ${{ runner.os }}-uv-
 
-    - name: Update pip
+    - name: Install uv
+      run: python -m pip install --upgrade uv
+
+    - name: Install PyTorch
       run: |
-        python -m pip install --upgrade pip uv
-    - name: Update pip
+        if [ "${{ matrix.operating-system }}" = "macos-latest" ]; then
+          uv pip install --system torch==2.4.1 torchvision==0.19.1
+        else
+          uv pip install --system torch==2.4.1+cpu torchvision==0.19.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+        fi
+      shell: bash
+
+    - name: Install all dependencies
       run: |
-        python -m pip install --upgrade uv
-    - name: Install wheel
-      run: uv pip install --system --upgrade wheel
-    - name: Install PyTorch on Linux and Windows
-      if: >
-        matrix.operating-system == 'ubuntu-latest' ||
-        matrix.operating-system == 'windows-latest'
-      run: >
-        uv pip install --system --verbose torch==2.4.1+cpu torchvision==0.19.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
-    - name: Install PyTorch on MacOS
-      if: matrix.operating-system == 'macos-latest'
-      run: >
-        uv pip install --system --verbose torch==2.4.1 torchvision==0.19.1
-    - name: Install dev requirements
-      run: uv pip install --system -r requirements-dev.txt
-    - name: Install dependencies
-      run: |
+        uv pip install --system wheel
+        uv pip install --system -r requirements-dev.txt
         uv pip install --system .
+
     - name: Run PyTest
-      run: pytest --cov .
+      run: pytest --cov . --cov-report=xml
+
     - name: Upload coverage reports to Codecov
-      if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.10'
+      if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@v4.3.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -87,14 +82,13 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: check validity of codecov.yaml
-      run: cat codecov.yaml | curl --data-binary @- https://codecov.io/validate
-    - name: Install requirements
+
+    - name: Install all requirements
       run: |
-        python -m pip install --upgrade pip uv
+        python -m pip install --upgrade uv
+        uv pip install --system -r requirements-dev.txt
         uv pip install --system .
-    - name: Install dev requirements
-      run: uv pip install --system -r requirements-dev.txt
+
     - name: Run checks
       run: pre-commit run --files $(find albumentations -type f)
     - name: check-defaults-in-apply
@@ -113,10 +107,10 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install requirements
+    - name: Install all requirements
       run: |
-        python -m pip install --upgrade pip uv
-        uv pip install --system  requests
+        python -m pip install --upgrade uv
+        uv pip install --system requests
         uv pip install --system .
     - name: Run checks for documentation
       run: python -m tools.make_transforms_docs check README.md

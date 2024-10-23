@@ -5,6 +5,9 @@ requires = [ "setuptools>=45", "wheel" ]
 
 [project]
 name = "albumentations"
+
+version = "1.4.19"
+
 description = "Fast, flexible, and advanced image augmentation library for deep learning and computer vision. Albumentations offers a wide range of transformations for images, masks, bounding boxes, and keypoints, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
 keywords = [
@@ -55,7 +58,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Typing :: Typed",
 ]
-dynamic = [ "dependencies", "version" ]
+dynamic = [ "dependencies" ]
 optional-dependencies.hub = [ "huggingface-hub" ]
 optional-dependencies.text = [ "pillow" ]
 urls.Homepage = "https://albumentations.ai"

@@ -3,7 +3,7 @@ import urllib.request
 from urllib.request import OpenerDirector
 from warnings import warn
 
-from albumentations._version import __version__ as current_version
+from albumentations import __version__ as current_version
 
 SUCCESS_HTML_CODE = 200
 
