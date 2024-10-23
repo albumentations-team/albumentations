@@ -1,3 +1,6 @@
+__author__ = "Vladimir Iglovikov"
+__maintainer__ = "Vladimir Iglovikov"
+
 import os
 
 from albumentations.check_version import check_for_updates

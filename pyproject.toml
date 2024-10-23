@@ -30,13 +30,10 @@ keywords = [
   "tensorflow",
 ]
 license = { file = "LICENSE" }
-authors = [
-  { name = "Vladimir I. Iglovikov" },
-  { name = "Mikhail Druzhinin" },
-  { name = "Alex Parinov" },
-  { name = "Alexander Buslaev" },
-  { name = "Eugene Khvedchenya" },
-]
+
+maintainers = [ { name = "Vladimir Iglovikov" } ]
+
+authors = [ { name = "Vladimir Iglovikov" } ]
 requires-python = ">=3.9"
 
 classifiers = [
@@ -51,6 +48,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Scientific/Engineering :: Image Processing",
   "Topic :: Software Development :: Libraries",
@@ -185,6 +183,14 @@ no_implicit_reexport = true
 
 # for strict mypy: (this is the tricky one :-))
 disallow_untyped_defs = true
+
+[tool.albumentations.maintainers]
+emeritus = [
+  "Alexander Buslaev",
+  "Alex Parinov",
+  "Eugene Khvedchenya",
+  "Mikhail Druzhinin",
+]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
