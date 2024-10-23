@@ -11,9 +11,9 @@ from albucore import clipped, get_num_channels, hflip, maybe_process_in_chunks, 
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
-from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, normalize_bboxes
 from albumentations.core.types import (
-    MONO_CHANNEL_DIMENSIONS,
+    NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS,
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
@@ -1555,21 +1555,47 @@ def distortion_bboxes(
     map_x: np.ndarray,
     map_y: np.ndarray,
     image_shape: tuple[int, int],
-    border_mode: int,
 ) -> np.ndarray:
-    result = bboxes.copy()
+    height, width = image_shape[:2]
 
-    masks = np.transpose(masks_from_bboxes(bboxes, image_shape), (1, 2, 0))
-    transformed_masks = cv2.remap(masks, map_x, map_y, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0)
+    # Convert bboxes to corner points: (N, 4) -> (N*2, 2)
+    corners = np.vstack(
+        [
+            bboxes[:, [0, 1]],  # top-left corners
+            bboxes[:, [2, 3]],  # bottom-right corners
+        ],
+    )
 
-    if transformed_masks.ndim == MONO_CHANNEL_DIMENSIONS:
-        transformed_masks = np.expand_dims(transformed_masks, axis=0)
-    else:
-        transformed_masks = np.transpose(transformed_masks, (2, 0, 1))
+    # Transform corners using distortion_keypoints
+    transformed_corners = distortion_keypoints(
+        np.column_stack([corners, np.zeros(len(corners)), np.zeros(len(corners))]),  # add dummy angle and scale
+        map_x,
+        map_y,
+        image_shape,
+    )
 
-    result[:, :4] = bboxes_from_masks(transformed_masks)
+    # Reshape back to bboxes format: (N*2, 2) -> (N, 4)
+    num_boxes = len(bboxes)
+    transformed_corners = transformed_corners[:, :2].reshape(2, num_boxes, 2)
 
-    return result
+    # Get min/max coordinates to form new bounding boxes
+    mins = transformed_corners[0]  # top-left corners
+    maxs = transformed_corners[1]  # bottom-right corners
+
+    new_bboxes = np.column_stack(
+        [
+            np.minimum(mins[:, 0], maxs[:, 0]),  # x_min
+            np.minimum(mins[:, 1], maxs[:, 1]),  # y_min
+            np.maximum(mins[:, 0], maxs[:, 0]),  # x_max
+            np.maximum(mins[:, 1], maxs[:, 1]),  # y_max
+        ],
+    )
+
+    return (
+        np.column_stack([new_bboxes, bboxes[:, 4:]])
+        if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS
+        else new_bboxes
+    )
 
 
 def generate_displacement_fields(
