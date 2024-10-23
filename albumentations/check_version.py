@@ -1,29 +1,13 @@
 import json
 import urllib.request
-from pathlib import Path
 from urllib.request import OpenerDirector
 from warnings import warn
 
-import tomli
-
-
-# Replace version import with pyproject.toml reading
-def get_version() -> str:
-    try:
-        pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
-        with open(pyproject_path, "rb") as f:
-            pyproject_data = tomli.load(f)
-        return pyproject_data["project"]["version"]
-    except Exception as e:  # noqa: BLE001
-        warn(f"Error reading version from pyproject.toml: {e}", stacklevel=2)
-        return "unknown"
-
+from albumentations import __version__ as current_version
 
 SUCCESS_HTML_CODE = 200
 
 opener = None
-
-current_version = get_version()
 
 
 def get_opener() -> OpenerDirector:

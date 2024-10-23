@@ -11,7 +11,6 @@ INSTALL_REQUIRES = [
     "pydantic>=2.7.0",
     "albucore==0.0.19",
     "eval-type-backport",
-    "tomli>=2.0.1"
 ]
 
 MIN_OPENCV_VERSION = "4.9.0.80"
