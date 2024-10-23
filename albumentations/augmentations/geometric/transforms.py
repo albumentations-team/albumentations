@@ -6,7 +6,6 @@ from warnings import warn
 
 import cv2
 import numpy as np
-import skimage.transform
 from albucore import hflip, vflip
 from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
@@ -132,15 +131,15 @@ class BaseDistortion(DualTransform):
         self.mask_interpolation = mask_interpolation
 
     def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.distortion(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
+        return fgeometric.remap(img, map_x, map_y, self.interpolation, self.border_mode, self.value)
 
     def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.distortion(mask, map_x, map_y, self.mask_interpolation, self.border_mode, self.mask_value)
+        return fgeometric.remap(mask, map_x, map_y, self.mask_interpolation, self.border_mode, self.mask_value)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        bboxes_returned = fgeometric.distortion_bboxes(bboxes_denorm, map_x, map_y, image_shape)
+        bboxes_returned = fgeometric.remap_bboxes(bboxes_denorm, map_x, map_y, image_shape)
         return normalize_bboxes(bboxes_returned, image_shape)
 
     def apply_to_keypoints(
@@ -150,7 +149,7 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.distortion_keypoints(keypoints, map_x, map_y, params["shape"])
+        return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "interpolation", "border_mode", "value", "mask_value", "mask_interpolation"
@@ -996,13 +995,9 @@ class PiecewiseAffine(DualTransform):
             If a single int, then that value will always be used as the number of columns.
             If a tuple (a, b), then a value from the discrete interval [a..b] will be uniformly sampled per image.
             Default: 4.
-        interpolation (int): The order of interpolation. The order has to be in the range 0-5:
-             - 0: Nearest-neighbor
-             - 1: Bi-linear (default)
-             - 2: Bi-quadratic
-             - 3: Bi-cubic
-             - 4: Bi-quartic
-             - 5: Bi-quintic
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
@@ -1016,10 +1011,6 @@ class PiecewiseAffine(DualTransform):
         absolute_scale (bool): If set to True, the value of the scale parameter will be treated as an absolute
             pixel value. If set to False, it will be treated as a fraction of the image height and width.
             Default: False.
-        keypoints_threshold (float): Used as threshold in conversion from distance maps to keypoints.
-            The search for keypoints works by searching for the argmin (non-inverted) or argmax (inverted) in each
-            channel. This parameter contains the maximum (non-inverted) or minimum (inverted) value to accept in order
-            to view a hit as a keypoint. Use None to use no min/max. Default: 0.01.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1057,7 +1048,7 @@ class PiecewiseAffine(DualTransform):
         cval_mask: int
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"]
         absolute_scale: bool
-        keypoints_threshold: float
+        keypoints_threshold: float = Field(deprecated="This parameter is not used anymore")
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
@@ -1098,7 +1089,6 @@ class PiecewiseAffine(DualTransform):
         self.cval_mask = cval_mask
         self.mode = mode
         self.absolute_scale = absolute_scale
-        self.keypoints_threshold = keypoints_threshold
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -1111,7 +1101,6 @@ class PiecewiseAffine(DualTransform):
             "cval_mask",
             "mode",
             "absolute_scale",
-            "keypoints_threshold",
         )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -1119,83 +1108,65 @@ class PiecewiseAffine(DualTransform):
 
         nb_rows = np.clip(random.randint(*self.nb_rows), 2, None)
         nb_cols = np.clip(random.randint(*self.nb_cols), 2, None)
-        nb_cells = nb_cols * nb_rows
         scale = random.uniform(*self.scale)
 
-        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
-        if not np.any(jitter > 0):
-            for _ in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
-                jitter = random_utils.normal(0, scale, (nb_cells, 2))
-                if np.any(jitter > 0):
-                    break
-            if not np.any(jitter > 0):
-                return {"matrix": None}
+        map_x, map_y = fgeometric.create_piecewise_affine_maps(
+            image_shape=(height, width),
+            grid=(nb_rows, nb_cols),
+            scale=scale,
+            absolute_scale=self.absolute_scale,
+        )
 
-        y = np.linspace(0, height, nb_rows)
-        x = np.linspace(0, width, nb_cols)
-
-        # (H, W) and (H, W) for H=rows, W=cols
-        xx_src, yy_src = np.meshgrid(x, y)
-
-        # (1, HW, 2) => (HW, 2) for H=rows, W=cols
-        points_src = np.dstack([yy_src.flat, xx_src.flat])[0]
-
-        if self.absolute_scale:
-            jitter[:, 0] = jitter[:, 0] / height if height > 0 else 0.0
-            jitter[:, 1] = jitter[:, 1] / width if width > 0 else 0.0
-
-        jitter[:, 0] = jitter[:, 0] * height
-        jitter[:, 1] = jitter[:, 1] * width
-
-        points_dest = np.copy(points_src)
-        points_dest[:, 0] = points_dest[:, 0] + jitter[:, 0]
-        points_dest[:, 1] = points_dest[:, 1] + jitter[:, 1]
-
-        # Restrict all destination points to be inside the image plane.
-        # This is necessary, as otherwise keypoints could be augmented
-        # outside of the image plane and these would be replaced by
-        # (-1, -1), which would not conform with the behaviour of the other augmenters.
-        points_dest[:, 0] = np.clip(points_dest[:, 0], 0, height - 1)
-        points_dest[:, 1] = np.clip(points_dest[:, 1], 0, width - 1)
-
-        matrix = skimage.transform.PiecewiseAffineTransform()
-        matrix.estimate(points_src[:, ::-1], points_dest[:, ::-1])
-
-        return {
-            "matrix": matrix,
+        border_modes = {
+            "constant": cv2.BORDER_CONSTANT,  # fill with constant value (cval)
+            "edge": cv2.BORDER_REPLICATE,  # repeat edge pixels
+            "reflect": cv2.BORDER_REFLECT,  # mirror with edge pixels duplicated
+            "reflect_101": cv2.BORDER_REFLECT_101,  # mirror without duplicating edge pixels
+            "wrap": cv2.BORDER_WRAP,  # tile the image
         }
+        border_mode = border_modes.get(self.mode, cv2.BORDER_REFLECT_101)
+
+        return {"map_x": map_x, "map_y": map_y, "border_mode": border_mode}
 
     def apply(
         self,
         img: np.ndarray,
-        matrix: skimage.transform.PiecewiseAffineTransform,
+        map_x: np.ndarray | None,
+        map_y: np.ndarray | None,
+        border_mode: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
+        return fgeometric.remap(img, map_x, map_y, self.interpolation, border_mode, self.cval)
 
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        matrix: skimage.transform.PiecewiseAffineTransform,
+        map_x: np.ndarray | None,
+        map_y: np.ndarray | None,
+        border_mode: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.piecewise_affine(mask, matrix, self.mask_interpolation, self.mode, self.cval_mask)
+        return fgeometric.remap(mask, map_x, map_y, self.mask_interpolation, border_mode, self.cval_mask)
 
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
-        matrix: skimage.transform.PiecewiseAffineTransform,
+        map_x: np.ndarray | None,
+        map_y: np.ndarray | None,
+        border_mode: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.bboxes_piecewise_affine(bboxes, matrix, params["shape"], self.keypoints_threshold)
+        return fgeometric.remap_bboxes(bboxes, map_x, map_y, params["shape"])
 
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        matrix: skimage.transform.PiecewiseAffineTransform,
+        map_x: np.ndarray | None,
+        map_y: np.ndarray | None,
+        border_mode: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.keypoints_piecewise_affine(keypoints, matrix, params["shape"], self.keypoints_threshold)
+        return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
 
 
 class PadIfNeeded(DualTransform):

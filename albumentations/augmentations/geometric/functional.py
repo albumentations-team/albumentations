@@ -23,10 +23,9 @@ from albumentations.core.types import (
 )
 
 __all__ = [
-    "distortion",
-    "distortion",
-    "distortion_keypoints",
-    "distortion_bboxes",
+    "remap",
+    "remap_keypoints",
+    "remap_bboxes",
     "pad",
     "pad_with_params",
     "resize",
@@ -883,6 +882,7 @@ def piecewise_affine(
 ) -> np.ndarray:
     if matrix is None:
         return img
+
     return skimage.transform.warp(
         img,
         matrix,
@@ -1503,7 +1503,7 @@ def pad_with_params(
 
 
 @preserve_channel_dim
-def distortion(
+def remap(
     img: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1511,11 +1511,15 @@ def distortion(
     border_mode: int,
     value: ColorType | None = None,
 ) -> np.ndarray:
-    return cv2.remap(img, map_x, map_y, interpolation, borderMode=border_mode, borderValue=value)
+    # Combine map_x and map_y into a single map array of type CV_32FC2
+    map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
+
+    # Call remap with the combined map and empty second map
+    return cv2.remap(img, map_xy, None, interpolation, borderMode=border_mode, borderValue=value)
 
 
 @handle_empty_array
-def distortion_keypoints(
+def remap_keypoints(
     keypoints: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1550,7 +1554,7 @@ def distortion_keypoints(
 
 
 @handle_empty_array
-def distortion_bboxes(
+def remap_bboxes(
     bboxes: np.ndarray,
     map_x: np.ndarray,
     map_y: np.ndarray,
@@ -1567,7 +1571,7 @@ def distortion_bboxes(
     )
 
     # Transform corners using distortion_keypoints
-    transformed_corners = distortion_keypoints(
+    transformed_corners = remap_keypoints(
         np.column_stack([corners, np.zeros(len(corners)), np.zeros(len(corners))]),  # add dummy angle and scale
         map_x,
         map_y,
@@ -2620,3 +2624,68 @@ def expand_transform(matrix: np.ndarray, shape: tuple[int, int]) -> tuple[np.nda
     matrix_expanded = cv2.getPerspectiveTransform(rect, dst)
     max_width, max_height = dst.max(axis=0)
     return matrix_expanded, int(max_width), int(max_height)
+
+
+def create_piecewise_affine_maps(
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    scale: float,
+    absolute_scale: bool = False,
+    random_generator: np.random.Generator | None = None,
+) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """Create maps for piecewise affine transformation using OpenCV's remap function."""
+    height, width = image_shape[:2]
+    nb_rows, nb_cols = grid
+
+    # Input validation
+    if height <= 0 or width <= 0 or nb_rows <= 0 or nb_cols <= 0:
+        raise ValueError("Dimensions must be positive")
+    if scale <= 0:
+        return None, None
+
+    # Create source points grid
+    y = np.linspace(0, height - 1, nb_rows, dtype=np.float32)
+    x = np.linspace(0, width - 1, nb_cols, dtype=np.float32)
+    xx_src, yy_src = np.meshgrid(x, y)
+
+    # Initialize destination maps at full resolution
+    map_x = np.zeros((height, width), dtype=np.float32)
+    map_y = np.zeros((height, width), dtype=np.float32)
+
+    # Generate jitter for control points
+    jitter_scale = scale / 3 if absolute_scale else scale * min(width, height) / 3
+
+    jitter = random_utils.normal(0, jitter_scale, (nb_rows, nb_cols, 2), random_generator=random_generator).astype(
+        np.float32,
+    )
+
+    # Create control points with jitter
+    control_points = np.zeros((nb_rows * nb_cols, 4), dtype=np.float32)
+    for i in range(nb_rows):
+        for j in range(nb_cols):
+            idx = i * nb_cols + j
+            # Source points
+            control_points[idx, 0] = xx_src[i, j]
+            control_points[idx, 1] = yy_src[i, j]
+            # Destination points with jitter
+            control_points[idx, 2] = np.clip(xx_src[i, j] + jitter[i, j, 1], 0, width - 1)
+            control_points[idx, 3] = np.clip(yy_src[i, j] + jitter[i, j, 0], 0, height - 1)
+
+    # Create full resolution maps
+    for i in range(height):
+        for j in range(width):
+            # Find nearest control points and interpolate
+            dx = j - control_points[:, 0]
+            dy = i - control_points[:, 1]
+            dist = dx * dx + dy * dy
+            weights = 1 / (dist + 1e-8)
+            weights = weights / np.sum(weights)
+
+            map_x[i, j] = np.sum(weights * control_points[:, 2])
+            map_y[i, j] = np.sum(weights * control_points[:, 3])
+
+    # Ensure output is within bounds
+    map_x = np.clip(map_x, 0, width - 1)
+    map_y = np.clip(map_y, 0, height - 1)
+
+    return map_x, map_y
