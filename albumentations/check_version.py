@@ -5,7 +5,7 @@ from warnings import warn
 
 from albumentations import __version__ as current_version
 
-__version__: str = current_version
+__version__: str = current_version  # type: ignore[has-type, unused-ignore]
 
 SUCCESS_HTML_CODE = 200
 

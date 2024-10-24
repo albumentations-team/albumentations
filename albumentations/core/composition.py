@@ -35,6 +35,7 @@ __all__ = [
     "ReplayCompose",
     "Sequential",
     "SelectiveChannelTransform",
+    "RandomOrder",
 ]
 
 NUM_ONEOF_TRANSFORMS = 2
@@ -617,21 +618,37 @@ class SomeOf(BaseCompose):
 
 
 class RandomOrder(SomeOf):
-    """Select N transforms to apply. Selected transforms will be called in random order with `force_apply=True`.
-    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
-    This transform is like SomeOf, but transforms are called with random order.
-    It will not replay random order in ReplayCompose.
+    """Apply a random subset of transforms from the given list in a random order.
 
-    Args:
-        transforms (list): list of transformations to compose.
-        n (int): number of transforms to apply.
-        replace (bool): Whether the sampled transforms are with or without replacement. Default: False.
-        p (float): probability of applying selected transform. Default: 1.
+    The `RandomOrder` class allows you to select a specified number of transforms from a list and apply them
+    to the input data in a random order. This is useful for creating more diverse augmentation pipelines
+    where the order of transformations can vary, potentially leading to different results.
 
+    Attributes:
+        transforms (TransformsSeqType): A list of transformations to choose from.
+        n (int): The number of transforms to apply. If `n` is greater than the number of available transforms
+                 and `replace` is False, `n` will be set to the number of available transforms.
+        replace (bool): Whether to sample transforms with replacement. If True, the same transform can be
+                        selected multiple times. Default is False.
+        p (float): Probability of applying the selected transforms. Should be in the range [0, 1]. Default is 1.0.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.RandomOrder([
+        ...     A.HorizontalFlip(p=1),
+        ...     A.VerticalFlip(p=1),
+        ...     A.RandomBrightnessContrast(p=1),
+        ... ], n=2, replace=False, p=0.5)
+        >>> # This will apply 2 out of the 3 transforms in a random order with 50% probability
+
+    Note:
+        - The probabilities of individual transforms are used as weights for sampling.
+        - When `replace` is True, the same transform can be selected multiple times.
+        - The random order of transforms will not be replayed in `ReplayCompose`.
     """
 
-    def __init__(self, transforms: TransformsSeqType, n: int, replace: bool = False, p: float = 1):
-        super().__init__(transforms, n, replace, p)
+    def __init__(self, transforms: TransformsSeqType, n: int = 1, replace: bool = False, p: float = 1):
+        super().__init__(transforms=transforms, n=n, replace=replace, p=p)
 
     def _get_idx(self) -> np.ndarray[np.int_]:
         return random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
