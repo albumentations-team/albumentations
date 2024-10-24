@@ -2021,11 +2021,11 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
     ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 5, "y_max": 95, "x_min": 5, "x_max": 95},
-            A.CenterCrop: {"height": 90, "width": 90},
+            A.Crop: {"y_min": 5, "y_max": 95, "x_min": 7, "x_max": 93},
+            A.CenterCrop: {"height": 90, "width": 95},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 90, "width": 90},
-            A.RandomResizedCrop: {"height": 80, "width": 80, "scale": (0.9, 1), "ratio": (1, 1)},
+            A.RandomCrop: {"height": 90, "width": 95},
+            A.RandomResizedCrop: {"height": 90, "width": 100, "scale": (0.08, 1), "ratio": (0.75, 1.33), "interpolation":cv2.INTER_NEAREST},
             A.RandomSizedCrop: {"min_max_height": (90, 100), "height": 90, "width": 90},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 90, "width": 90},
