@@ -6,6 +6,7 @@ from typing import Any, Literal
 import numpy as np
 
 from albumentations.augmentations.utils import handle_empty_array
+from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
 
 from .utils import DataProcessor, Params
 
@@ -532,13 +533,17 @@ def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
     """Create bounding boxes from binary masks (fast version)
 
     Args:
-        masks (np.ndarray): Binary masks of shape (N, H, W) where N is the number of masks,
-                            and H, W are the height and width of each mask.
+        masks (np.ndarray): Binary masks of shape (H, W) or (N, H, W) where N is the number of masks,
+                           and H, W are the height and width of each mask.
 
     Returns:
         np.ndarray: An array of bounding boxes with shape (N, 4), where each row is
-                    (x_min, y_min, x_max, y_max).
+                   (x_min, y_min, x_max, y_max).
     """
+    # Handle single mask case by adding batch dimension
+    if len(masks.shape) == MONO_CHANNEL_DIMENSIONS:
+        masks = masks[np.newaxis, ...]
+
     rows = np.any(masks, axis=2)
     cols = np.any(masks, axis=1)
 

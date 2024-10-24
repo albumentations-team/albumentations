@@ -1114,7 +1114,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         crop = fcrops.crop(mask, *crop_coords)
         return fgeometric.resize(crop, (self.height, self.width), self.mask_interpolation)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
         crop_coords: tuple[int, int, int, int],
