@@ -5,6 +5,8 @@ from warnings import warn
 
 from albumentations import __version__ as current_version
 
+__version__: str = current_version  # type: ignore[has-type]
+
 SUCCESS_HTML_CODE = 200
 
 opener = None
@@ -18,7 +20,8 @@ def get_opener() -> OpenerDirector:
 
 
 def fetch_version_info() -> str:
-    opener = urllib.request.build_opener(urllib.request.HTTPHandler(), urllib.request.HTTPSHandler())
+    # Use get_opener() instead of creating a new opener
+    opener = get_opener()
     url = "https://pypi.org/pypi/albumentations/json"
     try:
         with opener.open(url, timeout=2) as response:
