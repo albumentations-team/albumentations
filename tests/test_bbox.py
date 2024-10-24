@@ -1449,9 +1449,17 @@ def test_very_small_bbox(bbox_format, bboxes, expected):
 @pytest.mark.parametrize(
     "masks, expected_bboxes",
     [
+        # Original 3D test cases
         (np.array([[[0, 1, 1], [1, 1, 0], [0, 1, 0]]]), np.array([[0, 0, 3, 3]])),
         (np.array([[[1, 1], [1, 1]], [[0, 1], [1, 0]]]), np.array([[0, 0, 2, 2], [0, 0, 2, 2]])),
         (np.array([[[0, 0], [0, 0]], [[1, 0], [0, 0]]]), np.array([[-1, -1, -1, -1], [0, 0, 1, 1]])),
+
+        # New 2D test cases
+        (np.array([[0, 1, 1], [1, 1, 0], [0, 1, 0]]), np.array([[0, 0, 3, 3]])),
+        (np.array([[1, 1], [1, 1]]), np.array([[0, 0, 2, 2]])),
+        (np.array([[0, 0], [0, 0]]), np.array([[-1, -1, -1, -1]])),
+        (np.array([[1, 0], [0, 0]]), np.array([[0, 0, 1, 1]])),
+        (np.array([[0, 1], [0, 1]]), np.array([[1, 0, 2, 2]])),
     ],
 )
 def test_bboxes_from_masks(masks, expected_bboxes):

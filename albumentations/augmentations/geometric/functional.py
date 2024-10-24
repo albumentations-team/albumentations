@@ -10,7 +10,7 @@ from albucore import get_num_channels, hflip, maybe_process_in_chunks, preserve_
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
-from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
 from albumentations.core.types import (
     NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS,
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
@@ -290,7 +290,7 @@ def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np
 
     # If there are additional columns, preserve them
     if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
-        scaled_keypoints = np.column_stack(
+        return np.column_stack(
             [scaled_keypoints, keypoints[:, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:]],
         )
 
@@ -1441,8 +1441,6 @@ def remap_bboxes(
     map_y: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    height, width = image_shape[:2]
-
     # Convert bboxes to corner points: (N, 4) -> (N*2, 2)
     corners = np.vstack(
         [
@@ -1794,10 +1792,7 @@ def bbox_distort_image(
     image_shape: tuple[int, int],
 ) -> np.ndarray:
     bboxes = bboxes.copy()
-    # Create a mask for each bbox
-    masks = np.zeros((len(bboxes), *image_shape), dtype=np.uint8)
-    for i, (x_min, y_min, x_max, y_max) in enumerate(bboxes[:, :4].astype(int)):
-        masks[i, y_min:y_max, x_min:x_max] = 1
+    masks = masks_from_bboxes(bboxes, image_shape)
 
     transformed_masks = np.stack(
         [distort_image(mask, generated_mesh, cv2.INTER_NEAREST) for mask in masks],
@@ -2570,3 +2565,27 @@ def create_piecewise_affine_maps(
     map_y = np.clip(map_y, 0, height - 1)
 
     return map_x, map_y
+
+
+@handle_empty_array
+def bboxes_piecewise_affine(
+    bboxes: np.ndarray,
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    border_mode: int,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    masks = masks_from_bboxes(bboxes, image_shape).transpose(1, 2, 0)
+
+    map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
+
+    # Call remap with the combined map and empty second map
+    transformed_masks = cv2.remap(masks, map_xy, None, cv2.INTER_NEAREST, borderMode=border_mode, borderValue=0)
+
+    if transformed_masks.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        transformed_masks = transformed_masks.transpose(2, 0, 1)
+
+    # Normalize the returned bboxes
+    bboxes[:, :4] = bboxes_from_masks(transformed_masks)
+
+    return bboxes

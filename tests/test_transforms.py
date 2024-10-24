@@ -1,12 +1,13 @@
+from __future__ import annotations
 import random
 import warnings
 from functools import partial
-from typing import Any, Optional, Tuple, Type
+from typing import Any, Type
 
 import cv2
 import numpy as np
 import pytest
-from albucore.functions import to_float, clip
+from albucore import to_float, clip
 
 from torchvision import transforms as torch_transforms
 
@@ -14,7 +15,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.transforms_interface import BasicTransform
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE, RECTANGULAR_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -678,6 +679,8 @@ def test_perspective_keep_size():
     assert np.allclose(res_1["bboxes"], res_2["bboxes"], atol=0.2)
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
 
+    assert res_1["image"].shape == img.shape
+
 
 def test_longest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
@@ -1038,10 +1041,10 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
     ],
 )
 def test_deprecation_warnings_random_shadow(
-    num_shadows_limit: Tuple[int, int],
-    num_shadows_lower: Optional[int],
-    num_shadows_upper: Optional[int],
-    expected_warning: Optional[Type[Warning]],
+    num_shadows_limit: tuple[int, int],
+    num_shadows_lower: int | None,
+    num_shadows_upper: int | None,
+    expected_warning: Type[Warning] | None,
 ) -> None:
     """Test deprecation warnings for RandomShadow"""
     with warnings.catch_warnings(record=True) as w:
@@ -1505,7 +1508,6 @@ def test_random_snow_initialization(params, expected):
 def test_random_snow_invalid_input(params):
     with pytest.raises(Exception):
         a = A.RandomSnow(**params)
-        print(a.snow_point_range)
 
 
 @pytest.mark.parametrize(
@@ -2012,3 +2014,65 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
 
     transformed = transform(image=image, mask=mask, keypoints=keypoints)
     np.testing.assert_array_equal(transformed["keypoints"], expected_keypoints)
+
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 5, "y_max": 95, "x_min": 7, "x_max": 93},
+            A.CenterCrop: {"height": 90, "width": 95},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 90, "width": 95},
+            A.RandomResizedCrop: {"height": 90, "width": 100, "scale": (0.08, 1), "ratio": (0.75, 1.33), "interpolation":cv2.INTER_NEAREST},
+            A.RandomSizedCrop: {"min_max_height": (90, 100), "height": 90, "width": 90},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 90, "width": 90},
+            A.PadIfNeeded: {"min_height": 256, "min_width": 256, "value": 0, "border_mode": cv2.BORDER_CONSTANT},
+        },
+        except_augmentations={
+            A.XYMasking,
+            A.RandomSizedBBoxSafeCrop,
+            A.RandomCropNearBBox,
+            A.BBoxSafeRandomCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.OverlayElements,
+            A.MaskDropout,
+            A.TextImage,
+            A.VerticalFlip,
+            A.HorizontalFlip,
+            A.GridElasticDeform,
+            A.TemplateTransform,
+            A.PixelDistributionAdaptation,
+            A.RandomGridShuffle,
+            A.SafeRotate,
+            A.Rotate,
+            A.Affine,
+            A.ShiftScaleRotate,
+            A.D4,
+            A.RandomRotate90,
+            A.PiecewiseAffine,
+        },
+    ),
+)
+def test_keypoints_bboxes_match(augmentation_cls, params):
+    """Checks whether transformations based on DualTransform dont has abstract methods."""
+    aug = augmentation_cls(p=1, **params)
+    image = RECTANGULAR_UINT8_IMAGE
+
+    x_min, y_min, x_max, y_max = 40, 30, 50, 60
+
+    bboxes = np.array([[x_min, y_min, x_max, y_max]])
+    keypoints = np.array([[x_min, y_min], [x_max, y_max]])
+
+    transform = A.Compose([aug], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xy"))
+
+    transformed = transform(image=image, bboxes=bboxes, keypoints=keypoints, labels=[1])
+
+    x_min_transformed, y_min_transformed, x_max_transformed, y_max_transformed = transformed["bboxes"][0]
+
+    np.testing.assert_allclose(transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1)
+    np.testing.assert_allclose(transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1)

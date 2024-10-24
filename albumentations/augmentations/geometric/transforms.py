@@ -1156,14 +1156,18 @@ class PiecewiseAffine(DualTransform):
         border_mode: int,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.remap_bboxes(bboxes, map_x, map_y, params["shape"])
+        image_shape = params["shape"][:2]
+        denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
+        return normalize_bboxes(
+            fgeometric.bboxes_piecewise_affine(denormalized_bboxes, map_x, map_y, border_mode, image_shape),
+            image_shape,
+        )
 
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
         map_x: np.ndarray | None,
         map_y: np.ndarray | None,
-        border_mode: int,
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
