@@ -36,7 +36,9 @@ def get_crop_coords(
 
     height, width = image_shape[:2]
 
-    crop_height, crop_width = crop_shape[:2]
+    # Clip crop dimensions to image dimensions
+    crop_height = min(crop_shape[0], height)
+    crop_width = min(crop_shape[1], width)
 
     y_min = int((height - crop_height + 1) * h_start)
     y_max = y_min + crop_height
