@@ -6,7 +6,7 @@ requires = [ "setuptools>=45", "wheel" ]
 [project]
 name = "albumentations"
 
-version = "1.4.19"
+version = "1.4.20"
 
 description = "Fast, flexible, and advanced image augmentation library for deep learning and computer vision. Albumentations offers a wide range of transformations for images, masks, bounding boxes, and keypoints, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
