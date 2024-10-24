@@ -266,10 +266,6 @@ def calculate_iou(img1, img2):
     union = np.logical_or(img1, img2)
     return np.sum(intersection) / np.sum(union)
 
-def visualize_difference(original, restored, shape, angle, scale):
-    diff = np.abs(original.astype(int) - restored.astype(int))
-    cv2.imwrite(f"diff_{shape}_angle{angle}_scale{scale}.png", diff)
-
 
 @pytest.mark.parametrize(
     "image_shape",
@@ -340,9 +336,6 @@ def test_inverse_angle_scale(image_shape, angle, shape, scale):
 
     mean_diff = np.mean(diff)
     num_diff_pixels = np.sum(diff > 0)
-
-    # Visualize the difference
-    visualize_difference(image, restored_img, shape, angle, scale)
 
     # Assert that the differences are within acceptable limits
     assert iou > 0.97, f"IoU ({iou}) is too low"
