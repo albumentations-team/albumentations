@@ -5,7 +5,7 @@ from warnings import warn
 
 from albumentations import __version__ as current_version
 
-__version__: str = current_version  # type: ignore[has-type]
+__version__: str = current_version
 
 SUCCESS_HTML_CODE = 200
 
@@ -20,7 +20,6 @@ def get_opener() -> OpenerDirector:
 
 
 def fetch_version_info() -> str:
-    # Use get_opener() instead of creating a new opener
     opener = get_opener()
     url = "https://pypi.org/pypi/albumentations/json"
     try:

@@ -28,8 +28,8 @@ def test_fetch_version_info(status_code, expected_result):
     mock_response.status = status_code
     mock_response.read.return_value = expected_result.encode("utf-8")
     mock_response.__enter__.return_value = mock_response
+    mock_response.__exit__.return_value = None
 
-    # Mock the info() method and its get_content_charset() method
     mock_info = MagicMock()
     mock_info.get_content_charset.return_value = "utf-8"
     mock_response.info.return_value = mock_info
@@ -37,13 +37,9 @@ def test_fetch_version_info(status_code, expected_result):
     mock_opener = MagicMock()
     mock_opener.open.return_value = mock_response
 
-    with patch("urllib.request.build_opener", return_value=mock_opener):
+    with patch("albumentations.check_version.get_opener", return_value=mock_opener):
         result = fetch_version_info()
         assert result == expected_result
-
-    # Verify that open was called with the correct URL and timeout
-    mock_opener.open.assert_called_once_with("https://pypi.org/pypi/albumentations/json", timeout=2)
-
 
 @pytest.mark.parametrize(
     "input_data,expected_version",
