@@ -106,7 +106,6 @@ class BaseCompose(Serializable):
         transforms: TransformsSeqType,
         p: float,
         mask_interpolation: int | None = None,
-        seed: int | None = None,
     ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -125,9 +124,9 @@ class BaseCompose(Serializable):
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self._set_keys()
         self.set_mask_interpolation(mask_interpolation)
-        self.seed = seed
-        self.random_generator = np.random.default_rng(seed)
-        self.set_random_state(seed)  # This will propagate to children
+        self.seed: int | None = None
+        self.random_generator = np.random.default_rng(self.seed)
+        self.set_random_state(self.seed)  # This will propagate to children
 
     def set_random_state(self, seed: int | None) -> None:
         """Set random state for this compose and all nested transforms.
@@ -137,6 +136,7 @@ class BaseCompose(Serializable):
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
+
         if seed is not None:
             random.seed(seed)  # Set standard library random seed
 
