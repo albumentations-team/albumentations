@@ -62,7 +62,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     class InitSchema(BaseTransformInitSchema):
         pass
 
-    def __init__(self, p: float = 0.5, seed: int | None = None, always_apply: bool | None = None):
+    def __init__(self, p: float = 0.5, always_apply: bool | None = None):
         self.p = p
         if always_apply is not None:
             if always_apply:
@@ -85,16 +85,15 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._key2func = {}
         self._set_keys()
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
-        self.seed = seed
-        self.random_generator = np.random.default_rng(seed)
-        self.py_random = random.Random(seed)  # Create instance instead of using global
+        self.seed: int | None = None
+        self.random_generator = np.random.default_rng(self.seed)
+        self.py_random = random.Random(self.seed)  # Create instance instead of using global
 
-    def set_random_state(self, seed: int | None, recursive: bool = True) -> None:
+    def set_random_state(self, seed: int) -> None:
         """Set random state for this transform and all nested transforms.
 
         Args:
             seed: Random seed to use
-            recursive: Whether to set random state for nested transforms
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)

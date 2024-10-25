@@ -2606,8 +2606,8 @@ class ISONoise(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        intensity: float,
         color_shift: float,
+        intensity: float,
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
