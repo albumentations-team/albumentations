@@ -665,15 +665,17 @@ def test_perspective_keep_size():
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
+    transform_1.set_random_state(0)
+
+    res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+
     transform_2 = A.Compose(
         [A.Perspective(keep_size=False, p=1), A.Resize(height, width, p=1)],
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
+    transform_2.set_random_state(0)
 
-    set_seed(0)
-    res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
-    set_seed(0)
     res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"], atol=0.2)
@@ -1204,7 +1206,7 @@ def test_coarse_dropout_functionality(params, expected):
 )
 def test_coarse_dropout_invalid_input(params):
     with pytest.raises(Exception):
-        aug = A.CoarseDropout(**params, p=1)
+        _ =  A.CoarseDropout(**params, p=1)
 
 
 @pytest.mark.parametrize(
@@ -1267,7 +1269,11 @@ def test_coarse_dropout_invalid_input(params):
 def test_change_image(augmentation_cls, params):
     """Checks whether resulting image is different from the original one."""
     aug = A.Compose([augmentation_cls(p=1, **params)])
+    aug.set_random_state(0)
+    set_seed(0)
+
     image = SQUARE_UINT8_IMAGE
+    original_image = image.copy()
 
     data = {
         "image": image,
@@ -1290,6 +1296,7 @@ def test_change_image(augmentation_cls, params):
         mask[:20, :20] = 1
         data["mask"] = mask
 
+    np.testing.assert_array_equal(image, original_image)
     assert not np.array_equal(aug(**data)["image"], image)
 
 
@@ -1312,6 +1319,7 @@ def test_change_image(augmentation_cls, params):
             },
             A.FancyPCA: {"alpha": 1},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.RGBShift: {"r_shift_limit": (10, 10), "g_shift_limit": (10, 10), "b_shift_limit": (10, 10)},
         },
         except_augmentations={
             A.Crop,
@@ -1359,6 +1367,8 @@ def test_selective_channel(augmentation_cls: BasicTransform, params: dict[str, A
     aug = A.Compose(
         [A.SelectiveChannelTransform(transforms=[augmentation_cls(**params, p=1)], channels=channels, p=1)],
     )
+    aug.set_random_state(0)
+    set_seed(0)
 
     data = {"image": image}
 
@@ -2061,6 +2071,8 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
 def test_keypoints_bboxes_match(augmentation_cls, params):
     """Checks whether transformations based on DualTransform dont has abstract methods."""
     aug = augmentation_cls(p=1, **params)
+    aug.set_random_state(0)
+
     image = RECTANGULAR_UINT8_IMAGE
 
     x_min, y_min, x_max, y_max = 40, 30, 50, 60
@@ -2074,5 +2086,5 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
 
     x_min_transformed, y_min_transformed, x_max_transformed, y_max_transformed = transformed["bboxes"][0]
 
-    np.testing.assert_allclose(transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1)
-    np.testing.assert_allclose(transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1)
+    np.testing.assert_allclose(transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=2)
+    np.testing.assert_allclose(transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=2)

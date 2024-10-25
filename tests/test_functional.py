@@ -11,6 +11,7 @@ import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.types import d4_group_elements
 from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
+from copy import deepcopy
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -613,20 +614,22 @@ def test_create_shape_groups(tiles, expected):
 
 
 @pytest.mark.parametrize(
-    "shape_groups, random_state, expected_output",
+    "shape_groups, random_seed, expected_output",
     [
         # Test with a simple case of one group
-        ({(2, 2): [0, 1, 2, 3]}, 42, [1, 3, 0, 2]),
+        ({(2, 2): [0, 1, 2, 3]}, 3, [3, 2, 1, 0]),
         # Test with multiple groups and ensure that random state affects the shuffle consistently
-        ({(2, 2): [0, 1, 2, 3], (1, 1): [4]}, 42, [1, 3, 0, 2, 4]),
+        ({(2, 2): [0, 1, 2, 3], (1, 1): [4]}, 0, [2, 0, 1, 3, 4]),
         # All tiles having the same shape should be shuffled within themselves
-        ({(2, 2): [0, 1, 2]}, 2, [2, 1, 0]),
+        ({(2, 2): [0, 1, 2]}, 3, [2, 1, 0]),
     ],
 )
-def test_shuffle_tiles_within_shape_groups(shape_groups, random_state, expected_output):
-    random_state = np.random.RandomState(random_state)
-    actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, random_state)
-    assert actual_output == expected_output, "Output did not match expected mapping"
+def test_shuffle_tiles_within_shape_groups(shape_groups, random_seed, expected_output):
+    generator = np.random.default_rng(random_seed)
+    shape_groups_original = deepcopy(shape_groups)
+    actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, generator)
+    assert shape_groups == shape_groups_original, "Input shape groups should not be modified"
+    np.testing.assert_array_equal(actual_output, expected_output)
 
 
 @pytest.mark.parametrize(
@@ -853,15 +856,14 @@ def test_iso_noise(image, color_shift, intensity):
     float_image = to_float(image)
 
     # Generate noise using the same random state instance
-    set_seed(42)
-    result_uint8 = F.iso_noise(image, color_shift=color_shift, intensity=intensity)
+    result_uint8 = F.iso_noise(image, color_shift=color_shift, intensity=intensity, random_generator=np.random.default_rng(42))
 
-    set_seed(42)
-    result_float = F.iso_noise(float_image, color_shift=color_shift, intensity=intensity)
+    result_float = F.iso_noise(float_image, color_shift=color_shift, intensity=intensity, random_generator=np.random.default_rng(42))
 
     result_float = F.from_float(result_float, target_dtype=np.uint8)  # Convert the float result back to uint8
 
     np.testing.assert_allclose(result_uint8, result_float, rtol=1e-5, atol=1)
+
 
 
 @pytest.mark.parametrize(

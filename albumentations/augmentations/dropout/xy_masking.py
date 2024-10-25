@@ -124,7 +124,7 @@ class XYMasking(BaseDropout):
         masks_y = self.generate_masks(self.num_masks_y, image_shape, self.mask_y_length, axis="y")
 
         holes = np.array(masks_x + masks_y)
-        return {"holes": holes}
+        return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
     @staticmethod
     def generate_mask_size(mask_length: tuple[int, int]) -> int:

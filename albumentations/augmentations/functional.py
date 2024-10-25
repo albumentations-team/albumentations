@@ -30,7 +30,6 @@ from albucore import (
 )
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations import random_utils
 from albumentations.augmentations.utils import (
     PCA,
     handle_empty_array,
@@ -511,8 +510,37 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
     return cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
 
+def generate_snow_textures(
+    img_shape: tuple[int, int],
+    random_generator: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate snow texture and sparkle mask.
+
+    Args:
+        img_shape (tuple[int, int]): Image shape.
+        random_generator (np.random.Generator): Random generator to use.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: Tuple of (snow_texture, sparkle_mask) arrays.
+    """
+    # Generate base snow texture
+    snow_texture = random_generator.normal(size=img_shape[:2], loc=0.5, scale=0.3)
+    snow_texture = cv2.GaussianBlur(snow_texture, (0, 0), sigmaX=1, sigmaY=1)
+
+    # Generate sparkle mask
+    sparkle_mask = random_generator.random(img_shape[:2]) > 0.99  # noqa: PLR2004
+
+    return snow_texture, sparkle_mask
+
+
 @uint8_io
-def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
+def add_snow_texture(
+    img: np.ndarray,
+    snow_point: float,
+    brightness_coeff: float,
+    snow_texture: np.ndarray,
+    sparkle_mask: np.ndarray,
+) -> np.ndarray:
     """Add a realistic snow effect to the input image.
 
     This function simulates snowfall by applying multiple visual effects to the image,
@@ -526,6 +554,8 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
         brightness_coeff (float): Coefficient for brightness adjustment to simulate the
             reflective nature of snow. Should be in the range [0, 1], where higher values
             result in a brighter image.
+        snow_texture (np.ndarray): Snow texture.
+        sparkle_mask (np.ndarray): Sparkle mask.
 
     Returns:
         np.ndarray: Image with added snow effect. The output has the same dtype as the input.
@@ -570,7 +600,6 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
     img_hsv[:, :, 2] = np.clip(img_hsv[:, :, 2] * (1 + brightness_coeff * snow_point), 0, max_value)
 
     # Generate snow texture
-    snow_texture = random_utils.normal(size=img.shape[:2], loc=0.5, scale=0.3)
     snow_texture = cv2.GaussianBlur(snow_texture, (0, 0), sigmaX=1, sigmaY=1)
 
     # Create depth effect for snow simulation
@@ -596,8 +625,7 @@ def add_snow_texture(img: np.ndarray, snow_point: float, brightness_coeff: float
     img_with_snow = cv2.cvtColor(img_with_snow.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
     # Add some sparkle effects for snow glitter
-    sparkle = random_utils.random(img.shape[:2]) > 0.99  # noqa: PLR2004
-    img_with_snow[sparkle] = [max_value, max_value, max_value]
+    img_with_snow[sparkle_mask] = [max_value, max_value, max_value]
 
     return img_with_snow
 
@@ -652,6 +680,30 @@ def add_rain(
     return cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
 
+def get_fog_particle_radiuses(
+    img_shape: tuple[int, int],
+    num_particles: int,
+    fog_intensity: float,
+    random_generator: np.random.Generator,
+) -> list[int]:
+    """Generate radiuses for fog particles.
+
+    Args:
+        img_shape (tuple[int, int]): Image shape.
+        num_particles (int): Number of fog particles.
+        fog_intensity (float): Intensity of the fog effect, between 0 and 1.
+        random_generator (np.random.Generator): Random generator to use.
+
+    Returns:
+        list[int]: List of radiuses for each fog particle.
+    """
+    height, width = img_shape[:2]
+    max_fog_radius = max(2, int(min(height, width) * 0.1 * fog_intensity))
+    min_radius = max(1, max_fog_radius // 2)
+
+    return [random_generator.integers(min_radius, max_fog_radius) for _ in range(num_particles)]
+
+
 @uint8_io
 @clipped
 @preserve_channel_dim
@@ -660,7 +712,7 @@ def add_fog(
     fog_intensity: float,
     alpha_coef: float,
     fog_particle_positions: list[tuple[int, int]],
-    random_generator: np.random.Generator | None = None,
+    fog_particle_radiuses: list[int],
 ) -> np.ndarray:
     """Add fog to the input image.
 
@@ -669,7 +721,7 @@ def add_fog(
         fog_intensity (float): Intensity of the fog effect, between 0 and 1.
         alpha_coef (float): Base alpha (transparency) value for fog particles.
         fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
-        random_generator (np.random.Generator): Random generator used.
+        fog_particle_radiuses (list[int]): List of radiuses for each fog particle.
 
     Returns:
         np.ndarray: Image with added fog effect.
@@ -678,19 +730,9 @@ def add_fog(
     num_channels = get_num_channels(img)
 
     fog_layer = np.zeros((height, width, num_channels), dtype=np.uint8)
-
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
-    max_fog_radius = max(
-        2,
-        int(
-            min(height, width) * 0.1 * fog_intensity,
-        ),
-    )
-
-    for x, y in fog_particle_positions:
-        min_radius = max(1, max_fog_radius // 2)
-        radius = random_utils.randint(min_radius, max_fog_radius, random_generator=random_generator)
+    for (x, y), radius in zip(fog_particle_positions, fog_particle_radiuses):
         color = max_value if num_channels == 1 else (max_value,) * num_channels
         cv2.circle(
             fog_layer,
@@ -705,9 +747,10 @@ def add_fog(
 
     # Blend the fog layer with the original image
     alpha = np.mean(fog_layer, axis=2, keepdims=True) / max_value * alpha_coef * fog_intensity
-    fog_image = img * (1 - alpha) + fog_layer * alpha
 
-    return fog_image.astype(np.uint8)
+    result = img * (1 - alpha) + fog_layer * alpha
+
+    return clip(result, np.uint8)
 
 
 @uint8_io
@@ -1002,7 +1045,7 @@ def iso_noise(
     image: np.ndarray,
     color_shift: float,
     intensity: float,
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Apply poisson noise to an image to simulate camera sensor noise.
 
@@ -1011,7 +1054,7 @@ def iso_noise(
         color_shift (float): The amount of color shift to apply.
         intensity (float): Multiplication factor for noise values. Values of ~0.5 produce a noticeable,
                            yet acceptable level of noise.
-        random_generator (np.random.Generator | None): If specified, this will be random generator used
+        random_generator (np.random.Generator): If specified, this will be random generator used
             for noise generation.
 
     Returns:
@@ -1026,8 +1069,8 @@ def iso_noise(
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_utils.poisson(stddev[1] * intensity, size=hls.shape[:2], random_generator=random_generator)
-    color_noise = random_utils.normal(0, color_shift * intensity, size=hls.shape[:2], random_generator=random_generator)
+    luminance_noise = random_generator.poisson(stddev[1] * intensity, size=hls.shape[:2])
+    color_noise = random_generator.normal(0, color_shift * intensity, size=hls.shape[:2])
 
     hls[..., 0] += color_noise
     hls[..., 1] = add_array(hls[..., 1], luminance_noise * intensity * (1.0 - hls[..., 1]))
@@ -1599,14 +1642,14 @@ def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
 
 def shuffle_tiles_within_shape_groups(
     shape_groups: dict[tuple[int, int], list[int]],
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> list[int]:
     """Shuffles indices within each group of similar shapes and creates a list where each
     index points to the index of the tile it should be mapped to.
 
     Args:
         shape_groups (dict[tuple[int, int], list[int]]): Groups of tile indices categorized by shape.
-        random_generator (np.random.Generator | None): The random generator to use for shuffling the indices.
+        random_generator (np.random.Generator): The random generator to use for shuffling the indices.
             If None, a new random generator will be used.
 
     Returns:
@@ -1619,7 +1662,9 @@ def shuffle_tiles_within_shape_groups(
     # Prepare the random number generator
 
     for indices in shape_groups.values():
-        shuffled_indices = random_utils.shuffle(indices.copy(), random_generator=random_generator)
+        shuffled_indices = indices.copy()
+        random_generator.shuffle(shuffled_indices)
+
         for old, new in zip(indices, shuffled_indices):
             mapping[old] = new
 
@@ -1728,7 +1773,7 @@ def bboxes_morphology(
     return bboxes
 
 
-PLANCKIAN_COEFFS = {
+PLANCKIAN_COEFFS: dict[str, dict[int, list[float]]] = {
     "blackbody": {
         3_000: [0.6743, 0.4029, 0.0013],
         3_500: [0.6281, 0.4241, 0.1665],
@@ -1816,18 +1861,19 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
 
 def generate_approx_gaussian_noise(
     shape: tuple[int, ...],
-    mean: float = 0,
-    sigma: float = 1,
-    scale: float = 0.25,
+    mean: float,
+    sigma: float,
+    scale: float,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     # Determine the low-resolution shape
     downscaled_height = int(shape[0] * scale)
     downsaled_width = int(shape[1] * scale)
 
     if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
-        low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width, shape[-1]))
+        low_res_noise = random_generator.normal(mean, sigma, (downscaled_height, downsaled_width, shape[-1]))
     else:
-        low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width))
+        low_res_noise = random_generator.normal(mean, sigma, (downscaled_height, downsaled_width))
 
     # Upsample the noise to the original shape using OpenCV
     result = cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)

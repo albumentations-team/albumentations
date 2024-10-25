@@ -1084,6 +1084,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
 
     transform = A.Compose([augmentation_cls(p=1, **params)])
 
+
     data = {"image": image_uint8}
     if augmentation_cls == A.MaskDropout:
         mask = np.zeros_like(image_uint8)[:, :, 0]
@@ -1091,9 +1092,13 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
         data["mask"] = mask
 
     set_seed(42)
+    transform.set_random_state(42)
     transformed_uint8 = transform(**data)["image"]
+
     set_seed(42)
     data["image"] = image_float32
+
+    transform.set_random_state(42)
     transformed_float32 = transform(**data)["image"]
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)

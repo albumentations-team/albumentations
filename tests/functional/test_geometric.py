@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
 
-from albumentations import random_utils
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.functional import from_distance_maps, to_distance_maps
 from tests.utils import set_seed
-import cv2
+
 import albumentations as A
 
 
@@ -119,7 +118,7 @@ def test_to_distance_maps_extra_columns(image_shape, keypoints, inverted):
 )
 def test_split_uniform_grid(image_shape, grid, expected):
     random_seed = 42
-    result = fgeometric.split_uniform_grid(image_shape, grid, random_generator=random_utils.get_random_generator(random_seed))
+    result = fgeometric.split_uniform_grid(image_shape, grid, random_generator=np.random.default_rng(random_seed))
     np.testing.assert_array_equal(result, expected)
 
 
@@ -139,7 +138,7 @@ def test_generate_shuffled_splits(size, divisions, random_seed, expected):
     result = fgeometric.generate_shuffled_splits(
         size,
         divisions,
-        random_generator=random_utils.get_random_generator(random_seed),
+        random_generator=np.random.default_rng(random_seed),
     )
     assert len(result) == divisions + 1
     np.testing.assert_array_equal(
@@ -159,10 +158,10 @@ def test_generate_shuffled_splits(size, divisions, random_seed, expected):
 )
 def test_consistent_shuffling(size, divisions, random_seed):
     set_seed(random_seed)
-    result1 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_seed))
+    result1 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=np.random.default_rng(random_seed))
     assert len(result1) == divisions + 1
     set_seed(random_seed)
-    result2 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=random_utils.get_random_generator(random_seed))
+    result2 = fgeometric.generate_shuffled_splits(size, divisions, random_generator=np.random.default_rng(random_seed))
     assert len(result2) == divisions + 1
     np.testing.assert_array_equal(result1, result2), "Shuffling is not consistent with the given random state"
 
@@ -195,7 +194,8 @@ def test_create_piecewise_affine_maps_shapes(
     expected_shape: tuple[tuple[int, int], tuple[int, int]]
 ):
     """Test that output maps have correct shapes and types."""
-    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, absolute_scale)
+    generator = np.random.default_rng(42)
+    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, absolute_scale, generator)
 
     assert map_x is not None and map_y is not None
     assert map_x.shape == expected_shape[0]
@@ -216,7 +216,8 @@ def test_create_piecewise_affine_maps_bounds(
     scale: float
 ):
     """Test that output maps stay within image bounds."""
-    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, False)
+    generator = np.random.default_rng(42)
+    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, False, generator)
 
     assert map_x is not None and map_y is not None
     height, width = image_shape
@@ -239,14 +240,14 @@ def test_create_piecewise_affine_maps_edge_cases(
     expected_result: tuple[None, None]
 ):
     """Test edge cases with zero or negative scale."""
-    result = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), scale, False)
+    generator = np.random.default_rng(42)
+    result = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), scale, False, generator)
     assert result == expected_result
 
 def test_create_piecewise_affine_maps_reproducibility():
     """Test that the function produces the same output with the same random seed."""
-    result1 = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), 0.05, False, random_generator=random_utils.get_random_generator(42))
-
-    result2 = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), 0.05, False, random_generator=random_utils.get_random_generator(42))
+    result1 = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), 0.05, False, random_generator=np.random.default_rng(42))
+    result2 = fgeometric.create_piecewise_affine_maps((100, 100), (4, 4), 0.05, False, random_generator=np.random.default_rng(42))
 
     assert result1[0] is not None and result1[1] is not None
     assert result2[0] is not None and result2[1] is not None
@@ -267,8 +268,9 @@ def test_create_piecewise_affine_maps_zero_dimensions(
     grid: tuple[int, int]
 ):
     """Test handling of zero dimensions."""
+    generator = np.random.default_rng(42)
     with pytest.raises(ValueError):
-        fgeometric.create_piecewise_affine_maps(image_shape, grid, 0.05, False)
+        fgeometric.create_piecewise_affine_maps(image_shape, grid, 0.05, False, generator)
 
 @pytest.mark.parametrize(
     ["image_shape", "grid", "scale", "absolute_scale"],
@@ -284,7 +286,8 @@ def test_create_piecewise_affine_maps_grid_points(
     absolute_scale: bool
 ):
     """Test that grid points are properly distributed."""
-    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, absolute_scale)
+    generator = np.random.default_rng(42)
+    map_x, map_y = fgeometric.create_piecewise_affine_maps(image_shape, grid, scale, absolute_scale, generator)
 
     assert map_x is not None and map_y is not None
 

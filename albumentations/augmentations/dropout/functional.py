@@ -5,7 +5,6 @@ import numpy as np
 from albucore import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_dim
 from typing_extensions import Literal
 
-from albumentations import random_utils
 from albumentations.augmentations.geometric.functional import split_uniform_grid
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType
@@ -39,7 +38,7 @@ def channel_dropout(
 def generate_random_fill(
     dtype: np.dtype,
     shape: tuple[int, ...],
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Generate a random fill array based on the given dtype and target shape.
 
@@ -50,7 +49,7 @@ def generate_random_fill(
     Args:
         dtype (np.dtype): The data type of the array to be generated.
         shape (tuple[int, ...]): The shape of the array to be generated.
-        random_generator (np.random.Generator | None): The random generator to use for generating values.
+        random_generator (np.random.Generator): The random generator to use for generating values.
             If None, the default numpy random generator is used.
 
     Returns:
@@ -69,9 +68,9 @@ def generate_random_fill(
     """
     max_value = MAX_VALUES_BY_DTYPE[dtype]
     if np.issubdtype(dtype, np.integer):
-        return random_utils.randint(0, max_value + 1, size=shape, dtype=dtype, random_generator=random_generator)
+        return random_generator.integers(0, max_value + 1, size=shape, dtype=dtype)
     if np.issubdtype(dtype, np.floating):
-        return random_utils.uniform(0, max_value, size=shape, random_generator=random_generator).astype(dtype)
+        return random_generator.uniform(0, max_value, size=shape).astype(dtype)
     raise ValueError(f"Unsupported dtype: {dtype}")
 
 
@@ -79,7 +78,7 @@ def cutout(
     img: np.ndarray,
     holes: np.ndarray,
     fill_value: ColorType | Literal["random"],
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Apply cutout augmentation to the image by cutting out holes and filling them
     with either a given value or random noise.
@@ -88,10 +87,10 @@ def cutout(
         img (np.ndarray): The image to augment. Can be a 2D (grayscale) or 3D (color) array.
         holes (np.ndarray): An array of holes with shape (num_holes, 4).
             Each hole is represented as [x1, y1, x2, y2].
-        fill_value (Union[ColorType, Literal["random"]], optional): The fill value to use for the holes.
+        fill_value (ColorType | Literal["random"]): The fill value to use for the holes.
             Can be a single integer, a tuple or list of numbers for multichannel images,
             or the string "random" to fill with random noise.
-        random_generator (np.random.Generator | None, optional): The random generator to use for generating
+        random_generator (np.random.Generator): The random generator to use for generating
             random fill values. If None, a new random generator will be used. Defaults to None.
 
     Returns:
@@ -218,6 +217,7 @@ def calculate_grid_dimensions(
     image_shape: tuple[int, int],
     unit_size_range: tuple[int, int] | None,
     holes_number_xy: tuple[int, int] | None,
+    random_generator: np.random.Generator,
 ) -> tuple[int, int]:
     """Calculate the dimensions of grid units for GridDropout.
 
@@ -233,6 +233,7 @@ def calculate_grid_dimensions(
             If provided, a random size within this range will be chosen for both height and width.
         holes_number_xy (tuple[int, int] | None, optional): The number of holes in the x and y directions.
             If provided, the grid dimensions will be calculated to fit this number of holes.
+        random_generator (np.random.Generator): The random generator to use for generating random values.
 
     Returns:
         tuple[int, int]: The calculated grid unit dimensions as (unit_height, unit_width).
@@ -262,7 +263,7 @@ def calculate_grid_dimensions(
     if unit_size_range is not None:
         if unit_size_range[1] > min(image_shape[:2]):
             raise ValueError("Grid size limits must be within the shortest image edge.")
-        unit_size = random_utils.randint(*unit_size_range)
+        unit_size = random_generator.integers(*unit_size_range)
         return unit_size, unit_size
 
     if holes_number_xy:
@@ -283,7 +284,7 @@ def generate_grid_holes(
     ratio: float,
     random_offset: bool,
     shift_xy: tuple[int, int],
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Generate a list of holes for GridDropout using a uniform grid.
 
@@ -300,7 +301,7 @@ def generate_grid_holes(
             If False, uses the global shift specified by shift_xy.
         shift_xy (tuple[int, int]): The global shift to apply to all holes as (shift_x, shift_y).
             Only used when random_offset is False.
-        random_generator (np.random.Generator | None): The random generator for generating random offsets
+        random_generator (np.random.Generator): The random generator for generating random offsets
             and shuffling. If None, a new Generator will be created.
 
     Returns:
@@ -343,10 +344,10 @@ def generate_grid_holes(
     max_offset_y = cell_heights - hole_heights
     max_offset_x = cell_widths - hole_widths
 
-    if random_offset and random_generator is not None:
+    if random_offset:
         # Generate random offsets for each hole
-        offset_y = random_utils.randint(0, max_offset_y + 1, random_generator=random_generator)
-        offset_x = random_utils.randint(0, max_offset_x + 1, random_generator=random_generator)
+        offset_y = random_generator.integers(0, max_offset_y + 1)
+        offset_x = random_generator.integers(0, max_offset_x + 1)
     else:
         # Use global shift
         offset_y = np.full_like(max_offset_y, shift_xy[1])

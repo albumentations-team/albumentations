@@ -10,7 +10,6 @@ from albucore import hflip, vflip
 from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
-from albumentations import random_utils
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.pydantic import (
@@ -261,7 +260,7 @@ class ElasticTransform(BaseDistortion):
             self.sigma,
             same_dxdy=self.same_dxdy,
             kernel_size=kernel_size,
-            random_generator=random_utils.get_random_generator(),
+            random_generator=self.random_generator,
         )
 
         x, y = np.meshgrid(np.arange(width), np.arange(height))
@@ -442,7 +441,7 @@ class Perspective(DualTransform):
 
         scale = random.uniform(*self.scale)
 
-        points = fgeometric.generate_perspective_points(image_shape, scale)
+        points = fgeometric.generate_perspective_points(image_shape, scale, self.random_generator)
         points = fgeometric.order_points(points)
 
         matrix, max_width, max_height = fgeometric.compute_perspective_params(points, image_shape)
@@ -1115,6 +1114,7 @@ class PiecewiseAffine(DualTransform):
             grid=(nb_rows, nb_cols),
             scale=scale,
             absolute_scale=self.absolute_scale,
+            random_generator=self.random_generator,
         )
 
         border_modes = {
@@ -1948,7 +1948,7 @@ class D4(DualTransform):
 
     def get_params(self) -> dict[str, D4Type]:
         return {
-            "group_element": random_utils.choice(d4_group_elements),
+            "group_element": self.random_generator.choice(d4_group_elements),
         }
 
     def get_transform_init_args_names(self) -> tuple[()]:
@@ -2024,7 +2024,7 @@ class GridElasticDeform(DualTransform):
         image_shape = params["shape"][:2]
 
         # Replace calculate_grid_dimensions with split_uniform_grid
-        tiles = fgeometric.split_uniform_grid(image_shape, self.num_grid_xy)
+        tiles = fgeometric.split_uniform_grid(image_shape, self.num_grid_xy, self.random_generator)
 
         # Convert tiles to the format expected by generate_distorted_grid_polygons
         dimensions = np.array(
@@ -2034,7 +2034,7 @@ class GridElasticDeform(DualTransform):
             ],
         ).reshape(self.num_grid_xy[::-1] + (4,))  # Reshape to (grid_height, grid_width, 4)
 
-        polygons = fgeometric.generate_distorted_grid_polygons(dimensions, self.magnitude)
+        polygons = fgeometric.generate_distorted_grid_polygons(dimensions, self.magnitude, self.random_generator)
 
         generated_mesh = self.generate_mesh(polygons, dimensions)
 

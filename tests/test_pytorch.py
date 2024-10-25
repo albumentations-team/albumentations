@@ -135,9 +135,11 @@ def test_with_replaycompose() -> None:
         "mask": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
     }
     res = aug(**kwargs)
+
     res2 = A.ReplayCompose.replay(res["replay"], **kwargs)
-    assert np.array_equal(res["image"], res2["image"])
-    assert np.array_equal(res["mask"], res2["mask"])
+    np.testing.assert_array_equal(res["image"], res2["image"])
+    np.testing.assert_array_equal(res["mask"], res2["mask"])
+
     assert res["image"].dtype == torch.uint8
     assert res["mask"].dtype == torch.uint8
     assert res2["image"].dtype == torch.uint8

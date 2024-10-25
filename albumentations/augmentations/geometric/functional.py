@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 from albucore import get_num_channels, hflip, maybe_process_in_chunks, preserve_channel_dim, vflip
 
-from albumentations import random_utils
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
 from albumentations.core.types import (
@@ -1487,19 +1486,17 @@ def generate_displacement_fields(
     sigma: float,
     same_dxdy: bool,
     kernel_size: tuple[int, int],
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate displacement fields for elastic transform."""
-    height, width = image_shape[:2]
-
-    dx = random_utils.rand(height, width, random_generator=random_generator).astype(np.float32) * 2 - 1
+    dx = random_generator.standard_normal(size=image_shape[:2]).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, kernel_size, sigma, dst=dx)
     dx *= alpha
 
     if same_dxdy:
         dy = dx
     else:
-        dy = random_utils.rand(height, width, random_generator=random_generator).astype(np.float32) * 2 - 1
+        dy = random_generator.standard_normal(size=image_shape[:2]).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dy, kernel_size, sigma, dst=dy)
         dy *= alpha
 
@@ -1850,6 +1847,7 @@ def distort_image_keypoints(
 def generate_distorted_grid_polygons(
     dimensions: np.ndarray,
     magnitude: int,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Generate distorted grid polygons based on input dimensions and magnitude.
 
@@ -1862,6 +1860,7 @@ def generate_distorted_grid_polygons(
                                  is [x_min, y_min, x_max, y_max] representing the dimensions of a grid cell.
         magnitude (int): Maximum pixel-wise displacement for distortion. The actual displacement
                          will be randomly chosen in the range [-magnitude, magnitude].
+        random_generator (np.random.Generator): A random number generator.
 
     Returns:
         np.ndarray: A 2D array of shape (total_cells, 8) where each row represents a distorted polygon
@@ -1907,7 +1906,7 @@ def generate_distorted_grid_polygons(
 
     # Generate displacements for internal grid points only
     internal_points_height, internal_points_width = grid_height - 1, grid_width - 1
-    displacements = random_utils.randint(
+    displacements = random_generator.integers(
         -magnitude,
         magnitude + 1,
         size=(internal_points_height, internal_points_width, 2),
@@ -2371,7 +2370,7 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
 def generate_shuffled_splits(
     size: int,
     divisions: int,
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Generate shuffled splits for a given dimension size and number of divisions.
 
@@ -2385,21 +2384,21 @@ def generate_shuffled_splits(
         np.ndarray: Cumulative edges of the shuffled intervals.
     """
     intervals = almost_equal_intervals(size, divisions)
-    intervals = random_utils.shuffle(intervals, random_generator=random_generator)
+    random_generator.shuffle(intervals)
     return np.insert(np.cumsum(intervals), 0, 0)
 
 
 def split_uniform_grid(
     image_shape: tuple[int, int],
     grid: tuple[int, int],
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Splits an image shape into a uniform grid specified by the grid dimensions.
 
     Args:
         image_shape (tuple[int, int]): The shape of the image as (height, width).
         grid (tuple[int, int]): The grid size as (rows, columns).
-        random_generator (np.random.Generator | None): The random generator to use for shuffling the splits.
+        random_generator (np.random.Generator): The random generator to use for shuffling the splits.
             If None, the splits are not shuffled.
 
     Returns:
@@ -2427,10 +2426,10 @@ def split_uniform_grid(
 def generate_perspective_points(
     image_shape: tuple[int, int],
     scale: float,
-    random_generator: np.random.Generator | None = None,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     height, width = image_shape[:2]
-    points = random_utils.normal(0, scale, (4, 2), random_generator=random_generator)
+    points = random_generator.normal(0, scale, (4, 2))
     points = np.mod(np.abs(points), 0.32)
 
     # top left -- no changes needed, just use jitter
@@ -2506,8 +2505,8 @@ def create_piecewise_affine_maps(
     image_shape: tuple[int, int],
     grid: tuple[int, int],
     scale: float,
-    absolute_scale: bool = False,
-    random_generator: np.random.Generator | None = None,
+    absolute_scale: bool,
+    random_generator: np.random.Generator,
 ) -> tuple[np.ndarray | None, np.ndarray | None]:
     """Create maps for piecewise affine transformation using OpenCV's remap function."""
     height, width = image_shape[:2]
@@ -2531,9 +2530,7 @@ def create_piecewise_affine_maps(
     # Generate jitter for control points
     jitter_scale = scale / 3 if absolute_scale else scale * min(width, height) / 3
 
-    jitter = random_utils.normal(0, jitter_scale, (nb_rows, nb_cols, 2), random_generator=random_generator).astype(
-        np.float32,
-    )
+    jitter = random_generator.normal(0, jitter_scale, (nb_rows, nb_cols, 2)).astype(np.float32)
 
     # Create control points with jitter
     control_points = np.zeros((nb_rows * nb_cols, 4), dtype=np.float32)

@@ -9,7 +9,6 @@ from typing import Any, Union, cast
 import cv2
 import numpy as np
 
-from albumentations import random_utils
 from albumentations.core.types import NUM_MULTI_CHANNEL_DIMENSIONS
 
 from .bbox_utils import BboxParams, BboxProcessor
@@ -102,7 +101,13 @@ class BaseCompose(Serializable):
     check_each_transform: tuple[DataProcessor, ...] | None = None
     main_compose: bool = True
 
-    def __init__(self, transforms: TransformsSeqType, p: float, mask_interpolation: int | None = None):
+    def __init__(
+        self,
+        transforms: TransformsSeqType,
+        p: float,
+        mask_interpolation: int | None = None,
+        seed: int | None = None,
+    ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
                 "transforms is single transform, but a sequence is expected! Transform will be wrapped into list.",
@@ -120,6 +125,25 @@ class BaseCompose(Serializable):
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self._set_keys()
         self.set_mask_interpolation(mask_interpolation)
+        self.seed = seed
+        self.random_generator = np.random.default_rng(seed)
+        self.set_random_state(seed)  # This will propagate to children
+
+    def set_random_state(self, seed: int | None) -> None:
+        """Set random state for this compose and all nested transforms.
+
+        Args:
+            seed: Random seed to use
+        """
+        self.seed = seed
+        self.random_generator = np.random.default_rng(seed)
+        if seed is not None:
+            random.seed(seed)  # Set standard library random seed
+
+        # Propagate to all transforms
+        for transform in self.transforms:
+            if isinstance(transform, (BasicTransform, BaseCompose)):
+                transform.set_random_state(seed)
 
     def set_mask_interpolation(self, mask_interpolation: int | None) -> None:
         self.mask_interpolation = mask_interpolation
@@ -537,7 +561,7 @@ class OneOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            idx: int = random_utils.choice(len(self.transforms), p=self.transforms_ps)
+            idx: int = self.random_generator.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
         return data
@@ -607,7 +631,12 @@ class SomeOf(BaseCompose):
         return data
 
     def _get_idx(self) -> np.ndarray[np.int_]:
-        idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
+        idx = self.random_generator.choice(
+            len(self.transforms),
+            size=self.n,
+            replace=self.replace,
+            p=self.transforms_ps,
+        )
         idx.sort()
         return idx
 
@@ -651,7 +680,12 @@ class RandomOrder(SomeOf):
         super().__init__(transforms=transforms, n=n, replace=replace, p=p)
 
     def _get_idx(self) -> np.ndarray[np.int_]:
-        return random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
+        return self.random_generator.choice(
+            len(self.transforms),
+            size=self.n,
+            replace=self.replace,
+            p=self.transforms_ps,
+        )
 
 
 class OneOrOther(BaseCompose):
