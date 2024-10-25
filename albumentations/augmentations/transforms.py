@@ -248,16 +248,15 @@ class Normalize(ImageOnlyTransform):
     Args:
         mean (ColorType | None): Mean values for standard normalization.
             For "standard" normalization, the default values are ImageNet mean values: (0.485, 0.456, 0.406).
-            For "inception" normalization, use mean values of (0.5, 0.5, 0.5).
         std (ColorType | None): Standard deviation values for standard normalization.
             For "standard" normalization, the default values are ImageNet standard deviation :(0.229, 0.224, 0.225).
-            For "inception" normalization, use standard deviation values of (0.5, 0.5, 0.5).
         max_pixel_value (float | None): Maximum possible pixel value, used for scaling in standard normalization.
             Defaults to 255.0.
-        normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel", "inception"])
+        normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"])
             Specifies the normalization technique to apply. Defaults to "standard".
             - "standard": Applies the formula `(img - mean * max_pixel_value) / (std * max_pixel_value)`.
-                The default mean and std are based on ImageNet.
+                The default mean and std are based on ImageNet. You can use mean and std values of (0.5, 0.5, 0.5)
+                for inception normalization. And mean values of (0, 0, 0) and std values of (1, 1, 1) for YOLO.
             - "image": Normalizes the whole image based on its global mean and standard deviation.
             - "image_per_channel": Normalizes the image per channel based on each channel's mean and standard deviation.
             - "min_max": Scales the image pixel values to a [0, 1] range based on the global
