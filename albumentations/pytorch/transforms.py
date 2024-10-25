@@ -20,12 +20,11 @@ class ToTensorV2(BasicTransform):
     Attributes:
         transpose_mask (bool): If True, transposes 3D input mask dimensions from `[height, width, num_channels]` to
             `[num_channels, height, width]`.
-        always_apply (bool): Deprecated. Default: None.
         p (float): Probability of applying the transform. Default: 1.0.
 
     Note:
-        - For 2D images (HW), the output will be HW1 format
-        - For 3D images (HWC), the output will be CHW format
+        - For 2D images (HW), the output will be 1xHxW format
+        - For 3D images (HWC), the output will be CxHxW format
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
@@ -44,11 +43,11 @@ class ToTensorV2(BasicTransform):
         }
 
     def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
-        if len(img.shape) not in [2, 3]:
+        if img.ndim not in {MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS}:
             msg = "Albumentations only supports images in HW or HWC format"
             raise ValueError(msg)
 
-        if len(img.shape) == MONO_CHANNEL_DIMENSIONS:
+        if img.ndim == MONO_CHANNEL_DIMENSIONS:
             img = np.expand_dims(img, 2)
 
         return torch.from_numpy(img.transpose(2, 0, 1))
