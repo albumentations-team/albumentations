@@ -12,8 +12,10 @@ __all__ = ["ToTensorV2"]
 
 
 class ToTensorV2(BasicTransform):
-    """Converts images/masks to PyTorch Tensors, inheriting from BasicTransform. Supports images in numpy `HWC` format
-    and converts them to PyTorch `CHW` format. If the image is in `HW` format, it will be converted to PyTorch `HW`.
+    """Converts images/masks to PyTorch Tensors, inheriting from BasicTransform.
+    For images:
+        - If input is in `HWC` format, converts to PyTorch `CHW` format
+        - If input is in `HW` format, converts to PyTorch `HWC` format (adds channel dimension)
 
     Attributes:
         transpose_mask (bool): If True, transposes 3D input mask dimensions from `[height, width, num_channels]` to
@@ -21,6 +23,9 @@ class ToTensorV2(BasicTransform):
         always_apply (bool): Deprecated. Default: None.
         p (float): Probability of applying the transform. Default: 1.0.
 
+    Note:
+        - For 2D images (HW), the output will be HW1 format
+        - For 3D images (HWC), the output will be CHW format
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
