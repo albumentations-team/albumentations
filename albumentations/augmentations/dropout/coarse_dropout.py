@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from typing import Annotated, Any
 from warnings import warn
 
@@ -184,7 +183,7 @@ class CoarseDropout(BaseDropout):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
 
-        num_holes = random.randint(*self.num_holes_range)
+        num_holes = self.py_random.randint(*self.num_holes_range)
 
         hole_heights, hole_widths = self.calculate_hole_dimensions(
             image_shape,

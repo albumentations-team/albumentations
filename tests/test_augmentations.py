@@ -998,11 +998,12 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: dict, imag
     ],
 )
 def test_pad_if_needed_position(params, image_shape):
-    set_seed(42)
-
     image = np.zeros(image_shape)
     pad = A.PadIfNeeded(**params)
-    image_padded = pad(image=image)["image"]
+    pad.set_random_state(0)
+
+    transformed = pad(image=image)
+    image_padded = transformed["image"]
 
     true_result = np.ones((max(image_shape[0], params["min_height"]), max(image_shape[1], params["min_width"])))
 
@@ -1029,8 +1030,23 @@ def test_pad_if_needed_position(params, image_shape):
         assert (image_padded == true_result).all()
 
     elif params["position"] == "random":
-        true_result[5:, 0:6] = 0
-        assert (image_padded == true_result).all()
+        # Find where the original image was placed (where pixels are 0)
+        zero_mask = (image_padded == 0)
+
+        # Get the bounds of the zero region
+        zero_rows = np.where(zero_mask.any(axis=1))[0]
+        zero_cols = np.where(zero_mask.any(axis=0))[0]
+
+        # Check that the zero region is contiguous and of correct size
+        assert len(zero_rows) == image_shape[0], "Height of placed image incorrect"
+        assert len(zero_cols) == image_shape[1], "Width of placed image incorrect"
+        assert np.all(np.diff(zero_rows) == 1), "Image placement not contiguous in height"
+        assert np.all(np.diff(zero_cols) == 1), "Image placement not contiguous in width"
+
+        # Verify the rest of the image is filled with ones
+        padded_mask = np.ones_like(true_result)
+        padded_mask[zero_rows[0]:zero_rows[-1]+1, zero_cols[0]:zero_cols[-1]+1] = 0
+        assert np.all(image_padded[padded_mask == 1] == 1), "Padding value incorrect"
 
 
 @pytest.mark.parametrize(

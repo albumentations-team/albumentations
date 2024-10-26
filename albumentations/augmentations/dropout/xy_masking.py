@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from typing import Any, cast
 
 import numpy as np
@@ -126,9 +125,8 @@ class XYMasking(BaseDropout):
         holes = np.array(masks_x + masks_y)
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
-    @staticmethod
-    def generate_mask_size(mask_length: tuple[int, int]) -> int:
-        return random.randint(*mask_length)
+    def generate_mask_size(self, mask_length: tuple[int, int]) -> int:
+        return self.py_random.randint(*mask_length)
 
     def generate_masks(
         self,
@@ -141,7 +139,9 @@ class XYMasking(BaseDropout):
             return []
 
         masks = []
-        num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
+        num_masks_integer = (
+            num_masks if isinstance(num_masks, int) else self.py_random.randint(num_masks[0], num_masks[1])
+        )
 
         height, width = image_shape
 
@@ -149,11 +149,11 @@ class XYMasking(BaseDropout):
             length = self.generate_mask_size(max_length)
 
             if axis == "x":
-                x_min = random.randint(0, width - length)
+                x_min = self.py_random.randint(0, width - length)
                 y_min = 0
                 x_max, y_max = x_min + length, height
             else:  # axis == 'y'
-                y_min = random.randint(0, height - length)
+                y_min = self.py_random.randint(0, height - length)
                 x_min = 0
                 x_max, y_max = width, y_min + length
 

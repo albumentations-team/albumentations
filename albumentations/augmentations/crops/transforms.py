@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import random
 from collections.abc import Sequence
 from typing import Annotated, Any, cast
 from warnings import warn
@@ -141,8 +140,8 @@ class RandomCrop(BaseCrop):
                 f" {(self.height, self.width)} vs {image_shape[:2]}",
             )
 
-        h_start = random.random()
-        w_start = random.random()
+        h_start = self.py_random.random()
+        w_start = self.py_random.random()
         crop_coords = fcrops.get_crop_coords(image_shape, (self.height, self.width), h_start, w_start)
         return {"crop_coords": crop_coords}
 
@@ -388,14 +387,14 @@ class CropNonEmptyMaskIfExists(BaseCrop):
         if mask.any():
             mask = mask.sum(axis=-1) if mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS else mask
             non_zero_yx = np.argwhere(mask)
-            y, x = random.choice(non_zero_yx)
-            x_min = x - random.randint(0, self.width - 1)
-            y_min = y - random.randint(0, self.height - 1)
+            y, x = self.py_random.choice(non_zero_yx)
+            x_min = x - self.py_random.randint(0, self.width - 1)
+            y_min = y - self.py_random.randint(0, self.height - 1)
             x_min = np.clip(x_min, 0, mask_width - self.width)
             y_min = np.clip(y_min, 0, mask_height - self.height)
         else:
-            x_min = random.randint(0, mask_width - self.width)
-            y_min = random.randint(0, mask_height - self.height)
+            x_min = self.py_random.randint(0, mask_width - self.width)
+            y_min = self.py_random.randint(0, mask_height - self.height)
 
         x_max = x_min + self.width
         y_max = y_min + self.height
@@ -618,13 +617,13 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     ) -> dict[str, tuple[int, int, int, int]]:
         image_shape = params["shape"][:2]
 
-        crop_height = random.randint(*self.min_max_height)
+        crop_height = self.py_random.randint(*self.min_max_height)
         crop_width = int(crop_height * self.w2h_ratio)
 
         crop_shape = (crop_height, crop_width)
 
-        h_start = random.random()
-        w_start = random.random()
+        h_start = self.py_random.random()
+        w_start = self.py_random.random()
 
         crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
 
@@ -764,16 +763,16 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         area = image_height * image_width
 
         for _ in range(10):
-            target_area = random.uniform(*self.scale) * area
+            target_area = self.py_random.uniform(*self.scale) * area
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            aspect_ratio = math.exp(random.uniform(*log_ratio))
+            aspect_ratio = math.exp(self.py_random.uniform(*log_ratio))
 
             width = int(round(math.sqrt(target_area * aspect_ratio)))
             height = int(round(math.sqrt(target_area / aspect_ratio)))
 
             if 0 < width <= image_width and 0 < height <= image_height:
-                i = random.randint(0, image_height - height)
-                j = random.randint(0, image_width - width)
+                i = self.py_random.randint(0, image_height - height)
+                j = self.py_random.randint(0, image_width - width)
 
                 h_start = i * 1.0 / (image_height - height + 1e-10)
                 w_start = j * 1.0 / (image_width - width + 1e-10)
@@ -880,11 +879,11 @@ class RandomCropNearBBox(BaseCrop):
         h_max_shift = round((bbox[3] - bbox[1]) * self.max_part_shift[0])
         w_max_shift = round((bbox[2] - bbox[0]) * self.max_part_shift[1])
 
-        x_min = bbox[0] - random.randint(-w_max_shift, w_max_shift)
-        x_max = bbox[2] + random.randint(-w_max_shift, w_max_shift)
+        x_min = bbox[0] - self.py_random.randint(-w_max_shift, w_max_shift)
+        x_max = bbox[2] + self.py_random.randint(-w_max_shift, w_max_shift)
 
-        y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
-        y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
+        y_min = bbox[1] - self.py_random.randint(-h_max_shift, h_max_shift)
+        y_max = bbox[3] + self.py_random.randint(-h_max_shift, h_max_shift)
 
         crop_coords = self._clip_bbox((x_min, y_min, x_max, y_max), image_shape)
 
@@ -955,12 +954,12 @@ class BBoxSafeRandomCrop(BaseCrop):
         image_height, image_width = image_shape
 
         erosive_h = int(image_height * (1.0 - self.erosion_rate))
-        crop_height = image_height if erosive_h >= image_height else random.randint(erosive_h, image_height)
+        crop_height = image_height if erosive_h >= image_height else self.py_random.randint(erosive_h, image_height)
 
         crop_width = int(crop_height * image_width / image_height)
 
-        h_start = random.random()
-        w_start = random.random()
+        h_start = self.py_random.random()
+        w_start = self.py_random.random()
 
         crop_shape = (crop_height, crop_width)
 
@@ -992,11 +991,11 @@ class BBoxSafeRandomCrop(BaseCrop):
 
         image_height, image_width = image_shape
 
-        crop_x_min = int(x_min * random.random() * image_width)
-        crop_y_min = int(y_min * random.random() * image_height)
+        crop_x_min = int(x_min * self.py_random.random() * image_width)
+        crop_y_min = int(y_min * self.py_random.random() * image_height)
 
-        bbox_xmax = x_max + (1 - x_max) * random.random()
-        bbox_ymax = y_max + (1 - y_max) * random.random()
+        bbox_xmax = x_max + (1 - x_max) * self.py_random.random()
+        bbox_ymax = y_max + (1 - y_max) * self.py_random.random()
         crop_x_max = int(bbox_xmax * image_width)
         crop_y_max = int(bbox_ymax * image_height)
 
@@ -1417,16 +1416,16 @@ class CropAndPad(DualTransform):
             params = [self.px] * 4
         elif len(self.px) == PAIR:
             if self.sample_independently:
-                params = [random.randrange(*self.px) for _ in range(4)]
+                params = [self.py_random.randrange(*self.px) for _ in range(4)]
             else:
-                px = random.randrange(*self.px)
+                px = self.py_random.randrange(*self.px)
                 params = [px] * 4
         elif isinstance(self.px[0], int):
             params = self.px
         elif len(self.px[0]) == PAIR:
-            params = [random.randrange(*i) for i in self.px]
+            params = [self.py_random.randrange(*i) for i in self.px]
         else:
-            params = [random.choice(i) for i in self.px]
+            params = [self.py_random.choice(i) for i in self.px]
 
         return params
 
@@ -1439,21 +1438,21 @@ class CropAndPad(DualTransform):
             params = [self.percent] * 4
         elif len(self.percent) == PAIR:
             if self.sample_independently:
-                params = [random.uniform(*self.percent) for _ in range(4)]
+                params = [self.py_random.uniform(*self.percent) for _ in range(4)]
             else:
-                px = random.uniform(*self.percent)
+                px = self.py_random.uniform(*self.percent)
                 params = [px] * 4
         elif isinstance(self.percent[0], (int, float)):
             params = self.percent
         elif len(self.percent[0]) == PAIR:
-            params = [random.uniform(*i) for i in self.percent]
+            params = [self.py_random.uniform(*i) for i in self.percent]
         else:
-            params = [random.choice(i) for i in self.percent]
+            params = [self.py_random.choice(i) for i in self.percent]
 
         return params  # params = [top, right, bottom, left]
 
-    @staticmethod
     def _get_pad_value(
+        self,
         pad_value: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType],
     ) -> ScalarType:
         if isinstance(pad_value, (int, float)):
@@ -1462,11 +1461,11 @@ class CropAndPad(DualTransform):
         if len(pad_value) == PAIR:
             a, b = pad_value
             if isinstance(a, int) and isinstance(b, int):
-                return random.randint(a, b)
+                return self.py_random.randint(a, b)
 
-            return random.uniform(a, b)
+            return self.py_random.uniform(a, b)
 
-        return random.choice(pad_value)
+        return self.py_random.choice(pad_value)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -1582,11 +1581,11 @@ class RandomCropFromBorders(BaseCrop):
     ) -> dict[str, tuple[int, int, int, int]]:
         height, width = params["shape"][:2]
 
-        x_min = random.randint(0, int(self.crop_left * width))
-        x_max = random.randint(max(x_min + 1, int((1 - self.crop_right) * width)), width)
+        x_min = self.py_random.randint(0, int(self.crop_left * width))
+        x_max = self.py_random.randint(max(x_min + 1, int((1 - self.crop_right) * width)), width)
 
-        y_min = random.randint(0, int(self.crop_top * height))
-        y_max = random.randint(max(y_min + 1, int((1 - self.crop_bottom) * height)), height)
+        y_min = self.py_random.randint(0, int(self.crop_top * height))
+        y_max = self.py_random.randint(max(y_min + 1, int((1 - self.crop_bottom) * height)), height)
 
         crop_coords = x_min, y_min, x_max, y_max
 

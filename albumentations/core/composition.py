@@ -126,7 +126,8 @@ class BaseCompose(Serializable):
         self.set_mask_interpolation(mask_interpolation)
         self.seed: int | None = None
         self.random_generator = np.random.default_rng(self.seed)
-        self.set_random_state(self.seed)  # This will propagate to children
+        self.py_random = random.Random(self.seed)
+        self.set_random_state(self.seed)
 
     def set_random_state(self, seed: int | None) -> None:
         """Set random state for this compose and all nested transforms.
@@ -136,9 +137,7 @@ class BaseCompose(Serializable):
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
-
-        if seed is not None:
-            random.seed(seed)  # Set standard library random seed
+        self.py_random.seed(seed)
 
         # Propagate to all transforms
         for transform in self.transforms:
@@ -400,7 +399,7 @@ class Compose(BaseCompose, HubMixin):
         if self.return_params and self.main_compose:
             data[self.save_key] = OrderedDict()
 
-        need_to_run = force_apply or random.random() < self.p
+        need_to_run = force_apply or self.py_random.random() < self.p
         if not need_to_run:
             return data
 
@@ -549,7 +548,7 @@ class OneOf(BaseCompose):
     """
 
     def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
-        super().__init__(transforms, p)
+        super().__init__(transforms=transforms, p=p)
         transforms_ps = [t.p for t in self.transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
@@ -560,7 +559,7 @@ class OneOf(BaseCompose):
                 data = t(**data)
             return data
 
-        if self.transforms_ps and (force_apply or random.random() < self.p):
+        if self.transforms_ps and (force_apply or self.py_random.random() < self.p):
             idx: int = self.random_generator.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
@@ -623,7 +622,7 @@ class SomeOf(BaseCompose):
                 data = self.check_data_post_transform(data)
             return data
 
-        if self.transforms_ps and (force_apply or random.random() < self.p):
+        if self.transforms_ps and (force_apply or self.py_random.random() < self.p):
             for i in self._get_idx():
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
@@ -713,7 +712,7 @@ class OneOrOther(BaseCompose):
                 data = t(**data)
             return data
 
-        if random.random() < self.p:
+        if self.py_random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
 
         return self.transforms[-1](force_apply=True, **data)
@@ -753,7 +752,7 @@ class SelectiveChannelTransform(BaseCompose):
         self.channels = channels
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
-        if force_apply or random.random() < self.p:
+        if force_apply or self.py_random.random() < self.p:
             image = data["image"]
 
             selected_channels = image[:, :, self.channels]
@@ -890,7 +889,7 @@ class Sequential(BaseCompose):
         super().__init__(transforms, p)
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
-        if self.replay_mode or force_apply or random.random() < self.p:
+        if self.replay_mode or force_apply or self.py_random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
                 data = self.check_data_post_transform(data)

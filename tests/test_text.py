@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
-from albucore.utils import get_num_channels
+import random
+from albucore import get_num_channels
 from PIL import Image, ImageFont
 
 import albumentations.augmentations.text.functional as ftext
-from tests.utils import set_seed
 
 
 @pytest.mark.parametrize(
@@ -19,7 +19,7 @@ from tests.utils import set_seed
 )
 def test_delete_random_words(sentence, num_words, expected_length):
     words = sentence.split()
-    result = ftext.delete_random_words(words, num_words)
+    result = ftext.delete_random_words(words, num_words, random.Random(42))
     result_length = len(result.split())
     assert expected_length == result_length
     if num_words == 0:
@@ -39,11 +39,10 @@ def test_delete_random_words(sentence, num_words, expected_length):
     ],
 )
 def test_swap_random_words(sentence, num_words):
-    set_seed(42)  # Set seed for reproducibility
 
     words_in_sentence = sentence.split(" ")
 
-    result = ftext.swap_random_words(words_in_sentence, num_words)
+    result = ftext.swap_random_words(words_in_sentence, num_words, random.Random(42))
     words_in_result = result.split(" ")
 
     # Handle single word case
@@ -74,9 +73,8 @@ def test_swap_random_words(sentence, num_words):
     ],
 )
 def test_insert_random_stopwords(sentence, num_insertions, stopwords, expected_length_range):
-    set_seed(42)
     words = sentence.split()
-    result = ftext.insert_random_stopwords(words, num_insertions, stopwords)
+    result = ftext.insert_random_stopwords(words, num_insertions, stopwords, random.Random(42))
     result_length = len(result.split())
 
     # Ensure the result length is within the expected range

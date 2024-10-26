@@ -1,5 +1,6 @@
 import math
 from itertools import product
+import random
 
 import cv2
 import numpy as np
@@ -1086,7 +1087,7 @@ def test_rotate_by_90_bboxes_symmetric_bbox(transform_class, transform_params, f
     ({"x": (0.8, 1.2), "y": (0.8, 1.2)}, False, True, lambda x: all(0.8 <= v <= 1.2 for v in x.values())),
 ])
 def test_get_scale(scale, keep_ratio, balanced_scale, expected):
-    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale)
+    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale, random.Random(42))
 
     if callable(expected):
         assert expected(result)
@@ -1095,14 +1096,14 @@ def test_get_scale(scale, keep_ratio, balanced_scale, expected):
 
 def test_get_scale_balanced_scale_behavior():
     scale = {"x": (0.5, 2.0), "y": (0.5, 2.0)}
-    result = A.Affine.get_scale(scale, keep_ratio=False, balanced_scale=True)
+    result = A.Affine.get_scale(scale, keep_ratio=False, balanced_scale=True, random_state=random.Random(42))
 
     assert all(0.5 <= v <= 2.0 for v in result.values())
     assert any(v < 1.0 for v in result.values()) or any(v > 1.0 for v in result.values())
 
 def test_get_scale_keep_ratio():
     scale = {"x": (0.5, 1.5), "y": (0.8, 1.2)}
-    result = A.Affine.get_scale(scale, keep_ratio=True, balanced_scale=False)
+    result = A.Affine.get_scale(scale, keep_ratio=True, balanced_scale=False, random_state=random.Random(42))
 
     assert result["x"] == result["y"]
     assert 0.5 <= result["x"] <= 1.5
@@ -1119,7 +1120,7 @@ def test_get_scale_keep_ratio():
     ],
 )
 def test_get_random_scale(scale, keep_ratio, balanced_scale, expected_x_range, expected_y_range):
-    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale)
+    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale, random.Random(42))
 
     assert expected_x_range[0] <= result["x"] <= expected_x_range[1], "x is out of range"
 

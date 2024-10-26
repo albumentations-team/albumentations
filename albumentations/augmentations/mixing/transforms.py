@@ -65,7 +65,11 @@ class OverlayElements(DualTransform):
         return [self.metadata_key]
 
     @staticmethod
-    def preprocess_metadata(metadata: dict[str, Any], img_shape: tuple[int, int]) -> dict[str, Any]:
+    def preprocess_metadata(
+        metadata: dict[str, Any],
+        img_shape: tuple[int, int],
+        random_state: random.Random,
+    ) -> dict[str, Any]:
         overlay_image = metadata["image"]
         overlay_height, overlay_width = overlay_image.shape[:2]
         image_height, image_width = img_shape[:2]
@@ -101,8 +105,8 @@ class OverlayElements(DualTransform):
             max_x_offset = image_width - overlay_width
             max_y_offset = image_height - overlay_height
 
-            offset_x = random.randint(0, max_x_offset)
-            offset_y = random.randint(0, max_y_offset)
+            offset_x = random_state.randint(0, max_x_offset)
+            offset_y = random_state.randint(0, max_y_offset)
 
             offset = (offset_y, offset_x)
 
@@ -133,9 +137,9 @@ class OverlayElements(DualTransform):
         img_shape = params["shape"]
 
         if isinstance(metadata, list):
-            overlay_data = [self.preprocess_metadata(md, img_shape) for md in metadata]
+            overlay_data = [self.preprocess_metadata(md, img_shape, self.py_random) for md in metadata]
         else:
-            overlay_data = [self.preprocess_metadata(metadata, img_shape)]
+            overlay_data = [self.preprocess_metadata(metadata, img_shape, self.py_random)]
 
         return {
             "overlay_data": overlay_data,

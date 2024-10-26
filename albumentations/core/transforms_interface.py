@@ -87,7 +87,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self.seed: int | None = None
         self.random_generator = np.random.default_rng(self.seed)
-        self.py_random = random.Random(self.seed)  # Create instance instead of using global
+        self.py_random = random.Random(self.seed)
 
     def set_random_state(self, seed: int | None) -> None:
         """Set random state for this transform and all nested transforms.
@@ -95,8 +95,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         Args:
             seed: Random seed to use
         """
-        if seed is not None:
-            random.seed(seed)  # Set standard library random seed
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random.seed(seed)

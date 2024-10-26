@@ -26,8 +26,6 @@ from albumentations.core.bbox_utils import (
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import BasicTransform, NoOp
 
-from .utils import set_seed
-
 
 @pytest.mark.parametrize(
     "bboxes, image_shape, expected",
@@ -908,7 +906,7 @@ def test_random_resized_crop_size() -> None:
 def test_random_rotate() -> None:
     image = np.ones((192, 192, 3))
     bboxes = [(78, 42, 142, 80, 1), (32, 12, 42, 72, 2)]
-    aug = A.Compose([Rotate(limit=15, p=1.0)], bbox_params={"format": "pascal_voc"})
+    aug = A.Compose([Rotate(limit=15, p=1.0, border_mode=cv2.BORDER_CONSTANT)], bbox_params={"format": "pascal_voc"})
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
 
@@ -1088,12 +1086,10 @@ def test_bbox_clipping(
 
 
 def test_bbox_clipping_perspective() -> None:
-    set_seed(1)
     transform = A.Compose(
         [A.Perspective(scale=(0.05, 0.05), p=1)],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6),
     )
-
     transform.set_random_state(1)
 
     image = np.empty([1000, 1000, 3], dtype=np.uint8)
