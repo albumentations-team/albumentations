@@ -8,8 +8,6 @@ import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 
-from .utils import set_seed
-
 
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations(image):
@@ -175,7 +173,6 @@ def test_with_return_params() -> None:
     ],
 )
 def test_color_jitter(brightness, contrast, saturation, hue):
-    set_seed(0)
     img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
     pil_image = Image.fromarray(img)
 

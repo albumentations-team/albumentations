@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from collections.abc import Sequence
 from typing import Any, Union, cast
 
@@ -89,7 +88,7 @@ class RandomScale(DualTransform):
         self.mask_interpolation = mask_interpolation
 
     def get_params(self) -> dict[str, float]:
-        return {"scale": random.uniform(*self.scale_limit)}
+        return {"scale": self.py_random.uniform(*self.scale_limit)}
 
     def apply(
         self,
@@ -231,7 +230,7 @@ class LongestMaxSize(DualTransform):
         return fgeometric.keypoints_scale(keypoints, scale, scale)
 
     def get_params(self) -> dict[str, int]:
-        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
+        return {"max_size": self.max_size if isinstance(self.max_size, int) else self.py_random.choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_size", "interpolation", "mask_interpolation"
@@ -334,7 +333,7 @@ class SmallestMaxSize(DualTransform):
         return fgeometric.keypoints_scale(keypoints, scale, scale)
 
     def get_params(self) -> dict[str, int]:
-        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
+        return {"max_size": self.max_size if isinstance(self.max_size, int) else self.py_random.choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_size", "interpolation", "mask_interpolation"

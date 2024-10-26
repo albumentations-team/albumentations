@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import numbers
-import random
 import warnings
 from collections.abc import Sequence
 from types import LambdaType
@@ -477,7 +476,7 @@ class ImageCompression(ImageOnlyTransform):
             raise ValueError(f"Unknown image compression type: {self.compression_type}")
 
         return {
-            "quality": random.randint(*self.quality_range),
+            "quality": self.py_random.randint(*self.quality_range),
             "image_type": image_type,
         }
 
@@ -645,7 +644,11 @@ class RandomSnow(ImageOnlyTransform):
         data: dict[str, Any],
     ) -> dict[str, np.ndarray | None]:
         image_shape = params["shape"][:2]
-        result = {"snow_point": random.uniform(*self.snow_point_range), "snow_texture": None, "sparkle_mask": None}
+        result = {
+            "snow_point": self.py_random.uniform(*self.snow_point_range),
+            "snow_texture": None,
+            "sparkle_mask": None,
+        }
 
         if self.method == "texture":
             snow_texture, sparkle_mask = fmain.generate_snow_textures(
@@ -782,20 +785,20 @@ class RandomGravel(ImageOnlyTransform):
 
         for _ in range(self.number_of_patches):
             # Generate a random rectangular region within the ROI
-            patch_width = random.randint(roi_width // 10, roi_width // 5)
-            patch_height = random.randint(roi_height // 10, roi_height // 5)
+            patch_width = self.py_random.randint(roi_width // 10, roi_width // 5)
+            patch_height = self.py_random.randint(roi_height // 10, roi_height // 5)
 
-            patch_x = random.randint(x_min, x_max - patch_width)
-            patch_y = random.randint(y_min, y_max - patch_height)
+            patch_x = self.py_random.randint(x_min, x_max - patch_width)
+            patch_y = self.py_random.randint(y_min, y_max - patch_height)
 
             # Generate gravel particles within this patch
             num_particles = (patch_width * patch_height) // 100  # Adjust this divisor to control density
 
             for _ in range(num_particles):
-                x = random.randint(patch_x, patch_x + patch_width)
-                y = random.randint(patch_y, patch_y + patch_height)
-                r = random.randint(1, 3)
-                sat = random.randint(0, 255)
+                x = self.py_random.randint(patch_x, patch_x + patch_width)
+                y = self.py_random.randint(patch_y, patch_y + patch_height)
+                r = self.py_random.randint(1, 3)
+                sat = self.py_random.randint(0, 255)
 
                 gravels_info.append(
                     [
@@ -974,7 +977,7 @@ class RandomRain(ImageOnlyTransform):
         )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        slant = int(random.uniform(*self.slant_range))
+        slant = int(self.py_random.uniform(*self.slant_range))
 
         height, width = params["shape"][:2]
         area = height * width
@@ -995,8 +998,8 @@ class RandomRain(ImageOnlyTransform):
         rain_drops = []
 
         for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = random.randint(slant, width) if slant < 0 else random.randint(0, max(width - slant, 0))
-            y = random.randint(0, max(height - drop_length, 0))
+            x = self.py_random.randint(slant, width) if slant < 0 else self.py_random.randint(0, max(width - slant, 0))
+            y = self.py_random.randint(0, max(height - drop_length, 0))
 
             rain_drops.append((x, y))
 
@@ -1138,7 +1141,7 @@ class RandomFog(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         # Select a random fog intensity within the specified range
-        intensity = random.uniform(*self.fog_coef_range)
+        intensity = self.py_random.uniform(*self.fog_coef_range)
 
         image_shape = params["shape"][:2]
 
@@ -1169,8 +1172,8 @@ class RandomFog(ImageOnlyTransform):
 
             for _ in range(particles_in_region):
                 # Generate random positions within the current region
-                x = random.randint(center_x - current_width // 2, center_x + current_width // 2)
-                y = random.randint(center_y - current_height // 2, center_y + current_height // 2)
+                x = self.py_random.randint(center_x - current_width // 2, center_x + current_width // 2)
+                y = self.py_random.randint(center_y - current_height // 2, center_y + current_height // 2)
                 particle_positions.append((x, y))
 
             # Shrink the region for the next iteration
@@ -1450,14 +1453,14 @@ class RandomSunFlare(ImageOnlyTransform):
         height, width = params["shape"][:2]
         diagonal = math.sqrt(height**2 + width**2)
 
-        angle = 2 * math.pi * random.uniform(*self.angle_range)
+        angle = 2 * math.pi * self.py_random.uniform(*self.angle_range)
 
         # Calculate flare center in pixel coordinates
         x_min, y_min, x_max, y_max = self.flare_roi
-        flare_center_x = int(width * random.uniform(x_min, x_max))
-        flare_center_y = int(height * random.uniform(y_min, y_max))
+        flare_center_x = int(width * self.py_random.uniform(x_min, x_max))
+        flare_center_y = int(height * self.py_random.uniform(y_min, y_max))
 
-        num_circles = random.randint(*self.num_flare_circles_range)
+        num_circles = self.py_random.randint(*self.num_flare_circles_range)
 
         # Calculate parameters relative to image size
         step_size = max(1, int(diagonal * 0.01))  # 1% of diagonal, minimum 1 pixel
@@ -1473,12 +1476,12 @@ class RandomSunFlare(ImageOnlyTransform):
 
         circles = []
         for _ in range(num_circles):
-            alpha = random.uniform(0.05, 0.2)
-            point = random.choice(points)
-            rad = random.randint(1, max_radius)
+            alpha = self.py_random.uniform(0.05, 0.2)
+            point = self.py_random.choice(points)
+            rad = self.py_random.randint(1, max_radius)
 
             # Generate colors relative to src_color
-            colors = [random.randint(max(c - color_range, 0), c) for c in self.src_color]
+            colors = [self.py_random.randint(max(c - color_range, 0), c) for c in self.src_color]
 
             circles.append(
                 (
@@ -1671,7 +1674,7 @@ class RandomShadow(ImageOnlyTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[np.ndarray]]:
         height, width = params["shape"][:2]
 
-        num_shadows = random.randint(*self.num_shadows_limit)
+        num_shadows = self.py_random.randint(*self.num_shadows_limit)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -1903,9 +1906,9 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, float]:
         return {
-            "hue_shift": random.uniform(*self.hue_shift_limit),
-            "sat_shift": random.uniform(*self.sat_shift_limit),
-            "val_shift": random.uniform(*self.val_shift_limit),
+            "hue_shift": self.py_random.uniform(*self.hue_shift_limit),
+            "sat_shift": self.py_random.uniform(*self.sat_shift_limit),
+            "val_shift": self.py_random.uniform(*self.val_shift_limit),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
@@ -1986,7 +1989,7 @@ class Solarize(ImageOnlyTransform):
         return fmain.solarize(img, threshold)
 
     def get_params(self) -> dict[str, float]:
-        return {"threshold": random.uniform(*self.threshold)}
+        return {"threshold": self.py_random.uniform(*self.threshold)}
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("threshold",)
@@ -2090,9 +2093,9 @@ class Posterize(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, Any]:
         if len(self.num_bits) == NUM_BITS_ARRAY_LENGTH:
-            return {"num_bits": [random.randint(int(i[0]), int(i[1])) for i in self.num_bits]}  # type: ignore[index]
+            return {"num_bits": [self.py_random.randint(int(i[0]), int(i[1])) for i in self.num_bits]}  # type: ignore[index]
         num_bits = self.num_bits
-        return {"num_bits": random.randint(int(num_bits[0]), int(num_bits[1]))}  # type: ignore[arg-type]
+        return {"num_bits": self.py_random.randint(int(num_bits[0]), int(num_bits[1]))}  # type: ignore[arg-type]
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("num_bits",)
@@ -2289,9 +2292,9 @@ class RGBShift(ImageOnlyTransform):
         return {
             "shift": np.array(
                 [
-                    random.uniform(*self.r_shift_limit),
-                    random.uniform(*self.g_shift_limit),
-                    random.uniform(*self.b_shift_limit),
+                    self.py_random.uniform(*self.r_shift_limit),
+                    self.py_random.uniform(*self.g_shift_limit),
+                    self.py_random.uniform(*self.b_shift_limit),
                 ],
             ),
         }
@@ -2410,8 +2413,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, float]:
         return {
-            "alpha": 1.0 + random.uniform(*self.contrast_limit),
-            "beta": 0.0 + random.uniform(*self.brightness_limit),
+            "alpha": 1.0 + self.py_random.uniform(*self.contrast_limit),
+            "beta": 0.0 + self.py_random.uniform(*self.brightness_limit),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
@@ -2501,7 +2504,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         image = data["image"] if "image" in data else data["images"][0]
-        var = random.uniform(*self.var_limit)
+        var = self.py_random.uniform(*self.var_limit)
         sigma = math.sqrt(var)
 
         if self.per_channel:
@@ -2616,8 +2619,8 @@ class ISONoise(ImageOnlyTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         random_seed = self.random_generator.integers(0, 2**32 - 1)
         return {
-            "color_shift": random.uniform(*self.color_shift),
-            "intensity": random.uniform(*self.intensity),
+            "color_shift": self.py_random.uniform(*self.color_shift),
+            "intensity": self.py_random.uniform(*self.intensity),
             "random_seed": random_seed,
         }
 
@@ -2698,7 +2701,7 @@ class CLAHE(ImageOnlyTransform):
         return fmain.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self) -> dict[str, float]:
-        return {"clip_limit": random.uniform(*self.clip_limit)}
+        return {"clip_limit": self.py_random.uniform(*self.clip_limit)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("clip_limit", "tile_grid_size")
@@ -2842,7 +2845,7 @@ class RandomGamma(ImageOnlyTransform):
         return fmain.gamma_transform(img, gamma=gamma)
 
     def get_params(self) -> dict[str, float]:
-        return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
+        return {"gamma": self.py_random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("gamma_limit",)
@@ -3328,7 +3331,7 @@ class Downscale(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, Any]:
-        return {"scale": random.uniform(*self.scale_range)}
+        return {"scale": self.py_random.uniform(*self.scale_range)}
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "scale_range", "interpolation_pair"
@@ -3742,10 +3745,10 @@ class ColorJitter(ImageOnlyTransform):
         ]
 
     def get_params(self) -> dict[str, Any]:
-        brightness = random.uniform(*self.brightness)
-        contrast = random.uniform(*self.contrast)
-        saturation = random.uniform(*self.saturation)
-        hue = random.uniform(*self.hue)
+        brightness = self.py_random.uniform(*self.brightness)
+        contrast = self.py_random.uniform(*self.contrast)
+        saturation = self.py_random.uniform(*self.saturation)
+        hue = self.py_random.uniform(*self.hue)
 
         order = [0, 1, 2, 3]
         self.random_generator.shuffle(order)
@@ -3882,8 +3885,8 @@ class Sharpen(ImageOnlyTransform):
         return (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
 
     def get_params(self) -> dict[str, np.ndarray]:
-        alpha = random.uniform(*self.alpha)
-        lightness = random.uniform(*self.lightness)
+        alpha = self.py_random.uniform(*self.alpha)
+        lightness = self.py_random.uniform(*self.lightness)
         sharpening_matrix = self.__generate_sharpening_matrix(alpha_sample=alpha, lightness_sample=lightness)
         return {"sharpening_matrix": sharpening_matrix}
 
@@ -3974,8 +3977,8 @@ class Emboss(ImageOnlyTransform):
         return (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
 
     def get_params(self) -> dict[str, np.ndarray]:
-        alpha = random.uniform(*self.alpha)
-        strength = random.uniform(*self.strength)
+        alpha = self.py_random.uniform(*self.alpha)
+        strength = self.py_random.uniform(*self.strength)
         emboss_matrix = self.__generate_emboss_matrix(alpha_sample=alpha, strength_sample=strength)
         return {"emboss_matrix": emboss_matrix}
 
@@ -4100,8 +4103,8 @@ class Superpixels(ImageOnlyTransform):
         return "p_replace", "n_segments", "max_size", "interpolation"
 
     def get_params(self) -> dict[str, Any]:
-        n_segments = random.randint(*self.n_segments)
-        p = random.uniform(*self.p_replace)
+        n_segments = self.py_random.randint(*self.n_segments)
+        p = self.py_random.uniform(*self.p_replace)
         return {"replace_samples": self.random_generator.random(n_segments) < p, "n_segments": n_segments}
 
     def apply(
@@ -4220,11 +4223,11 @@ class RingingOvershoot(ImageOnlyTransform):
         self.cutoff = cutoff
 
     def get_params(self) -> dict[str, np.ndarray]:
-        ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
+        ksize = self.py_random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
         if ksize % 2 == 0:
             raise ValueError(f"Kernel size must be odd. Got: {ksize}")
 
-        cutoff = random.uniform(*self.cutoff)
+        cutoff = self.py_random.uniform(*self.cutoff)
 
         # From dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -4339,9 +4342,9 @@ class UnsharpMask(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, Any]:
         return {
-            "ksize": random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2),
-            "sigma": random.uniform(*self.sigma_limit),
-            "alpha": random.uniform(*self.alpha),
+            "ksize": self.py_random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2),
+            "sigma": self.py_random.uniform(*self.sigma_limit),
+            "alpha": self.py_random.uniform(*self.alpha),
         }
 
     def apply(self, img: np.ndarray, ksize: int, sigma: int, alpha: float, **params: Any) -> np.ndarray:
@@ -4654,12 +4657,12 @@ class Spatter(ImageOnlyTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
-        mean = random.uniform(*self.mean)
-        std = random.uniform(*self.std)
-        cutout_threshold = random.uniform(*self.cutout_threshold)
-        sigma = random.uniform(*self.gauss_sigma)
-        mode = random.choice(self.mode)
-        intensity = random.uniform(*self.intensity)
+        mean = self.py_random.uniform(*self.mean)
+        std = self.py_random.uniform(*self.std)
+        cutout_threshold = self.py_random.uniform(*self.cutout_threshold)
+        sigma = self.py_random.uniform(*self.gauss_sigma)
+        mode = self.py_random.choice(self.mode)
+        intensity = self.py_random.uniform(*self.intensity)
         color = np.array(self.color[mode]) / 255.0
 
         liquid_layer = self.random_generator.normal(size=(height, width), loc=mean, scale=std)
@@ -4816,10 +4819,10 @@ class ChromaticAberration(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, float]:
-        primary_distortion_red = random.uniform(*self.primary_distortion_limit)
-        secondary_distortion_red = random.uniform(*self.secondary_distortion_limit)
-        primary_distortion_blue = random.uniform(*self.primary_distortion_limit)
-        secondary_distortion_blue = random.uniform(*self.secondary_distortion_limit)
+        primary_distortion_red = self.py_random.uniform(*self.primary_distortion_limit)
+        secondary_distortion_red = self.py_random.uniform(*self.secondary_distortion_limit)
+        primary_distortion_blue = self.py_random.uniform(*self.primary_distortion_limit)
+        secondary_distortion_blue = self.py_random.uniform(*self.secondary_distortion_limit)
 
         secondary_distortion_red = self._match_sign(primary_distortion_red, secondary_distortion_red)
         secondary_distortion_blue = self._match_sign(primary_distortion_blue, secondary_distortion_blue)
@@ -5086,22 +5089,22 @@ class PlanckianJitter(ImageOnlyTransform):
 
         if self.sampling_method == "uniform":
             # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
-            if random.random() < sampling_prob_boundary:
-                temperature = random.uniform(
+            if self.py_random.random() < sampling_prob_boundary:
+                temperature = self.py_random.uniform(
                     self.temperature_limit[0],
                     sampling_temp_boundary,
                 )
             else:
-                temperature = random.uniform(
+                temperature = self.py_random.uniform(
                     sampling_temp_boundary,
                     self.temperature_limit[1],
                 )
         elif self.sampling_method == "gaussian":
             # Sample values from asymmetric gaussian distribution
-            if random.random() < sampling_prob_boundary:
+            if self.py_random.random() < sampling_prob_boundary:
                 # Left side
                 shift = np.abs(
-                    random.gauss(
+                    self.py_random.gauss(
                         0,
                         np.abs(sampling_temp_boundary - self.temperature_limit[0]) / 3,
                     ),
@@ -5110,7 +5113,7 @@ class PlanckianJitter(ImageOnlyTransform):
             else:
                 # Right side
                 shift = np.abs(
-                    random.gauss(
+                    self.py_random.gauss(
                         0,
                         np.abs(self.temperature_limit[1] - sampling_temp_boundary) / 3,
                     ),

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from collections.abc import Mapping
 from typing import Annotated, Any
 
@@ -104,9 +103,9 @@ class ChannelDropout(ImageOnlyTransform):
             msg = "Can not drop all channels in ChannelDropout."
             raise ValueError(msg)
 
-        num_drop_channels = random.randint(*self.channel_drop_range)
+        num_drop_channels = self.py_random.randint(*self.channel_drop_range)
 
-        channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
+        channels_to_drop = self.py_random.sample(range(num_channels), k=num_drop_channels)
 
         return {"channels_to_drop": channels_to_drop}
 

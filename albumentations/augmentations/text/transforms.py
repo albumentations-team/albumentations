@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 import re
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -132,11 +131,11 @@ class TextImage(ImageOnlyTransform):
         num_words_to_modify = max(1, int(fraction * num_words))
 
         if choice == "insertion":
-            result_sentence = ftext.insert_random_stopwords(words, num_words_to_modify, self.stopwords)
+            result_sentence = ftext.insert_random_stopwords(words, num_words_to_modify, self.stopwords, self.py_random)
         elif choice == "swap":
-            result_sentence = ftext.swap_random_words(words, num_words_to_modify)
+            result_sentence = ftext.swap_random_words(words, num_words_to_modify, self.py_random)
         elif choice == "deletion":
-            result_sentence = ftext.delete_random_words(words, num_words_to_modify)
+            result_sentence = ftext.delete_random_words(words, num_words_to_modify, self.py_random)
         else:
             raise ValueError("Invalid choice. Choose from 'insertion', 'swap', or 'deletion'.")
 
@@ -162,18 +161,18 @@ class TextImage(ImageOnlyTransform):
         x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
         bbox_height = y_max - y_min
 
-        font_size_fraction = random.uniform(*self.font_size_fraction_range)
+        font_size_fraction = self.py_random.uniform(*self.font_size_fraction_range)
 
         font = ImageFont.truetype(str(self.font_path), int(font_size_fraction * bbox_height))
 
         if not self.augmentations or self.augmentations is None:
             augmented_text = text
         else:
-            augmentation = random.choice(self.augmentations)
+            augmentation = self.py_random.choice(self.augmentations)
 
             augmented_text = text if augmentation is None else self.random_aug(text, 0.5, choice=augmentation)
 
-        font_color = random.choice(self.font_color) if isinstance(self.font_color, list) else self.font_color
+        font_color = self.py_random.choice(self.font_color) if isinstance(self.font_color, list) else self.font_color
 
         return {
             "bbox_coords": (x_min, y_min, x_max, y_max),
@@ -197,11 +196,11 @@ class TextImage(ImageOnlyTransform):
         if isinstance(metadata, dict):
             metadata = [metadata]
 
-        fraction = random.uniform(*self.fraction_range)
+        fraction = self.py_random.uniform(*self.fraction_range)
 
         num_bboxes_to_modify = int(len(metadata) * fraction)
 
-        bbox_indices_to_update = random.sample(range(len(metadata)), num_bboxes_to_modify)
+        bbox_indices_to_update = self.py_random.sample(range(len(metadata)), num_bboxes_to_modify)
 
         overlay_data = [
             self.preprocess_metadata(image, metadata[bbox_index]["bbox"], metadata[bbox_index]["text"], bbox_index)

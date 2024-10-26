@@ -21,34 +21,39 @@ if TYPE_CHECKING:
     from PIL import Image
 
 
-def delete_random_words(words: list[str], num_words: int) -> str:
+def delete_random_words(words: list[str], num_words: int, py_random: random.Random) -> str:
     if num_words >= len(words):
         return ""
 
-    indices_to_delete = random.sample(range(len(words)), num_words)
+    indices_to_delete = py_random.sample(range(len(words)), num_words)
     new_words = [word for idx, word in enumerate(words) if idx not in indices_to_delete]
     return " ".join(new_words)
 
 
-def swap_random_words(words: list[str], num_words: int = 1) -> str:
+def swap_random_words(words: list[str], num_words: int, py_random: random.Random) -> str:
     if num_words == 0 or len(words) < PAIR:
         return " ".join(words)
 
     words = words.copy()
 
     for _ in range(num_words):
-        idx1, idx2 = random.sample(range(len(words)), 2)
+        idx1, idx2 = py_random.sample(range(len(words)), 2)
         words[idx1], words[idx2] = words[idx2], words[idx1]
     return " ".join(words)
 
 
-def insert_random_stopwords(words: list[str], num_insertions: int = 1, stopwords: tuple[str, ...] | None = None) -> str:
+def insert_random_stopwords(
+    words: list[str],
+    num_insertions: int,
+    stopwords: tuple[str, ...] | None,
+    py_random: random.Random,
+) -> str:
     if stopwords is None:
         stopwords = ("and", "the", "is", "in", "at", "of")  # Default stopwords if none provided
 
     for _ in range(num_insertions):
-        idx = random.randint(0, len(words))
-        words.insert(idx, random.choice(stopwords))
+        idx = py_random.randint(0, len(words))
+        words.insert(idx, py_random.choice(stopwords))
     return " ".join(words)
 
 

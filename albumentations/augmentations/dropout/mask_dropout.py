@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from typing import Any, Literal, cast
 
 import cv2
@@ -102,13 +101,13 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = random.randint(*self.max_objects)
+            objects_to_drop = self.py_random.randint(*self.max_objects)
             objects_to_drop = min(num_labels, objects_to_drop)
 
             if objects_to_drop == num_labels:
                 dropout_mask = mask > 0
             else:
-                labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
+                labels_index = self.py_random.sample(range(1, num_labels + 1), objects_to_drop)
                 dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=bool)
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index

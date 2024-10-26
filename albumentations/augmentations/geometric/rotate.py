@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import random
 from typing import Any, cast
 
 import cv2
@@ -46,7 +45,7 @@ class RandomRotate90(DualTransform):
 
     def get_params(self) -> dict[str, int]:
         # Random int in the range [0, 3]
-        return {"factor": random.randint(0, 3)}
+        return {"factor": self.py_random.randint(0, 3)}
 
     def apply_to_bboxes(self, bboxes: np.ndarray, factor: int, **params: Any) -> np.ndarray:
         return fgeometric.bboxes_rot90(bboxes, factor)
@@ -282,7 +281,7 @@ class Rotate(DualTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        angle = random.uniform(*self.limit)
+        angle = self.py_random.uniform(*self.limit)
 
         if self.crop_border:
             height, width = params["shape"][:2]
@@ -468,7 +467,7 @@ class SafeRotate(Affine):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
-        angle = random.uniform(*self.limit)
+        angle = self.py_random.uniform(*self.limit)
 
         # Calculate centers for image and bbox
         image_center = fgeometric.center(image_shape)

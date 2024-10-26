@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from collections.abc import Sequence
 from typing import Annotated, Any, Callable, Literal, cast
 
@@ -118,8 +117,8 @@ class HistogramMatching(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, np.ndarray]:
         return {
-            "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(*self.blend_ratio),
+            "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
+            "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
@@ -217,13 +216,10 @@ class FDA(ImageOnlyTransform):
         return fourier_domain_adaptation(img, target_image, beta)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
-        target_img = self.read_fn(random.choice(self.reference_images))
+        target_img = self.read_fn(self.py_random.choice(self.reference_images))
         target_img = cv2.resize(target_img, dsize=(params["cols"], params["rows"]))
 
-        return {"target_image": target_img}
-
-    def get_params(self) -> dict[str, float]:
-        return {"beta": random.uniform(*self.beta_limit)}
+        return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
         return "reference_images", "beta_limit", "read_fn"
@@ -333,8 +329,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, Any]:
         return {
-            "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(*self.blend_ratio),
+            "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
+            "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
@@ -488,13 +484,13 @@ class TemplateTransform(ImageOnlyTransform):
 
     def get_params(self) -> dict[str, float]:
         return {
-            "img_weight": random.uniform(*self.img_weight),
+            "img_weight": self.py_random.uniform(*self.img_weight),
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         img = data["image"] if "image" in data else data["images"][0]
 
-        template = random.choice(self.templates)
+        template = self.py_random.choice(self.templates)
 
         if self.template_transform is not None:
             template = self.template_transform(image=template)["image"]

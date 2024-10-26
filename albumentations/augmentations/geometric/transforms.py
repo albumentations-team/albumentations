@@ -439,7 +439,7 @@ class Perspective(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
 
-        scale = random.uniform(*self.scale)
+        scale = self.py_random.uniform(*self.scale)
 
         points = fgeometric.generate_perspective_points(image_shape, scale, self.random_generator)
         points = fgeometric.order_points(points)
@@ -757,6 +757,7 @@ class Affine(DualTransform):
         scale: dict[str, float | tuple[float, float]],
         keep_ratio: bool,
         balanced_scale: bool,
+        random_state: random.Random,
     ) -> fgeometric.ScaleDict:
         result_scale = {}
         for key, value in scale.items():
@@ -768,7 +769,7 @@ class Affine(DualTransform):
                     upper_interval = (1.0, value[1]) if value[1] > 1 else None
 
                     if lower_interval is not None and upper_interval is not None:
-                        selected_interval = random.choice([lower_interval, upper_interval])
+                        selected_interval = random_state.choice([lower_interval, upper_interval])
                     elif lower_interval is not None:
                         selected_interval = lower_interval
                     elif upper_interval is not None:
@@ -777,9 +778,9 @@ class Affine(DualTransform):
                         result_scale[key] = 1.0
                         continue
 
-                    result_scale[key] = random.uniform(*selected_interval)
+                    result_scale[key] = random_state.uniform(*selected_interval)
                 else:
-                    result_scale[key] = random.uniform(*value)
+                    result_scale[key] = random_state.uniform(*value)
             else:
                 raise TypeError(
                     f"Invalid scale value for key {key}: {value}. Expected a float or a tuple of two floats.",
@@ -795,8 +796,8 @@ class Affine(DualTransform):
 
         translate = self._get_translate_params(image_shape)
         shear = self._get_shear_params()
-        scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
-        rotate = random.uniform(*self.rotate)
+        scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale, self.py_random)
+        rotate = self.py_random.uniform(*self.rotate)
 
         image_shift = fgeometric.center(image_shape)
         bbox_shift = fgeometric.center_bbox(image_shape)
@@ -823,15 +824,15 @@ class Affine(DualTransform):
         if self.translate_px is not None:
             return cast(
                 fgeometric.TranslateDict,
-                {key: random.randint(*value) for key, value in self.translate_px.items()},
+                {key: self.py_random.randint(*value) for key, value in self.translate_px.items()},
             )
         if self.translate_percent is not None:
-            translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
+            translate = {key: self.py_random.uniform(*value) for key, value in self.translate_percent.items()}
             return cast(fgeometric.TranslateDict, {"x": translate["x"] * width, "y": translate["y"] * height})
         return cast(fgeometric.TranslateDict, {"x": 0, "y": 0})
 
     def _get_shear_params(self) -> fgeometric.ShearDict:
-        return cast(fgeometric.ShearDict, {key: -random.uniform(*value) for key, value in self.shear.items()})
+        return cast(fgeometric.ShearDict, {key: -self.py_random.uniform(*value) for key, value in self.shear.items()})
 
 
 class ShiftScaleRotate(Affine):
@@ -1105,9 +1106,9 @@ class PiecewiseAffine(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
-        nb_rows = np.clip(random.randint(*self.nb_rows), 2, None)
-        nb_cols = np.clip(random.randint(*self.nb_cols), 2, None)
-        scale = random.uniform(*self.scale)
+        nb_rows = np.clip(self.py_random.randint(*self.nb_rows), 2, None)
+        nb_cols = np.clip(self.py_random.randint(*self.nb_cols), 2, None)
+        scale = self.py_random.uniform(*self.scale)
 
         map_x, map_y = fgeometric.create_piecewise_affine_maps(
             image_shape=(height, width),
@@ -1451,9 +1452,9 @@ class PadIfNeeded(DualTransform):
         elif self.position == "random":
             h_pad = h_top + h_bottom
             w_pad = w_left + w_right
-            h_top = random.randint(0, h_pad)
+            h_top = self.py_random.randint(0, h_pad)
             h_bottom = h_pad - h_top
-            w_left = random.randint(0, w_pad)
+            w_left = self.py_random.randint(0, w_pad)
             w_right = w_pad - w_left
 
         return h_top, h_bottom, w_left, w_right
@@ -1573,7 +1574,7 @@ class Flip(DualTransform):
 
     def get_params(self) -> dict[str, int]:
         # Random int in the range [-1, 1]
-        return {"d": random.randint(-1, 1)}
+        return {"d": self.py_random.randint(-1, 1)}
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.bboxes_flip(bboxes, params["d"])
@@ -1737,9 +1738,9 @@ class OpticalDistortion(BaseDistortion):
         fx = width
         fy = height
 
-        k = random.uniform(*self.distort_limit)
-        dx = round(random.uniform(*self.shift_limit))
-        dy = round(random.uniform(*self.shift_limit))
+        k = self.py_random.uniform(*self.distort_limit)
+        dx = round(self.py_random.uniform(*self.shift_limit))
+        dy = round(self.py_random.uniform(*self.shift_limit))
 
         cx = width * 0.5 + dx
         cy = height * 0.5 + dy
@@ -1852,8 +1853,8 @@ class GridDistortion(BaseDistortion):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
-        steps_x = [1 + random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
-        steps_y = [1 + random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
+        steps_x = [1 + self.py_random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
+        steps_y = [1 + self.py_random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
 
         if self.normalized:
             normalized_params = fgeometric.normalize_grid_distortion_steps(

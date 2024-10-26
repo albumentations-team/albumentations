@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from tests.utils import set_seed
 
 from .conftest import IMAGES, RECTANGULAR_UINT8_IMAGE
 
@@ -71,7 +70,6 @@ def test_center_crop_vs_crop(bboxes, keypoints):
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_crop_near_bbox(image, bboxes, keypoints):
-    set_seed(42)
     bbox_key = "target_bbox"
     aug = A.Compose(
         [A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)],
