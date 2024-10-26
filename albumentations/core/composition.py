@@ -106,6 +106,7 @@ class BaseCompose(Serializable):
         transforms: TransformsSeqType,
         p: float,
         mask_interpolation: int | None = None,
+        seed: int | None = None,
     ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -124,10 +125,10 @@ class BaseCompose(Serializable):
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self._set_keys()
         self.set_mask_interpolation(mask_interpolation)
-        self.seed: int | None = None
-        self.random_generator = np.random.default_rng(self.seed)
-        self.py_random = random.Random(self.seed)
-        self.set_random_state(self.seed)
+        self.seed = seed
+        self.random_generator = np.random.default_rng(seed)
+        self.py_random = random.Random(seed)
+        self.set_random_state(seed)
 
     def set_random_state(self, seed: int | None) -> None:
         """Set random state for this compose and all nested transforms.
@@ -287,6 +288,7 @@ class Compose(BaseCompose, HubMixin):
         save_key (str): Key to save applied params if return_params is True. Default is 'applied_params'.
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
+        seed (int, optional): Random seed. Default is None.
 
     Example:
         >>> import albumentations as A
@@ -315,9 +317,10 @@ class Compose(BaseCompose, HubMixin):
         strict: bool = True,
         return_params: bool = False,
         save_key: str = "applied_params",
-        mask_interpolation: int | None = None,  # Add this parameter
+        mask_interpolation: int | None = None,
+        seed: int | None = None,
     ):
-        super().__init__(transforms=transforms, p=p, mask_interpolation=mask_interpolation)
+        super().__init__(transforms=transforms, p=p, mask_interpolation=mask_interpolation, seed=seed)
 
         if bbox_params:
             if isinstance(bbox_params, dict):

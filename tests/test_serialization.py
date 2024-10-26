@@ -509,8 +509,8 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
             ),
         ],
         keypoint_params={"format": keypoint_format, "label_fields": ["labels"]},
+        seed=seed,
     )
-    aug.set_random_state(seed)
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
