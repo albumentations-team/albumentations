@@ -2071,6 +2071,7 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
     """Checks whether transformations based on DualTransform dont has abstract methods."""
     aug = augmentation_cls(p=1, **params)
     aug.set_random_state(0)
+    set_seed(0)
 
     image = RECTANGULAR_UINT8_IMAGE
 
