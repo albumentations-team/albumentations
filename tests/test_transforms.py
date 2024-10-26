@@ -1115,21 +1115,22 @@ def test_grid_shuffle(image, grid):
     ],
 )
 def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_right, crop_top, crop_bottom):
-    aug = A.Compose(
-        [
-            A.RandomCropFromBorders(
-                crop_left=crop_left,
-                crop_right=crop_right,
-                crop_top=crop_top,
-                crop_bottom=crop_bottom,
-                p=1,
-            ),
-        ],
-        bbox_params=A.BboxParams("pascal_voc"),
-        keypoint_params=A.KeypointParams("xy"),
-    )
+    for i in range(30):
+        aug = A.Compose(
+            [
+                A.RandomCropFromBorders(
+                    crop_left=crop_left,
+                    crop_right=crop_right,
+                    crop_top=crop_top,
+                    crop_bottom=crop_bottom,
+                    p=1,
+                ),
+            ],
+            bbox_params=A.BboxParams("pascal_voc"),
+            keypoint_params=A.KeypointParams("xy"),
+        )
 
-    assert aug(image=image, mask=image, bboxes=bboxes, keypoints=keypoints)
+        assert aug(image=image, mask=image, bboxes=bboxes, keypoints=keypoints)
 
 
 @pytest.mark.parametrize(

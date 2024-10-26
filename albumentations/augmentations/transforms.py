@@ -281,7 +281,7 @@ class Normalize(ImageOnlyTransform):
     Example:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.self.py_random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> # Standard ImageNet normalization
         >>> transform = A.Normalize(
         ...     mean=(0.485, 0.456, 0.406),
