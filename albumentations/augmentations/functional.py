@@ -22,6 +22,7 @@ from albucore import (
     maybe_process_in_chunks,
     multiply,
     multiply_add,
+    multiply_by_constant,
     normalize_per_image,
     preserve_channel_dim,
     sz_lut,
@@ -43,7 +44,6 @@ from albumentations.core.types import (
     NUM_RGB_CHANNELS,
     ColorType,
     ImageMode,
-    PlanckianJitterMode,
     SpatterMode,
 )
 
@@ -1829,9 +1829,8 @@ PLANCKIAN_COEFFS: dict[str, dict[int, list[float]]] = {
 }
 
 
-@float32_io
 @clipped
-def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMode) -> np.ndarray:
+def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody", "cied"]) -> np.ndarray:
     img = img.copy()
     # Get the min and max temperatures for the given mode
     min_temp = min(PLANCKIAN_COEFFS[mode].keys())
@@ -1853,8 +1852,8 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
         w_left = 1 - w_right
         coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
 
-    img[:, :, 0] = img[:, :, 0] * (coeffs[0] / coeffs[1])
-    img[:, :, 2] = img[:, :, 2] * (coeffs[2] / coeffs[1])
+    img[:, :, 0] = multiply_by_constant(img[:, :, 0], coeffs[0] / coeffs[1], inplace=True)
+    img[:, :, 2] = multiply_by_constant(img[:, :, 2], coeffs[2] / coeffs[1], inplace=True)
 
     return img
 

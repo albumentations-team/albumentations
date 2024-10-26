@@ -67,7 +67,6 @@ from albumentations.core.types import (
     ColorType,
     ImageMode,
     MorphologyMode,
-    PlanckianJitterMode,
     RainMode,
     ScaleFloatType,
     ScaleIntType,
@@ -4985,7 +4984,7 @@ class PlanckianJitter(ImageOnlyTransform):
             - "cied": Uses the CIE D illuminant series for color temperature simulation.
             Default: "blackbody"
 
-        temperature_range (tuple[int, int] | None): The range of color temperatures (in Kelvin) to sample from.
+        temperature_limit (tuple[int, int] | None): The range of color temperatures (in Kelvin) to sample from.
             - For "blackbody" mode: Should be within [3000K, 15000K]. Default: (3000, 15000)
             - For "cied" mode: Should be within [4000K, 15000K]. Default: (4000, 15000)
             If None, the default ranges will be used based on the selected mode.
@@ -5034,7 +5033,7 @@ class PlanckianJitter(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mode: PlanckianJitterMode
+        mode: Literal["blackbody", "cied"]
         temperature_limit: Annotated[tuple[int, int], AfterValidator(nondecreasing)] | None
         sampling_method: Literal["uniform", "gaussian"]
 
@@ -5066,7 +5065,7 @@ class PlanckianJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mode: PlanckianJitterMode = "blackbody",
+        mode: Literal["blackbody", "cied"] = "blackbody",
         temperature_limit: tuple[int, int] | None = None,
         sampling_method: Literal["uniform", "gaussian"] = "uniform",
         always_apply: bool | None = None,
