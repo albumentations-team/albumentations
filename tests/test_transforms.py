@@ -2064,6 +2064,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.D4,
             A.RandomRotate90,
             A.PiecewiseAffine,
+            A.Perspective,
         },
     ),
 )
@@ -2086,5 +2087,5 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
 
     x_min_transformed, y_min_transformed, x_max_transformed, y_max_transformed = transformed["bboxes"][0]
 
-    np.testing.assert_allclose(transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=3)
-    np.testing.assert_allclose(transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=3)
+    np.testing.assert_allclose(transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1)
+    np.testing.assert_allclose(transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1)
