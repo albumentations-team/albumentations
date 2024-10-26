@@ -1089,11 +1089,10 @@ def test_grid_shuffle(image, grid):
     """As we reshuffle the grid, the mean and sum of the image and mask should remain the same,
     while the reshuffled image and mask should not be equal to the original image and mask.
     """
-    set_seed(0)
-
     mask = image.copy()
 
     aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
+    aug.set_random_state(0)
 
     res = aug(image=image, mask=mask)
     assert res["image"].shape == image.shape
