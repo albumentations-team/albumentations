@@ -85,6 +85,34 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._key2func = {}
         self._set_keys()
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
+        self.seed: int | None = None
+        self.random_generator = np.random.default_rng(self.seed)
+        self.py_random = random.Random(self.seed)  # Create instance instead of using global
+
+    def set_random_state(self, seed: int | None) -> None:
+        """Set random state for this transform and all nested transforms.
+
+        Args:
+            seed: Random seed to use
+        """
+        if seed is not None:
+            random.seed(seed)  # Set standard library random seed
+        self.seed = seed
+        self.random_generator = np.random.default_rng(seed)
+        self.py_random.seed(seed)
+
+    def get_dict_with_id(self) -> dict[str, Any]:
+        d = self.to_dict_private()
+        d["id"] = id(self)
+        return d
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Returns names of arguments that are used in __init__ method of the transform."""
+        msg = (
+            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
+            "method is not implemented"
+        )
+        raise NotImplementedError(msg)
 
     def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
@@ -132,7 +160,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             return False
         if self.p >= 1.0 or force_apply:
             return True
-        return random.random() < self.p
+        return self.py_random.random() < self.p
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
@@ -281,32 +309,21 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def is_serializable(cls) -> bool:
         return True
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Returns names of arguments that are used in __init__ method of the transform."""
-        msg = (
-            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
-            "method is not implemented"
-        )
-        raise NotImplementedError(msg)
-
     def get_base_init_args(self) -> dict[str, Any]:
         """Returns base init args - p"""
         return {"p": self.p}
 
     def get_transform_init_args(self) -> dict[str, Any]:
-        return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
+        """Exclude seed from init args during serialization"""
+        args = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
+        args.pop("seed", None)  # Remove seed from args
+        return args
 
     def to_dict_private(self) -> dict[str, Any]:
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
-
         return state
-
-    def get_dict_with_id(self) -> dict[str, Any]:
-        d = self.to_dict_private()
-        d["id"] = id(self)
-        return d
 
 
 class DualTransform(BasicTransform):

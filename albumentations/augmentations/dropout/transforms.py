@@ -48,13 +48,13 @@ class BaseDropout(DualTransform):
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
 
-    def apply(self, img: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
-        return cutout(img, holes, self.fill_value)
+    def apply(self, img: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:
+        return cutout(img, holes, self.fill_value, np.random.default_rng(seed))
 
-    def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:
         if self.mask_fill_value is None:
             return mask
-        return cutout(mask, holes, self.mask_fill_value)
+        return cutout(mask, holes, self.mask_fill_value, np.random.default_rng(seed))
 
     def apply_to_bboxes(
         self,

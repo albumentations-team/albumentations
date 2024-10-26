@@ -1094,6 +1094,8 @@ def test_bbox_clipping_perspective() -> None:
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6),
     )
 
+    transform.set_random_state(1)
+
     image = np.empty([1000, 1000, 3], dtype=np.uint8)
     bboxes = np.array([[0, 0, 100, 100, 1]])
     res = transform(image=image, bboxes=bboxes)["bboxes"]

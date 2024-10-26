@@ -103,7 +103,6 @@ class RandomScale(DualTransform):
         self,
         mask: np.ndarray,
         scale: float,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.scale(mask, scale, self.mask_interpolation)

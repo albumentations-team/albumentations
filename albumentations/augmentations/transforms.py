@@ -32,7 +32,6 @@ from typing_extensions import Literal, Self, TypedDict
 
 import albumentations.augmentations.dropout.functional as fdropout
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.utils import check_range, non_rgb_error
@@ -217,9 +216,10 @@ class RandomGridShuffle(DualTransform):
         original_tiles = fgeometric.split_uniform_grid(
             image_shape,
             self.grid,
+            self.random_generator,
         )
         shape_groups = fmain.create_shape_groups(original_tiles)
-        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups)
+        mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups, self.random_generator)
 
         return {"tiles": original_tiles, "mapping": mapping}
 
@@ -623,18 +623,40 @@ class RandomSnow(ImageOnlyTransform):
         self.brightness_coeff = brightness_coeff
         self.method = method
 
-    def apply(self, img: np.ndarray, snow_point: float, **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        snow_point: float,
+        snow_texture: np.ndarray,
+        sparkle_mask: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         non_rgb_error(img)
 
         if self.method == "bleach":
             return fmain.add_snow_bleach(img, snow_point, self.brightness_coeff)
         if self.method == "texture":
-            return fmain.add_snow_texture(img, snow_point, self.brightness_coeff)
+            return fmain.add_snow_texture(img, snow_point, self.brightness_coeff, snow_texture, sparkle_mask)
 
         raise ValueError(f"Unknown snow method: {self.method}")
 
-    def get_params(self) -> dict[str, np.ndarray]:
-        return {"snow_point": random.uniform(*self.snow_point_range)}
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, np.ndarray | None]:
+        image_shape = params["shape"][:2]
+        result = {"snow_point": random.uniform(*self.snow_point_range), "snow_texture": None, "sparkle_mask": None}
+
+        if self.method == "texture":
+            snow_texture, sparkle_mask = fmain.generate_snow_textures(
+                img_shape=image_shape,
+                random_generator=self.random_generator,
+            )
+            result["snow_texture"] = snow_texture
+            result["sparkle_mask"] = sparkle_mask
+
+        return result
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
         return "snow_point_range", "brightness_coeff"
@@ -739,8 +761,8 @@ class RandomGravel(ImageOnlyTransform):
         area = abs((x_max - x_min) * (y_max - y_min))
         count = area // 10
         gravels = np.empty([count, 2], dtype=np.int64)
-        gravels[:, 0] = random_utils.randint(x_min, x_max, count)
-        gravels[:, 1] = random_utils.randint(y_min, y_max, count)
+        gravels[:, 0] = self.random_generator.integers(x_min, x_max, count)
+        gravels[:, 1] = self.random_generator.integers(y_min, y_max, count)
         return gravels
 
     def apply(self, img: np.ndarray, gravels_infos: list[Any], **params: Any) -> np.ndarray:
@@ -1102,9 +1124,9 @@ class RandomFog(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        particle_positions: np.ndarray,
+        particle_positions: list[tuple[int, int]],
+        radiuses: list[int],
         intensity: float,
-        random_seed: int,
         **params: Any,
     ) -> np.ndarray:
         return fmain.add_fog(
@@ -1112,7 +1134,7 @@ class RandomFog(ImageOnlyTransform):
             intensity,
             self.alpha_coef,
             particle_positions,
-            random_utils.get_random_generator(random_seed),
+            radiuses,
         )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -1158,10 +1180,17 @@ class RandomFog(ImageOnlyTransform):
 
             iteration += 1
 
+        radiuses = fmain.get_fog_particle_radiuses(
+            image_shape,
+            len(particle_positions),
+            intensity,
+            self.random_generator,
+        )
+
         return {
             "particle_positions": particle_positions,
             "intensity": intensity,
-            "random_seed": random_utils.get_random_seed(),
+            "radiuses": radiuses,
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
@@ -1655,8 +1684,8 @@ class RandomShadow(ImageOnlyTransform):
         vertices_list = [
             np.stack(
                 [
-                    random_utils.randint(x_min, x_max, size=self.shadow_dimension),
-                    random_utils.randint(y_min, y_max, size=self.shadow_dimension),
+                    self.random_generator.integers(x_min, x_max, size=self.shadow_dimension),
+                    self.random_generator.integers(y_min, y_max, size=self.shadow_dimension),
                 ],
                 axis=1,
             )
@@ -1664,7 +1693,7 @@ class RandomShadow(ImageOnlyTransform):
         ]
 
         # Sample shadow intensity for each shadow
-        intensities = random_utils.uniform(
+        intensities = self.random_generator.uniform(
             *self.shadow_intensity_range,
             size=num_shadows,
         )
@@ -1773,12 +1802,12 @@ class RandomToneCurve(ImageOnlyTransform):
 
         if self.per_channel and num_channels != 1:
             return {
-                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=(num_channels,)), 0, 1),
-                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=(num_channels,)), 0, 1),
+                "low_y": np.clip(self.random_generator.normal(loc=0.25, scale=self.scale, size=(num_channels,)), 0, 1),
+                "high_y": np.clip(self.random_generator.normal(loc=0.75, scale=self.scale, size=(num_channels,)), 0, 1),
             }
         # Same values for all channels
-        low_y = np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1)
-        high_y = np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1)
+        low_y = np.clip(self.random_generator.normal(loc=0.25, scale=self.scale), 0, 1)
+        high_y = np.clip(self.random_generator.normal(loc=0.75, scale=self.scale), 0, 1)
 
         return {"low_y": low_y, "high_y": high_y}
 
@@ -2479,15 +2508,27 @@ class GaussNoise(ImageOnlyTransform):
         if self.per_channel:
             target_shape = image.shape
             if self.noise_scale_factor == 1:
-                gauss = random_utils.normal(self.mean, sigma, target_shape)
+                gauss = self.random_generator.normal(self.mean, sigma, target_shape)
             else:
-                gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
+                gauss = fmain.generate_approx_gaussian_noise(
+                    target_shape,
+                    self.mean,
+                    sigma,
+                    self.noise_scale_factor,
+                    self.random_generator,
+                )
         else:
             target_shape = image.shape[:2]
             if self.noise_scale_factor == 1:
-                gauss = random_utils.normal(self.mean, sigma, target_shape)
+                gauss = self.random_generator.normal(self.mean, sigma, target_shape)
             else:
-                gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
+                gauss = fmain.generate_approx_gaussian_noise(
+                    target_shape,
+                    self.mean,
+                    sigma,
+                    self.noise_scale_factor,
+                    self.random_generator,
+                )
 
             if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
@@ -2571,13 +2612,14 @@ class ISONoise(ImageOnlyTransform):
         **params: Any,
     ) -> np.ndarray:
         non_rgb_error(img)
-        return fmain.iso_noise(img, color_shift, intensity, random_utils.get_random_generator(random_seed))
+        return fmain.iso_noise(img, color_shift, intensity, np.random.default_rng(random_seed))
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        random_seed = self.random_generator.integers(0, 2**32 - 1)
         return {
             "color_shift": random.uniform(*self.color_shift),
             "intensity": random.uniform(*self.intensity),
-            "random_seed": random_utils.get_random_seed(),
+            "random_seed": random_seed,
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
@@ -2682,7 +2724,7 @@ class ChannelShuffle(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         ch_arr = list(range(params["shape"][2]))
-        ch_arr = random_utils.shuffle(ch_arr)
+        self.random_generator.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
     def get_transform_init_args_names(self) -> tuple[()]:
@@ -3491,7 +3533,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         else:
             shape = (num_channels,) if self.per_channel else (1,)
 
-        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
+        multiplier = self.random_generator.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
         if not self.per_channel and num_channels > 1:
             # Replicate the multiplier for all channels if not per_channel
@@ -3570,7 +3612,7 @@ class FancyPCA(ImageOnlyTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         shape = params["shape"]
         num_channels = shape[-1] if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS else 1
-        alpha_vector = random_utils.normal(0, self.alpha, num_channels).astype(np.float32)
+        alpha_vector = self.random_generator.normal(0, self.alpha, num_channels).astype(np.float32)
         return {"alpha_vector": alpha_vector}
 
     def get_transform_init_args_names(self) -> tuple[str]:
@@ -3707,7 +3749,7 @@ class ColorJitter(ImageOnlyTransform):
         hue = random.uniform(*self.hue)
 
         order = [0, 1, 2, 3]
-        order = random_utils.shuffle(order)
+        self.random_generator.shuffle(order)
 
         return {
             "brightness": brightness,
@@ -4061,7 +4103,7 @@ class Superpixels(ImageOnlyTransform):
     def get_params(self) -> dict[str, Any]:
         n_segments = random.randint(*self.n_segments)
         p = random.uniform(*self.p_replace)
-        return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
+        return {"replace_samples": self.random_generator.random(n_segments) < p, "n_segments": n_segments}
 
     def apply(
         self,
@@ -4456,7 +4498,7 @@ class PixelDropout(DualTransform):
         shape = img.shape if self.per_channel else img.shape[:2]
 
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
-        drop_mask = random_utils.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
+        drop_mask = self.random_generator.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
         drop_value: float | Sequence[float] | np.ndarray
 
@@ -4466,14 +4508,14 @@ class PixelDropout(DualTransform):
             drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
 
             if img.dtype == np.uint8:
-                drop_value = random_utils.randint(
+                drop_value = self.random_generator.integers(
                     0,
                     int(MAX_VALUES_BY_DTYPE[img.dtype]),
                     size=drop_shape,
                     dtype=img.dtype,
                 )
             elif img.dtype == np.float32:
-                drop_value = random_utils.uniform(0, 1, size=drop_shape).astype(img.dtype)
+                drop_value = self.random_generator.uniform(0, 1, size=drop_shape).astype(img.dtype)
             else:
                 raise ValueError(f"Unsupported dtype: {img.dtype}")
         else:
@@ -4621,7 +4663,7 @@ class Spatter(ImageOnlyTransform):
         intensity = random.uniform(*self.intensity)
         color = np.array(self.color[mode]) / 255.0
 
-        liquid_layer = random_utils.normal(size=(height, width), loc=mean, scale=std)
+        liquid_layer = self.random_generator.normal(size=(height, width), loc=mean, scale=std)
         liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
         liquid_layer[liquid_layer < cutout_threshold] = 0
 
@@ -5037,8 +5079,6 @@ class PlanckianJitter(ImageOnlyTransform):
         self.sampling_method = sampling_method
 
     def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
-        if not is_rgb_image(img):
-            raise TypeError("PlanckianJitter transformation expects 3-channel images.")
         return fmain.planckian_jitter(img, temperature, mode=self.mode)
 
     def get_params(self) -> dict[str, Any]:

@@ -9,7 +9,6 @@ import numpy as np
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
-from albumentations import random_utils
 from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import (
@@ -103,7 +102,7 @@ class Blur(ImageOnlyTransform):
         return fblur.blur(img, kernel)
 
     def get_params(self) -> dict[str, Any]:
-        return {"kernel": random_utils.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
+        return {"kernel": self.random_generator.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("blur_limit",)
@@ -497,7 +496,7 @@ class GlassBlur(ImageOnlyTransform):
         width_pixels = height - self.max_delta * 2
         height_pixels = width - self.max_delta * 2
         total_pixels = int(width_pixels * height_pixels)
-        dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+        dxy = self.random_generator.integers(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
         return {"dxy": dxy}
 
@@ -660,7 +659,7 @@ class AdvancedBlur(ImageOnlyTransform):
             random.uniform(self.beta_limit[0], 1) if random.random() < HALF else random.uniform(1, self.beta_limit[1])
         )
 
-        noise_matrix = random_utils.uniform(*self.noise_limit, size=(ksize, ksize))
+        noise_matrix = self.random_generator.uniform(*self.noise_limit, size=(ksize, ksize))
 
         # Generate mesh grid centered at zero.
         ax = np.arange(-ksize // 2 + 1.0, ksize // 2 + 1.0)

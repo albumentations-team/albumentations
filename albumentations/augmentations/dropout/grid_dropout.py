@@ -149,6 +149,7 @@ class GridDropout(BaseDropout):
                 image_shape,
                 self.unit_size_range,
                 self.holes_number_xy,
+                self.random_generator,
             )
             grid = (image_shape[0] // unit_height, image_shape[1] // unit_width)
 
@@ -158,8 +159,9 @@ class GridDropout(BaseDropout):
             self.ratio,
             self.random_offset,
             self.shift_xy,
+            self.random_generator,
         )
-        return {"holes": holes}
+        return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (

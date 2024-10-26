@@ -8,7 +8,6 @@ import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Literal, Self
 
-from albumentations import random_utils
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.types import ColorType, NumericType, ScalarType
@@ -156,8 +155,8 @@ class CoarseDropout(BaseDropout):
         self.hole_height_range = hole_height_range
         self.hole_width_range = hole_width_range
 
-    @staticmethod
     def calculate_hole_dimensions(
+        self,
         image_shape: tuple[int, int],
         height_range: tuple[ScalarType, ScalarType],
         width_range: tuple[ScalarType, ScalarType],
@@ -173,12 +172,12 @@ class CoarseDropout(BaseDropout):
             min_width = width_range[0]
             max_width = min(width_range[1], width)
 
-            hole_heights = random_utils.randint(int(min_height), int(max_height + 1), size=size)
-            hole_widths = random_utils.randint(int(min_width), int(max_width + 1), size=size)
+            hole_heights = self.random_generator.integers(int(min_height), int(max_height + 1), size=size)
+            hole_widths = self.random_generator.integers(int(min_width), int(max_width + 1), size=size)
 
         else:  # Assume float
-            hole_heights = (height * random_utils.uniform(*height_range, size=size)).astype(int)
-            hole_widths = (width * random_utils.uniform(*width_range, size=size)).astype(int)
+            hole_heights = (height * self.random_generator.uniform(*height_range, size=size)).astype(int)
+            hole_widths = (width * self.random_generator.uniform(*width_range, size=size)).astype(int)
 
         return hole_heights, hole_widths
 
@@ -196,14 +195,14 @@ class CoarseDropout(BaseDropout):
 
         height, width = image_shape[:2]
 
-        y_min = random_utils.randint(0, height - hole_heights + 1, size=num_holes)
-        x_min = random_utils.randint(0, width - hole_widths + 1, size=num_holes)
+        y_min = self.random_generator.integers(0, height - hole_heights + 1, size=num_holes)
+        x_min = self.random_generator.integers(0, width - hole_widths + 1, size=num_holes)
         y_max = y_min + hole_heights
         x_max = x_min + hole_widths
 
         holes = np.stack([x_min, y_min, x_max, y_max], axis=-1)
 
-        return {"holes": holes}
+        return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (*super().get_transform_init_args_names(), "num_holes_range", "hole_height_range", "hole_width_range")
