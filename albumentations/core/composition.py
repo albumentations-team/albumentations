@@ -128,22 +128,41 @@ class BaseCompose(Serializable):
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
-        self.set_random_state(seed)
+        self.set_random_seed(seed)
 
-    def set_random_state(self, seed: int | None) -> None:
-        """Set random state for this compose and all nested transforms.
+    def set_random_state(
+        self,
+        random_generator: np.random.Generator,
+        py_random: random.Random,
+    ) -> None:
+        """Set random state directly from generators.
+
+        Args:
+            random_generator: numpy random generator to use
+            py_random: python random generator to use
+        """
+        self.random_generator = random_generator
+        self.py_random = py_random
+
+        # Propagate both random states to all transforms
+        for transform in self.transforms:
+            if isinstance(transform, (BasicTransform, BaseCompose)):
+                transform.set_random_state(random_generator, py_random)
+
+    def set_random_seed(self, seed: int | None) -> None:
+        """Set random state from seed.
 
         Args:
             seed: Random seed to use
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
-        self.py_random.seed(seed)
+        self.py_random = random.Random(seed)
 
-        # Propagate to all transforms
+        # Propagate seed to all transforms
         for transform in self.transforms:
             if isinstance(transform, (BasicTransform, BaseCompose)):
-                transform.set_random_state(seed)
+                transform.set_random_seed(seed)
 
     def set_mask_interpolation(self, mask_interpolation: int | None) -> None:
         self.mask_interpolation = mask_interpolation

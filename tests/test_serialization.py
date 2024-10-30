@@ -121,11 +121,11 @@ def test_augmentations_serialization_with_custom_parameters(
 ):
     mask = image[:, :, 0].copy()
     aug = augmentation_cls(p=p, **params)
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
 
     data = {
         "image": image,
@@ -163,12 +163,12 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
     mask = image[:, :, 0].copy()
     with patch("builtins.open", OpenMock()):
         aug = augmentation_cls(p=p, **params)
-        aug.set_random_state(seed)
+        aug.set_random_seed(seed)
 
         filepath = f"serialized.{data_format}"
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
-        deserialized_aug.set_random_state(seed)
+        deserialized_aug.set_random_seed(seed)
 
         data = {
             "image": image,
@@ -237,7 +237,7 @@ def test_augmentations_for_bboxes_serialization(
 ):
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     data = {"image": image, "bboxes": albumentations_bboxes}
     if augmentation_cls == A.MaskDropout:
         mask = np.zeros_like(image)[:, :, 0]
@@ -246,7 +246,7 @@ def test_augmentations_for_bboxes_serialization(
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(**data)
     deserialized_aug_data = deserialized_aug(**data)
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -302,7 +302,7 @@ def test_augmentations_for_bboxes_serialization(
 def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, keypoints):
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     data = {"image": image, "keypoints": keypoints}
     if augmentation_cls == A.MaskDropout:
         mask = np.zeros_like(image)[:, :, 0]
@@ -311,7 +311,7 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(**data)
     deserialized_aug_data = deserialized_aug(**data)
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -340,11 +340,11 @@ def test_augmentations_serialization_with_call_params(
     image,
 ):
     aug = augmentation_cls(p=p, **params)
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     annotations = {"image": image, **call_params}
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(**annotations)
     deserialized_aug_data = deserialized_aug(**annotations)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -407,10 +407,10 @@ def test_transform_pipeline_serialization(seed, image):
             ),
         ],
     )
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(image=image, mask=mask)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -459,10 +459,10 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
         ],
         bbox_params={"format": bbox_format, "label_fields": ["labels"]},
     )
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(image=image, bboxes=bboxes, labels=labels)
     deserialized_aug_data = deserialized_aug(image=image, bboxes=bboxes, labels=labels)
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -514,7 +514,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
 
     aug_data = aug(image=image, keypoints=keypoints, labels=labels)
     deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints, labels=labels)
@@ -542,13 +542,13 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
         [augmentation_cls(p=1.0, **params)],
         additional_targets={"image2": "image"},
     )
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
 
     image2 = image.copy()
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(image=image, image2=image2)
     deserialized_aug_data = deserialized_aug(image=image, image2=image2)
 
@@ -582,10 +582,10 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
         keypoints=vflip_keypoint,
         p=p,
     )
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, nonserializable={"vflip": aug})
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -608,7 +608,7 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
     files_directory = current_directory / "files"
     transform_file_path = files_directory / transform_file_name
     transform = A.load(transform_file_path, data_format="json")
-    transform.set_random_state(seed)
+    transform.set_random_seed(seed)
     # Step 2: Serialize it to buffer in memory
     buffer = io.StringIO()
     A.save(transform, buffer, data_format=data_format)
@@ -616,7 +616,7 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
 
     # Step 3: Load transform from this memory buffer
     transform_from_buffer = A.load(buffer, data_format=data_format)
-    transform_from_buffer.set_random_state(seed)
+    transform_from_buffer.set_random_seed(seed)
     # Ensure the buffer is closed after use
     buffer.close()
 
@@ -645,7 +645,7 @@ def test_serialization_conversion_with_totensor(transform_file_name: str, data_f
     transform_file_path = files_directory / transform_file_name
 
     transform = A.load(transform_file_path, data_format="json")
-    transform.set_random_state(seed)
+    transform.set_random_seed(seed)
 
     # Serialize it to buffer in memory
     buffer = io.StringIO()
@@ -654,7 +654,7 @@ def test_serialization_conversion_with_totensor(transform_file_name: str, data_f
 
     # Load transform from this memory buffer
     transform_from_buffer = A.load(buffer, data_format=data_format)
-    transform_from_buffer.set_random_state(seed)
+    transform_from_buffer.set_random_seed(seed)
     buffer.close()  # Ensure the buffer is closed after use
 
     assert (
@@ -708,10 +708,10 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
     template_transform = A.TemplateTransform(name="template", templates=template, p=p)
 
     aug = A.Compose([A.HorizontalFlip(p=1), template_transform, A.Blur(p=1)])
-    aug.set_random_state(seed)
+    aug.set_random_seed(seed)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, nonserializable={"template": template_transform})
-    deserialized_aug.set_random_state(seed)
+    deserialized_aug.set_random_seed(seed)
     aug_data = aug(image=image)
     deserialized_aug_data = deserialized_aug(image=image)
 
