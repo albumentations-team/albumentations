@@ -58,11 +58,11 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8: list[int]) -> N
     x_float32[2, 2] = val_uint8 / 255.0
 
     adv_blur = A.AdvancedBlur(blur_limit=(3, 5), p=1)
-    adv_blur.set_random_state(0)
+    adv_blur.set_random_seed(0)
 
     adv_blur_uint8 = adv_blur(image=x_uint8)["image"]
 
-    adv_blur.set_random_state(0)
+    adv_blur.set_random_seed(0)
     adv_blur_float32 = adv_blur(image=x_float32)["image"]
 
     # Before comparison, rescale the adv_blur_float32 to [0, 255]

@@ -89,15 +89,29 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.random_generator = np.random.default_rng(self.seed)
         self.py_random = random.Random(self.seed)
 
-    def set_random_state(self, seed: int | None) -> None:
-        """Set random state for this transform and all nested transforms.
+    def set_random_state(
+        self,
+        random_generator: np.random.Generator,
+        py_random: random.Random,
+    ) -> None:
+        """Set random state directly from generators.
+
+        Args:
+            random_generator: numpy random generator to use
+            py_random: python random generator to use
+        """
+        self.random_generator = random_generator
+        self.py_random = py_random
+
+    def set_random_seed(self, seed: int | None) -> None:
+        """Set random state from seed.
 
         Args:
             seed: Random seed to use
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
-        self.py_random.seed(seed)
+        self.py_random = random.Random(seed)
 
     def get_dict_with_id(self) -> dict[str, Any]:
         d = self.to_dict_private()

@@ -1000,7 +1000,7 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: dict, imag
 def test_pad_if_needed_position(params, image_shape):
     image = np.zeros(image_shape)
     pad = A.PadIfNeeded(**params)
-    pad.set_random_state(0)
+    pad.set_random_seed(0)
 
     transformed = pad(image=image)
     image_padded = transformed["image"]
@@ -1108,13 +1108,13 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
         data["mask"] = mask
 
     set_seed(42)
-    transform.set_random_state(42)
+    transform.set_random_seed(42)
     transformed_uint8 = transform(**data)["image"]
 
     set_seed(42)
     data["image"] = image_float32
 
-    transform.set_random_state(42)
+    transform.set_random_seed(42)
     transformed_float32 = transform(**data)["image"]
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)

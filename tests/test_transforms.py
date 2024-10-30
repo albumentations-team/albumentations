@@ -594,7 +594,7 @@ def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
     x_float32[2, 2] = val_uint8 / 255.0
 
     unsharpmask = A.UnsharpMask(blur_limit=3, p=1)
-    unsharpmask.set_random_state(0)
+    unsharpmask.set_random_seed(0)
 
     usm_uint8 = unsharpmask(image=x_uint8)["image"]
 
@@ -769,7 +769,7 @@ def test_template_transform_incorrect_channels(img_channels, template_channels):
 )
 def test_affine_scale_ratio(params):
     aug = A.Affine(**params, p=1.0)
-    aug.set_random_state(0)
+    aug.set_random_seed(0)
 
     image = SQUARE_UINT8_IMAGE
 
@@ -1751,7 +1751,7 @@ def test_random_fog_invalid_input(params):
 @pytest.mark.parametrize("mean", (0, 10, -10))
 def test_gauss_noise(mean, image):
     aug = A.GaussNoise(p=1, noise_scale_factor=1.0, mean=mean)
-    aug.set_random_state(42)
+    aug.set_random_seed(42)
 
     apply_params = aug.get_params_dependent_on_data(
         params={"shape": image.shape},
