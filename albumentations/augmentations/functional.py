@@ -11,6 +11,7 @@ from albucore import (
     MAX_VALUES_BY_DTYPE,
     add,
     add_array,
+    add_constant,
     add_weighted,
     clip,
     clipped,
@@ -116,10 +117,10 @@ def shift_hsv(img: np.ndarray, hue_shift: float, sat_shift: float, val_shift: fl
         hue = sz_lut(hue, lut_hue, inplace=False)
 
     if sat_shift != 0:
-        sat = add(sat, sat_shift, inplace=False)
+        sat = add_constant(sat, sat_shift)
 
     if val_shift != 0:
-        val = add(val, val_shift, inplace=False)
+        val = add_constant(val, val_shift)
 
     img = cv2.merge((hue, sat, val))
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
