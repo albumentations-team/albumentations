@@ -22,7 +22,7 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 - Albumentations **[supports all common computer vision tasks](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation)** such as classification, semantic segmentation, instance segmentation, object detection, and pose estimation.
 - The library provides **[a simple unified API](#a-simple-example)** to work with all data types: images (RBG-images, grayscale images, multispectral images), segmentation masks, bounding boxes, and keypoints.
 - The library contains **[more than 70 different augmentations](#list-of-augmentations)** to generate new training samples from the existing data.
-- Albumentations is [**fast**](#benchmarking-results). We benchmark each new release to ensure that augmentations provide maximum speed.
+- Albumentations is **[fast](#benchmarking-results)**. We benchmark each new release to ensure that augmentations provide maximum speed.
 - It **[works with popular deep learning frameworks](#i-want-to-know-how-to-use-albumentations-with-deep-learning-frameworks)** such as PyTorch and TensorFlow. By the way, Albumentations is a part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
 - [**Written by experts**](#authors). The authors have experience both working on production computer vision systems and participating in competitive machine learning. Many core team members are Kaggle Masters and Grandmasters.
 - The library is [**widely used**](#who-is-using-albumentations) in industry, deep learning research, machine learning competitions, and open source projects.
@@ -59,6 +59,10 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
     - [Object detection and semantic segmentation on the Mapillary Vistas dataset](#object-detection-and-semantic-segmentation-on-the-mapillary-vistas-dataset)
     - [Keypoints augmentation](#keypoints-augmentation)
   - [Benchmarking results](#benchmarking-results)
+    - [System Information](#system-information)
+    - [Benchmark Parameters](#benchmark-parameters)
+    - [Library Versions](#library-versions)
+  - [Performance Comparison](#performance-comparison)
   - [Contributing](#contributing)
   - [Community and Support](#community-and-support)
   - [Comments](#comments)
@@ -283,49 +287,58 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 ## Benchmarking results
 
-To run the benchmark yourself, follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
+### System Information
 
-Results for running the benchmark on the first 2000 images from the ImageNet validation set using an AMD Ryzen Threadripper 3970X CPU.
-The table shows how many images per second can be processed on a single core; higher is better.
+- Platform: macOS-15.0.1-arm64-arm-64bit
+- Processor: arm
+- CPU Count: 10
+- Python Version: 3.12.7
 
-| Library | Version |
-|---------|---------|
-| Python | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations | 1.4.11 |
-| imgaug | 0.4.0 |
-| torchvision | 0.18.1+rocm6.0 |
-| numpy | 1.26.4 |
-| opencv-python-headless | 4.10.0.84 |
-| scikit-image | 0.24.0 |
-| scipy | 1.14.0 |
-| pillow | 10.4.0 |
-| kornia | 0.7.3 |
-| augly | 1.0.0 |
+### Benchmark Parameters
 
-|                 |albumentations<br><small>1.4.11</small>|torchvision<br><small>0.18.1+rocm6.0</small>|kornia<br><small>0.7.3</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
-|-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|------------------------------|
-|HorizontalFlip   |**8017 ± 12**                         |2436 ± 2                                    |935 ± 3                       |3575 ± 4                     |4806 ± 7                      |
-|VerticalFlip     |7366 ± 7                              |2563 ± 8                                    |943 ± 1                       |4949 ± 5                     |**8159 ± 21**                 |
-|Rotate           |570 ± 12                              |152 ± 2                                     |207 ± 1                       |**633 ± 2**                  |496 ± 2                       |
-|Affine           |**1382 ± 31**                         |162 ± 1                                     |201 ± 1                       |-                            |682 ± 2                       |
-|Equalize         |1027 ± 2                              |336 ± 2                                     |77 ± 1                        |-                            |**1183 ± 1**                  |
-|RandomCrop64     |**19986 ± 57**                        |15336 ± 16                                  |811 ± 1                       |19882 ± 356                  |5410 ± 5                      |
-|RandomResizedCrop|**2308 ± 7**                          |1046 ± 3                                    |187 ± 1                       |-                            |-                             |
-|ShiftRGB         |1240 ± 3                              |-                                           |425 ± 2                       |-                            |**1554 ± 6**                  |
-|Resize           |**2314 ± 9**                          |1272 ± 3                                    |201 ± 3                       |431 ± 1                      |1715 ± 2                      |
-|RandomGamma      |**2552 ± 2**                          |232 ± 1                                     |211 ± 1                       |-                            |1794 ± 1                      |
-|Grayscale        |**7313 ± 4**                          |1652 ± 2                                    |443 ± 2                       |2639 ± 2                     |1171 ± 23                     |
-|ColorJitter      |**396 ± 1**                           |51 ± 1                                      |50 ± 1                        |224 ± 1                      |-                             |
-|PlankianJitter   |449 ± 1                               |-                                           |**598 ± 1**                   |-                            |-                             |
-|RandomPerspective|471 ± 1                               |123 ± 1                                     |114 ± 1                       |-                            |**478 ± 2**                   |
-|GaussianBlur     |**2099 ± 2**                          |113 ± 2                                     |79 ± 2                        |165 ± 1                      |1244 ± 2                      |
-|MedianBlur       |538 ± 1                               |-                                           |3 ± 1                         |-                            |**565 ± 1**                   |
-|MotionBlur       |**2197 ± 9**                          |-                                           |102 ± 1                       |-                            |508 ± 1                       |
-|Posterize        |2449 ± 1                              |**2587 ± 3**                                |339 ± 6                       |-                            |1547 ± 1                      |
-|JpegCompression  |**827 ± 1**                           |-                                           |50 ± 2                        |684 ± 1                      |428 ± 4                       |
-|GaussianNoise    |78 ± 1                                |-                                           |-                             |67 ± 1                       |**128 ± 1**                   |
-|Elastic          |127 ± 1                               |3 ± 1                                       |1 ± 1                         |-                            |**130 ± 1**                   |
-|Normalize        |**971 ± 2**                           |449 ± 1                                     |415 ± 1                       |-                            |-                             |
+- Number of images: 1000
+- Runs per transform: 10
+- Max warmup iterations: 1000
+
+### Library Versions
+
+- albumentations: 1.4.20
+- augly: 1.0.0
+- imgaug: 0.4.0
+- kornia: 0.7.3
+- torchvision: 0.20.0
+
+## Performance Comparison
+
+| Transform         | albumentations<br>1.4.20   | augly<br>1.0.0   | imgaug<br>0.4.0   | kornia<br>0.7.3   | torchvision<br>0.20.0   |
+|:------------------|:---------------------------|:-----------------|:------------------|:------------------|:------------------------|
+| HorizontalFlip    | **8618 ± 1233**            | 4807 ± 818       | 6042 ± 788        | 390 ± 106         | 914 ± 67                |
+| VerticalFlip      | **22847 ± 2031**           | 9153 ± 1291      | 10931 ± 1844      | 1212 ± 402        | 3198 ± 200              |
+| Rotate            | **1146 ± 79**              | 1119 ± 41        | 1136 ± 218        | 143 ± 11          | 181 ± 11                |
+| Affine            | 682 ± 192                  | -                | **774 ± 97**      | 147 ± 9           | 130 ± 12                |
+| Equalize          | **892 ± 61**               | -                | 581 ± 54          | 152 ± 19          | 479 ± 12                |
+| RandomCrop80      | **47341 ± 20523**          | 25272 ± 1822     | 11503 ± 441       | 1510 ± 230        | 32109 ± 1241            |
+| ShiftRGB          | **2349 ± 76**              | -                | 1582 ± 65         | -                 | -                       |
+| Resize            | **2316 ± 166**             | 611 ± 78         | 1806 ± 63         | 232 ± 24          | 195 ± 4                 |
+| RandomGamma       | **8675 ± 274**             | -                | 2318 ± 269        | 108 ± 13          | -                       |
+| Grayscale         | **3056 ± 47**              | 2720 ± 932       | 1681 ± 156        | 289 ± 75          | 1838 ± 130              |
+| RandomPerspective | 412 ± 38                   | -                | **554 ± 22**      | 86 ± 11           | 96 ± 5                  |
+| GaussianBlur      | **1728 ± 89**              | 242 ± 4          | 1090 ± 65         | 176 ± 18          | 79 ± 3                  |
+| MedianBlur        | **868 ± 60**               | -                | 813 ± 30          | 5 ± 0             | -                       |
+| MotionBlur        | **4047 ± 67**              | -                | 612 ± 18          | 73 ± 2            | -                       |
+| Posterize         | **9094 ± 301**             | -                | 2097 ± 68         | 430 ± 49          | 3196 ± 185              |
+| JpegCompression   | **918 ± 23**               | 778 ± 5          | 459 ± 35          | 71 ± 3            | 625 ± 17                |
+| GaussianNoise     | 166 ± 12                   | 67 ± 2           | **206 ± 11**      | 75 ± 1            | -                       |
+| Elastic           | 201 ± 5                    | -                | **235 ± 20**      | 1 ± 0             | 2 ± 0                   |
+| Clahe             | **454 ± 22**               | -                | 335 ± 43          | 94 ± 9            | -                       |
+| CoarseDropout     | **13368 ± 744**            | -                | 671 ± 38          | 536 ± 87          | -                       |
+| Blur              | **5267 ± 543**             | 246 ± 3          | 3807 ± 325        | -                 | -                       |
+| ColorJitter       | **628 ± 55**               | 255 ± 13         | -                 | 55 ± 18           | 46 ± 2                  |
+| Brightness        | **8956 ± 300**             | 1163 ± 86        | -                 | 472 ± 101         | 429 ± 20                |
+| Contrast          | **8879 ± 1426**            | 736 ± 79         | -                 | 425 ± 52          | 335 ± 35                |
+| RandomResizedCrop | **2828 ± 186**             | -                | -                 | 287 ± 58          | 511 ± 10                |
+| Normalize         | **1196 ± 56**              | -                | -                 | 626 ± 40          | 519 ± 12                |
+| PlankianJitter    | **2204 ± 385**             | -                | -                 | 813 ± 211         | -                       |
 
 ## Contributing
 
@@ -337,6 +350,7 @@ To create a pull request to the repository, follow the documentation at [CONTRIB
 
 - [Twitter](https://twitter.com/albumentations)
 - [Discord](https://discord.gg/AKPrrDYNAt)
+- [LinkedIn](https://www.linkedin.com/company/albumentations/)
 
 ## Comments
 
