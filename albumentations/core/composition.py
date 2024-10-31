@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from typing import Any, Union, cast
 
@@ -56,16 +56,6 @@ CHECK_BBOX_PARAM = ("bboxes",)
 CHECK_KEYPOINTS_PARAM = ("keypoints",)
 
 
-def get_transforms_dict(transforms: TransformsSeqType) -> dict[int, BasicTransform]:
-    result = {}
-    for transform in transforms:
-        if isinstance(transform, BaseCompose):
-            result.update(get_transforms_dict(transform.transforms))
-        else:
-            result[id(transform)] = transform
-    return result
-
-
 class BaseCompose(Serializable):
     """Base class for composing multiple transforms together.
 
@@ -77,7 +67,6 @@ class BaseCompose(Serializable):
         transforms (List[TransformType]): A list of transforms to be applied.
         p (float): Probability of applying the compose. Should be in the range [0, 1].
         replay_mode (bool): If True, the compose is in replay mode.
-        applied_in_replay (bool): Indicates if the compose was applied during replay.
         _additional_targets (Dict[str, str]): Additional targets for transforms.
         _available_keys (Set[str]): Set of available keys for data.
         processors (Dict[str, Union[BboxProcessor, KeypointsProcessor]]): Processors for specific data types.
@@ -107,6 +96,7 @@ class BaseCompose(Serializable):
         p: float,
         mask_interpolation: int | None = None,
         seed: int | None = None,
+        save_applied_params: bool = False,
     ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -119,7 +109,6 @@ class BaseCompose(Serializable):
         self.p = p
 
         self.replay_mode = False
-        self.applied_in_replay = False
         self._additional_targets: dict[str, str] = {}
         self._available_keys: set[str] = set()
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
@@ -129,6 +118,12 @@ class BaseCompose(Serializable):
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
         self.set_random_seed(seed)
+        self.save_applied_params = save_applied_params
+
+    def _track_transform_params(self, transform: TransformType, data: dict[str, Any]) -> None:
+        """Track transform parameters if tracking is enabled."""
+        if "applied_transforms" in data and hasattr(transform, "params") and transform.params:
+            data["applied_transforms"].append((transform.__class__.__name__, transform.params.copy()))
 
     def set_random_state(
         self,
@@ -303,11 +298,10 @@ class Compose(BaseCompose, HubMixin):
         is_check_shapes (bool): If True, checks consistency of shapes for image/mask/masks on each call.
             Disable only if you are sure about your data consistency. Default is True.
         strict (bool): If True, raises an error on unknown input keys. If False, ignores them. Default is True.
-        return_params (bool): If True, returns parameters of applied transforms. Default is False.
-        save_key (str): Key to save applied params if return_params is True. Default is 'applied_params'.
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
         seed (int, optional): Random seed. Default is None.
+        save_applied_params (bool): If True, saves the applied parameters of each transform. Default is False.
 
     Example:
         >>> import albumentations as A
@@ -322,7 +316,6 @@ class Compose(BaseCompose, HubMixin):
         - The class checks the validity of input data and shapes if is_check_args and is_check_shapes are True.
         - When bbox_params or keypoint_params are provided, it sets up the corresponding processors.
         - The transform can handle additional targets specified in the additional_targets dictionary.
-        - If return_params is True, it will return the parameters of applied transforms in the output.
     """
 
     def __init__(
@@ -334,12 +327,17 @@ class Compose(BaseCompose, HubMixin):
         p: float = 1.0,
         is_check_shapes: bool = True,
         strict: bool = True,
-        return_params: bool = False,
-        save_key: str = "applied_params",
         mask_interpolation: int | None = None,
         seed: int | None = None,
+        save_applied_params: bool = False,
     ):
-        super().__init__(transforms=transforms, p=p, mask_interpolation=mask_interpolation, seed=seed)
+        super().__init__(
+            transforms=transforms,
+            p=p,
+            mask_interpolation=mask_interpolation,
+            seed=seed,
+            save_applied_params=save_applied_params,
+        )
 
         if bbox_params:
             if isinstance(bbox_params, dict):
@@ -377,15 +375,9 @@ class Compose(BaseCompose, HubMixin):
         )
         self._set_check_args_for_transforms(self.transforms)
 
-        self.return_params = return_params
-
-        if return_params:
-            self.save_key = save_key
-            self._available_keys.add(save_key)
-            self._transforms_dict = get_transforms_dict(self.transforms)
-            self.set_deterministic(True, save_key=save_key)
-
         self._set_processors_for_transforms(self.transforms)
+
+        self.save_applied_params = save_applied_params
 
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
@@ -418,8 +410,9 @@ class Compose(BaseCompose, HubMixin):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
-        if self.return_params and self.main_compose:
-            data[self.save_key] = OrderedDict()
+        # Initialize applied_transforms only in top-level Compose if requested
+        if self.save_applied_params and self.main_compose:
+            data["applied_transforms"] = []
 
         need_to_run = force_apply or self.py_random.random() < self.p
         if not need_to_run:
@@ -429,20 +422,7 @@ class Compose(BaseCompose, HubMixin):
 
         for t in self.transforms:
             data = t(**data)
-            data = self.check_data_post_transform(data)
-
-        return self.postprocess(data)
-
-    def run_with_params(self, *, params: dict[int, dict[str, Any]], **data: Any) -> dict[str, Any]:
-        """Run transforms with given parameters. Available only for Compose with `return_params=True`."""
-        if self._transforms_dict is None:
-            raise RuntimeError("`run_with_params` is not available for Compose with `return_params=False`.")
-
-        self.preprocess(data)
-
-        for tr_id, param in params.items():
-            tr = self._transforms_dict[tr_id]
-            data = tr.apply_with_params(param, **data)
+            self._track_transform_params(t, data)
             data = self.check_data_post_transform(data)
 
         return self.postprocess(data)
@@ -450,7 +430,12 @@ class Compose(BaseCompose, HubMixin):
     def preprocess(self, data: Any) -> None:
         if self.strict:
             for data_name in data:
-                if data_name not in self._available_keys and data_name not in MASK_KEYS and data_name not in IMAGE_KEYS:
+                if (
+                    data_name not in self._available_keys
+                    and data_name not in MASK_KEYS
+                    and data_name not in IMAGE_KEYS
+                    and data_name != "applied_transforms"
+                ):
                     msg = f"Key {data_name} is not in available keys."
                     raise ValueError(msg)
         if self.is_check_args:
@@ -585,6 +570,7 @@ class OneOf(BaseCompose):
             idx: int = self.random_generator.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
+            self._track_transform_params(t, data)
         return data
 
 
@@ -648,6 +634,7 @@ class SomeOf(BaseCompose):
             for i in self._get_idx():
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
+                self._track_transform_params(t, data)
                 data = self.check_data_post_transform(data)
         return data
 
@@ -732,6 +719,7 @@ class OneOrOther(BaseCompose):
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
+                self._track_transform_params(t, data)
             return data
 
         if self.py_random.random() < self.p:
@@ -782,6 +770,7 @@ class SelectiveChannelTransform(BaseCompose):
 
             for t in self.transforms:
                 sub_image = t(image=sub_image)["image"]
+                self._track_transform_params(t, sub_image)
 
             transformed_channels = cv2.split(sub_image)
             output_img = image.copy()
@@ -914,5 +903,6 @@ class Sequential(BaseCompose):
         if self.replay_mode or force_apply or self.py_random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
+                self._track_transform_params(t, data)
                 data = self.check_data_post_transform(data)
         return data

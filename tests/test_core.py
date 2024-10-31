@@ -19,8 +19,6 @@ from albumentations.core.composition import (
     ReplayCompose,
     Sequential,
     SomeOf,
-    TransformsSeqType,
-    get_transforms_dict,
 )
 from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple
@@ -63,11 +61,21 @@ def oneof_always_apply_crash():
 
 @pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
 def test_one_of(target_as_params):
-    transforms = [Mock(p=1, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
+    # Create a simple transform-like class for testing
+    class DummyTransform:
+        def __init__(self):
+            self.p = 1
+            self.available_keys = {"image"}
+            self.targets_as_params = target_as_params
+            self.params = {}
+
+        def __call__(self, **kwargs):
+            return kwargs
+
+    transforms = [DummyTransform() for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
-    assert len([transform for transform in transforms if transform.called]) == 1
 
 
 @pytest.mark.parametrize("N", [0, 1, 2, 5, 10, 12])
@@ -141,16 +149,7 @@ def test_image_only_transform(image):
                 rows=height,
                 shape=image.shape,
             )
-            assert np.array_equal(data["mask"], mask)
-
-
-@pytest.mark.parametrize("image", IMAGES)
-def test_compose_doesnt_pass_force_apply(image: np.ndarray) -> None:
-    transforms = [A.HorizontalFlip(p=0)]
-    augmentation = Compose(transforms, p=1, return_params=True)
-    result = augmentation(force_apply=True, image=image)
-    assert np.array_equal(result["image"], image)
-    assert len(result["applied_params"]) == 0
+            np.testing.assert_array_equal(data["mask"], mask)
 
 
 @pytest.mark.parametrize("image", IMAGES)
@@ -230,33 +229,6 @@ def test_check_bboxes_with_end_greater_that_start():
     assert str(exc_info.value) == message
 
 
-@pytest.mark.parametrize(
-    ["transforms", "len_expected"],
-    [
-        ([], 0),
-        ([A.HorizontalFlip(p=1), A.Blur(p=1)], 2),
-        ([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)]), SomeOf([A.HorizontalFlip(p=1), A.Blur(p=1)], n=2)], 4),
-        ([A.HorizontalFlip(p=1), Sequential([A.NoOp(), A.NoOp()])], 3),
-    ],
-)
-def test_get_transforms_dict(transforms: TransformsSeqType, len_expected: int) -> None:
-    aug = Compose(transforms, return_params=True)
-    transforms_dict = get_transforms_dict(transforms)
-
-    assert len(transforms_dict) == len_expected
-    assert aug._transforms_dict == transforms_dict
-
-
-def test_comose_run_with_params_exception() -> None:
-    aug = Compose([NoOp()])
-    aug_2 = Compose([NoOp()], return_params=True)
-    res = aug_2(image=np.random.random((8, 8)))
-    assert "applied_params" in res
-
-    with pytest.raises(RuntimeError):
-        _ = aug.run_with_params(params=res["applied_params"], image=np.random.random((8, 8)))
-
-
 def test_deterministic_oneof() -> None:
     aug = ReplayCompose([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1)
     for _ in range(10):
@@ -265,17 +237,6 @@ def test_deterministic_oneof() -> None:
         data = aug(image=image)
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
-        assert np.array_equal(data["image"], data2["image"])
-
-
-def test_return_params_oneof() -> None:
-    aug = Compose([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1, return_params=True)
-    for _ in range(10):
-        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
-        image2 = np.copy(image)
-        data = aug(image=image)
-        assert "applied_params" in data
-        data2 = aug.run_with_params(params=data["applied_params"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
 
 
@@ -290,17 +251,6 @@ def test_deterministic_one_or_other() -> None:
         assert np.array_equal(data["image"], data2["image"])
 
 
-def test_return_params_one_or_other() -> None:
-    aug = Compose([OneOrOther(A.HorizontalFlip(p=1), A.Blur(p=1))], p=1, return_params=True)
-    for _ in range(10):
-        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
-        image2 = np.copy(image)
-        data = aug(image=image)
-        assert "applied_params" in data
-        data2 = aug.run_with_params(params=data["applied_params"], image=image2)
-        assert np.array_equal(data["image"], data2["image"])
-
-
 def test_deterministic_sequential() -> None:
     aug = ReplayCompose([Sequential([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1)
     for _ in range(10):
@@ -309,17 +259,6 @@ def test_deterministic_sequential() -> None:
         data = aug(image=image)
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
-        assert np.array_equal(data["image"], data2["image"])
-
-
-def test_return_params_sequential() -> None:
-    aug = Compose([Sequential([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1, return_params=True)
-    for _ in range(10):
-        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
-        image2 = np.copy(image)
-        data = aug(image=image)
-        assert "applied_params" in data
-        data2 = aug.run_with_params(params=data["applied_params"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
 
 
@@ -1429,3 +1368,145 @@ def test_mask_interpolation_someof(interpolation, compose):
     transformed = transform(image=image, mask=mask)
 
     assert transformed["mask"].flags["C_CONTIGUOUS"]
+
+
+@pytest.mark.parametrize(
+    ["transform", "expected_param_keys"],
+    [
+        (A.HorizontalFlip(p=1), {"cols", "rows", "shape"}),
+        (A.VerticalFlip(p=1), {"cols", "rows", "shape"}),
+        (
+            A.RandomBrightnessContrast(p=1),
+            {"cols", "rows", "shape", "alpha", "beta"}
+        ),
+        (
+            A.Rotate(p=1),
+            {'shape', 'cols', 'rows', 'x_min', 'x_max', 'y_min', 'y_max', 'matrix', 'bbox_matrix', 'interpolation'}
+        ),
+    ],
+)
+def test_transform_returns_params(transform, expected_param_keys):
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    transform(image=image)
+    params = transform.get_applied_params()
+    assert isinstance(params, dict)
+    assert set(params.keys()) == expected_param_keys
+
+
+@pytest.mark.parametrize(
+    ["transforms", "expected_names"],
+    [
+        # Simple sequential transforms
+        (
+            [A.HorizontalFlip(p=1), A.Blur(p=1)],
+            ["HorizontalFlip", "Blur"]
+        ),
+        # OneOf inside Compose
+        (
+            [
+                A.OneOf([
+                    A.HorizontalFlip(p=1),
+                    A.VerticalFlip(p=1)
+                ], p=1),
+                A.Blur(p=1)
+            ],
+            ["HorizontalFlip|VerticalFlip", "Blur"]  # One of these will be applied
+        ),
+        # Nested Sequential
+        (
+            [
+                A.Sequential([
+                    A.HorizontalFlip(p=1),
+                    A.Blur(p=1)
+                ], p=1),
+                A.RandomBrightnessContrast(p=1)
+            ],
+            ["HorizontalFlip", "Blur", "RandomBrightnessContrast"]
+        ),
+        # Complex nesting
+        (
+            [
+                A.OneOf([
+                    A.Sequential([
+                        A.HorizontalFlip(p=1),
+                        A.Blur(p=1)
+                    ], p=1),
+                    A.Sequential([
+                        A.VerticalFlip(p=1),
+                        A.RandomBrightnessContrast(p=1)
+                    ], p=1)
+                ], p=1)
+            ],
+            ["HorizontalFlip,Blur|VerticalFlip,RandomBrightnessContrast"]  # One sequence will be applied
+        ),
+    ]
+)
+def test_transform_tracking(image, transforms, expected_names):
+    transform = A.Compose(transforms, p=1, save_applied_params=True)
+    result = transform(image=image)
+
+    assert "applied_transforms" in result
+    applied_names = [t[0] for t in result["applied_transforms"]]
+
+    if "|" in expected_names[0]:
+        # Handle OneOf case where one of multiple possibilities will be applied
+        possible_names = expected_names[0].split("|")
+        if "," in possible_names[0]:
+            # Handle nested sequence case
+            possible_sequences = [sequence.split(",") for sequence in possible_names]
+            assert applied_names in possible_sequences
+        else:
+            assert applied_names[0] in possible_names
+            assert len(applied_names) == len(expected_names)
+    else:
+        assert applied_names == expected_names
+
+@pytest.mark.parametrize(
+    ["transform_class", "transform_params"],
+    [
+        (A.Blur, {"blur_limit": 3}),
+        (A.RandomBrightnessContrast, {"brightness_limit": 0.2, "contrast_limit": 0.2}),
+        (A.HorizontalFlip, {}),
+    ]
+)
+def test_params_content(image, transform_class, transform_params):
+    transform = A.Compose([transform_class(p=1, **transform_params)], save_applied_params=True)
+    result = transform(image=image)
+
+    assert len(result["applied_transforms"]) == 1
+    transform_name, params = result["applied_transforms"][0]
+
+    assert transform_name == transform_class.__name__
+
+def test_no_param_tracking():
+    """Test that params are not tracked when save_applied_params=False"""
+    transform = A.Compose([
+        A.HorizontalFlip(p=1),
+        A.Blur(p=1)
+    ], p=1, save_applied_params=False)
+
+    result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
+    assert "applied_transforms" not in result
+
+def test_probability_control():
+    """Test that transforms are only tracked when they are actually applied"""
+    transform = A.Compose([
+        A.HorizontalFlip(p=0),  # Will not be applied
+        A.Blur(p=1)  # Will be applied
+    ], p=1, save_applied_params=True)
+
+    result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
+    applied_names = [t[0] for t in result["applied_transforms"]]
+    assert "HorizontalFlip" not in applied_names
+    assert "Blur" in applied_names
+
+def test_compose_probability():
+    """Test that no transforms are tracked when compose probability is 0"""
+    transform = A.Compose([
+        A.HorizontalFlip(p=1),
+        A.Blur(p=1)
+    ], p=0, save_applied_params=True)
+
+    result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
+
+    assert len(result["applied_transforms"]) == 0

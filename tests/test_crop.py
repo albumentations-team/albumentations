@@ -141,8 +141,6 @@ def test_bbox_params_edges(
 
 POSITIONS: list[PositionType] = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
 
-
-
 @pytest.mark.parametrize(
     ["crop_cls", "crop_params"],
     [
