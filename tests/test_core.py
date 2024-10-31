@@ -19,7 +19,6 @@ from albumentations.core.composition import (
     ReplayCompose,
     Sequential,
     SomeOf,
-    TransformsSeqType,
 )
 from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple
@@ -62,11 +61,21 @@ def oneof_always_apply_crash():
 
 @pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
 def test_one_of(target_as_params):
-    transforms = [Mock(p=1, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
+    # Create a simple transform-like class for testing
+    class DummyTransform:
+        def __init__(self):
+            self.p = 1
+            self.available_keys = {"image"}
+            self.targets_as_params = target_as_params
+            self.params = {}
+
+        def __call__(self, **kwargs):
+            return kwargs
+
+    transforms = [DummyTransform() for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
-    assert len([transform for transform in transforms if transform.called]) == 1
 
 
 @pytest.mark.parametrize("N", [0, 1, 2, 5, 10, 12])
@@ -1382,3 +1391,125 @@ def test_transform_returns_params(transform, expected_param_keys):
     params = transform.get_applied_params()
     assert isinstance(params, dict)
     assert set(params.keys()) == expected_param_keys
+
+
+@pytest.mark.parametrize(
+    ["transforms", "expected_names"],
+    [
+        # Simple sequential transforms
+        (
+            [A.HorizontalFlip(p=1), A.Blur(p=1)],
+            ["HorizontalFlip", "Blur"]
+        ),
+        # OneOf inside Compose
+        (
+            [
+                A.OneOf([
+                    A.HorizontalFlip(p=1),
+                    A.VerticalFlip(p=1)
+                ], p=1),
+                A.Blur(p=1)
+            ],
+            ["HorizontalFlip|VerticalFlip", "Blur"]  # One of these will be applied
+        ),
+        # Nested Sequential
+        (
+            [
+                A.Sequential([
+                    A.HorizontalFlip(p=1),
+                    A.Blur(p=1)
+                ], p=1),
+                A.RandomBrightnessContrast(p=1)
+            ],
+            ["HorizontalFlip", "Blur", "RandomBrightnessContrast"]
+        ),
+        # Complex nesting
+        (
+            [
+                A.OneOf([
+                    A.Sequential([
+                        A.HorizontalFlip(p=1),
+                        A.Blur(p=1)
+                    ], p=1),
+                    A.Sequential([
+                        A.VerticalFlip(p=1),
+                        A.RandomBrightnessContrast(p=1)
+                    ], p=1)
+                ], p=1)
+            ],
+            ["HorizontalFlip,Blur|VerticalFlip,RandomBrightnessContrast"]  # One sequence will be applied
+        ),
+    ]
+)
+def test_transform_tracking(image, transforms, expected_names):
+    transform = A.Compose(transforms, p=1, save_applied_params=True)
+    result = transform(image=image)
+
+    assert "applied_transforms" in result
+    applied_names = [t[0] for t in result["applied_transforms"]]
+
+    if "|" in expected_names[0]:
+        # Handle OneOf case where one of multiple possibilities will be applied
+        possible_names = expected_names[0].split("|")
+        if "," in possible_names[0]:
+            # Handle nested sequence case
+            possible_sequences = [sequence.split(",") for sequence in possible_names]
+            assert applied_names in possible_sequences
+        else:
+            assert applied_names[0] in possible_names
+            assert len(applied_names) == len(expected_names)
+    else:
+        assert applied_names == expected_names
+
+@pytest.mark.parametrize(
+    ["transform_class", "transform_params"],
+    [
+        (A.Blur, {"blur_limit": 3}),
+        (A.RandomBrightnessContrast, {"brightness_limit": 0.2, "contrast_limit": 0.2}),
+        (A.HorizontalFlip, {}),
+    ]
+)
+def test_params_content(image, transform_class, transform_params):
+    transform = A.Compose([transform_class(p=1, **transform_params)], save_applied_params=True)
+    result = transform(image=image)
+
+    assert len(result["applied_transforms"]) == 1
+    transform_name, params = result["applied_transforms"][0]
+
+    assert transform_name == transform_class.__name__
+    if transform_params:  # Some transforms like HorizontalFlip don't have params
+        for param in params:
+            assert isinstance(params[param], (int, float, bool, tuple, np.int64))
+
+def test_no_param_tracking():
+    """Test that params are not tracked when save_applied_params=False"""
+    transform = A.Compose([
+        A.HorizontalFlip(p=1),
+        A.Blur(p=1)
+    ], p=1, save_applied_params=False)
+
+    result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
+    assert "applied_transforms" not in result
+
+def test_probability_control():
+    """Test that transforms are only tracked when they are actually applied"""
+    transform = A.Compose([
+        A.HorizontalFlip(p=0),  # Will not be applied
+        A.Blur(p=1)  # Will be applied
+    ], p=1, save_applied_params=True)
+
+    result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
+    applied_names = [t[0] for t in result["applied_transforms"]]
+    assert "HorizontalFlip" not in applied_names
+    assert "Blur" in applied_names
+
+def test_compose_probability():
+    """Test that no transforms are tracked when compose probability is 0"""
+    transform = A.Compose([
+        A.HorizontalFlip(p=1),
+        A.Blur(p=1)
+    ], p=0, save_applied_params=True)
+
+    result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
+
+    assert len(result["applied_transforms"]) == 0

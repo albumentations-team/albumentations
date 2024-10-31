@@ -96,6 +96,7 @@ class BaseCompose(Serializable):
         p: float,
         mask_interpolation: int | None = None,
         seed: int | None = None,
+        save_applied_params: bool = False,
     ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -117,6 +118,7 @@ class BaseCompose(Serializable):
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
         self.set_random_seed(seed)
+        self.save_applied_params = save_applied_params
 
     def set_random_state(
         self,
@@ -294,6 +296,7 @@ class Compose(BaseCompose, HubMixin):
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
         seed (int, optional): Random seed. Default is None.
+        save_applied_params (bool): If True, saves the applied parameters of each transform. Default is False.
 
     Example:
         >>> import albumentations as A
@@ -321,8 +324,15 @@ class Compose(BaseCompose, HubMixin):
         strict: bool = True,
         mask_interpolation: int | None = None,
         seed: int | None = None,
+        save_applied_params: bool = False,
     ):
-        super().__init__(transforms=transforms, p=p, mask_interpolation=mask_interpolation, seed=seed)
+        super().__init__(
+            transforms=transforms,
+            p=p,
+            mask_interpolation=mask_interpolation,
+            seed=seed,
+            save_applied_params=save_applied_params,
+        )
 
         if bbox_params:
             if isinstance(bbox_params, dict):
@@ -362,6 +372,8 @@ class Compose(BaseCompose, HubMixin):
 
         self._set_processors_for_transforms(self.transforms)
 
+        self.save_applied_params = save_applied_params
+
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
             if isinstance(transform, BasicTransform):
@@ -393,6 +405,10 @@ class Compose(BaseCompose, HubMixin):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
+        # Initialize applied_transforms only in top-level Compose if requested
+        if self.save_applied_params and self.main_compose:
+            data["applied_transforms"] = []
+
         need_to_run = force_apply or self.py_random.random() < self.p
         if not need_to_run:
             return data
@@ -401,6 +417,8 @@ class Compose(BaseCompose, HubMixin):
 
         for t in self.transforms:
             data = t(**data)
+            if self.save_applied_params and hasattr(t, "params") and t.params:
+                data["applied_transforms"].append((t.__class__.__name__, t.params.copy()))
             data = self.check_data_post_transform(data)
 
         return self.postprocess(data)
@@ -408,7 +426,12 @@ class Compose(BaseCompose, HubMixin):
     def preprocess(self, data: Any) -> None:
         if self.strict:
             for data_name in data:
-                if data_name not in self._available_keys and data_name not in MASK_KEYS and data_name not in IMAGE_KEYS:
+                if (
+                    data_name not in self._available_keys
+                    and data_name not in MASK_KEYS
+                    and data_name not in IMAGE_KEYS
+                    and data_name != "applied_transforms"
+                ):
                     msg = f"Key {data_name} is not in available keys."
                     raise ValueError(msg)
         if self.is_check_args:
@@ -543,6 +566,9 @@ class OneOf(BaseCompose):
             idx: int = self.random_generator.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
+            # Check if we're in a transform tracking context
+            if "applied_transforms" in data and hasattr(t, "params") and t.params:
+                data["applied_transforms"].append((t.__class__.__name__, t.params.copy()))
         return data
 
 
@@ -872,5 +898,7 @@ class Sequential(BaseCompose):
         if self.replay_mode or force_apply or self.py_random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
+                if "applied_transforms" in data and hasattr(t, "params") and t.params:
+                    data["applied_transforms"].append((t.__class__.__name__, t.params.copy()))
                 data = self.check_data_post_transform(data)
         return data
