@@ -120,6 +120,11 @@ class BaseCompose(Serializable):
         self.set_random_seed(seed)
         self.save_applied_params = save_applied_params
 
+    def _track_transform_params(self, transform: TransformType, data: dict[str, Any]) -> None:
+        """Track transform parameters if tracking is enabled."""
+        if "applied_transforms" in data and hasattr(transform, "params") and transform.params:
+            data["applied_transforms"].append((transform.__class__.__name__, transform.params.copy()))
+
     def set_random_state(
         self,
         random_generator: np.random.Generator,
@@ -417,8 +422,7 @@ class Compose(BaseCompose, HubMixin):
 
         for t in self.transforms:
             data = t(**data)
-            if self.save_applied_params and hasattr(t, "params") and t.params:
-                data["applied_transforms"].append((t.__class__.__name__, t.params.copy()))
+            self._track_transform_params(t, data)
             data = self.check_data_post_transform(data)
 
         return self.postprocess(data)
@@ -566,9 +570,7 @@ class OneOf(BaseCompose):
             idx: int = self.random_generator.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
-            # Check if we're in a transform tracking context
-            if "applied_transforms" in data and hasattr(t, "params") and t.params:
-                data["applied_transforms"].append((t.__class__.__name__, t.params.copy()))
+            self._track_transform_params(t, data)
         return data
 
 
@@ -632,6 +634,7 @@ class SomeOf(BaseCompose):
             for i in self._get_idx():
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
+                self._track_transform_params(t, data)
                 data = self.check_data_post_transform(data)
         return data
 
@@ -716,6 +719,7 @@ class OneOrOther(BaseCompose):
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
+                self._track_transform_params(t, data)
             return data
 
         if self.py_random.random() < self.p:
@@ -766,6 +770,7 @@ class SelectiveChannelTransform(BaseCompose):
 
             for t in self.transforms:
                 sub_image = t(image=sub_image)["image"]
+                self._track_transform_params(t, sub_image)
 
             transformed_channels = cv2.split(sub_image)
             output_img = image.copy()
@@ -898,7 +903,6 @@ class Sequential(BaseCompose):
         if self.replay_mode or force_apply or self.py_random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
-                if "applied_transforms" in data and hasattr(t, "params") and t.params:
-                    data["applied_transforms"].append((t.__class__.__name__, t.params.copy()))
+                self._track_transform_params(t, data)
                 data = self.check_data_post_transform(data)
         return data
