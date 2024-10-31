@@ -888,6 +888,7 @@ def test_random_sized_crop_size() -> None:
     aug = A.Compose(
         [RandomSizedCrop(min_max_height=(70, 90), size=(50, 50), p=1.0)],
         bbox_params={"format": "albumentations"},
+        seed=42,
     )
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
@@ -897,7 +898,7 @@ def test_random_sized_crop_size() -> None:
 def test_random_resized_crop_size() -> None:
     image = np.ones((100, 100, 3))
     bboxes = [(0.2, 0.3, 0.6, 0.8, 2), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = A.Compose([RandomResizedCrop(size=(50, 50), p=1.0)], bbox_params={"format": "albumentations"})
+    aug = A.Compose([RandomResizedCrop(size=(50, 50), p=1.0)], bbox_params={"format": "albumentations"}, seed=42)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(bboxes) == len(transformed["bboxes"])
