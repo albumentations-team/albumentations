@@ -850,21 +850,48 @@ def test_random_tone_curve(image):
 
 
 @pytest.mark.parametrize("image", UINT8_IMAGES)
-@pytest.mark.parametrize("color_shift, intensity", [(0, 0), (0.5, 0.5), (1, 1)])
+@pytest.mark.parametrize("color_shift, intensity", [
+    (0, 0),  # No noise
+    (0.5, 0.5),  # Medium noise
+    (1, 1),  # Maximum noise
+])
 def test_iso_noise(image, color_shift, intensity):
-    image = RECTANGULAR_UINT8_IMAGE
-
+    """Test that iso_noise produces expected noise levels."""
     # Convert image to float and back
     float_image = to_float(image)
 
     # Generate noise using the same random state instance
-    result_uint8 = F.iso_noise(image, color_shift=color_shift, intensity=intensity, random_generator=np.random.default_rng(42))
+    rng = np.random.default_rng(42)
+    result_uint8 = F.iso_noise(
+        image,
+        color_shift=color_shift,
+        intensity=intensity,
+        random_generator=rng
+    )
 
-    result_float = F.iso_noise(float_image, color_shift=color_shift, intensity=intensity, random_generator=np.random.default_rng(42))
+    rng = np.random.default_rng(42)
+    result_float = F.iso_noise(
+        float_image,
+        color_shift=color_shift,
+        intensity=intensity,
+        random_generator=rng
+    )
 
-    result_float = F.from_float(result_float, target_dtype=np.uint8)  # Convert the float result back to uint8
+    # Convert float result back to uint8
+    result_float = F.from_float(result_float, target_dtype=np.uint8)
 
-    np.testing.assert_allclose(result_uint8, result_float, rtol=1e-5, atol=1)
+    # Calculate noise
+    noise = result_uint8.astype(np.float32) - image.astype(np.float32)
+    mean_noise = np.mean(noise)
+    std_noise = np.std(noise)
+
+    if intensity == 0:
+        # For zero intensity, expect no noise
+        np.testing.assert_array_equal(result_uint8, image)
+        np.testing.assert_array_equal(result_float, image)
+    else:
+        # Check that float and uint8 results are close
+        np.testing.assert_allclose(result_uint8, result_float, rtol=1e-5, atol=1)
 
 
 

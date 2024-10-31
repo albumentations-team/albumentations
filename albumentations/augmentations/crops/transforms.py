@@ -160,9 +160,9 @@ class BaseCropAndPad(BaseCrop):
         self,
         img: np.ndarray,
         crop_coords: tuple[int, int, int, int],
-        pad_params: dict[str, int] | None = None,
         **params: Any,
     ) -> np.ndarray:
+        pad_params = params.get("pad_params")
         if pad_params is not None:
             img = fgeometric.pad_with_params(
                 img,
@@ -179,9 +179,9 @@ class BaseCropAndPad(BaseCrop):
         self,
         bboxes: np.ndarray,
         crop_coords: tuple[int, int, int, int],
-        pad_params: dict[str, Any] | None = None,
         **params: Any,
     ) -> np.ndarray:
+        pad_params = params.get("pad_params")
         image_shape = params["shape"][:2]
 
         if pad_params is not None:
@@ -217,9 +217,9 @@ class BaseCropAndPad(BaseCrop):
         self,
         keypoints: np.ndarray,
         crop_coords: tuple[int, int, int, int],
-        pad_params: dict[str, Any] | None = None,
         **params: Any,
     ) -> np.ndarray:
+        pad_params = params.get("pad_params")
         image_shape = params["shape"][:2]
 
         if pad_params is not None:

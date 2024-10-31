@@ -158,7 +158,6 @@ def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
 
 @uint8_io
 @clipped
-@preserve_channel_dim
 def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
@@ -336,7 +335,6 @@ def equalize(
 
 
 @uint8_io
-@preserve_channel_dim
 def move_tone_curve(
     img: np.ndarray,
     low_y: float | np.ndarray,
@@ -1016,7 +1014,6 @@ def channel_shuffle(img: np.ndarray, channels_shuffled: np.ndarray) -> np.ndarra
     return img[..., channels_shuffled]
 
 
-@preserve_channel_dim
 def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
     if img.dtype == np.uint8:
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** gamma) * 255
