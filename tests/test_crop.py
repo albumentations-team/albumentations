@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 import albumentations as A
+from albumentations.core.types import PositionType
+import cv2
 
 from .conftest import IMAGES, RECTANGULAR_UINT8_IMAGE
 
@@ -136,3 +138,78 @@ def test_bbox_params_edges(
     res = aug(image=image, bboxes=bboxes)["bboxes"]
 
     np.testing.assert_array_equal(res, expected_bboxes)
+
+POSITIONS: list[PositionType] = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
+
+
+
+@pytest.mark.parametrize(
+    ["crop_cls", "crop_params"],
+    [
+        (A.RandomCrop, {"height": 150, "width": 150}),
+        (A.CenterCrop, {"height": 150, "width": 150}),
+    ]
+)
+@pytest.mark.parametrize("pad_position", POSITIONS)
+@pytest.mark.parametrize("pad_mode", [cv2.BORDER_CONSTANT, cv2.BORDER_REFLECT_101])
+def test_pad_position_equivalence(
+    image: np.ndarray,
+    crop_cls: type[A.DualTransform],
+    crop_params: dict[str, int],
+    pad_position: PositionType,
+    pad_mode: int,
+    mask: np.ndarray,
+    bboxes: np.ndarray,
+    keypoints: np.ndarray,
+):
+    """Test that pad_position works identically for both padding approaches."""
+
+    # Approach 1: Crop with built-in padding
+    transform1 = A.Compose([
+        crop_cls(
+            **crop_params,
+            pad_if_needed=True,
+            pad_mode=pad_mode,
+            pad_cval=0,
+            pad_position=pad_position,
+        )
+    ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"))
+
+    # Approach 2: Separate pad and crop
+    transform2 = A.Compose([
+        A.PadIfNeeded(
+            min_height=crop_params["height"],
+            min_width=crop_params["width"],
+            border_mode=pad_mode,
+            value=0,
+            position=pad_position,
+        ),
+        crop_cls(
+            **crop_params,
+            pad_if_needed=False,
+        )
+    ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"))
+
+    result1 = transform1(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+    result2 = transform2(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+
+    np.testing.assert_array_equal(
+        result1["image"],
+        result2["image"],
+        err_msg=f"Images don't match for position {pad_position}"
+    )
+    np.testing.assert_array_equal(
+        result1["mask"],
+        result2["mask"],
+        err_msg=f"Masks don't match for position {pad_position}"
+    )
+    np.testing.assert_array_equal(
+        result1["bboxes"],
+        result2["bboxes"],
+        err_msg=f"Bboxes don't match for position {pad_position}"
+    )
+    np.testing.assert_array_equal(
+        result1["keypoints"],
+        result2["keypoints"],
+        err_msg=f"Keypoints don't match for position {pad_position}"
+    )

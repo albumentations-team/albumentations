@@ -96,7 +96,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     get_dual_transforms(
         custom_arguments={
             A.RandomResizedCrop: {"size": (113, 103)},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (113, 103)},
+            A.RandomSizedCrop: {"min_max_height": (99, 99), "size": (113, 103)},
             A.Resize: {"height": 113, "width": 113},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.CropAndPad: {"px": 10},

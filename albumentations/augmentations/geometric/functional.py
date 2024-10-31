@@ -17,6 +17,7 @@ from albumentations.core.types import (
     REFLECT_BORDER_MODES,
     ColorType,
     D4Type,
+    PositionType,
     ScalarType,
 )
 
@@ -2586,3 +2587,97 @@ def bboxes_piecewise_affine(
     bboxes[:, :4] = bboxes_from_masks(transformed_masks)
 
     return bboxes
+
+
+def _get_dimension_padding(
+    current_size: int,
+    min_size: int | None,
+    divisor: int | None,
+) -> tuple[int, int]:
+    """Calculate padding for a single dimension.
+
+    Args:
+        current_size: Current size of the dimension
+        min_size: Minimum size requirement, if any
+        divisor: Divisor for padding to make size divisible, if any
+
+    Returns:
+        tuple[int, int]: (pad_before, pad_after)
+    """
+    if min_size is not None:
+        if current_size < min_size:
+            pad_before = int((min_size - current_size) / 2.0)
+            pad_after = min_size - current_size - pad_before
+            return pad_before, pad_after
+    elif divisor is not None:
+        remainder = current_size % divisor
+        if remainder > 0:
+            total_pad = divisor - remainder
+            pad_before = total_pad // 2
+            pad_after = total_pad - pad_before
+            return pad_before, pad_after
+
+    return 0, 0
+
+
+def get_padding_params(
+    image_shape: tuple[int, int],
+    min_height: int | None,
+    min_width: int | None,
+    pad_height_divisor: int | None,
+    pad_width_divisor: int | None,
+) -> tuple[int, int, int, int]:
+    """Calculate padding parameters based on target dimensions.
+
+    Args:
+        image_shape: (height, width) of the image
+        min_height: Minimum height requirement, if any
+        min_width: Minimum width requirement, if any
+        pad_height_divisor: Divisor for height padding, if any
+        pad_width_divisor: Divisor for width padding, if any
+
+    Returns:
+        tuple[int, int, int, int]: (pad_top, pad_bottom, pad_left, pad_right)
+    """
+    rows, cols = image_shape[:2]
+
+    h_pad_top, h_pad_bottom = _get_dimension_padding(rows, min_height, pad_height_divisor)
+    w_pad_left, w_pad_right = _get_dimension_padding(cols, min_width, pad_width_divisor)
+
+    return h_pad_top, h_pad_bottom, w_pad_left, w_pad_right
+
+
+def adjust_padding_by_position(
+    h_top: int,
+    h_bottom: int,
+    w_left: int,
+    w_right: int,
+    position: PositionType,
+    py_random: np.random.RandomState,
+) -> tuple[int, int, int, int]:
+    """Adjust padding values based on desired position."""
+    if position == "center":
+        return h_top, h_bottom, w_left, w_right
+
+    if position == "top_left":
+        return 0, h_top + h_bottom, 0, w_left + w_right
+
+    if position == "top_right":
+        return 0, h_top + h_bottom, w_left + w_right, 0
+
+    if position == "bottom_left":
+        return h_top + h_bottom, 0, 0, w_left + w_right
+
+    if position == "bottom_right":
+        return h_top + h_bottom, 0, w_left + w_right, 0
+
+    if position == "random":
+        h_pad = h_top + h_bottom
+        w_pad = w_left + w_right
+        h_top = py_random.randint(0, h_pad)
+        h_bottom = h_pad - h_top
+        w_left = py_random.randint(0, w_pad)
+        w_right = w_pad - w_left
+        return h_top, h_bottom, w_left, w_right
+
+    raise ValueError(f"Unknown position: {position}")
