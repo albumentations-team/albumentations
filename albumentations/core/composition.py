@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from typing import Any, Union, cast
 
@@ -56,16 +56,6 @@ CHECK_BBOX_PARAM = ("bboxes",)
 CHECK_KEYPOINTS_PARAM = ("keypoints",)
 
 
-def get_transforms_dict(transforms: TransformsSeqType) -> dict[int, BasicTransform]:
-    result = {}
-    for transform in transforms:
-        if isinstance(transform, BaseCompose):
-            result.update(get_transforms_dict(transform.transforms))
-        else:
-            result[id(transform)] = transform
-    return result
-
-
 class BaseCompose(Serializable):
     """Base class for composing multiple transforms together.
 
@@ -77,7 +67,6 @@ class BaseCompose(Serializable):
         transforms (List[TransformType]): A list of transforms to be applied.
         p (float): Probability of applying the compose. Should be in the range [0, 1].
         replay_mode (bool): If True, the compose is in replay mode.
-        applied_in_replay (bool): Indicates if the compose was applied during replay.
         _additional_targets (Dict[str, str]): Additional targets for transforms.
         _available_keys (Set[str]): Set of available keys for data.
         processors (Dict[str, Union[BboxProcessor, KeypointsProcessor]]): Processors for specific data types.
@@ -119,7 +108,6 @@ class BaseCompose(Serializable):
         self.p = p
 
         self.replay_mode = False
-        self.applied_in_replay = False
         self._additional_targets: dict[str, str] = {}
         self._available_keys: set[str] = set()
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
@@ -303,8 +291,6 @@ class Compose(BaseCompose, HubMixin):
         is_check_shapes (bool): If True, checks consistency of shapes for image/mask/masks on each call.
             Disable only if you are sure about your data consistency. Default is True.
         strict (bool): If True, raises an error on unknown input keys. If False, ignores them. Default is True.
-        return_params (bool): If True, returns parameters of applied transforms. Default is False.
-        save_key (str): Key to save applied params if return_params is True. Default is 'applied_params'.
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
         seed (int, optional): Random seed. Default is None.
@@ -322,7 +308,6 @@ class Compose(BaseCompose, HubMixin):
         - The class checks the validity of input data and shapes if is_check_args and is_check_shapes are True.
         - When bbox_params or keypoint_params are provided, it sets up the corresponding processors.
         - The transform can handle additional targets specified in the additional_targets dictionary.
-        - If return_params is True, it will return the parameters of applied transforms in the output.
     """
 
     def __init__(
@@ -334,8 +319,6 @@ class Compose(BaseCompose, HubMixin):
         p: float = 1.0,
         is_check_shapes: bool = True,
         strict: bool = True,
-        return_params: bool = False,
-        save_key: str = "applied_params",
         mask_interpolation: int | None = None,
         seed: int | None = None,
     ):
@@ -377,14 +360,6 @@ class Compose(BaseCompose, HubMixin):
         )
         self._set_check_args_for_transforms(self.transforms)
 
-        self.return_params = return_params
-
-        if return_params:
-            self.save_key = save_key
-            self._available_keys.add(save_key)
-            self._transforms_dict = get_transforms_dict(self.transforms)
-            self.set_deterministic(True, save_key=save_key)
-
         self._set_processors_for_transforms(self.transforms)
 
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
@@ -418,9 +393,6 @@ class Compose(BaseCompose, HubMixin):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
-        if self.return_params and self.main_compose:
-            data[self.save_key] = OrderedDict()
-
         need_to_run = force_apply or self.py_random.random() < self.p
         if not need_to_run:
             return data
@@ -429,20 +401,6 @@ class Compose(BaseCompose, HubMixin):
 
         for t in self.transforms:
             data = t(**data)
-            data = self.check_data_post_transform(data)
-
-        return self.postprocess(data)
-
-    def run_with_params(self, *, params: dict[int, dict[str, Any]], **data: Any) -> dict[str, Any]:
-        """Run transforms with given parameters. Available only for Compose with `return_params=True`."""
-        if self._transforms_dict is None:
-            raise RuntimeError("`run_with_params` is not available for Compose with `return_params=False`.")
-
-        self.preprocess(data)
-
-        for tr_id, param in params.items():
-            tr = self._transforms_dict[tr_id]
-            data = tr.apply_with_params(param, **data)
             data = self.check_data_post_transform(data)
 
         return self.postprocess(data)

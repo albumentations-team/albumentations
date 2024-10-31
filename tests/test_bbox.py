@@ -931,30 +931,6 @@ def test_crop_boxes_replay_compose() -> None:
     np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
 
 
-def test_crop_boxes_return_params() -> None:
-    image = np.ones((512, 384, 3))
-    bboxes = [(78, 42, 142, 80), (32, 12, 42, 72), (200, 100, 300, 200)]
-    labels = [0, 1, 2]
-    transform = Compose(
-        [RandomCrop(256, 256, p=1.0)],
-        bbox_params=BboxParams(
-            format="pascal_voc",
-            min_area=16,
-            label_fields=["labels"],
-        ),
-        return_params=True,
-    )
-
-    input_data = dict(image=image, bboxes=bboxes, labels=labels)
-    transformed = transform(**input_data)
-    transformed2 = transform.run_with_params(
-        params=transformed["applied_params"],
-        **input_data,
-    )
-
-    np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
-
-
 def test_bounding_box_partially_outside_no_clip() -> None:
     """Test error is raised when bounding box exceeds image boundaries without clipping."""
     # Define a transformation with NoOp

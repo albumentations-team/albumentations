@@ -20,7 +20,6 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
     TransformsSeqType,
-    get_transforms_dict,
 )
 from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple
@@ -141,16 +140,7 @@ def test_image_only_transform(image):
                 rows=height,
                 shape=image.shape,
             )
-            assert np.array_equal(data["mask"], mask)
-
-
-@pytest.mark.parametrize("image", IMAGES)
-def test_compose_doesnt_pass_force_apply(image: np.ndarray) -> None:
-    transforms = [A.HorizontalFlip(p=0)]
-    augmentation = Compose(transforms, p=1, return_params=True)
-    result = augmentation(force_apply=True, image=image)
-    assert np.array_equal(result["image"], image)
-    assert len(result["applied_params"]) == 0
+            np.testing.assert_array_equal(data["mask"], mask)
 
 
 @pytest.mark.parametrize("image", IMAGES)
@@ -230,33 +220,6 @@ def test_check_bboxes_with_end_greater_that_start():
     assert str(exc_info.value) == message
 
 
-@pytest.mark.parametrize(
-    ["transforms", "len_expected"],
-    [
-        ([], 0),
-        ([A.HorizontalFlip(p=1), A.Blur(p=1)], 2),
-        ([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)]), SomeOf([A.HorizontalFlip(p=1), A.Blur(p=1)], n=2)], 4),
-        ([A.HorizontalFlip(p=1), Sequential([A.NoOp(), A.NoOp()])], 3),
-    ],
-)
-def test_get_transforms_dict(transforms: TransformsSeqType, len_expected: int) -> None:
-    aug = Compose(transforms, return_params=True)
-    transforms_dict = get_transforms_dict(transforms)
-
-    assert len(transforms_dict) == len_expected
-    assert aug._transforms_dict == transforms_dict
-
-
-def test_comose_run_with_params_exception() -> None:
-    aug = Compose([NoOp()])
-    aug_2 = Compose([NoOp()], return_params=True)
-    res = aug_2(image=np.random.random((8, 8)))
-    assert "applied_params" in res
-
-    with pytest.raises(RuntimeError):
-        _ = aug.run_with_params(params=res["applied_params"], image=np.random.random((8, 8)))
-
-
 def test_deterministic_oneof() -> None:
     aug = ReplayCompose([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1)
     for _ in range(10):
@@ -265,17 +228,6 @@ def test_deterministic_oneof() -> None:
         data = aug(image=image)
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
-        assert np.array_equal(data["image"], data2["image"])
-
-
-def test_return_params_oneof() -> None:
-    aug = Compose([OneOf([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1, return_params=True)
-    for _ in range(10):
-        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
-        image2 = np.copy(image)
-        data = aug(image=image)
-        assert "applied_params" in data
-        data2 = aug.run_with_params(params=data["applied_params"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
 
 
@@ -290,17 +242,6 @@ def test_deterministic_one_or_other() -> None:
         assert np.array_equal(data["image"], data2["image"])
 
 
-def test_return_params_one_or_other() -> None:
-    aug = Compose([OneOrOther(A.HorizontalFlip(p=1), A.Blur(p=1))], p=1, return_params=True)
-    for _ in range(10):
-        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
-        image2 = np.copy(image)
-        data = aug(image=image)
-        assert "applied_params" in data
-        data2 = aug.run_with_params(params=data["applied_params"], image=image2)
-        assert np.array_equal(data["image"], data2["image"])
-
-
 def test_deterministic_sequential() -> None:
     aug = ReplayCompose([Sequential([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1)
     for _ in range(10):
@@ -309,17 +250,6 @@ def test_deterministic_sequential() -> None:
         data = aug(image=image)
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
-        assert np.array_equal(data["image"], data2["image"])
-
-
-def test_return_params_sequential() -> None:
-    aug = Compose([Sequential([A.HorizontalFlip(p=1), A.Blur(p=1)])], p=1, return_params=True)
-    for _ in range(10):
-        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
-        image2 = np.copy(image)
-        data = aug(image=image)
-        assert "applied_params" in data
-        data2 = aug.run_with_params(params=data["applied_params"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
 
 
@@ -1450,6 +1380,5 @@ def test_transform_returns_params(transform, expected_param_keys):
     image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
     transform(image=image)
     params = transform.get_applied_params()
-    print("P = ", params)
     assert isinstance(params, dict)
     assert set(params.keys()) == expected_param_keys

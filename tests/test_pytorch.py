@@ -144,22 +144,6 @@ def test_with_replaycompose() -> None:
     assert res2["mask"].dtype == torch.uint8
 
 
-def test_with_return_params() -> None:
-    aug = A.Compose([ToTensorV2()], return_params=True)
-    kwargs = {
-        "image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
-        "mask": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
-    }
-    res = aug(**kwargs)
-    res2 = aug.run_with_params(params=res["applied_params"], **kwargs)
-    assert np.array_equal(res["image"], res2["image"])
-    assert np.array_equal(res["mask"], res2["mask"])
-    assert res["image"].dtype == torch.uint8
-    assert res["mask"].dtype == torch.uint8
-    assert res2["image"].dtype == torch.uint8
-    assert res2["mask"].dtype == torch.uint8
-
-
 @pytest.mark.parametrize(
     ["brightness", "contrast", "saturation", "hue"],
     [
