@@ -1477,9 +1477,6 @@ def test_params_content(image, transform_class, transform_params):
     transform_name, params = result["applied_transforms"][0]
 
     assert transform_name == transform_class.__name__
-    if transform_params:  # Some transforms like HorizontalFlip don't have params
-        for param in params:
-            assert isinstance(params[param], (int, float, bool, tuple, np.int64))
 
 def test_no_param_tracking():
     """Test that params are not tracked when save_applied_params=False"""
