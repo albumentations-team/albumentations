@@ -888,6 +888,7 @@ def test_random_sized_crop_size() -> None:
     aug = A.Compose(
         [RandomSizedCrop(min_max_height=(70, 90), size=(50, 50), p=1.0)],
         bbox_params={"format": "albumentations"},
+        seed=42,
     )
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
