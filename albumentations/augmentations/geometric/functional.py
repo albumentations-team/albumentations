@@ -17,6 +17,7 @@ from albumentations.core.types import (
     REFLECT_BORDER_MODES,
     ColorType,
     D4Type,
+    PositionType,
     ScalarType,
 )
 
@@ -2586,3 +2587,84 @@ def bboxes_piecewise_affine(
     bboxes[:, :4] = bboxes_from_masks(transformed_masks)
 
     return bboxes
+
+
+def get_padding_params(
+    image_shape: tuple[int, int],
+    min_height: int | None,
+    min_width: int | None,
+    pad_height_divisor: int | None,
+    pad_width_divisor: int | None,
+) -> tuple[int, int, int, int]:
+    """Calculate padding parameters based on target dimensions.
+
+    Returns:
+        tuple[int, int, int, int]: (pad_top, pad_bottom, pad_left, pad_right)
+    """
+    rows, cols = image_shape[:2]
+
+    if min_height is not None:
+        if rows < min_height:
+            h_pad_top = int((min_height - rows) / 2.0)
+            h_pad_bottom = min_height - rows - h_pad_top
+        else:
+            h_pad_top = h_pad_bottom = 0
+    elif pad_height_divisor is not None:
+        pad_remained = rows % pad_height_divisor
+        pad_rows = pad_height_divisor - pad_remained if pad_remained > 0 else 0
+        h_pad_top = pad_rows // 2
+        h_pad_bottom = pad_rows - h_pad_top
+    else:
+        h_pad_top = h_pad_bottom = 0
+
+    if min_width is not None:
+        if cols < min_width:
+            w_pad_left = int((min_width - cols) / 2.0)
+            w_pad_right = min_width - cols - w_pad_left
+        else:
+            w_pad_left = w_pad_right = 0
+    elif pad_width_divisor is not None:
+        pad_remainder = cols % pad_width_divisor
+        pad_cols = pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
+        w_pad_left = pad_cols // 2
+        w_pad_right = pad_cols - w_pad_left
+    else:
+        w_pad_left = w_pad_right = 0
+
+    return h_pad_top, h_pad_bottom, w_pad_left, w_pad_right
+
+
+def adjust_padding_by_position(
+    h_top: int,
+    h_bottom: int,
+    w_left: int,
+    w_right: int,
+    position: PositionType,
+    py_random: np.random.RandomState,
+) -> tuple[int, int, int, int]:
+    """Adjust padding values based on desired position."""
+    if position == "center":
+        return h_top, h_bottom, w_left, w_right
+
+    if position == "top_left":
+        return 0, h_top + h_bottom, 0, w_left + w_right
+
+    if position == "top_right":
+        return 0, h_top + h_bottom, w_left + w_right, 0
+
+    if position == "bottom_left":
+        return h_top + h_bottom, 0, 0, w_left + w_right
+
+    if position == "bottom_right":
+        return h_top + h_bottom, 0, w_left + w_right, 0
+
+    if position == "random":
+        h_pad = h_top + h_bottom
+        w_pad = w_left + w_right
+        h_top = py_random.randint(0, h_pad)
+        h_bottom = h_pad - h_top
+        w_left = py_random.randint(0, w_pad)
+        w_right = w_pad - w_left
+        return h_top, h_bottom, w_left, w_right
+
+    raise ValueError(f"Unknown position: {position}")

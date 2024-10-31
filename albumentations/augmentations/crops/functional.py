@@ -51,6 +51,7 @@ def crop_bboxes_by_coords(
     bboxes: np.ndarray,
     crop_coords: tuple[int, int, int, int],
     image_shape: tuple[int, int],
+    normalized_input: bool = True,
 ) -> np.ndarray:
     """Crop bounding boxes based on given crop coordinates.
 
@@ -59,13 +60,19 @@ def crop_bboxes_by_coords(
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (N, 4+) where each row is
                              [x_min, y_min, x_max, y_max, ...]. The bounding box coordinates
-                             should be normalized (in the range [0, 1]).
+                             can be either normalized (in [0, 1]) if normalized_input=True or
+                             absolute pixel values if normalized_input=False.
         crop_coords (tuple[int, int, int, int]): Crop coordinates (x_min, y_min, x_max, y_max)
                                                  in absolute pixel values.
         image_shape (tuple[int, int]): Original image shape (height, width).
+        normalized_input (bool): Whether input boxes are in normalized coordinates.
+                               If True, assumes input is normalized [0,1] and returns normalized coordinates.
+                               If False, assumes input is in absolute pixels and returns absolute coordinates.
+                               Default: True for backward compatibility.
 
     Returns:
-        np.ndarray: Array of cropped bounding boxes, normalized to the new crop size.
+        np.ndarray: Array of cropped bounding boxes. Coordinates will be in the same format as input
+                   (normalized if normalized_input=True, absolute pixels if normalized_input=False).
 
     Note:
         Bounding boxes that fall completely outside the crop area will be removed.
@@ -74,7 +81,11 @@ def crop_bboxes_by_coords(
     if not bboxes.size:
         return bboxes
 
-    cropped_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), image_shape)
+    # Convert to absolute coordinates if needed
+    if normalized_input:
+        cropped_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), image_shape)
+    else:
+        cropped_bboxes = bboxes.copy().astype(np.float32)
 
     x_min, y_min = crop_coords[:2]
 
@@ -87,8 +98,8 @@ def crop_bboxes_by_coords(
     crop_width = crop_coords[2] - crop_coords[0]
     crop_shape = (crop_height, crop_width)
 
-    # Normalize the cropped bboxes
-    return normalize_bboxes(cropped_bboxes, crop_shape)
+    # Return in same format as input
+    return normalize_bboxes(cropped_bboxes, crop_shape) if normalized_input else cropped_bboxes
 
 
 @handle_empty_array

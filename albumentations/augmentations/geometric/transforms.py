@@ -1276,41 +1276,21 @@ class PadIfNeeded(DualTransform):
 
     def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         params = super().update_params(params, **kwargs)
-        rows, cols = params["shape"][:2]
+        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.get_padding_params(
+            image_shape=params["shape"][:2],
+            min_height=self.min_height,
+            min_width=self.min_width,
+            pad_height_divisor=self.pad_height_divisor,
+            pad_width_divisor=self.pad_width_divisor,
+        )
 
-        if self.min_height is not None:
-            if rows < self.min_height:
-                h_pad_top = int((self.min_height - rows) / 2.0)
-                h_pad_bottom = self.min_height - rows - h_pad_top
-            else:
-                h_pad_top = 0
-                h_pad_bottom = 0
-        else:
-            pad_remained = rows % self.pad_height_divisor
-            pad_rows = self.pad_height_divisor - pad_remained if pad_remained > 0 else 0
-
-            h_pad_top = pad_rows // 2
-            h_pad_bottom = pad_rows - h_pad_top
-
-        if self.min_width is not None:
-            if cols < self.min_width:
-                w_pad_left = int((self.min_width - cols) / 2.0)
-                w_pad_right = self.min_width - cols - w_pad_left
-            else:
-                w_pad_left = 0
-                w_pad_right = 0
-        else:
-            pad_remainder = cols % self.pad_width_divisor
-            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
-
-            w_pad_left = pad_cols // 2
-            w_pad_right = pad_cols - w_pad_left
-
-        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = self.__update_position_params(
+        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.adjust_padding_by_position(
             h_top=h_pad_top,
             h_bottom=h_pad_bottom,
             w_left=w_pad_left,
             w_right=w_pad_right,
+            position=self.position,
+            py_random=self.py_random,
         )
 
         params.update(
@@ -1417,47 +1397,6 @@ class PadIfNeeded(DualTransform):
             "value",
             "mask_value",
         )
-
-    def __update_position_params(
-        self,
-        h_top: int,
-        h_bottom: int,
-        w_left: int,
-        w_right: int,
-    ) -> tuple[int, int, int, int]:
-        if self.position == "top_left":
-            h_bottom += h_top
-            w_right += w_left
-            h_top = 0
-            w_left = 0
-
-        elif self.position == "top_right":
-            h_bottom += h_top
-            w_left += w_right
-            h_top = 0
-            w_right = 0
-
-        elif self.position == "bottom_left":
-            h_top += h_bottom
-            w_right += w_left
-            h_bottom = 0
-            w_left = 0
-
-        elif self.position == "bottom_right":
-            h_top += h_bottom
-            w_left += w_right
-            h_bottom = 0
-            w_right = 0
-
-        elif self.position == "random":
-            h_pad = h_top + h_bottom
-            w_pad = w_left + w_right
-            h_top = self.py_random.randint(0, h_pad)
-            h_bottom = h_pad - h_top
-            w_left = self.py_random.randint(0, w_pad)
-            w_right = w_pad - w_left
-
-        return h_top, h_bottom, w_left, w_right
 
 
 class VerticalFlip(DualTransform):
