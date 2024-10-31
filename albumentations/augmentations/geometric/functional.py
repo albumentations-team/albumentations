@@ -1943,7 +1943,7 @@ def pad_keypoints(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
+    if border_mode not in REFLECT_BORDER_MODES:
         shift_vector = np.array([pad_left, pad_top])  # Only shift x and y
         return shift_keypoints(keypoints, shift_vector)
 

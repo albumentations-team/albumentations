@@ -223,7 +223,11 @@ class BaseCropAndPad(BaseCrop):
         image_shape = params["shape"][:2]
 
         if pad_params is not None:
-            # First apply padding to keypoints
+            # Calculate padded dimensions
+            padded_height = image_shape[0] + pad_params["pad_top"] + pad_params["pad_bottom"]
+            padded_width = image_shape[1] + pad_params["pad_left"] + pad_params["pad_right"]
+
+            # First apply padding to keypoints using original image shape
             keypoints = fgeometric.pad_keypoints(
                 keypoints,
                 pad_params["pad_top"],
@@ -233,6 +237,9 @@ class BaseCropAndPad(BaseCrop):
                 self.pad_mode,
                 image_shape=image_shape,
             )
+
+            # Update image shape for subsequent crop operation
+            params = {**params, "shape": (padded_height, padded_width)}
 
         return super().apply_to_keypoints(keypoints, crop_coords, **params)
 
