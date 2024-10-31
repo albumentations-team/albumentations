@@ -1429,3 +1429,27 @@ def test_mask_interpolation_someof(interpolation, compose):
     transformed = transform(image=image, mask=mask)
 
     assert transformed["mask"].flags["C_CONTIGUOUS"]
+
+
+@pytest.mark.parametrize(
+    ["transform", "expected_param_keys"],
+    [
+        (A.HorizontalFlip(p=1), {"cols", "rows", "shape"}),
+        (A.VerticalFlip(p=1), {"cols", "rows", "shape"}),
+        (
+            A.RandomBrightnessContrast(p=1),
+            {"cols", "rows", "shape", "alpha", "beta"}
+        ),
+        (
+            A.Rotate(p=1),
+            {'shape', 'cols', 'rows', 'x_min', 'x_max', 'y_min', 'y_max', 'matrix', 'bbox_matrix', 'interpolation'}
+        ),
+    ],
+)
+def test_transform_returns_params(transform, expected_param_keys):
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    transform(image=image)
+    params = transform.get_applied_params()
+    print("P = ", params)
+    assert isinstance(params, dict)
+    assert set(params.keys()) == expected_param_keys

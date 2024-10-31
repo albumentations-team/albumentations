@@ -139,8 +139,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
-
             return kwargs
+
+        # Reset params at the start of each call
+        self.params = {}
 
         if self.should_apply(force_apply=force_apply):
             params = self.get_params()
@@ -161,11 +163,21 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                     targets_as_params["image"] = kwargs["images"][0]
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
+
+            # Store the final params
+            self.params = params
+
             if self.deterministic:
                 kwargs[self.save_key][id(self)] = deepcopy(params)
             return self.apply_with_params(params, **kwargs)
 
         return kwargs
+
+    def get_applied_params(self) -> dict[str, Any]:
+        """Returns the parameters that were used in the last transform application.
+        Returns empty dict if transform was not applied.
+        """
+        return self.params
 
     def should_apply(self, force_apply: bool = False) -> bool:
         if self.p <= 0.0:
