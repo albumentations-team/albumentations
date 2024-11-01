@@ -1416,8 +1416,8 @@ def remap_keypoints(
     x, y = keypoints[:, 0], keypoints[:, 1]
 
     # Clip coordinates to image boundaries
-    x = np.clip(x, 0, width - 1)
-    y = np.clip(y, 0, height - 1)
+    x = np.clip(x, 0, width - 1, out=x)
+    y = np.clip(y, 0, height - 1, out=y)
 
     # Convert to integer indices
     x_idx, y_idx = x.astype(int), y.astype(int)
@@ -1427,8 +1427,8 @@ def remap_keypoints(
     new_y = y_inv[y_idx, x_idx] + (y - map_y[y_idx, x_idx])
 
     # Clip the new coordinates to ensure they're within the image bounds
-    new_x = np.clip(new_x, 0, width - 1)
-    new_y = np.clip(new_y, 0, height - 1)
+    new_x = np.clip(new_x, 0, width - 1, out=new_x)
+    new_y = np.clip(new_y, 0, height - 1, out=new_y)
 
     # Create the transformed keypoints array
     return np.column_stack([new_x, new_y, keypoints[:, 2:]])
@@ -1858,8 +1858,8 @@ def distort_image_keypoints(
             distorted_keypoints[mask, :2] = transformed_points
 
     # Clip keypoints to image boundaries
-    distorted_keypoints[:, 0] = np.clip(distorted_keypoints[:, 0], 0, width - 1)
-    distorted_keypoints[:, 1] = np.clip(distorted_keypoints[:, 1], 0, height - 1)
+    distorted_keypoints[:, 0] = np.clip(distorted_keypoints[:, 0], 0, width - 1, out=distorted_keypoints[:, 0])
+    distorted_keypoints[:, 1] = np.clip(distorted_keypoints[:, 1], 0, height - 1, out=distorted_keypoints[:, 1])
 
     return distorted_keypoints
 
@@ -2578,8 +2578,8 @@ def create_piecewise_affine_maps(
             map_y[i, j] = np.sum(weights * control_points[:, 3])
 
     # Ensure output is within bounds
-    map_x = np.clip(map_x, 0, width - 1)
-    map_y = np.clip(map_y, 0, height - 1)
+    map_x = np.clip(map_x, 0, width - 1, out=map_x)
+    map_y = np.clip(map_y, 0, height - 1, out=map_y)
 
     return map_x, map_y
 

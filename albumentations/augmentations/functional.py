@@ -359,10 +359,10 @@ def move_tone_curve(
     num_channels = get_num_channels(img)
 
     if np.isscalar(low_y) and np.isscalar(high_y):
-        lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8)
+        lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8, inplace=False)
         return sz_lut(img, lut, inplace=False)
     if isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
-        luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
+        luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8, inplace=False)
         return cv2.merge(
             [sz_lut(img[:, :, i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
         )
@@ -502,7 +502,7 @@ def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float)
 
     image_hls[:, :, 1][image_hls[:, :, 1] < snow_point] *= brightness_coeff
 
-    image_hls[:, :, 1] = clip(image_hls[:, :, 1], np.uint8)
+    image_hls[:, :, 1] = clip(image_hls[:, :, 1], np.uint8, inplace=True)
 
     image_hls = np.array(image_hls, dtype=np.uint8)
 
@@ -749,7 +749,7 @@ def add_fog(
 
     result = img * (1 - alpha) + fog_layer * alpha
 
-    return clip(result, np.uint8)
+    return clip(result, np.uint8, inplace=True)
 
 
 @uint8_io
@@ -985,6 +985,7 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
         img_shadowed[shadowed_indices] = clip(
             img_shadowed[shadowed_indices] * shadow_intensity,
             np.uint8,
+            inplace=True,
         )
 
     return img_shadowed
@@ -1074,7 +1075,7 @@ def iso_noise(
     hls[..., 1] = add_array(hls[..., 1], luminance_noise * intensity * (1.0 - hls[..., 1]))
 
     noised_hls = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)
-    return np.clip(noised_hls, 0, 1)  # Ensure output is in [0, 1] range
+    return np.clip(noised_hls, 0, 1, out=noised_hls)  # Ensure output is in [0, 1] range
 
 
 def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
@@ -1432,7 +1433,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     img_pca = img_pca.reshape(orig_shape)
 
     # Clip values to [0, 1] range
-    return np.clip(img_pca, 0, 1)
+    return np.clip(img_pca, 0, 1, out=img_pca)
 
 
 @preserve_channel_dim
@@ -1584,7 +1585,7 @@ def unsharp_mask(
 
     sharp = image + alpha * residual
     # Avoid color noise artefacts.
-    sharp = np.clip(sharp, 0, 1)
+    sharp = np.clip(sharp, 0, 1, out=sharp)
 
     soft_mask = blur_fn(mask)
 

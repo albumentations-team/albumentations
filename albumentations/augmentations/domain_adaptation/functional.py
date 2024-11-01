@@ -133,7 +133,7 @@ class DomainAdapter:
     def from_colorspace(self, img: np.ndarray) -> np.ndarray:
         if self.color_out is None:
             return img
-        return cv2.cvtColor(clip(img, np.uint8), self.color_out)
+        return cv2.cvtColor(clip(img, np.uint8, inplace=True), self.color_out)
 
     def flatten(self, img: np.ndarray) -> np.ndarray:
         img = self.to_colorspace(img)
@@ -141,7 +141,7 @@ class DomainAdapter:
         return img.reshape(-1, self.num_channels)
 
     def reconstruct(self, pixels: np.ndarray, height: int, width: int) -> np.ndarray:
-        pixels = (np.clip(pixels, 0, 1) * 255).astype("uint8")
+        pixels = clip(pixels, np.uint8, inplace=True)
         if self.num_channels == 1:
             return self.from_colorspace(pixels.reshape(height, width))
         return self.from_colorspace(pixels.reshape(height, width, self.num_channels))
