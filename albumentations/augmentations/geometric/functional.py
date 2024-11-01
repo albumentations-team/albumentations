@@ -6,7 +6,7 @@ from typing import Any, Callable, Literal, TypedDict, cast
 
 import cv2
 import numpy as np
-from albucore import get_num_channels, hflip, maybe_process_in_chunks, multiply_by_constant, preserve_channel_dim, vflip
+from albucore import get_num_channels, hflip, maybe_process_in_chunks, preserve_channel_dim, vflip
 
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
@@ -1512,7 +1512,7 @@ def generate_displacement_fields(
         elif noise_distribution == "uniform":
             field = random_generator.uniform(low=-1, high=1, size=image_shape[:2]).astype(np.float32)
             cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
-        return multiply_by_constant(field, alpha, inplace=True)
+        return field * alpha
 
     # Generate first displacement field
     dx = generate_noise_field()
