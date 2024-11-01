@@ -1488,18 +1488,37 @@ def generate_displacement_fields(
     same_dxdy: bool,
     kernel_size: tuple[int, int],
     random_generator: np.random.Generator,
+    noise_distribution: Literal["gaussian", "uniform"],
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Generate displacement fields for elastic transform."""
-    dx = random_generator.standard_normal(size=image_shape[:2]).astype(np.float32) * 2 - 1
-    cv2.GaussianBlur(dx, kernel_size, sigma, dst=dx)
-    dx *= alpha
+    """Generate displacement fields for elastic transform.
 
-    if same_dxdy:
-        dy = dx
-    else:
-        dy = random_generator.standard_normal(size=image_shape[:2]).astype(np.float32) * 2 - 1
-        cv2.GaussianBlur(dy, kernel_size, sigma, dst=dy)
-        dy *= alpha
+    Args:
+        image_shape: Shape of the image (height, width)
+        alpha: Scaling factor for displacement
+        sigma: Standard deviation for Gaussian blur
+        same_dxdy: Whether to use same displacement field for both directions
+        kernel_size: Size of Gaussian blur kernel
+        random_generator: NumPy random number generator
+        noise_distribution: Type of noise distribution to use ("gaussian" or "uniform")
+
+    Returns:
+        tuple: (dx, dy) displacement fields
+    """
+
+    def generate_noise_field() -> np.ndarray:
+        if noise_distribution == "gaussian":
+            field = random_generator.standard_normal(size=image_shape[:2]).astype(np.float32) * 2 - 1
+            cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
+        elif noise_distribution == "uniform":
+            field = random_generator.uniform(low=-1, high=1, size=image_shape[:2]).astype(np.float32)
+            cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
+        return field * alpha
+
+    # Generate first displacement field
+    dx = generate_noise_field()
+
+    # Generate or copy second displacement field
+    dy = dx if same_dxdy else generate_noise_field()
 
     return dx, dy
 

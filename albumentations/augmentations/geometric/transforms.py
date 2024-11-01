@@ -186,6 +186,11 @@ class ElasticTransform(BaseDistortion):
         mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
+        noise_distribution (Literal["gaussian", "uniform"]): Distribution used to generate the displacement fields.
+            "gaussian" generates fields using normal distribution (more natural deformations).
+            "uniform" generates fields using uniform distribution (more mechanical deformations).
+            Default: "gaussian".
+
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -220,6 +225,7 @@ class ElasticTransform(BaseDistortion):
         sigma: Annotated[float, Field(ge=1)]
         approximate: bool
         same_dxdy: bool
+        noise_distribution: Literal["gaussian", "uniform"]
 
     def __init__(
         self,
@@ -233,6 +239,7 @@ class ElasticTransform(BaseDistortion):
         approximate: bool = False,
         same_dxdy: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
+        noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
         p: float = 0.5,
     ):
         super().__init__(
@@ -248,6 +255,7 @@ class ElasticTransform(BaseDistortion):
         self.sigma = sigma
         self.approximate = approximate
         self.same_dxdy = same_dxdy
+        self.noise_distribution = noise_distribution
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
@@ -261,6 +269,7 @@ class ElasticTransform(BaseDistortion):
             same_dxdy=self.same_dxdy,
             kernel_size=kernel_size,
             random_generator=self.random_generator,
+            noise_distribution=self.noise_distribution,
         )
 
         x, y = np.meshgrid(np.arange(width), np.arange(height))
@@ -270,7 +279,14 @@ class ElasticTransform(BaseDistortion):
         return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (*super().get_transform_init_args_names(), "alpha", "sigma", "approximate", "same_dxdy")
+        return (
+            *super().get_transform_init_args_names(),
+            "alpha",
+            "sigma",
+            "approximate",
+            "same_dxdy",
+            "noise_distribution",
+        )
 
 
 class Perspective(DualTransform):
