@@ -421,8 +421,8 @@ def clip_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     # but it should be completely removed.
 
     # Clip coordinates
-    denorm_bboxes[:, [0, 2]] = np.clip(denorm_bboxes[:, [0, 2]], 0, width)
-    denorm_bboxes[:, [1, 3]] = np.clip(denorm_bboxes[:, [1, 3]], 0, height)
+    denorm_bboxes[:, [0, 2]] = np.clip(denorm_bboxes[:, [0, 2]], 0, width, out=denorm_bboxes[:, [0, 2]])
+    denorm_bboxes[:, [1, 3]] = np.clip(denorm_bboxes[:, [1, 3]], 0, height, out=denorm_bboxes[:, [1, 3]])
 
     # Normalize clipped bboxes
     return normalize_bboxes(denorm_bboxes, image_shape)

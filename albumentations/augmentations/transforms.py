@@ -4670,11 +4670,11 @@ class Spatter(ImageOnlyTransform):
         liquid_layer[liquid_layer < cutout_threshold] = 0
 
         if mode == "rain":
-            liquid_layer = clip(liquid_layer * 255, np.uint8)
+            liquid_layer = clip(liquid_layer * 255, np.uint8, inplace=False)
             dist = 255 - cv2.Canny(liquid_layer, 50, 150)
             dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
             _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
-            dist = clip(blur(dist, 3), np.uint8)
+            dist = clip(blur(dist, 3), np.uint8, inplace=True)
             dist = fmain.equalize(dist)
 
             ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
