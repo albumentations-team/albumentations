@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
-    add,
     add_array,
     add_constant,
     add_weighted,
@@ -117,10 +116,10 @@ def shift_hsv(img: np.ndarray, hue_shift: float, sat_shift: float, val_shift: fl
         hue = sz_lut(hue, lut_hue, inplace=False)
 
     if sat_shift != 0:
-        sat = add_constant(sat, sat_shift)
+        sat = add_constant(sat, sat_shift, inplace=True)
 
     if val_shift != 0:
-        val = add_constant(val, val_shift)
+        val = add_constant(val, val_shift, inplace=True)
 
     img = cv2.merge((hue, sat, val))
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -1589,7 +1588,7 @@ def unsharp_mask(
 
     soft_mask = blur_fn(mask)
 
-    return add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
+    return add_array(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask), inplace=True)
 
 
 @preserve_channel_dim
@@ -1880,7 +1879,7 @@ def generate_approx_gaussian_noise(
 
 @clipped
 def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
-    return add_array(img, noise)
+    return add_array(img, noise, inplace=False)
 
 
 def swap_tiles_on_keypoints(
