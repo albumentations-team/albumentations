@@ -1092,7 +1092,7 @@ class PiecewiseAffine(DualTransform):
         super().__init__(p=p, always_apply=always_apply)
 
         warn(
-            "This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.",
+            "This augmenter is very slow. Try to use ``ElasticTransform`` instead, which is at least 10x faster.",
             stacklevel=2,
         )
 
@@ -1120,14 +1120,14 @@ class PiecewiseAffine(DualTransform):
         )
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
         nb_rows = np.clip(self.py_random.randint(*self.nb_rows), 2, None)
         nb_cols = np.clip(self.py_random.randint(*self.nb_cols), 2, None)
         scale = self.py_random.uniform(*self.scale)
 
         map_x, map_y = fgeometric.create_piecewise_affine_maps(
-            image_shape=(height, width),
+            image_shape=image_shape,
             grid=(nb_rows, nb_cols),
             scale=scale,
             absolute_scale=self.absolute_scale,
