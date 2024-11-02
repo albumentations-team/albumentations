@@ -1814,9 +1814,10 @@ def bbox_distort_image(
     bboxes = bboxes.copy()
     masks = masks_from_bboxes(bboxes, image_shape)
 
-    transformed_masks = np.stack(
-        [distort_image(mask, generated_mesh, cv2.INTER_NEAREST) for mask in masks],
-    )
+    transformed_masks = cv2.merge([distort_image(mask, generated_mesh, cv2.INTER_NEAREST) for mask in masks])
+
+    if transformed_masks.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        transformed_masks = transformed_masks.transpose(2, 0, 1)
 
     # Normalize the returned bboxes
     bboxes[:, :4] = bboxes_from_masks(transformed_masks)

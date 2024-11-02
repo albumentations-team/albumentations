@@ -64,11 +64,11 @@ def convert_image_to_pil(image: np.ndarray) -> Image:
     except ImportError:
         raise ImportError("Pillow is not installed") from ImportError
 
-    if len(image.shape) == MONO_CHANNEL_DIMENSIONS:  # (height, width)
+    if image.ndim == MONO_CHANNEL_DIMENSIONS:  # (height, width)
         return Image.fromarray(image)
-    if len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == 1:  # (height, width, 1)
+    if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == 1:  # (height, width, 1)
         return Image.fromarray(image[:, :, 0], mode="L")
-    if len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == NUM_RGB_CHANNELS:  # (height, width, 3)
+    if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == NUM_RGB_CHANNELS:  # (height, width, 3)
         return Image.fromarray(image)
 
     raise TypeError(f"Unsupported image shape: {image.shape}")
