@@ -1300,15 +1300,11 @@ def grayscale_to_multichannel(grayscale_image: np.ndarray, num_output_channels: 
         num_output_channels (int, optional): Number of channels in the output image. Defaults to 3.
 
     Returns:
-        np.ndarray: Multi-channel image with shape (height, width, num_channels).
-
-    Note:
-        If the input is already a multi-channel image with the desired number of channels,
-        it will be returned unchanged.
+        np.ndarray: Multi-channel image with shape (height, width, num_channels)
     """
     # If output should be single channel, just squeeze and return
     if num_output_channels == 1:
-        return np.squeeze(grayscale_image)
+        return grayscale_image
 
     # For multi-channel output, squeeze and stack
     squeezed = np.squeeze(grayscale_image)
