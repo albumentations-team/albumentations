@@ -511,8 +511,8 @@ class TemplateTransform(ImageOnlyTransform):
             template = fgeometric.resize(template, img.shape[:2], interpolation=cv2.INTER_AREA)
 
         if get_num_channels(template) == 1 and get_num_channels(img) > 1:
-            template = np.stack((template,) * get_num_channels(img), axis=-1)
-
+            # Replicate single channel template across all channels to match input image
+            template = cv2.merge([template] * get_num_channels(img))
         # in order to support grayscale image with dummy dim
         template = template.reshape(img.shape)
 

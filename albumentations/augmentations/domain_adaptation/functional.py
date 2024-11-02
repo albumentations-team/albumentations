@@ -277,9 +277,9 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
 
-    if len(src_img.shape) == MONO_CHANNEL_DIMENSIONS:
+    if src_img.ndim == MONO_CHANNEL_DIMENSIONS:
         src_img = np.expand_dims(src_img, axis=-1)
-    if len(trg_img.shape) == MONO_CHANNEL_DIMENSIONS:
+    if trg_img.ndim == MONO_CHANNEL_DIMENSIONS:
         trg_img = np.expand_dims(trg_img, axis=-1)
 
     num_channels = src_img.shape[-1]

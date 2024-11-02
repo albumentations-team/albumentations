@@ -148,7 +148,7 @@ def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
         prev_shape = img.shape
         img = sz_lut(img, np.array(lut, dtype=dtype), inplace=False)
 
-        return np.expand_dims(img, -1) if len(prev_shape) != len(img.shape) else img
+        return np.expand_dims(img, -1) if len(prev_shape) != img.ndim else img
 
     cond = img >= threshold
     img[cond] = max_val - img[cond]
@@ -1306,8 +1306,14 @@ def grayscale_to_multichannel(grayscale_image: np.ndarray, num_output_channels: 
         If the input is already a multi-channel image with the desired number of channels,
         it will be returned unchanged.
     """
-    grayscale_image = grayscale_image.copy().squeeze()
-    return np.stack([grayscale_image] * num_output_channels, axis=-1)
+    # If output should be single channel, just squeeze and return
+    if num_output_channels == 1:
+        return np.squeeze(grayscale_image)
+
+    # For multi-channel output, squeeze and stack
+    squeezed = np.squeeze(grayscale_image)
+
+    return cv2.merge([squeezed] * num_output_channels)
 
 
 @preserve_channel_dim
