@@ -1506,12 +1506,15 @@ def generate_displacement_fields(
     """
 
     def generate_noise_field() -> np.ndarray:
+        # Generate noise based on distribution type
         if noise_distribution == "gaussian":
-            field = random_generator.standard_normal(size=image_shape[:2]).astype(np.float32) * 2 - 1
-            cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
-        elif noise_distribution == "uniform":
-            field = random_generator.uniform(low=-1, high=1, size=image_shape[:2]).astype(np.float32)
-            cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
+            field = random_generator.standard_normal(size=image_shape[:2])
+        else:  # uniform
+            field = random_generator.uniform(low=-1, high=1, size=image_shape[:2])
+
+        # Common operations for both distributions
+        field = field.astype(np.float32)
+        cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
         return field * alpha
 
     # Generate first displacement field
