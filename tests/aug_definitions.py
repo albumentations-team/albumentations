@@ -378,4 +378,5 @@ AUGMENTATION_CLS_PARAMS = [
         ),
     ],
     [A.GridElasticDeform, {"num_grid_xy": (10, 10), "magnitude": 10}],
+    [A.ShotNoise, {"scale_limit": (0.1, 10.0)}],
 ]

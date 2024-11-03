@@ -2018,3 +2018,20 @@ def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iter
                 centers[i] = np.mean(np.argwhere(mask), axis=0)[::-1]
 
     return labels
+
+
+@float32_io
+@clipped
+def shot_noise(img: np.ndarray, scale: float, random_generator: np.random.Generator) -> np.ndarray:
+    """Apply shot noise to the image.
+
+    Args:
+        img: Input image in range [0, 1]
+        scale: Reciprocal of the number of photons (noise intensity)
+        random_generator: NumPy random generator
+
+    Returns:
+        Image with shot noise applied
+    """
+    expected_photons = multiply_by_constant(img, 1 / scale, inplace=True)
+    return random_generator.poisson(expected_photons) * scale
