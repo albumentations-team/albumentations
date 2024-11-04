@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Callable, Literal, TypedDict, cast
+from warnings import warn
 
 import cv2
 import numpy as np
@@ -2704,3 +2706,260 @@ def adjust_padding_by_position(
         return h_top, h_bottom, w_left, w_right
 
     raise ValueError(f"Unknown position: {position}")
+
+
+def swap_tiles_on_keypoints(
+    keypoints: np.ndarray,
+    tiles: np.ndarray,
+    mapping: np.ndarray,
+) -> np.ndarray:
+    """Swap the positions of keypoints based on a tile mapping.
+
+    This function takes a set of keypoints and repositions them according to a mapping of tile swaps.
+    Keypoints are moved from their original tiles to new positions in the swapped tiles.
+
+    Args:
+        keypoints (np.ndarray): A 2D numpy array of shape (N, 2) where N is the number of keypoints.
+                                Each row represents a keypoint's (x, y) coordinates.
+        tiles (np.ndarray): A 2D numpy array of shape (M, 4) where M is the number of tiles.
+                            Each row represents a tile's (start_y, start_x, end_y, end_x) coordinates.
+        mapping (np.ndarray): A 1D numpy array of shape (M,) where M is the number of tiles.
+                              Each element i contains the index of the tile that tile i should be swapped with.
+
+    Returns:
+        np.ndarray: A 2D numpy array of the same shape as the input keypoints, containing the new positions
+                    of the keypoints after the tile swap.
+
+    Raises:
+        RuntimeWarning: If any keypoint is not found within any tile.
+
+    Notes:
+        - Keypoints that do not fall within any tile will remain unchanged.
+        - The function assumes that the tiles do not overlap and cover the entire image space.
+    """
+    if not keypoints.size:
+        return keypoints
+
+    # Broadcast keypoints and tiles for vectorized comparison
+    kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
+    kp_y = keypoints[:, 1][:, np.newaxis]  # Shape: (num_keypoints, 1)
+
+    start_y, start_x, end_y, end_x = tiles.T  # Each shape: (num_tiles,)
+
+    # Check if each keypoint is inside each tile
+    in_tile = (kp_y >= start_y) & (kp_y < end_y) & (kp_x >= start_x) & (kp_x < end_x)
+
+    # Find which tile each keypoint belongs to
+    tile_indices = np.argmax(in_tile, axis=1)
+
+    # Check if any keypoint is not in any tile
+    not_in_any_tile = ~np.any(in_tile, axis=1)
+    if np.any(not_in_any_tile):
+        warn(
+            "Some keypoints are not in any tile. They will be returned unchanged. This is unexpected and should be "
+            "investigated.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+    # Get the new tile indices
+    new_tile_indices = np.array(mapping)[tile_indices]
+
+    # Calculate the offsets
+    old_start_x = tiles[tile_indices, 1]
+    old_start_y = tiles[tile_indices, 0]
+    new_start_x = tiles[new_tile_indices, 1]
+    new_start_y = tiles[new_tile_indices, 0]
+
+    # Apply the transformation
+    new_keypoints = keypoints.copy()
+    new_keypoints[:, 0] = (keypoints[:, 0] - old_start_x) + new_start_x
+    new_keypoints[:, 1] = (keypoints[:, 1] - old_start_y) + new_start_y
+
+    # Keep original coordinates for keypoints not in any tile
+    new_keypoints[not_in_any_tile] = keypoints[not_in_any_tile]
+
+    return new_keypoints
+
+
+def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: list[int] | None = None) -> np.ndarray:
+    """Swap tiles on the image according to the new format.
+
+    Args:
+        image: Input image.
+        tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
+        mapping: list of new tile indices.
+
+    Returns:
+        np.ndarray: Output image with tiles swapped according to the random shuffle.
+    """
+    # If no tiles are provided, return a copy of the original image
+    if tiles.size == 0 or mapping is None:
+        return image.copy()
+
+    # Create a copy of the image to retain original for reference
+    new_image = np.empty_like(image)
+    for num, new_index in enumerate(mapping):
+        start_y, start_x, end_y, end_x = tiles[new_index]
+        start_y_orig, start_x_orig, end_y_orig, end_x_orig = tiles[num]
+        # Assign the corresponding tile from the original image to the new image
+        new_image[start_y:end_y, start_x:end_x] = image[start_y_orig:end_y_orig, start_x_orig:end_x_orig]
+
+    return new_image
+
+
+def is_valid_component(
+    component_area: float,
+    original_area: float,
+    min_area: float | None,
+    min_visibility: float | None,
+) -> bool:
+    """Validate if a component meets the minimum requirements."""
+    visibility = component_area / original_area
+    return (min_area is None or component_area >= min_area) and (min_visibility is None or visibility >= min_visibility)
+
+
+@handle_empty_array
+def bboxes_grid_shuffle(
+    bboxes: np.ndarray,
+    tiles: np.ndarray,
+    mapping: list[int],
+    image_shape: tuple[int, int],
+    min_area: float,
+    min_visibility: float,
+) -> np.ndarray:
+    """Apply grid shuffle transformation to bounding boxes.
+
+    This function transforms bounding boxes according to a grid shuffle operation. It handles cases
+    where bounding boxes may be split into multiple components after shuffling and applies
+    filtering based on minimum area and visibility requirements.
+
+    Args:
+        bboxes: Array of bounding boxes with shape (N, 4+) where N is the number of boxes.
+               Each box is in format [x_min, y_min, x_max, y_max, ...], where ... represents
+               optional additional fields (e.g., class_id, score).
+        tiles: Array of tile coordinates with shape (M, 4) where M is the number of tiles.
+               Each tile is in format [start_y, start_x, end_y, end_x].
+        mapping: List of indices defining how tiles should be rearranged. Each index i in the list
+                contains the index of the tile that should be moved to position i.
+        image_shape: Shape of the image as (height, width).
+        min_area: Minimum area threshold in pixels. If a component's area after shuffling is
+                 smaller than this value, it will be filtered out. If None, no area filtering
+                 is applied.
+        min_visibility: Minimum visibility ratio threshold in range [0, 1]. Calculated as
+                       (component_area / original_area). If a component's visibility is lower
+                       than this value, it will be filtered out. If None, no visibility
+                       filtering is applied.
+
+    Returns:
+        np.ndarray: Array of transformed bounding boxes with shape (K, 4+) where K is the
+                   number of valid components after shuffling and filtering. The format of
+                   each box matches the input format, preserving any additional fields.
+                   If no valid components remain after filtering, returns an empty array
+                   with shape (0, C) where C matches the input column count.
+
+    Note:
+        - The function converts bboxes to masks before applying the transformation to handle
+          cases where boxes may be split into multiple components.
+        - After shuffling, each component is validated against min_area and min_visibility
+          requirements independently.
+        - Additional bbox fields (beyond x_min, y_min, x_max, y_max) are preserved and
+          copied to all components derived from the same original bbox.
+        - Empty input arrays are handled gracefully and return empty arrays of the
+          appropriate shape.
+
+    Example:
+        >>> bboxes = np.array([[10, 10, 90, 90]])  # Single box crossing multiple tiles
+        >>> tiles = np.array([
+        ...     [0, 0, 50, 50],    # top-left tile
+        ...     [0, 50, 50, 100],  # top-right tile
+        ...     [50, 0, 100, 50],  # bottom-left tile
+        ...     [50, 50, 100, 100] # bottom-right tile
+        ... ])
+        >>> mapping = [3, 2, 1, 0]  # Rotate tiles counter-clockwise
+        >>> result = bboxes_grid_shuffle(bboxes, tiles, mapping, (100, 100), 100, 0.2)
+        >>> # Result may contain multiple boxes if the original box was split
+    """
+    # Convert bboxes to masks
+    masks = masks_from_bboxes(bboxes, image_shape)
+
+    # Apply grid shuffle to each mask and handle split components
+    all_component_masks = []
+    extra_bbox_data = []  # Store additional bbox data for each component
+
+    for idx, mask in enumerate(masks):
+        original_area = np.sum(mask)  # Get original mask area
+
+        # Shuffle the mask
+        shuffled_mask = swap_tiles_on_image(mask, tiles, mapping)
+
+        # Find connected components
+        num_components, components = cv2.connectedComponents(shuffled_mask.astype(np.uint8))
+
+        # For each component, create a separate binary mask
+        for comp_idx in range(1, num_components):  # Skip background (0)
+            component_mask = (components == comp_idx).astype(np.uint8)
+
+            # Calculate area and visibility ratio
+            component_area = np.sum(component_mask)
+            # Check if component meets minimum requirements
+            if is_valid_component(component_area, original_area, min_area, min_visibility):
+                all_component_masks.append(component_mask)
+                # Append additional bbox data for this component
+                if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS:
+                    extra_bbox_data.append(bboxes[idx, 4:])
+
+    # Convert all component masks to bboxes
+    if all_component_masks:
+        all_component_masks = np.array(all_component_masks)
+        shuffled_bboxes = bboxes_from_masks(all_component_masks)
+
+        # Add back additional bbox data if present
+        if extra_bbox_data:
+            extra_bbox_data = np.array(extra_bbox_data)
+            return np.column_stack([shuffled_bboxes, extra_bbox_data])
+    else:
+        # Handle case where no valid components were found
+        return np.zeros((0, bboxes.shape[1]), dtype=bboxes.dtype)
+
+    return shuffled_bboxes
+
+
+def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
+    """Groups tiles by their shape and stores the indices for each shape."""
+    shape_groups = defaultdict(list)
+    for index, (start_y, start_x, end_y, end_x) in enumerate(tiles):
+        shape = (end_y - start_y, end_x - start_x)
+        shape_groups[shape].append(index)
+    return shape_groups
+
+
+def shuffle_tiles_within_shape_groups(
+    shape_groups: dict[tuple[int, int], list[int]],
+    random_generator: np.random.Generator,
+) -> list[int]:
+    """Shuffles indices within each group of similar shapes and creates a list where each
+    index points to the index of the tile it should be mapped to.
+
+    Args:
+        shape_groups (dict[tuple[int, int], list[int]]): Groups of tile indices categorized by shape.
+        random_generator (np.random.Generator): The random generator to use for shuffling the indices.
+            If None, a new random generator will be used.
+
+    Returns:
+        list[int]: A list where each index is mapped to the new index of the tile after shuffling.
+    """
+    # Initialize the output list with the same size as the total number of tiles, filled with -1
+    num_tiles = sum(len(indices) for indices in shape_groups.values())
+    mapping = [-1] * num_tiles
+
+    # Prepare the random number generator
+
+    for indices in shape_groups.values():
+        shuffled_indices = indices.copy()
+        random_generator.shuffle(shuffled_indices)
+
+        for old, new in zip(indices, shuffled_indices):
+            mapping[old] = new
+
+    return mapping

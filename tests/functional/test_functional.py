@@ -12,66 +12,6 @@ from albumentations.core.types import d4_group_elements
 from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 from tests.utils import convert_2d_to_target_format
 from copy import deepcopy
-from scipy import stats
-import time
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_vflip(target):
-    img = np.array([[1, 1, 1], [0, 1, 1], [0, 0, 1]], dtype=np.uint8)
-    expected = np.array([[0, 0, 1], [0, 1, 1], [1, 1, 1]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = fgeometric.vflip(img)
-    assert np.array_equal(flipped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_vflip_float(target):
-    img = np.array([[0.4, 0.4, 0.4], [0.0, 0.4, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
-    expected = np.array([[0.0, 0.0, 0.4], [0.0, 0.4, 0.4], [0.4, 0.4, 0.4]], dtype=np.float32)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = fgeometric.vflip(img)
-    assert_array_almost_equal_nulp(flipped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_hflip(target):
-    img = np.array([[1, 1, 1], [0, 1, 1], [0, 0, 1]], dtype=np.uint8)
-    expected = np.array([[1, 1, 1], [1, 1, 0], [1, 0, 0]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = fgeometric.hflip(img)
-    assert np.array_equal(flipped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_hflip_float(target):
-    img = np.array([[0.4, 0.4, 0.4], [0.0, 0.4, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
-    expected = np.array([[0.4, 0.4, 0.4], [0.4, 0.4, 0.0], [0.4, 0.0, 0.0]], dtype=np.float32)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = fgeometric.hflip(img)
-    assert_array_almost_equal_nulp(flipped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-@pytest.mark.parametrize(
-    ["code", "func"],
-    [[0, fgeometric.vflip], [1, fgeometric.hflip], [-1, lambda img: fgeometric.vflip(fgeometric.hflip(img))]],
-)
-def test_random_flip(code, func, target):
-    img = np.array([[1, 1, 1], [0, 1, 1], [0, 0, 1]], dtype=np.uint8)
-    img = convert_2d_to_target_format([img], target=target)
-    assert np.array_equal(fgeometric.random_flip(img, code), func(img))
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-@pytest.mark.parametrize(
-    ["code", "func"],
-    [[0, fgeometric.vflip], [1, fgeometric.hflip], [-1, lambda img: fgeometric.vflip(fgeometric.hflip(img))]],
-)
-def test_random_flip_float(code, func, target):
-    img = np.array([[0.4, 0.4, 0.4], [0.0, 0.4, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
-    img = convert_2d_to_target_format([img], target=target)
-    assert_array_almost_equal_nulp(fgeometric.random_flip(img, code), func(img))
 
 
 @pytest.mark.parametrize(["input_shape", "expected_shape"], [[(128, 64), (64, 128)], [(128, 64, 3), (64, 128, 3)]])
@@ -425,8 +365,8 @@ def test_is_multispectral_image():
     ],
 )
 def test_swap_tiles_on_image(img, tiles, mapping, expected):
-    result_img = F.swap_tiles_on_image(img, tiles, mapping)
-    assert np.array_equal(result_img, expected)
+    result_img = fgeometric.swap_tiles_on_image(img, tiles, mapping)
+    np.testing.assert_array_equal(result_img, expected)
 
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.float32])
@@ -608,7 +548,7 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ],
 )
 def test_create_shape_groups(tiles, expected):
-    result = F.create_shape_groups(tiles)
+    result = fgeometric.create_shape_groups(tiles)
     assert len(result) == len(expected), "Incorrect number of shape groups"
     for shape in expected:
         assert shape in result, f"Shape {shape} is not in the result"
@@ -629,7 +569,7 @@ def test_create_shape_groups(tiles, expected):
 def test_shuffle_tiles_within_shape_groups(shape_groups, random_seed, expected_output):
     generator = np.random.default_rng(random_seed)
     shape_groups_original = deepcopy(shape_groups)
-    actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, generator)
+    actual_output = fgeometric.shuffle_tiles_within_shape_groups(shape_groups, generator)
     assert shape_groups == shape_groups_original, "Input shape groups should not be modified"
     np.testing.assert_array_equal(actual_output, expected_output)
 

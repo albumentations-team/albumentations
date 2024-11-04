@@ -216,7 +216,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CoarseDropout,
-            A.RandomGridShuffle,
             A.OpticalDistortion,
             A.TemplateTransform,
             A.XYMasking,

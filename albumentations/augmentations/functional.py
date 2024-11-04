@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Literal
 from warnings import warn
@@ -79,7 +78,6 @@ __all__ = [
     "shift_hsv",
     "solarize",
     "superpixels",
-    "swap_tiles_on_image",
     "to_gray",
     "unsharp_mask",
     "chromatic_aberration",
@@ -1339,32 +1337,6 @@ def noop(input_obj: Any, **params: Any) -> Any:
     return input_obj
 
 
-def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: list[int] | None = None) -> np.ndarray:
-    """Swap tiles on the image according to the new format.
-
-    Args:
-        image: Input image.
-        tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
-        mapping: list of new tile indices.
-
-    Returns:
-        np.ndarray: Output image with tiles swapped according to the random shuffle.
-    """
-    # If no tiles are provided, return a copy of the original image
-    if tiles.size == 0 or mapping is None:
-        return image.copy()
-
-    # Create a copy of the image to retain original for reference
-    new_image = np.empty_like(image)
-    for num, new_index in enumerate(mapping):
-        start_y, start_x, end_y, end_x = tiles[new_index]
-        start_y_orig, start_x_orig, end_y_orig, end_x_orig = tiles[num]
-        # Assign the corresponding tile from the original image to the new image
-        new_image[start_y:end_y, start_x:end_x] = image[start_y_orig:end_y_orig, start_x_orig:end_x_orig]
-
-    return new_image
-
-
 @float32_io
 @clipped
 @preserve_channel_dim
@@ -1632,46 +1604,6 @@ def spatter(
     raise ValueError(f"Unsupported spatter mode: {mode}")
 
 
-def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
-    """Groups tiles by their shape and stores the indices for each shape."""
-    shape_groups = defaultdict(list)
-    for index, (start_y, start_x, end_y, end_x) in enumerate(tiles):
-        shape = (end_y - start_y, end_x - start_x)
-        shape_groups[shape].append(index)
-    return shape_groups
-
-
-def shuffle_tiles_within_shape_groups(
-    shape_groups: dict[tuple[int, int], list[int]],
-    random_generator: np.random.Generator,
-) -> list[int]:
-    """Shuffles indices within each group of similar shapes and creates a list where each
-    index points to the index of the tile it should be mapped to.
-
-    Args:
-        shape_groups (dict[tuple[int, int], list[int]]): Groups of tile indices categorized by shape.
-        random_generator (np.random.Generator): The random generator to use for shuffling the indices.
-            If None, a new random generator will be used.
-
-    Returns:
-        list[int]: A list where each index is mapped to the new index of the tile after shuffling.
-    """
-    # Initialize the output list with the same size as the total number of tiles, filled with -1
-    num_tiles = sum(len(indices) for indices in shape_groups.values())
-    mapping = [-1] * num_tiles
-
-    # Prepare the random number generator
-
-    for indices in shape_groups.values():
-        shuffled_indices = indices.copy()
-        random_generator.shuffle(shuffled_indices)
-
-        for old, new in zip(indices, shuffled_indices):
-            mapping[old] = new
-
-    return mapping
-
-
 @uint8_io
 @clipped
 def chromatic_aberration(
@@ -1883,80 +1815,6 @@ def generate_approx_gaussian_noise(
 @clipped
 def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
     return add_array(img, noise, inplace=False)
-
-
-def swap_tiles_on_keypoints(
-    keypoints: np.ndarray,
-    tiles: np.ndarray,
-    mapping: np.ndarray,
-) -> np.ndarray:
-    """Swap the positions of keypoints based on a tile mapping.
-
-    This function takes a set of keypoints and repositions them according to a mapping of tile swaps.
-    Keypoints are moved from their original tiles to new positions in the swapped tiles.
-
-    Args:
-        keypoints (np.ndarray): A 2D numpy array of shape (N, 2) where N is the number of keypoints.
-                                Each row represents a keypoint's (x, y) coordinates.
-        tiles (np.ndarray): A 2D numpy array of shape (M, 4) where M is the number of tiles.
-                            Each row represents a tile's (start_y, start_x, end_y, end_x) coordinates.
-        mapping (np.ndarray): A 1D numpy array of shape (M,) where M is the number of tiles.
-                              Each element i contains the index of the tile that tile i should be swapped with.
-
-    Returns:
-        np.ndarray: A 2D numpy array of the same shape as the input keypoints, containing the new positions
-                    of the keypoints after the tile swap.
-
-    Raises:
-        RuntimeWarning: If any keypoint is not found within any tile.
-
-    Notes:
-        - Keypoints that do not fall within any tile will remain unchanged.
-        - The function assumes that the tiles do not overlap and cover the entire image space.
-    """
-    if not keypoints.size:
-        return keypoints
-
-    # Broadcast keypoints and tiles for vectorized comparison
-    kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
-    kp_y = keypoints[:, 1][:, np.newaxis]  # Shape: (num_keypoints, 1)
-
-    start_y, start_x, end_y, end_x = tiles.T  # Each shape: (num_tiles,)
-
-    # Check if each keypoint is inside each tile
-    in_tile = (kp_y >= start_y) & (kp_y < end_y) & (kp_x >= start_x) & (kp_x < end_x)
-
-    # Find which tile each keypoint belongs to
-    tile_indices = np.argmax(in_tile, axis=1)
-
-    # Check if any keypoint is not in any tile
-    not_in_any_tile = ~np.any(in_tile, axis=1)
-    if np.any(not_in_any_tile):
-        warn(
-            "Some keypoints are not in any tile. They will be returned unchanged. This is unexpected and should be "
-            "investigated.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-
-    # Get the new tile indices
-    new_tile_indices = np.array(mapping)[tile_indices]
-
-    # Calculate the offsets
-    old_start_x = tiles[tile_indices, 1]
-    old_start_y = tiles[tile_indices, 0]
-    new_start_x = tiles[new_tile_indices, 1]
-    new_start_y = tiles[new_tile_indices, 0]
-
-    # Apply the transformation
-    new_keypoints = keypoints.copy()
-    new_keypoints[:, 0] = (keypoints[:, 0] - old_start_x) + new_start_x
-    new_keypoints[:, 1] = (keypoints[:, 1] - old_start_y) + new_start_y
-
-    # Keep original coordinates for keypoints not in any tile
-    new_keypoints[not_in_any_tile] = keypoints[not_in_any_tile]
-
-    return new_keypoints
 
 
 def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iterations: int = 10) -> np.ndarray:

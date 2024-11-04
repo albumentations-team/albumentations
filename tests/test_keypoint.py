@@ -8,7 +8,6 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.functional import swap_tiles_on_keypoints
 from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
@@ -708,7 +707,7 @@ def test_swap_tiles_on_keypoints_basic():
     tiles = np.array([[0, 0, 20, 20], [20, 20, 40, 40], [40, 40, 60, 60]])
     mapping = np.array([2, 1, 0])  # Swap first and last tile
 
-    new_keypoints = swap_tiles_on_keypoints(keypoints, tiles, mapping)
+    new_keypoints = fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     expected = np.array([[50, 50], [30, 30], [10, 10]])
     np.testing.assert_array_equal(new_keypoints, expected)
@@ -719,7 +718,7 @@ def test_swap_tiles_on_keypoints_no_change():
     tiles = np.array([[0, 0, 20, 20], [20, 20, 40, 40], [40, 40, 60, 60]])
     mapping = np.array([0, 1, 2])  # No swaps
 
-    new_keypoints = swap_tiles_on_keypoints(keypoints, tiles, mapping)
+    new_keypoints = fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     np.testing.assert_array_equal(new_keypoints, keypoints)
 
@@ -730,7 +729,7 @@ def test_swap_tiles_on_keypoints_out_of_bounds():
     mapping = np.array([2, 1, 0])
 
     with pytest.warns(RuntimeWarning):
-        new_keypoints = swap_tiles_on_keypoints(keypoints, tiles, mapping)
+        new_keypoints = fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     expected = np.array([[50, 50], [30, 30], [70, 70]])  # Last keypoint unchanged
     np.testing.assert_array_equal(new_keypoints, expected)
@@ -741,7 +740,7 @@ def test_swap_tiles_on_keypoints_complex_mapping():
     tiles = np.array([[0, 0, 10, 10], [10, 10, 20, 20], [20, 20, 30, 30], [30, 30, 40, 40]])
     mapping = np.array([3, 2, 0, 1])
 
-    new_keypoints = swap_tiles_on_keypoints(keypoints, tiles, mapping)
+    new_keypoints = fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     expected = np.array([[35, 35], [25, 25], [5, 5], [15, 15]])
     np.testing.assert_array_equal(new_keypoints, expected)
@@ -752,7 +751,7 @@ def test_swap_tiles_on_keypoints_empty_input():
     tiles = np.array([[0, 0, 10, 10], [10, 10, 20, 20]])
     mapping = np.array([1, 0])
 
-    new_keypoints = swap_tiles_on_keypoints(keypoints, tiles, mapping)
+    new_keypoints = fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     assert new_keypoints.size == 0
 

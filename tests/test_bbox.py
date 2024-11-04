@@ -1606,3 +1606,123 @@ def test_distortion_bboxes_complex_distortion():
     assert np.all(result[:, [0, 2]] <= image_shape[1])  # x coordinates
     assert np.all(result[:, [1, 3]] <= image_shape[0])  # y coordinates
     assert np.all(result[:, [0, 1]] <= result[:, [2, 3]])  # min <= max
+
+
+import numpy as np
+import pytest
+
+from albumentations.augmentations.geometric.functional import bboxes_grid_shuffle
+
+
+def test_bboxes_grid_shuffle_basic():
+    """Test basic functionality of bboxes_grid_shuffle."""
+    # Create a simple test case with one bbox covering a 2x2 grid
+    image_shape = (100, 100)
+    bboxes = np.array([[25, 25, 75, 75]])  # Single bbox in the middle
+    tiles = np.array([
+        [0, 0, 50, 50],     # top-left
+        [0, 50, 50, 100],   # top-right
+        [50, 0, 100, 50],   # bottom-left
+        [50, 50, 100, 100], # bottom-right
+    ])
+    mapping = [3, 2, 1, 0]  # Rotate tiles counter-clockwise
+
+    result = bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, None, None)
+
+    assert len(result) > 0  # Should have at least one bbox
+    assert result.shape[1] == 4  # Each bbox should have 4 coordinates
+    assert np.all(result >= 0) and np.all(result[:, [0,2]] <= image_shape[1]) and np.all(result[:, [1,3]] <= image_shape[0])
+    assert np.all(result[:, 0] < result[:, 2]) and np.all(result[:, 1] < result[:, 3])
+
+
+def test_bboxes_grid_shuffle_with_min_area():
+    """Test bboxes_grid_shuffle with min_area filter."""
+    image_shape = (100, 100)
+    bboxes = np.array([[10, 10, 30, 30], [0, 0, 60, 60]])
+    tiles = np.array([
+        [0, 0, 50, 50],
+        [0, 50, 50, 100],
+        [50, 0, 100, 50],
+        [50, 50, 100, 100],
+    ])
+    mapping = [3, 2, 1, 0]
+    min_area = 2500
+    result = bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, min_area, None)
+    assert len(result) == 1
+
+
+def test_bboxes_grid_shuffle_with_min_visibility():
+    """Test bboxes_grid_shuffle with min_visibility filter."""
+    image_shape = (100, 100)
+    # Create a bbox that crosses tile boundaries
+    bboxes = np.array([[20, 20, 80, 80]])  # Center box crossing all four tiles
+    tiles = np.array([
+        [0, 0, 50, 50],
+        [0, 50, 50, 100],
+        [50, 0, 100, 50],
+        [50, 50, 100, 100],
+    ])
+    # Move diagonal tiles to opposite corners to split the bbox
+    mapping = [3, 1, 2, 0]  # This will definitely split the bbox
+    min_visibility = 0.6  # Each component should be less than 60% of original
+
+    result = bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, None, min_visibility)
+
+    assert len(result) == 0  # All components should be filtered out due to low visibility
+
+def test_bboxes_grid_shuffle_with_extra_fields():
+    """Test bboxes_grid_shuffle with additional bbox fields."""
+    image_shape = (100, 100)
+    bboxes = np.array([[25, 25, 75, 75, 1, 0.9]])  # bbox with class_id and score
+    tiles = np.array([
+        [0, 0, 50, 50],
+        [0, 50, 50, 100],
+        [50, 0, 100, 50],
+        [50, 50, 100, 100],
+    ])
+    mapping = [3, 2, 1, 0]
+
+    result = fgeometric.bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, None, None)
+
+    assert result.shape[1] == 6  # Should preserve extra fields
+    assert np.all(result[:, 4:] == [1, 0.9])  # Extra fields should remain unchanged
+
+
+def test_bboxes_grid_shuffle_empty_input():
+    """Test bboxes_grid_shuffle with empty input."""
+    image_shape = (100, 100)
+    bboxes = np.zeros((0, 4))
+    tiles = np.array([
+        [0, 0, 50, 50],
+        [0, 50, 50, 100],
+        [50, 0, 100, 50],
+        [50, 50, 100, 100],
+    ])
+    mapping = [3, 2, 1, 0]
+
+    result = fgeometric.bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, None, None)
+
+    assert len(result) == 0
+    assert result.shape[1] == 4
+
+
+def test_bboxes_grid_shuffle_multiple_components():
+    """Test bboxes_grid_shuffle when bbox splits into multiple components."""
+    image_shape = (100, 100)
+    # Create a bbox that crosses tile boundaries
+    bboxes = np.array([[20, 20, 80, 80]])  # Center box crossing all four tiles
+    tiles = np.array([
+        [0, 0, 50, 50],
+        [0, 50, 50, 100],
+        [50, 0, 100, 50],
+        [50, 50, 100, 100],
+    ])
+    # Move diagonal tiles to opposite corners to split the bbox
+    mapping = [3, 1, 2, 0]  # This will definitely split the bbox
+
+    result = bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, None, None)
+
+    assert len(result) > 1  # Should split into multiple components
+    assert np.all(result >= 0)  # All coordinates should be valid
+    assert np.all(result[:, [0, 2]] <= image_shape[1])  # x coordinates within image width
+    assert np.all(result[:, [1, 3]] <= image_shape[0])  # y coordinates within image height

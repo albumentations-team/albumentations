@@ -2045,7 +2045,6 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.GridElasticDeform,
             A.TemplateTransform,
             A.PixelDistributionAdaptation,
-            A.RandomGridShuffle,
             A.SafeRotate,
             A.Rotate,
             A.Affine,
@@ -2054,6 +2053,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.RandomRotate90,
             A.PiecewiseAffine,
             A.Perspective,
+            A.RandomGridShuffle,
         },
     ),
 )
