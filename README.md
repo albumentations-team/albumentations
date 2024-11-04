@@ -208,6 +208,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomToneCurve](https://explore.albumentations.ai/transform/RandomToneCurve)
 - [RingingOvershoot](https://explore.albumentations.ai/transform/RingingOvershoot)
 - [Sharpen](https://explore.albumentations.ai/transform/Sharpen)
+- [ShotNoise](https://explore.albumentations.ai/transform/ShotNoise)
 - [Solarize](https://explore.albumentations.ai/transform/Solarize)
 - [Spatter](https://explore.albumentations.ai/transform/Spatter)
 - [Superpixels](https://explore.albumentations.ai/transform/Superpixels)
