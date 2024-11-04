@@ -11,7 +11,7 @@ from pydantic import AfterValidator, Field, ValidationInfo, field_validator, mod
 from typing_extensions import Self
 
 from albumentations.augmentations.utils import check_range
-from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
@@ -2107,7 +2107,17 @@ class RandomGridShuffle(DualTransform):
     def apply_to_bboxes(self, bboxes: np.ndarray, tiles: np.ndarray, mapping: np.ndarray, **params: Any) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        bboxes_returned = fgeometric.bboxes_grid_shuffle(bboxes_denorm, tiles, mapping, image_shape)
+        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        if processor is None:
+            return bboxes
+        bboxes_returned = fgeometric.bboxes_grid_shuffle(
+            bboxes_denorm,
+            tiles,
+            mapping,
+            image_shape,
+            min_area=processor.params.min_area,
+            min_visibility=processor.params.min_visibility,
+        )
         return normalize_bboxes(bboxes_returned, image_shape)
 
     def apply_to_keypoints(

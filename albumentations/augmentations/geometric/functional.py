@@ -2814,6 +2814,8 @@ def bboxes_grid_shuffle(
     tiles: np.ndarray,
     mapping: list[int],
     image_shape: tuple[int, int],
+    min_area: float | None,
+    min_visibility: float | None,
 ) -> np.ndarray:
     """Apply grid shuffle to bounding boxes.
 
@@ -2822,6 +2824,9 @@ def bboxes_grid_shuffle(
         tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
         mapping: List of new tile indices.
         image_shape: Shape of the image (height, width).
+        min_area: Minimum area of the bounding box to keep.
+        min_visibility: Minimum visibility ratio to keep the bounding box.
+            Calculated as visible_area / original_area.
 
     Returns:
         np.ndarray: Array of transformed bounding boxes.
@@ -2834,6 +2839,8 @@ def bboxes_grid_shuffle(
     extra_bbox_data = []  # Store additional bbox data for each component
 
     for idx, mask in enumerate(masks):
+        original_area = np.sum(mask)  # Get original mask area
+
         # Shuffle the mask
         shuffled_mask = swap_tiles_on_image(mask, tiles, mapping)
 
@@ -2843,10 +2850,19 @@ def bboxes_grid_shuffle(
         # For each component, create a separate binary mask
         for comp_idx in range(1, num_components):  # Skip background (0)
             component_mask = (components == comp_idx).astype(np.uint8)
-            all_component_masks.append(component_mask)
-            # Append additional bbox data for this component
-            if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS:
-                extra_bbox_data.append(bboxes[idx, 4:])
+
+            # Calculate area and visibility ratio
+            component_area = np.sum(component_mask)
+            visibility = component_area / original_area
+
+            # Check if component meets minimum requirements
+            if (min_area is None or component_area >= min_area) and (
+                min_visibility is None or visibility >= min_visibility
+            ):
+                all_component_masks.append(component_mask)
+                # Append additional bbox data for this component
+                if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS:
+                    extra_bbox_data.append(bboxes[idx, 4:])
 
     # Convert all component masks to bboxes
     if all_component_masks:
