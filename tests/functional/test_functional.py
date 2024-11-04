@@ -425,8 +425,8 @@ def test_is_multispectral_image():
     ],
 )
 def test_swap_tiles_on_image(img, tiles, mapping, expected):
-    result_img = F.swap_tiles_on_image(img, tiles, mapping)
-    assert np.array_equal(result_img, expected)
+    result_img = fgeometric.swap_tiles_on_image(img, tiles, mapping)
+    np.testing.assert_array_equal(result_img, expected)
 
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.float32])
@@ -608,7 +608,7 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ],
 )
 def test_create_shape_groups(tiles, expected):
-    result = F.create_shape_groups(tiles)
+    result = fgeometric.create_shape_groups(tiles)
     assert len(result) == len(expected), "Incorrect number of shape groups"
     for shape in expected:
         assert shape in result, f"Shape {shape} is not in the result"
@@ -629,7 +629,7 @@ def test_create_shape_groups(tiles, expected):
 def test_shuffle_tiles_within_shape_groups(shape_groups, random_seed, expected_output):
     generator = np.random.default_rng(random_seed)
     shape_groups_original = deepcopy(shape_groups)
-    actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, generator)
+    actual_output = fgeometric.shuffle_tiles_within_shape_groups(shape_groups, generator)
     assert shape_groups == shape_groups_original, "Input shape groups should not be modified"
     np.testing.assert_array_equal(actual_output, expected_output)
 
