@@ -2068,7 +2068,7 @@ def shot_noise(img: np.ndarray, scale: float, random_generator: np.random.Genera
     img_linear = cv2.pow(img, 2.2)
 
     # Scale image values and add small constant to avoid zero values
-    scaled_img = (img_linear + 1e-6) / scale
+    scaled_img = (img_linear + scale * 1e-6) / scale
 
     # Generate Poisson noise
     noisy_img = multiply_by_constant(random_generator.poisson(scaled_img).astype(np.float32), scale, inplace=True)
