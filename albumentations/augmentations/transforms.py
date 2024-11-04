@@ -5135,28 +5135,28 @@ class PlanckianJitter(ImageOnlyTransform):
 class ShotNoise(ImageOnlyTransform):
     """Apply shot noise to the image by modeling photon counting as a Poisson process.
 
-    Shot noise occurs in imaging due to the quantum nature of light, where photons arrive
-    at the sensor randomly following Poisson statistics. This transform simulates this physical
-    process by treating each pixel value as an expected number of photons and sampling from
-    a Poisson distribution.
+    Shot noise (also known as Poisson noise) occurs in imaging due to the quantum nature of light.
+    When photons hit an imaging sensor, they arrive at random times following Poisson statistics.
+    This transform simulates this physical process in linear light space by:
+    1. Converting to linear space (removing gamma)
+    2. Treating each pixel value as an expected photon count
+    3. Sampling actual photon counts from a Poisson distribution
+    4. Converting back to display space (reapplying gamma)
 
-    The noise level is controlled by the scale parameter, which represents the reciprocal of
-    the number of photons. Physically:
-    - Larger scale = fewer photons = more noise
-    - Smaller scale = more photons = less noise
-
-    This matches real camera behavior where:
-    - Brighter scenes (more photons) have less relative noise
-    - Darker scenes (fewer photons) have more relative noise
-    - The noise variance equals the signal mean (Poisson statistics)
+    The noise characteristics follow real camera behavior:
+    - Noise variance equals signal mean in linear space (Poisson statistics)
+    - Brighter regions have more absolute noise but less relative noise
+    - Darker regions have less absolute noise but more relative noise
+    - Noise is generated independently for each pixel and color channel
 
     Args:
         scale_range (tuple[float, float]): Range for sampling the noise scale factor.
-            Higher values mean more noise. The scale represents the reciprocal of the
-            number of photons, so:
-            - scale = 0.1 means ~100 photons per pixel (low noise)
-            - scale = 10.0 means ~0.1 photons per pixel (high noise)
-            Default: (0.1, 10.0)
+            Represents the reciprocal of the expected photon count per unit intensity.
+            Higher values mean more noise:
+            - scale = 0.1: ~100 photons per unit intensity (low noise)
+            - scale = 1.0: ~1 photon per unit intensity (moderate noise)
+            - scale = 10.0: ~0.1 photons per unit intensity (high noise)
+            Default: (0.1, 0.3)
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -5166,25 +5166,31 @@ class ShotNoise(ImageOnlyTransform):
         uint8, float32
 
     Note:
-        - The noise level varies with pixel intensity, being stronger in darker regions
-        - This simulates real photon shot noise in cameras and other optical devices
+        - Performs calculations in linear light space (gamma = 2.2)
+        - Preserves the image's mean intensity
+        - Memory efficient with in-place operations
+        - Thread-safe with independent random seeds
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
+        >>> # Generate synthetic image
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> transform = A.ShotNoise(scale_limit=(0.1, 5.0), p=1.0)
+        >>> # Apply moderate shot noise
+        >>> transform = A.ShotNoise(scale_range=(0.1, 1.0), p=1.0)
         >>> noisy_image = transform(image=image)["image"]
 
     References:
-        - https://en.wikipedia.org/wiki/Shot_noise
-        - https://doi.org/10.1002/andp.19183622304 (Original Schottky paper)
+        - Shot noise: https://en.wikipedia.org/wiki/Shot_noise
+        - Original paper: https://doi.org/10.1002/andp.19183622304 (Schottky, 1918)
+        - Poisson process: https://en.wikipedia.org/wiki/Poisson_point_process
+        - Gamma correction: https://en.wikipedia.org/wiki/Gamma_correction
     """
 
     class InitSchema(BaseTransformInitSchema):
         scale_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
 
-    def __init__(self, scale_range: tuple[float, float] = (0.1, 10.0), always_apply: bool = False, p: float = 0.5):
+    def __init__(self, scale_range: tuple[float, float] = (0.1, 0.3), always_apply: bool = False, p: float = 0.5):
         super().__init__(p=p, always_apply=always_apply)
         self.scale_range = scale_range
 

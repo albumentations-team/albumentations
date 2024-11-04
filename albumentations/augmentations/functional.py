@@ -24,6 +24,7 @@ from albucore import (
     multiply_add,
     multiply_by_constant,
     normalize_per_image,
+    power,
     preserve_channel_dim,
     sz_lut,
     to_float,
@@ -2020,18 +2021,57 @@ def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iter
     return labels
 
 
+@preserve_channel_dim
 @float32_io
-@clipped
 def shot_noise(img: np.ndarray, scale: float, random_generator: np.random.Generator) -> np.ndarray:
-    """Apply shot noise to the image.
+    """Apply shot noise to the image by simulating photon counting in linear light space.
+
+    This function simulates photon shot noise, which occurs due to the quantum nature of light.
+    The process:
+    1. Converts image to linear light space (removes gamma correction)
+    2. Scales pixel values to represent expected photon counts
+    3. Samples actual photon counts from Poisson distribution
+    4. Converts back to display space (reapplies gamma)
+
+    The simulation is performed in linear light space because photon shot noise is a physical
+    process that occurs before gamma correction is applied by cameras/displays.
 
     Args:
-        img: Input image in range [0, 1]
-        scale: Reciprocal of the number of photons (noise intensity)
-        random_generator: NumPy random generator
+        img: Input image in range [0, 1]. Can be single or multi-channel.
+        scale: Reciprocal of the number of photons (noise intensity).
+            - Larger values = fewer photons = more noise
+            - Smaller values = more photons = less noise
+            For example:
+            - scale = 0.1 simulates ~100 photons per unit intensity
+            - scale = 10.0 simulates ~0.1 photons per unit intensity
+        random_generator: NumPy random generator for Poisson sampling
 
     Returns:
-        Image with shot noise applied
+        Image with shot noise applied, same shape and range [0, 1] as input.
+        The noise characteristics will follow Poisson statistics in linear space:
+        - Variance equals mean in linear space
+        - More noise in brighter regions (but less relative noise)
+        - Less noise in darker regions (but more relative noise)
+
+    Note:
+        - Uses gamma value of 2.2 for linear/display space conversion
+        - Adds small constant (1e-6) to avoid issues with zero values
+        - Clips final values to [0, 1] range
+        - Operates on the image in-place for memory efficiency
+        - Preserves float32 precision throughout calculations
+
+    References:
+        - https://en.wikipedia.org/wiki/Shot_noise
+        - https://en.wikipedia.org/wiki/Gamma_correction
     """
-    expected_photons = multiply_by_constant(img, 1 / scale, inplace=True)
-    return random_generator.poisson(expected_photons) * scale
+    # Apply inverse gamma correction to work in linear space
+    img_linear = cv2.pow(img, 2.2)
+
+    # Scale image values and add small constant to avoid zero values
+    scaled_img = (img_linear + 1e-6) / scale
+
+    # Generate Poisson noise
+    noisy_img = multiply_by_constant(random_generator.poisson(scaled_img).astype(np.float32), scale, inplace=True)
+
+    # Scale back and apply gamma correction
+    return power(np.clip(noisy_img, 0, 1, out=noisy_img), 1 / 2.2)
