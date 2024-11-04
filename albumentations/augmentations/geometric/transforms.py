@@ -2044,7 +2044,7 @@ class RandomGridShuffle(DualTransform):
             Default: 0.5
 
     Targets:
-        image, mask, keypoints
+        image, mask, keypoints, bboxes
 
     Image types:
         uint8, float32
@@ -2095,7 +2095,7 @@ class RandomGridShuffle(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         grid: Annotated[tuple[int, int], AfterValidator(check_1plus)]
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     def __init__(self, grid: tuple[int, int] = (3, 3), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)

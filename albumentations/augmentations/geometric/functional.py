@@ -2829,17 +2829,39 @@ def bboxes_grid_shuffle(
     # Convert bboxes to masks
     masks = masks_from_bboxes(bboxes, image_shape)
 
-    # Apply grid shuffle to each mask
-    shuffled_masks = np.array([swap_tiles_on_image(mask, tiles, mapping) for mask in masks])
+    # Apply grid shuffle to each mask and handle split components
+    all_component_masks = []
+    extra_bbox_data = []  # Store additional bbox data for each component
 
-    # Convert shuffled masks back to bboxes
-    shuffled_bboxes = bboxes_from_masks(shuffled_masks)
+    for idx, mask in enumerate(masks):
+        # Shuffle the mask
+        shuffled_mask = swap_tiles_on_image(mask, tiles, mapping)
 
-    return (
-        np.column_stack([shuffled_bboxes, bboxes[:, 4:]])
-        if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS
-        else shuffled_bboxes
-    )
+        # Find connected components
+        num_components, components = cv2.connectedComponents(shuffled_mask.astype(np.uint8))
+
+        # For each component, create a separate binary mask
+        for comp_idx in range(1, num_components):  # Skip background (0)
+            component_mask = (components == comp_idx).astype(np.uint8)
+            all_component_masks.append(component_mask)
+            # Append additional bbox data for this component
+            if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS:
+                extra_bbox_data.append(bboxes[idx, 4:])
+
+    # Convert all component masks to bboxes
+    if all_component_masks:
+        all_component_masks = np.array(all_component_masks)
+        shuffled_bboxes = bboxes_from_masks(all_component_masks)
+
+        # Add back additional bbox data if present
+        if extra_bbox_data:
+            extra_bbox_data = np.array(extra_bbox_data)
+            shuffled_bboxes = np.column_stack([shuffled_bboxes, extra_bbox_data])
+    else:
+        # Handle case where no valid components were found
+        shuffled_bboxes = np.zeros((0, bboxes.shape[1]), dtype=bboxes.dtype)
+
+    return shuffled_bboxes
 
 
 def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
