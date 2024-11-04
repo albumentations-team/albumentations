@@ -2808,28 +2808,77 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: list[int]
     return new_image
 
 
+def is_valid_component(
+    component_area: float,
+    original_area: float,
+    min_area: float | None,
+    min_visibility: float | None,
+) -> bool:
+    """Validate if a component meets the minimum requirements."""
+    visibility = component_area / original_area
+    return (min_area is None or component_area >= min_area) and (min_visibility is None or visibility >= min_visibility)
+
+
 @handle_empty_array
 def bboxes_grid_shuffle(
     bboxes: np.ndarray,
     tiles: np.ndarray,
     mapping: list[int],
     image_shape: tuple[int, int],
-    min_area: float | None,
-    min_visibility: float | None,
+    min_area: float,
+    min_visibility: float,
 ) -> np.ndarray:
-    """Apply grid shuffle to bounding boxes.
+    """Apply grid shuffle transformation to bounding boxes.
+
+    This function transforms bounding boxes according to a grid shuffle operation. It handles cases
+    where bounding boxes may be split into multiple components after shuffling and applies
+    filtering based on minimum area and visibility requirements.
 
     Args:
-        bboxes: Array of bounding boxes in format [x_min, y_min, x_max, y_max, ...].
-        tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
-        mapping: List of new tile indices.
-        image_shape: Shape of the image (height, width).
-        min_area: Minimum area of the bounding box to keep.
-        min_visibility: Minimum visibility ratio to keep the bounding box.
-            Calculated as visible_area / original_area.
+        bboxes: Array of bounding boxes with shape (N, 4+) where N is the number of boxes.
+               Each box is in format [x_min, y_min, x_max, y_max, ...], where ... represents
+               optional additional fields (e.g., class_id, score).
+        tiles: Array of tile coordinates with shape (M, 4) where M is the number of tiles.
+               Each tile is in format [start_y, start_x, end_y, end_x].
+        mapping: List of indices defining how tiles should be rearranged. Each index i in the list
+                contains the index of the tile that should be moved to position i.
+        image_shape: Shape of the image as (height, width).
+        min_area: Minimum area threshold in pixels. If a component's area after shuffling is
+                 smaller than this value, it will be filtered out. If None, no area filtering
+                 is applied.
+        min_visibility: Minimum visibility ratio threshold in range [0, 1]. Calculated as
+                       (component_area / original_area). If a component's visibility is lower
+                       than this value, it will be filtered out. If None, no visibility
+                       filtering is applied.
 
     Returns:
-        np.ndarray: Array of transformed bounding boxes.
+        np.ndarray: Array of transformed bounding boxes with shape (K, 4+) where K is the
+                   number of valid components after shuffling and filtering. The format of
+                   each box matches the input format, preserving any additional fields.
+                   If no valid components remain after filtering, returns an empty array
+                   with shape (0, C) where C matches the input column count.
+
+    Note:
+        - The function converts bboxes to masks before applying the transformation to handle
+          cases where boxes may be split into multiple components.
+        - After shuffling, each component is validated against min_area and min_visibility
+          requirements independently.
+        - Additional bbox fields (beyond x_min, y_min, x_max, y_max) are preserved and
+          copied to all components derived from the same original bbox.
+        - Empty input arrays are handled gracefully and return empty arrays of the
+          appropriate shape.
+
+    Example:
+        >>> bboxes = np.array([[10, 10, 90, 90]])  # Single box crossing multiple tiles
+        >>> tiles = np.array([
+        ...     [0, 0, 50, 50],    # top-left tile
+        ...     [0, 50, 50, 100],  # top-right tile
+        ...     [50, 0, 100, 50],  # bottom-left tile
+        ...     [50, 50, 100, 100] # bottom-right tile
+        ... ])
+        >>> mapping = [3, 2, 1, 0]  # Rotate tiles counter-clockwise
+        >>> result = bboxes_grid_shuffle(bboxes, tiles, mapping, (100, 100), 100, 0.2)
+        >>> # Result may contain multiple boxes if the original box was split
     """
     # Convert bboxes to masks
     masks = masks_from_bboxes(bboxes, image_shape)
@@ -2853,12 +2902,8 @@ def bboxes_grid_shuffle(
 
             # Calculate area and visibility ratio
             component_area = np.sum(component_mask)
-            visibility = component_area / original_area
-
             # Check if component meets minimum requirements
-            if (min_area is None or component_area >= min_area) and (
-                min_visibility is None or visibility >= min_visibility
-            ):
+            if is_valid_component(component_area, original_area, min_area, min_visibility):
                 all_component_masks.append(component_mask)
                 # Append additional bbox data for this component
                 if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS:
@@ -2872,10 +2917,10 @@ def bboxes_grid_shuffle(
         # Add back additional bbox data if present
         if extra_bbox_data:
             extra_bbox_data = np.array(extra_bbox_data)
-            shuffled_bboxes = np.column_stack([shuffled_bboxes, extra_bbox_data])
+            return np.column_stack([shuffled_bboxes, extra_bbox_data])
     else:
         # Handle case where no valid components were found
-        shuffled_bboxes = np.zeros((0, bboxes.shape[1]), dtype=bboxes.dtype)
+        return np.zeros((0, bboxes.shape[1]), dtype=bboxes.dtype)
 
     return shuffled_bboxes
 

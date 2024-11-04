@@ -1631,12 +1631,14 @@ def test_bboxes_grid_shuffle_basic():
 
     assert len(result) > 0  # Should have at least one bbox
     assert result.shape[1] == 4  # Each bbox should have 4 coordinates
+    assert np.all(result >= 0) and np.all(result[:, [0,2]] <= image_shape[1]) and np.all(result[:, [1,3]] <= image_shape[0])
+    assert np.all(result[:, 0] < result[:, 2]) and np.all(result[:, 1] < result[:, 3])
 
 
 def test_bboxes_grid_shuffle_with_min_area():
     """Test bboxes_grid_shuffle with min_area filter."""
     image_shape = (100, 100)
-    bboxes = np.array([[10, 10, 30, 30]])  # Small bbox
+    bboxes = np.array([[10, 10, 30, 30], [0, 0, 60, 60]])
     tiles = np.array([
         [0, 0, 50, 50],
         [0, 50, 50, 100],
@@ -1644,11 +1646,9 @@ def test_bboxes_grid_shuffle_with_min_area():
         [50, 50, 100, 100],
     ])
     mapping = [3, 2, 1, 0]
-    min_area = 2500  # Minimum area of 50x50 pixels
-
+    min_area = 2500
     result = bboxes_grid_shuffle(bboxes, tiles, mapping, image_shape, min_area, None)
-
-    assert len(result) == 0  # Component should be filtered out due to small area
+    assert len(result) == 1
 
 
 def test_bboxes_grid_shuffle_with_min_visibility():
