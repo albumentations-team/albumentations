@@ -4,14 +4,16 @@ from collections.abc import Sequence
 from itertools import product
 from math import ceil
 from typing import Literal
+from warnings import warn
 
 import cv2
 import numpy as np
 from albucore import clipped, float32_io, maybe_process_in_chunks, preserve_channel_dim
+from pydantic import ValidationInfo
 
 from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
-from albumentations.core.types import EIGHT
+from albumentations.core.types import EIGHT, ScaleIntType
 
 __all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur", "defocus", "central_zoom", "zoom_blur"]
 
@@ -109,3 +111,52 @@ def zoom_blur(img: np.ndarray, zoom_factors: np.ndarray | Sequence[int]) -> np.n
         out += central_zoom(img, zoom_factor)
 
     return (img + out) / (len(zoom_factors) + 1)
+
+
+def _ensure_min_value(result: tuple[int, int], min_value: int, field_name: str | None) -> tuple[int, int]:
+    if result[0] < min_value or result[1] < min_value:
+        new_result = (max(min_value, result[0]), max(min_value, result[1]))
+        warn(
+            f"{field_name}: Invalid kernel size range {result}. "
+            f"Values less than {min_value} are not allowed. "
+            f"Range automatically adjusted to {new_result}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return new_result
+    return result
+
+
+def _ensure_odd_values(result: tuple[int, int], field_name: str | None = None) -> tuple[int, int]:
+    new_result = (
+        result[0] if result[0] == 0 or result[0] % 2 == 1 else result[0] + 1,
+        result[1] if result[1] == 0 or result[1] % 2 == 1 else result[1] + 1,
+    )
+    if new_result != result:
+        warn(
+            f"{field_name}: Non-zero kernel sizes must be odd. "
+            f"Range {result} automatically adjusted to {new_result}.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return new_result
+
+
+def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int = 0) -> tuple[int, int]:
+    """Process blur limit to ensure valid kernel sizes."""
+    result = (min_value, value) if not isinstance(value, Sequence) else value
+
+    result = _ensure_min_value(result, min_value, info.field_name)
+    result = _ensure_odd_values(result, info.field_name)
+
+    if result[0] > result[1]:
+        final_result = (result[1], result[1])
+        warn(
+            f"{info.field_name}: Invalid range {result} (min > max). "
+            f"Range automatically adjusted to {final_result}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return final_result
+
+    return result

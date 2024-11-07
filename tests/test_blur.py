@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.augmentations.blur.functional import gaussian_blur
-from albumentations.augmentations.blur.transforms import process_blur_limit
+from albumentations.augmentations.blur import functional as fblur
+
 from albumentations.core.transforms_interface import BasicTransform
 from tests.conftest import UINT8_IMAGES
 
@@ -112,7 +112,7 @@ def test_gaus_blur_limits(
     aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
 
     res = aug(image=img)["image"]
-    assert np.allclose(res, gaussian_blur(img, result_blur, result_sigma))
+    np.testing.assert_allclose(res, fblur.gaussian_blur(img, result_blur, result_sigma))
 
 
 class MockValidationInfo:
@@ -197,7 +197,7 @@ def test_process_blur_limit(
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        result = process_blur_limit(value, info, min_value)
+        result = fblur.process_blur_limit(value, info, min_value)
 
         assert result == expected
         assert len(w) == len(warning_messages)
@@ -208,11 +208,11 @@ def test_process_blur_limit_sequence_check() -> None:
     info = MockValidationInfo("test_field")
 
     # Test with integer input
-    result = process_blur_limit(5, info, min_value=0)
+    result = fblur.process_blur_limit(5, info, min_value=0)
     assert isinstance(result, tuple)
     assert result == (0, 5)
 
     # Test with float input
-    result = process_blur_limit(5.0, info, min_value=0)
+    result = fblur.process_blur_limit(5.0, info, min_value=0)
     assert isinstance(result, tuple)
     assert result == (0, 5)
