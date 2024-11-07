@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from typing import Any, Literal, cast
 
 import cv2
@@ -9,7 +10,6 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
 from albumentations.augmentations import functional as fmain
-from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import (
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
@@ -29,14 +29,48 @@ HALF = 0.5
 TWO = 2
 
 
-def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: float = 0) -> tuple[int, int]:
-    bounds = 0, float("inf")
-    result = to_tuple(value, min_value)
-    check_range(result, *bounds, info.field_name)
+def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int = 0) -> tuple[int, int]:
+    """Process blur limit to ensure valid kernel sizes."""
+    # Convert to tuple if single value
+    result = (min_value, value) if not isinstance(value, Sequence) else value
+    original = result
 
-    for v in result:
-        if v != 0 and v % 2 != 1:
-            raise ValueError(f"Blur limit must be 0 or odd. Got: {result}")
+    # Ensure minimum value
+    if result[0] < min_value or result[1] < min_value:
+        result = (max(min_value, result[0]), max(min_value, result[1]))
+        warnings.warn(
+            f"{info.field_name}: Invalid kernel size range {original}. "
+            f"Values less than {min_value} are not allowed. "
+            f"Range automatically adjusted to {result}.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    # Ensure odd values by rounding up to next odd number, but only for non-zero values
+    new_result = (
+        result[0] if result[0] == 0 or result[0] % 2 == 1 else result[0] + 1,
+        result[1] if result[1] == 0 or result[1] % 2 == 1 else result[1] + 1,
+    )
+    if new_result != result:
+        warnings.warn(
+            f"{info.field_name}: Non-zero kernel sizes must be odd. "
+            f"Range {result} automatically adjusted to {new_result}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        result = new_result
+
+    # Ensure min <= max
+    if result[0] > result[1]:
+        final_result = (result[1], result[1])
+        warnings.warn(
+            f"{info.field_name}: Invalid range {result} (min > max). "
+            f"Range automatically adjusted to {final_result}.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return final_result
+
     return result
 
 
