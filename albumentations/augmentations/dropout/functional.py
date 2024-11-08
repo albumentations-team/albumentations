@@ -10,6 +10,7 @@ from albucore import (
     get_num_channels,
     is_grayscale_image,
     preserve_channel_dim,
+    uint8_io,
 )
 
 from albumentations.augmentations.geometric.functional import split_uniform_grid
@@ -81,6 +82,7 @@ def generate_random_fill(
     raise ValueError(f"Unsupported dtype: {dtype}")
 
 
+@uint8_io
 def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: InpaintMethod) -> np.ndarray:
     """Apply OpenCV inpainting to fill the holes in the image.
 
