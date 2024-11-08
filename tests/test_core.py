@@ -1331,6 +1331,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.FromFloat,
             A.MaskDropout,
             A.XYMasking,
+            A.TimeMasking,
         },
     ),
 )
@@ -1343,7 +1344,7 @@ def test_mask_interpolation(augmentation_cls, params, interpolation):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
 
-    aug = A.Compose([augmentation_cls(p=1, interpolation=interpolation, mask_interpolation=interpolation, **params)])
+    aug = A.Compose([augmentation_cls(p=1, interpolation=interpolation, mask_interpolation=interpolation, seed=42,**params)])
 
     transformed = aug(image=image, mask=mask)
 
