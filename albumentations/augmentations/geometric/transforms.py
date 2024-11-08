@@ -1884,8 +1884,8 @@ class D4(DualTransform):
 
     def __init__(
         self,
-        always_apply: bool | None = None,
         p: float = 1,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
 
