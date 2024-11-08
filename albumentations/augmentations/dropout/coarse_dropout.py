@@ -5,11 +5,11 @@ from warnings import warn
 
 import numpy as np
 from pydantic import AfterValidator, Field, model_validator
-from typing_extensions import Literal, Self
+from typing_extensions import Self
 
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_1plus, nondecreasing
-from albumentations.core.types import ColorType, NumericType, ScalarType
+from albumentations.core.types import ColorType, DropoutFillValue, NumericType, ScalarType
 
 __all__ = ["CoarseDropout"]
 
@@ -31,11 +31,16 @@ class CoarseDropout(BaseDropout):
         hole_width_range (tuple[ScalarType, ScalarType]): Range (min, max) for the width
             of dropout regions. If int, specifies absolute pixel values. If float,
             interpreted as a fraction of the image width. Default: (8, 8)
-        fill_value (int | float | Literal["random"] | tuple[int | float,...]): Value for the dropped pixels. Can be:
-            - int or float: all channels are filled with this value.
-            - tuple: tuple of values for each channel.
-            - 'random': filled with random values.
-            Default: 0.
+        fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
+            "inpaint_ns"]):
+            Value for the dropped pixels. Can be:
+            - int or float: all channels are filled with this value
+            - tuple: tuple of values for each channel
+            - 'random': each pixel is filled with random values
+            - 'random_uniform': each hole is filled with a single random color
+            - 'inpaint_telea': uses OpenCV Telea inpainting method
+            - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
+            Default: 0
         mask_fill_value (ColorType | None): Fill value for dropout regions in the mask.
             If None, mask regions corresponding to image dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Default: 0.5
@@ -51,23 +56,38 @@ class CoarseDropout(BaseDropout):
             application.
         - When using float values for hole_height_range and hole_width_range, ensure they are between 0 and 1.
         - This implementation includes deprecation warnings for older parameter names (min_holes, max_holes, etc.).
+        - Inpainting methods ('inpaint_telea', 'inpaint_ns') work only with grayscale or RGB images.
+        - For 'random_uniform' fill, each hole gets a single random color, unlike 'random' where each pixel
+            gets its own random value.
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
-        >>> augmentation = A.CoarseDropout(num_holes_range=(3, 6),
-        ...                                hole_height_range=(10, 20),
-        ...                                hole_width_range=(10, 20),
-        ...                                fill_value=0,
-        ...                                p=1.0)
-        >>> transformed = augmentation(image=image, mask=mask)
+        >>> # Example with random uniform fill
+        >>> aug_random = A.CoarseDropout(
+        ...     num_holes_range=(3, 6),
+        ...     hole_height_range=(10, 20),
+        ...     hole_width_range=(10, 20),
+        ...     fill_value="random_uniform",
+        ...     p=1.0
+        ... )
+        >>> # Example with inpainting
+        >>> aug_inpaint = A.CoarseDropout(
+        ...     num_holes_range=(3, 6),
+        ...     hole_height_range=(10, 20),
+        ...     hole_width_range=(10, 20),
+        ...     fill_value="inpaint_ns",
+        ...     p=1.0
+        ... )
+        >>> transformed = aug_random(image=image, mask=mask)
         >>> transformed_image, transformed_mask = transformed["image"], transformed["mask"]
 
     References:
         - CutOut: https://arxiv.org/abs/1708.04552
         - Random Erasing: https://arxiv.org/abs/1708.04896
+        - OpenCV Inpainting methods: https://docs.opencv.org/master/df/d3d/tutorial_py_inpainting.html
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -141,7 +161,7 @@ class CoarseDropout(BaseDropout):
         min_holes: int | None = None,
         min_height: ScalarType | None = None,
         min_width: ScalarType | None = None,
-        fill_value: ColorType | Literal["random"] = 0,
+        fill_value: DropoutFillValue = 0,
         mask_fill_value: ColorType | None = None,
         num_holes_range: tuple[int, int] = (1, 1),
         hole_height_range: tuple[ScalarType, ScalarType] = (8, 8),

@@ -103,3 +103,7 @@ NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS = 4
 
 
 PositionType = Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]
+
+InpaintMethod = Literal["inpaint_telea", "inpaint_ns"]
+
+DropoutFillValue = Union[ColorType, Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]]

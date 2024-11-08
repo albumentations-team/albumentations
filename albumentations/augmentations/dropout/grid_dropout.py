@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 from warnings import warn
 
 from pydantic import AfterValidator, Field, model_validator
@@ -9,7 +9,7 @@ from typing_extensions import Self
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
-from albumentations.core.types import MIN_UNIT_SIZE, ColorType
+from albumentations.core.types import MIN_UNIT_SIZE, ColorType, DropoutFillValue
 
 __all__ = ["GridDropout"]
 
@@ -32,11 +32,16 @@ class GridDropout(BaseDropout):
             Default: None. If provided, overrides unit_size_range.
         random_offset (bool): Whether to offset the grid randomly between 0 and (grid unit size - hole size).
             If True, entered shift_xy is ignored and set randomly. Default: True.
-        fill_value (int | float | Literal["random"] | tuple[int | float,...]): Value for the dropped pixels. Can be:
-            - int or float: all channels are filled with this value.
-            - tuple: tuple of values for each channel.
-            - 'random': filled with random values.
-            Default: 0.
+        fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
+            "inpaint_ns"]):
+            Value for the dropped pixels. Can be:
+            - int or float: all channels are filled with this value
+            - tuple: tuple of values for each channel
+            - 'random': each pixel is filled with random values
+            - 'random_uniform': each hole is filled with a single random color
+            - 'inpaint_telea': uses OpenCV Telea inpainting method
+            - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
+            Default: 0
         mask_fill_value (int | float | tuple[int | float,...] | None): Value for the dropped pixels in mask.
             If None, the mask is not modified. Default: None.
         shift_xy (tuple[int, int]): Offsets of the grid start in x and y directions from (0,0) coordinate.
@@ -52,19 +57,42 @@ class GridDropout(BaseDropout):
     Note:
         - If both unit_size_range and holes_number_xy are None, the grid size is calculated based on the image size.
         - The actual number of dropped regions may differ slightly from holes_number_xy due to rounding.
-        - This implementation includes deprecation warnings for older parameter names.
+        - Inpainting methods ('inpaint_telea', 'inpaint_ns') work only with grayscale or RGB images.
+        - For 'random_uniform' fill, each grid cell gets a single random color, unlike 'random' where each pixel
+            gets its own random value.
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
-        >>> augmentation = A.GridDropout(ratio=0.3, unit_size_range=(10, 20), random_offset=True, p=1.0)
-        >>> transformed = augmentation(image=image, mask=mask)
+        >>> # Example with standard fill value
+        >>> aug_basic = A.GridDropout(
+        ...     ratio=0.3,
+        ...     unit_size_range=(10, 20),
+        ...     random_offset=True,
+        ...     p=1.0
+        ... )
+        >>> # Example with random uniform fill
+        >>> aug_random = A.GridDropout(
+        ...     ratio=0.3,
+        ...     unit_size_range=(10, 20),
+        ...     fill_value="random_uniform",
+        ...     p=1.0
+        ... )
+        >>> # Example with inpainting
+        >>> aug_inpaint = A.GridDropout(
+        ...     ratio=0.3,
+        ...     unit_size_range=(10, 20),
+        ...     fill_value="inpaint_ns",
+        ...     p=1.0
+        ... )
+        >>> transformed = aug_random(image=image, mask=mask)
         >>> transformed_image, transformed_mask = transformed["image"], transformed["mask"]
 
     Reference:
         - Paper: https://arxiv.org/abs/2001.04086
+        - OpenCV Inpainting methods: https://docs.opencv.org/master/df/d3d/tutorial_py_inpainting.html
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -80,7 +108,7 @@ class GridDropout(BaseDropout):
         shift_y: int | None = Field(ge=0)
 
         random_offset: bool
-        fill_value: ColorType | Literal["random"]
+        fill_value: DropoutFillValue
         mask_fill_value: ColorType | None
         unit_size_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
         shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)]
@@ -124,7 +152,7 @@ class GridDropout(BaseDropout):
         shift_x: int | None = None,
         shift_y: int | None = None,
         random_offset: bool = True,
-        fill_value: ColorType | Literal["random"] = 0,
+        fill_value: DropoutFillValue = 0,
         mask_fill_value: ColorType | None = None,
         unit_size_range: tuple[int, int] | None = None,
         holes_number_xy: tuple[int, int] | None = None,
