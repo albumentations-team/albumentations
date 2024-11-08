@@ -381,4 +381,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.ShotNoise, {"scale_range": (0.1, 0.3)}],
     [A.TimeReverse, {}],
     [A.TimeMasking, {"time_mask_param": 10}],
+    [A.FrequencyMasking, {"freq_mask_param": 10}],
 ]

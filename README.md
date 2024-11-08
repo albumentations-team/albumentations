@@ -236,6 +236,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [CropNonEmptyMaskIfExists](https://explore.albumentations.ai/transform/CropNonEmptyMaskIfExists) | ✓     | ✓    | ✓      | ✓         |
 | [D4](https://explore.albumentations.ai/transform/D4)                                             | ✓     | ✓    | ✓      | ✓         |
 | [ElasticTransform](https://explore.albumentations.ai/transform/ElasticTransform)                 | ✓     | ✓    | ✓      | ✓         |
+| [FrequencyMasking](https://explore.albumentations.ai/transform/FrequencyMasking)                 | ✓     | ✓    | ✓      | ✓         |
 | [GridDistortion](https://explore.albumentations.ai/transform/GridDistortion)                     | ✓     | ✓    | ✓      | ✓         |
 | [GridDropout](https://explore.albumentations.ai/transform/GridDropout)                           | ✓     | ✓    | ✓      | ✓         |
 | [GridElasticDeform](https://explore.albumentations.ai/transform/GridElasticDeform)               | ✓     | ✓    | ✓      | ✓         |
