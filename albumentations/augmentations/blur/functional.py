@@ -144,7 +144,7 @@ def _ensure_odd_values(result: tuple[int, int], field_name: str | None = None) -
 
 def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int = 0) -> tuple[int, int]:
     """Process blur limit to ensure valid kernel sizes."""
-    result = (min_value, value) if not isinstance(value, Sequence) else value
+    result = value if isinstance(value, Sequence) else (min_value, value)
 
     result = _ensure_min_value(result, min_value, info.field_name)
     result = _ensure_odd_values(result, info.field_name)
