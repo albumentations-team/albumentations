@@ -980,8 +980,9 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np
         # Apply shadow to the channels directly
         # It could be tempting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
         shadowed_indices = mask[:, :, 0] == max_value
+        darkness = 1 - shadow_intensity
         img_shadowed[shadowed_indices] = clip(
-            img_shadowed[shadowed_indices] * shadow_intensity,
+            img_shadowed[shadowed_indices] * darkness,
             np.uint8,
             inplace=True,
         )

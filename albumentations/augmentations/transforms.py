@@ -1413,8 +1413,8 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_limit (tuple[int, int]): Lower and upper limits for the possible number of shadows.
             Default: (1, 2).
         shadow_dimension (int): Number of edges in the shadow polygons. Default: 5.
-        shadow_intensity_range (tuple[float, float]): Range for the shadow intensity.
-            Should be two float values between 0 and 1. Default: (0.5, 0.5).
+        shadow_intensity_range (tuple[float, float]): Range for the shadow intensity. Larger value
+            means darker shadow. Should be two float values between 0 and 1. Default: (0.5, 0.5).
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
