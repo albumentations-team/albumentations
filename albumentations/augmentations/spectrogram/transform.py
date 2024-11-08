@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+from warnings import warn
+
+from pydantic import Field
+
+from albumentations.augmentations.dropout.xy_masking import XYMasking
 from albumentations.augmentations.geometric.transforms import HorizontalFlip
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import Targets
 
 __all__ = [
     "TimeReverse",
+    "TimeMasking",
 ]
 
 
@@ -53,4 +59,88 @@ class TimeReverse(HorizontalFlip):
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
+        warn(
+            "TimeReverse is an alias for HorizontalFlip transform. "
+            "Consider using HorizontalFlip directly from albumentations.HorizontalFlip. ",
+            UserWarning,
+            stacklevel=2,
+        )
         super().__init__(p=p, always_apply=always_apply)
+
+
+class TimeMasking(XYMasking):
+    """Apply masking to a spectrogram in the time domain.
+
+    This transform masks random segments along the time axis of a spectrogram,
+    implementing the time masking technique proposed in the SpecAugment paper.
+    Time masking helps in training models to be robust against temporal variations
+    and missing information in audio signals.
+
+    This is a specialized version of XYMasking configured for time masking only.
+    For more advanced use cases (e.g., multiple masks, frequency masking, or custom
+    fill values), consider using XYMasking directly.
+
+    Args:
+        time_mask_param (int): Maximum possible length of the mask in the time domain.
+            Must be a positive integer. Length of the mask is uniformly sampled from [0, time_mask_param).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        This transform is implemented as a subset of XYMasking with fixed parameters:
+        - Single horizontal mask (num_masks_x=1)
+        - No vertical masks (num_masks_y=0)
+        - Zero fill value
+        - Random mask length up to time_mask_param
+
+        For more flexibility, including:
+        - Multiple masks
+        - Custom fill values
+        - Frequency masking
+        - Combined time-frequency masking
+        Consider using albumentations.XYMasking directly.
+
+    References:
+        - SpecAugment paper: https://arxiv.org/abs/1904.08779
+        - Original implementation: https://pytorch.org/audio/stable/transforms.html#timemask
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        time_mask_param: int = Field(ge=0)
+
+    def __init__(
+        self,
+        time_mask_param: int = 0,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "TimeMasking is a specialized version of XYMasking. "
+            "For more flexibility (multiple masks, custom fill values, frequency masking), "
+            "consider using XYMasking directly from albumentations.XYMasking.",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(
+            p=p,
+            always_apply=always_apply,
+            fill_value=0,
+            mask_fill_value=None,
+            mask_x_length=(0, time_mask_param),
+            num_masks_x=1,
+            num_masks_y=0,
+        )
+        self.time_mask_param = time_mask_param
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("time_mask_param",)

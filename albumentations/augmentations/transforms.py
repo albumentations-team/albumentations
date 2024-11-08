@@ -552,8 +552,8 @@ class RandomSnow(ImageOnlyTransform):
 
         return result
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        return "snow_point_range", "brightness_coeff"
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "snow_point_range", "brightness_coeff", "method"
 
 
 class RandomGravel(ImageOnlyTransform):

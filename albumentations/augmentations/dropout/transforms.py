@@ -54,6 +54,8 @@ class BaseDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
 
     def apply(self, img: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:
+        if holes.size == 0:
+            return img
         if self.fill_value in {"inpaint_telea", "inpaint_ns"}:
             num_channels = get_num_channels(img)
             if num_channels not in {1, 3}:
@@ -61,7 +63,7 @@ class BaseDropout(DualTransform):
         return cutout(img, holes, self.fill_value, np.random.default_rng(seed))
 
     def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:
-        if self.mask_fill_value is None:
+        if self.mask_fill_value is None or holes.size == 0:
             return mask
         return cutout(mask, holes, self.mask_fill_value, np.random.default_rng(seed))
 
@@ -71,6 +73,8 @@ class BaseDropout(DualTransform):
         holes: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        if holes.size == 0:
+            return bboxes
         processor = cast(BboxProcessor, self.get_processor("bboxes"))
         if processor is None:
             return bboxes
@@ -96,6 +100,8 @@ class BaseDropout(DualTransform):
         holes: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        if holes.size == 0:
+            return keypoints
         processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
