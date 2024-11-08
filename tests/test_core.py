@@ -1332,6 +1332,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.MaskDropout,
             A.XYMasking,
             A.TimeMasking,
+            A.FrequencyMasking,
         },
     ),
 )
