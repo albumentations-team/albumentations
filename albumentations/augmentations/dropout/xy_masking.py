@@ -9,7 +9,7 @@ from typing_extensions import Self
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import ColorType, ScaleIntType, Targets
+from albumentations.core.types import ColorType, DropoutFillValue, ScaleIntType, Targets
 
 __all__ = ["XYMasking"]
 
@@ -58,8 +58,8 @@ class XYMasking(BaseDropout):
         mask_x_length: NonNegativeIntRangeType
         mask_y_length: NonNegativeIntRangeType
 
-        fill_value: ColorType
-        mask_fill_value: ColorType
+        fill_value: DropoutFillValue
+        mask_fill_value: ColorType | None
 
         @model_validator(mode="after")
         def check_mask_length(self) -> Self:
@@ -79,8 +79,8 @@ class XYMasking(BaseDropout):
         num_masks_y: ScaleIntType = 0,
         mask_x_length: ScaleIntType = 0,
         mask_y_length: ScaleIntType = 0,
-        fill_value: ColorType = 0,
-        mask_fill_value: ColorType = 0,
+        fill_value: DropoutFillValue = 0,
+        mask_fill_value: ColorType | None = None,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import numpy as np
+from albucore import get_num_channels
 
-from albumentations.augmentations.dropout.functional import cutout, filter_bboxes_by_holes, filter_keypoints_in_holes
+from albumentations.augmentations.dropout.functional import (
+    cutout,
+    filter_bboxes_by_holes,
+    filter_keypoints_in_holes,
+)
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, Targets
+from albumentations.core.types import ColorType, DropoutFillValue, Targets
 
 
 class BaseDropout(DualTransform):
@@ -34,12 +39,12 @@ class BaseDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        fill_value: ColorType | Literal["random"]
+        fill_value: DropoutFillValue
         mask_fill_value: ColorType | None
 
     def __init__(
         self,
-        fill_value: ColorType | Literal["random"],
+        fill_value: DropoutFillValue,
         mask_fill_value: ColorType | None,
         p: float,
         always_apply: bool | None = None,
@@ -49,6 +54,10 @@ class BaseDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
 
     def apply(self, img: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:
+        if self.fill_value in {"inpaint_telea", "inpaint_ns"}:
+            num_channels = get_num_channels(img)
+            if num_channels not in {1, 3}:
+                raise ValueError("Inpainting works only for 1 or 3 channel images")
         return cutout(img, holes, self.fill_value, np.random.default_rng(seed))
 
     def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:

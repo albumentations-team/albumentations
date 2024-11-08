@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Callable, Literal
+from typing import Any, Callable
 from warnings import warn
 
 import cv2
@@ -19,6 +19,7 @@ from .serialization import Serializable, SerializableMeta, get_shortest_class_fu
 from .types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
     ColorType,
+    DropoutFillValue,
     Targets,
 )
 from .utils import ensure_contiguous_output, format_args
@@ -51,7 +52,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
-    fill_value: ColorType | Literal["random"]
+    fill_value: DropoutFillValue
     mask_fill_value: ColorType | None
     # replay mode params
     deterministic: bool = False

@@ -25,7 +25,7 @@ class MaskDropout(DualTransform):
     Args:
         max_objects (int | tuple[int, int]): Maximum number of objects to dropout. If a single int is provided,
             it's treated as the upper bound. If a tuple of two ints is provided, it's treated as a range [min, max].
-        image_fill_value (float | str): Value to fill the dropped out regions in the image.
+        image_fill_value (float | str | Literal["inpaint"]): Value to fill the dropped out regions in the image.
             If set to 'inpaint', it applies inpainting to the dropped out regions (works only for 3-channel images).
         mask_fill_value (float | int): Value to fill the dropped out regions in the mask.
         min_area (float): Minimum area (in pixels) of a bounding box that must remain visible after dropout to be kept.
@@ -108,7 +108,7 @@ class MaskDropout(DualTransform):
                 dropout_mask = mask > 0
             else:
                 labels_index = self.py_random.sample(range(1, num_labels + 1), objects_to_drop)
-                dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=bool)
+                dropout_mask = np.zeros(mask.shape[:2], dtype=bool)
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index
 

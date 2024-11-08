@@ -100,6 +100,8 @@ def test_label_function_full_mask():
         (np.zeros((10, 10, 2), dtype=np.uint8), [64, 192]),
         # Multi-channel image, fill_value as np.ndarray with different values
         (np.zeros((10, 10, 3), dtype=np.uint8), np.array([32, 64, 96], dtype=np.uint8)),
+        (np.zeros((10, 10, 3), dtype=np.uint8), np.array([[32], [64], [96]], dtype=np.uint8)),
+        (np.zeros((10, 10, 3), dtype=np.uint8), np.array([32, 64, 96]).T),
     ],
 )
 def test_cutout_with_various_fill_values(img, fill_value):
@@ -123,6 +125,23 @@ def test_cutout_with_various_fill_values(img, fill_value):
 
     # Check the filled values
     assert np.all(result == expected_result), "The result does not match the expected output."
+
+
+@pytest.mark.parametrize(
+    "img_shape, fill_value",
+    [
+        ((10, 10), "random"),
+        ((10, 10, 3), "random"),
+        ((10, 10), "random_uniform"),
+        ((10, 10, 3), "random_uniform"),
+    ],
+)
+def test_cutout_with_random_fills(img_shape, fill_value):
+    img = np.zeros(img_shape, dtype=np.uint8)
+    holes = np.array([[2, 2, 5, 5]])
+    generator = np.random.default_rng(42)
+
+    result = cutout(img, holes, fill_value, generator)
 
 
 @pytest.mark.parametrize(
