@@ -9,7 +9,6 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
 from albumentations.augmentations import functional as fmain
-from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import (
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
@@ -29,24 +28,13 @@ HALF = 0.5
 TWO = 2
 
 
-def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: float = 0) -> tuple[int, int]:
-    bounds = 0, float("inf")
-    result = to_tuple(value, min_value)
-    check_range(result, *bounds, info.field_name)
-
-    for v in result:
-        if v != 0 and v % 2 != 1:
-            raise ValueError(f"Blur limit must be 0 or odd. Got: {result}")
-    return result
-
-
 class BlurInitSchema(BaseTransformInitSchema):
     blur_limit: ScaleIntType
 
     @field_validator("blur_limit")
     @classmethod
     def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
-        return process_blur_limit(value, info, min_value=3)
+        return fblur.process_blur_limit(value, info, min_value=3)
 
 
 class Blur(ImageOnlyTransform):
@@ -353,7 +341,7 @@ class GaussianBlur(ImageOnlyTransform):
         @field_validator("blur_limit")
         @classmethod
         def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
-            return process_blur_limit(value, info, min_value=0)
+            return fblur.process_blur_limit(value, info, min_value=0)
 
         @model_validator(mode="after")
         def validate_limits(self) -> Self:

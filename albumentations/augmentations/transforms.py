@@ -31,8 +31,8 @@ from typing_extensions import Literal, Self, TypedDict
 
 import albumentations.augmentations.dropout.functional as fdropout
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.blur.functional import blur
-from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
+from albumentations.augmentations.blur import functional as fblur
+from albumentations.augmentations.blur.transforms import BlurInitSchema
 from albumentations.augmentations.utils import check_range, non_rgb_error
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
@@ -4215,7 +4215,7 @@ class UnsharpMask(ImageOnlyTransform):
         @field_validator("blur_limit")
         @classmethod
         def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
-            return process_blur_limit(value, info, min_value=3)
+            return fblur.process_blur_limit(value, info, min_value=3)
 
     def __init__(
         self,
@@ -4566,12 +4566,12 @@ class Spatter(ImageOnlyTransform):
             dist = 255 - cv2.Canny(liquid_layer, 50, 150)
             dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
             _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
-            dist = clip(blur(dist, 3), np.uint8, inplace=True)
+            dist = clip(fblur.blur(dist, 3), np.uint8, inplace=True)
             dist = fmain.equalize(dist)
 
             ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
             dist = fmain.convolve(dist, ker)
-            dist = blur(dist, 3).astype(np.float32)
+            dist = fblur.blur(dist, 3).astype(np.float32)
 
             m = liquid_layer * dist
             m *= 1 / np.max(m, axis=(0, 1))
