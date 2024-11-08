@@ -120,7 +120,7 @@ class TimeMasking(XYMasking):
 
     def __init__(
         self,
-        time_mask_param: int = 0,
+        time_mask_param: int = 40,
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
