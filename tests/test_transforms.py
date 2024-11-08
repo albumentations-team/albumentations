@@ -1249,7 +1249,6 @@ def test_coarse_dropout_invalid_input(params):
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
             },
-            A.TimeMasking: {"time_mask_param": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
