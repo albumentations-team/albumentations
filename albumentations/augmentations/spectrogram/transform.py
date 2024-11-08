@@ -83,7 +83,7 @@ class TimeMasking(XYMasking):
 
     Args:
         time_mask_param (int): Maximum possible length of the mask in the time domain.
-            Must be a positive integer. Length of the mask is uniformly sampled from [0, time_mask_param).
+            Must be a positive integer. Length of the mask is uniformly sampled from (0, time_mask_param).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -117,7 +117,7 @@ class TimeMasking(XYMasking):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        time_mask_param: int = Field(ge=0)
+        time_mask_param: int = Field(gt=0)
 
     def __init__(
         self,
@@ -161,7 +161,7 @@ class FrequencyMasking(XYMasking):
 
     Args:
         freq_mask_param (int): Maximum possible length of the mask in the frequency domain.
-            Must be a positive integer. Length of the mask is uniformly sampled from [0, freq_mask_param).
+            Must be a positive integer. Length of the mask is uniformly sampled from (0, freq_mask_param).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -195,7 +195,7 @@ class FrequencyMasking(XYMasking):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        freq_mask_param: int = Field(ge=0)
+        freq_mask_param: int = Field(gt=0)
 
     def __init__(
         self,
