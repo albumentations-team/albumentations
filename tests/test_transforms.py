@@ -1249,6 +1249,7 @@ def test_coarse_dropout_invalid_input(params):
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
             },
+            A.TimeMasking: {"time_mask_param": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1313,6 +1314,7 @@ def test_change_image(augmentation_cls, params):
             A.FancyPCA: {"alpha": 1},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.RGBShift: {"r_shift_limit": (10, 10), "g_shift_limit": (10, 10), "b_shift_limit": (10, 10)},
+            A.TimeMasking: {"time_mask_param": 10},
         },
         except_augmentations={
             A.Crop,
