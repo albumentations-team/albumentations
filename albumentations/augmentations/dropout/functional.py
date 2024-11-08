@@ -150,7 +150,7 @@ def fill_holes_with_random(
     for x_min, y_min, x_max, y_max in holes:
         shape = (1,) if uniform else (y_max - y_min, x_max - x_min)
         if img.ndim != MONO_CHANNEL_DIMENSIONS:
-            shape = (*shape, img.shape[2]) if not uniform else (1, img.shape[2])
+            shape = (1, img.shape[2]) if uniform else (*shape, img.shape[2])
 
         random_fill = generate_random_fill(img.dtype, shape, random_generator)
         img[y_min:y_max, x_min:x_max] = random_fill
