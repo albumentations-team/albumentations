@@ -2057,6 +2057,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.RandomGridShuffle,
             A.TimeReverse,
             A.RandomHorizontalFlip,
+            A.RandomVerticalFlip,
         },
     ),
 )
