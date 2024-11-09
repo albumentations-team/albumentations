@@ -386,4 +386,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomHorizontalFlip, {}],
     [A.RandomVerticalFlip, {}],
     [A.RandomGrayscale, {}],
+    [A.RandomPerspective, {}],
 ]
