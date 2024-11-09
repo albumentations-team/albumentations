@@ -93,14 +93,15 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image):
     mask = image.copy()
 
     aug = augmentation_cls(p=p, **params)
-    aug.random_generator = np.random.default_rng(0)
+    aug.random_generator = np.random.default_rng(seed)
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
 
-    deserialized_aug.random_generator = np.random.default_rng(0)
+    deserialized_aug.random_generator = np.random.default_rng(seed)
     aug_data = aug(image=image, mask=mask)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
     np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 

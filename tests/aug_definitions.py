@@ -382,4 +382,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.TimeReverse, {}],
     [A.TimeMasking, {"time_mask_param": 10}],
     [A.FrequencyMasking, {"freq_mask_param": 10}],
+    [A.RandomJPEG, {"jpeg_quality": (50, 50)}],
 ]
