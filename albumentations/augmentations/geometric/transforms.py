@@ -590,11 +590,11 @@ class Affine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: ScaleFloatType | dict[str, Any] | None
+        scale: ScaleFloatType | dict[str, Any]
         translate_percent: ScaleFloatType | dict[str, Any] | None
         translate_px: ScaleIntType | dict[str, Any] | None
-        rotate: ScaleFloatType | None
-        shear: ScaleFloatType | dict[str, Any] | None
+        rotate: ScaleFloatType
+        shear: ScaleFloatType | dict[str, Any]
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
 
@@ -608,11 +608,11 @@ class Affine(DualTransform):
 
     def __init__(
         self,
-        scale: ScaleFloatType | dict[str, Any] | None = None,
+        scale: ScaleFloatType | dict[str, Any] = 1,
         translate_percent: ScaleFloatType | dict[str, Any] | None = None,
         translate_px: ScaleIntType | dict[str, Any] | None = None,
-        rotate: ScaleFloatType | None = None,
-        shear: ScaleFloatType | dict[str, Any] | None = None,
+        rotate: ScaleFloatType = 0,
+        shear: ScaleFloatType | dict[str, Any] = 0,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: ColorType = 0,
@@ -626,17 +626,6 @@ class Affine(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-
-        params = [scale, translate_percent, translate_px, rotate, shear]
-        if all(p is None for p in params):
-            scale = {"x": (0.9, 1.1), "y": (0.9, 1.1)}
-            translate_percent = {"x": (-0.1, 0.1), "y": (-0.1, 0.1)}
-            rotate = (-15, 15)
-            shear = {"x": (-10, 10), "y": (-10, 10)}
-        else:
-            scale = scale if scale is not None else 1.0
-            rotate = rotate if rotate is not None else 0.0
-            shear = shear if shear is not None else 0.0
 
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation

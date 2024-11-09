@@ -387,4 +387,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomVerticalFlip, {}],
     [A.RandomGrayscale, {}],
     [A.RandomPerspective, {}],
+    [A.RandomAffine, {}],
 ]
