@@ -1002,3 +1002,84 @@ def test_fancy_pca_zero_alpha(shape, dtype):
     result = F.fancy_pca(image, alpha_vector)
 
     np.testing.assert_array_equal(image, result)
+
+@pytest.mark.parametrize(
+    ["image_type", "quality", "shape", "expected_shape"],
+    [
+        # Test JPEG compression
+        (".jpg", 80, (100, 100, 3), (100, 100, 3)),  # RGB image
+        (".jpg", 10, (50, 50, 1), (50, 50, 1)),      # Grayscale image
+        (".jpg", 90, (30, 30, 2), (30, 30, 2)),      # 2-channel image
+        (".jpg", 70, (40, 40, 4), (40, 40, 4)),      # RGBA image
+        (".jpg", 50, (60, 60, 5), (60, 60, 5)),      # 5-channel image
+
+        # Test WebP compression
+        (".webp", 80, (100, 100, 3), (100, 100, 3)), # RGB image
+        (".webp", 10, (50, 50, 1), (50, 50, 1)),     # Grayscale image
+        (".webp", 90, (30, 30, 2), (30, 30, 2)),     # 2-channel image
+        (".webp", 70, (40, 40, 4), (40, 40, 4)),     # RGBA image
+        (".webp", 50, (60, 60, 5), (60, 60, 5)),     # 5-channel image
+    ]
+)
+def test_image_compression_shapes(image_type, quality, shape, expected_shape):
+    """Test that image_compression preserves input shapes."""
+    image = np.random.randint(0, 256, shape, dtype=np.uint8)
+    compressed = F.image_compression(image, quality, image_type)
+    assert compressed.shape == expected_shape
+    assert compressed.dtype == np.uint8
+
+
+def test_image_compression_channel_consistency():
+    """Test that compression maintains channel independence for extra channels."""
+    # Create image with 4 channels where last channel is constant
+    image = np.random.randint(0, 256, (100, 100, 4), dtype=np.uint8)
+    image[..., 3] = 128  # Constant alpha channel
+
+    compressed = F.image_compression(image, 80, ".jpg")
+
+    # RGB channels should change due to compression
+    assert not np.array_equal(image[..., :3], compressed[..., :3])
+    # Alpha channel should remain constant
+    assert np.all(compressed[..., 3] == 128)
+
+
+@pytest.mark.parametrize(
+    ["image_type", "quality", "shape"],
+    [
+        # Test JPEG compression - only supports 1 and 3 channels
+        (".jpg", 80, (100, 100, 3)),  # RGB image
+        (".jpg", 10, (50, 50, 1)),    # Grayscale image
+
+        # Test WebP compression - supports 1, 3, and 4 channels
+        (".webp", 80, (100, 100, 3)), # RGB image
+        (".webp", 10, (50, 50, 1)),   # Grayscale image
+        (".webp", 70, (40, 40, 4)),   # RGBA image
+    ]
+)
+def test_image_compression_supported_shapes(image_type, quality, shape):
+    """Test image_compression with supported channel counts."""
+    image = np.random.randint(0, 256, shape, dtype=np.uint8)
+    compressed = F.image_compression(image, quality, image_type)
+    assert compressed.shape == shape
+    assert compressed.dtype == np.uint8
+
+
+@pytest.mark.parametrize(
+    "image_type", [".jpg", ".webp"]
+)
+def test_image_compression_quality_with_patterns(image_type):
+    """Test that lower quality results in more compression artifacts."""
+    # Create an image with high frequency patterns that are sensitive to compression
+    x = np.linspace(0, 10, 100)
+    y = np.linspace(0, 10, 100)
+    xx, yy = np.meshgrid(x, y)
+    image = np.uint8(255 * (np.sin(xx) * np.sin(yy) + 1) / 2)
+    image = np.stack([image] * 3, axis=-1)  # Convert to RGB
+
+    high_quality = F.image_compression(image, 100, image_type)
+    low_quality = F.image_compression(image, 10, image_type)
+
+    high_diff = np.abs(image - high_quality).mean()
+    low_diff = np.abs(image - low_quality).mean()
+
+    assert low_diff > high_diff, f"Low quality diff ({low_diff}) should be greater than high quality diff ({high_diff})"

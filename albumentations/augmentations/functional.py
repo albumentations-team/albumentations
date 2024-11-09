@@ -431,15 +431,59 @@ def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 @uint8_io
 @preserve_channel_dim
 def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"]) -> np.ndarray:
-    if image_type == ".jpg":
-        quality_flag = cv2.IMWRITE_JPEG_QUALITY
-    elif image_type == ".webp":
-        quality_flag = cv2.IMWRITE_WEBP_QUALITY
-    else:
-        raise NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+    """Apply compression to image.
 
-    _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
-    return cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+    Args:
+        img: Input image
+        quality: Compression quality (0-100)
+        image_type: Type of compression ('.jpg' or '.webp')
+
+    Returns:
+        Compressed image with same number of channels as input
+    """
+    quality_flag = cv2.IMWRITE_JPEG_QUALITY if image_type == ".jpg" else cv2.IMWRITE_WEBP_QUALITY
+
+    num_channels = get_num_channels(img)
+
+    if num_channels == 1:
+        # For grayscale, ensure we read back as single channel
+        _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
+        decoded = cv2.imdecode(encoded_img, cv2.IMREAD_GRAYSCALE)
+        return decoded[..., np.newaxis]  # Add channel dimension back
+
+    if num_channels == NUM_RGB_CHANNELS:
+        # Standard RGB image
+        _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
+        return cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+
+    # For 2,4 or more channels, we need to handle alpha/extra channels separately
+    if num_channels == 2:  # noqa: PLR2004
+        # For 2 channels, pad to 3 channels and take only first 2 after compression
+        padded = np.pad(img, ((0, 0), (0, 0), (0, 1)), mode="constant")
+        _, encoded_bgr = cv2.imencode(image_type, padded, (int(quality_flag), quality))
+        decoded_bgr = cv2.imdecode(encoded_bgr, cv2.IMREAD_UNCHANGED)
+        return decoded_bgr[..., :2]
+
+    # Process first 3 channels together
+    bgr = img[..., :NUM_RGB_CHANNELS]
+    _, encoded_bgr = cv2.imencode(image_type, bgr, (int(quality_flag), quality))
+    decoded_bgr = cv2.imdecode(encoded_bgr, cv2.IMREAD_UNCHANGED)
+
+    if num_channels > NUM_RGB_CHANNELS:
+        # Process additional channels one by one
+        extra_channels = []
+        for i in range(NUM_RGB_CHANNELS, num_channels):
+            channel = img[..., i]
+            _, encoded = cv2.imencode(image_type, channel, (int(quality_flag), quality))
+            decoded = cv2.imdecode(encoded, cv2.IMREAD_GRAYSCALE)
+            if len(decoded.shape) == 2:  # noqa: PLR2004
+                decoded = decoded[..., np.newaxis]
+            extra_channels.append(decoded)
+
+        # Combine BGR with extra channels
+        return np.dstack([decoded_bgr, *extra_channels])
+
+    return decoded_bgr
 
 
 @uint8_io

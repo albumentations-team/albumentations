@@ -372,11 +372,8 @@ class ImageCompression(ImageOnlyTransform):
             "image_type": image_type,
         }
 
-    def get_transform_init_args(self) -> dict[str, Any]:
-        return {
-            "quality_range": self.quality_range,
-            "compression_type": self.compression_type,
-        }
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "quality_range", "compression_type"
 
 
 class RandomSnow(ImageOnlyTransform):
