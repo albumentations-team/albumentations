@@ -606,6 +606,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
+            A.RandomGrayscale,
         },
     ),
 )
@@ -695,6 +696,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
+            A.RandomGrayscale,
         },
     ),
 )
@@ -778,6 +780,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
+            A.RandomGrayscale,
         },
     ),
 )
@@ -863,6 +866,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
+            A.RandomGrayscale,
         },
     ),
 )

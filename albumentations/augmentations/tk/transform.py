@@ -105,7 +105,7 @@ class RandomHorizontalFlip(HorizontalFlip):
         >>> transform = A.HorizontalFlip(p=0.5)
 
     References:
-        - torchvision: https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomHorizontalFlip
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomHorizontalFlip.html
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomHorizontalFlip
     """
 
@@ -158,7 +158,7 @@ class RandomVerticalFlip(VerticalFlip):
         >>> transform = A.VerticalFlip(p=0.5)
 
     References:
-        - torchvision: https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomVerticalFlip
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomVerticalFlip.html
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomVerticalFlip
     """
 
@@ -224,7 +224,7 @@ class RandomGrayscale(ToGray):
         >>> transform = A.ToGray(p=0.1, method="weighted_average")
 
     References:
-        - torchvision: https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomGrayscale
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomGrayscale.html
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomGrayscale
         - ITU-R BT.601: https://en.wikipedia.org/wiki/Rec._601
     """
@@ -243,4 +243,7 @@ class RandomGrayscale(ToGray):
             UserWarning,
             stacklevel=2,
         )
-        super().__init__(p=p, always_apply=always_apply, method="weighted_average")
+        super().__init__(p=p, always_apply=always_apply)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ()
