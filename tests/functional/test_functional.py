@@ -1028,22 +1028,6 @@ def test_image_compression_shapes(image_type, quality, shape, expected_shape):
     assert compressed.shape == expected_shape
     assert compressed.dtype == np.uint8
 
-@pytest.mark.parametrize(
-    "image_type", [".jpg", ".webp"]
-)
-def test_image_compression_quality(image_type):
-    """Test that lower quality results in more compression artifacts."""
-    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-
-    # Compress with different qualities
-    high_quality = F.image_compression(image, 100, image_type)
-    low_quality = F.image_compression(image, 10, image_type)
-
-    # Lower quality should have more difference from original
-    high_diff = np.abs(image - high_quality).mean()
-    low_diff = np.abs(image - low_quality).mean()
-    assert low_diff > high_diff
-
 
 def test_image_compression_channel_consistency():
     """Test that compression maintains channel independence for extra channels."""
@@ -1083,7 +1067,7 @@ def test_image_compression_supported_shapes(image_type, quality, shape):
 @pytest.mark.parametrize(
     "image_type", [".jpg", ".webp"]
 )
-def test_image_compression_quality(image_type):
+def test_image_compression_quality_with_patterns(image_type):
     """Test that lower quality results in more compression artifacts."""
     # Create an image with high frequency patterns that are sensitive to compression
     x = np.linspace(0, 10, 100)
