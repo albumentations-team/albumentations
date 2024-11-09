@@ -44,7 +44,7 @@ class RandomJPEG(ImageCompression):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        jpeg_quality: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
+        jpeg_quality: Annotated[tuple[int, int], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
 
     def __init__(
         self,
