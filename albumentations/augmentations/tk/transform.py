@@ -3,15 +3,16 @@ from __future__ import annotations
 from typing import Annotated
 from warnings import warn
 
-from pydantic import AfterValidator
+import cv2
+from pydantic import AfterValidator, Field
 
-from albumentations.augmentations.geometric.transforms import HorizontalFlip, VerticalFlip
+from albumentations.augmentations.geometric.transforms import HorizontalFlip, Perspective, VerticalFlip
 from albumentations.augmentations.transforms import ImageCompression, ToGray
-from albumentations.core.pydantic import check_0plus, nondecreasing
+from albumentations.core.pydantic import InterpolationType, check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import Targets
+from albumentations.core.types import ColorType, Targets
 
-__all__ = ["RandomJPEG", "RandomHorizontalFlip", "RandomVerticalFlip", "RandomGrayscale"]
+__all__ = ["RandomJPEG", "RandomHorizontalFlip", "RandomVerticalFlip", "RandomGrayscale", "RandomPerspective"]
 
 
 class RandomJPEG(ImageCompression):
@@ -66,7 +67,6 @@ class RandomJPEG(ImageCompression):
         super().__init__(
             quality_range=jpeg_quality,
             compression_type="jpeg",
-            always_apply=always_apply,
             p=p,
         )
         self.jpeg_quality = jpeg_quality
@@ -96,8 +96,8 @@ class RandomHorizontalFlip(HorizontalFlip):
 
     Note:
         This is a direct alias for albumentations.HorizontalFlip transform.
-        It is provided to make migration from torchvision and Kornia easier by
-        maintaining API compatibility.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
 
     Example:
         >>> transform = A.RandomHorizontalFlip(p=0.5)
@@ -149,8 +149,8 @@ class RandomVerticalFlip(VerticalFlip):
 
     Note:
         This is a direct alias for albumentations.VerticalFlip transform.
-        It is provided to make migration from torchvision and Kornia easier by
-        maintaining API compatibility.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
 
     Example:
         >>> transform = A.RandomVerticalFlip(p=0.5)
@@ -178,7 +178,7 @@ class RandomVerticalFlip(VerticalFlip):
             UserWarning,
             stacklevel=2,
         )
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
 
 class RandomGrayscale(ToGray):
@@ -205,8 +205,8 @@ class RandomGrayscale(ToGray):
 
     Note:
         This is a direct alias for albumentations.ToGray transform with method="weighted_average".
-        It is provided to make migration from torchvision and Kornia easier by
-        maintaining API compatibility.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
 
         For more flexibility, consider using albumentations.ToGray directly, which supports:
         - Multiple grayscale conversion methods ("weighted_average", "from_lab", "desaturation", etc.)
@@ -243,7 +243,88 @@ class RandomGrayscale(ToGray):
             UserWarning,
             stacklevel=2,
         )
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
+
+
+class RandomPerspective(Perspective):
+    """Perform a random perspective transformation with a given probability.
+
+    This transform is an alias for Perspective, provided for compatibility with
+    torchvision and Kornia APIs. For new code, it is recommended to use
+    albumentations.Perspective directly.
+
+    Args:
+        distortion_scale (float): argument to control the degree of distortion.
+            Range: [0, 1]. Default: 0.5.
+        interpolation (int): interpolation method. Default: cv2.INTER_LINEAR.
+        fill (int | float | list[int] | list[float]): padding value if border_mode is cv2.BORDER_CONSTANT.
+            Default: 0.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask, keypoints, bboxes
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This is a direct alias for albumentations.Perspective transform.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
+
+        For more flexibility, consider using albumentations.Perspective directly, which supports:
+        - Additional border modes
+        - Different interpolation methods
+        - Different fill values
+        - Fill value for mask
+        - Different interpolation methods for mask
+        - Scale and aspect ratio adjustments
+        - Fit output options
+
+    Example:
+        >>> transform = A.RandomPerspective(distortion_scale=0.5, p=0.5)
+        >>> # Consider using instead:
+        >>> transform = A.Perspective(scale=(0.05, 0.5), p=0.5)
+
+    References:
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomPerspective.html
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomPerspective
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        distortion_scale: float = Field(ge=0, le=1)
+        fill: ColorType
+        interpolation: InterpolationType
+
+    def __init__(
+        self,
+        distortion_scale: float = 0.5,
+        interpolation: int = cv2.INTER_LINEAR,
+        fill: ColorType = 0,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomPerspective is an alias for Perspective transform. "
+            "Consider using Perspective directly from albumentations.Perspective.",
+            UserWarning,
+            stacklevel=2,
+        )
+        # Convert distortion_scale to scale range expected by Perspective
+        super().__init__(
+            scale=(distortion_scale, distortion_scale),
+            interpolation=interpolation,
+            pad_val=fill,
+            p=p,
+        )
+        self.distortion_scale = distortion_scale
+        self.interpolation = interpolation
+        self.fill = fill
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "distortion_scale", "interpolation", "fill"
