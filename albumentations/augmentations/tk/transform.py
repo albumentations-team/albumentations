@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 from typing import Annotated
 from warnings import warn
 
 from pydantic import AfterValidator
 
+from albumentations.augmentations.geometric.transforms import HorizontalFlip
 from albumentations.augmentations.transforms import ImageCompression
 from albumentations.core.pydantic import check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
+from albumentations.core.types import Targets
 
-__all__ = ["RandomJPEG"]
+__all__ = ["RandomJPEG", "RandomHorizontalFlip"]
 
 
 class RandomJPEG(ImageCompression):
@@ -69,3 +73,56 @@ class RandomJPEG(ImageCompression):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("jpeg_quality",)
+
+
+class RandomHorizontalFlip(HorizontalFlip):
+    """Horizontally flip the input randomly with a given probability.
+
+    This transform is an alias for HorizontalFlip, provided for compatibility with
+    torchvision and Kornia APIs. For new code, it is recommended to use
+    albumentations.HorizontalFlip directly.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        This is a direct alias for albumentations.HorizontalFlip transform.
+        It is provided to make migration from torchvision and Kornia easier by
+        maintaining API compatibility.
+
+    Example:
+        >>> transform = A.RandomHorizontalFlip(p=0.5)
+        >>> # Consider using instead:
+        >>> transform = A.HorizontalFlip(p=0.5)
+
+    References:
+        - torchvision: https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomHorizontalFlip
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomHorizontalFlip
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
+    def __init__(
+        self,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomHorizontalFlip is an alias for HorizontalFlip transform. "
+            "Consider using HorizontalFlip directly from albumentations.HorizontalFlip. ",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(p=p, always_apply=always_apply)
