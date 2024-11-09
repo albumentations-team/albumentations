@@ -260,7 +260,7 @@ class RandomPerspective(Perspective):
         distortion_scale (float): argument to control the degree of distortion.
             Range: [0, 1]. Default: 0.5.
         interpolation (int): interpolation method. Default: cv2.INTER_LINEAR.
-        fill_value (int | float | list[int] | list[float]): padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill (int | float | list[int] | list[float]): padding value if border_mode is cv2.BORDER_CONSTANT.
             Default: 0.
         p (float): probability of applying the transform. Default: 0.5.
 
@@ -298,14 +298,14 @@ class RandomPerspective(Perspective):
 
     class InitSchema(BaseTransformInitSchema):
         distortion_scale: float = Field(ge=0, le=1)
-        fill_value: ColorType
+        fill: ColorType
         interpolation: InterpolationType
 
     def __init__(
         self,
         distortion_scale: float = 0.5,
         interpolation: int = cv2.INTER_LINEAR,
-        fill_value: ColorType = 0,
+        fill: ColorType = 0,
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
@@ -319,12 +319,12 @@ class RandomPerspective(Perspective):
         super().__init__(
             scale=(distortion_scale, distortion_scale),
             interpolation=interpolation,
-            pad_val=fill_value,
+            pad_val=fill,
             p=p,
         )
         self.distortion_scale = distortion_scale
         self.interpolation = interpolation
-        self.fill_value = fill_value
+        self.fill = fill
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "distortion_scale", "interpolation", "fill_value"
+        return "distortion_scale", "interpolation", "fill"
