@@ -6,12 +6,12 @@ from warnings import warn
 from pydantic import AfterValidator
 
 from albumentations.augmentations.geometric.transforms import HorizontalFlip, VerticalFlip
-from albumentations.augmentations.transforms import ImageCompression
+from albumentations.augmentations.transforms import ImageCompression, ToGray
 from albumentations.core.pydantic import check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import Targets
 
-__all__ = ["RandomJPEG", "RandomHorizontalFlip", "RandomVerticalFlip"]
+__all__ = ["RandomJPEG", "RandomHorizontalFlip", "RandomVerticalFlip", "RandomGrayscale"]
 
 
 class RandomJPEG(ImageCompression):
@@ -105,7 +105,7 @@ class RandomHorizontalFlip(HorizontalFlip):
         >>> transform = A.HorizontalFlip(p=0.5)
 
     References:
-        - torchvision: https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomHorizontalFlip
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomHorizontalFlip.html
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomHorizontalFlip
     """
 
@@ -158,7 +158,7 @@ class RandomVerticalFlip(VerticalFlip):
         >>> transform = A.VerticalFlip(p=0.5)
 
     References:
-        - torchvision: https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomVerticalFlip
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomVerticalFlip.html
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomVerticalFlip
     """
 
@@ -179,3 +179,71 @@ class RandomVerticalFlip(VerticalFlip):
             stacklevel=2,
         )
         super().__init__(p=p, always_apply=always_apply)
+
+
+class RandomGrayscale(ToGray):
+    """Randomly convert the input image to grayscale with a given probability.
+
+    This transform is an alias for ToGray, provided for compatibility with
+    torchvision and Kornia APIs. For new code, it is recommended to use
+    albumentations.ToGray directly.
+
+    Uses ITU-R 601-2 luma transform: grayscale = 0.299R + 0.587G + 0.114B
+    (same as torchvision.transforms.RandomGrayscale).
+
+    Args:
+        p (float): probability that image should be converted to grayscale. Default: 0.1.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        3
+
+    Note:
+        This is a direct alias for albumentations.ToGray transform with method="weighted_average".
+        It is provided to make migration from torchvision and Kornia easier by
+        maintaining API compatibility.
+
+        For more flexibility, consider using albumentations.ToGray directly, which supports:
+        - Multiple grayscale conversion methods ("weighted_average", "from_lab", "desaturation", etc.)
+        - Some methods that work with any number of channels ("desaturation", "average", "max", "pca")
+        - Different perceptual and performance trade-offs
+
+        This transform specifically:
+        - If input image is 3 channel: grayscale version is 3 channel with r == g == b
+        - Unlike torchvision, single-channel inputs are not supported
+        - Uses the same ITU-R 601-2 weights (0.299, 0.587, 0.114) as torchvision
+
+    Example:
+        >>> transform = A.RandomGrayscale(p=0.1)
+        >>> # Consider using instead:
+        >>> transform = A.ToGray(p=0.1, method="weighted_average")
+
+    References:
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomGrayscale.html
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomGrayscale
+        - ITU-R BT.601: https://en.wikipedia.org/wiki/Rec._601
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
+    def __init__(
+        self,
+        p: float = 0.1,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomGrayscale is an alias for ToGray transform. "
+            "Consider using ToGray directly from albumentations.ToGray.",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(p=p, always_apply=always_apply)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ()

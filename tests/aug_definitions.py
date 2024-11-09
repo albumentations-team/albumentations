@@ -385,4 +385,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomJPEG, {"jpeg_quality": (50, 50)}],
     [A.RandomHorizontalFlip, {}],
     [A.RandomVerticalFlip, {}],
+    [A.RandomGrayscale, {}],
 ]
