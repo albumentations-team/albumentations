@@ -95,6 +95,7 @@ class RandomHorizontalFlip(HorizontalFlip):
         Any
 
     Note:
+        This is a direct alias for albumentations.HorizontalFlip transform.
         It is provided for compatibility with torchvision and Kornia APIs to make
         it easier to use Albumentations alongside these libraries.
 
@@ -147,6 +148,7 @@ class RandomVerticalFlip(VerticalFlip):
         Any
 
     Note:
+        This is a direct alias for albumentations.VerticalFlip transform.
         It is provided for compatibility with torchvision and Kornia APIs to make
         it easier to use Albumentations alongside these libraries.
 
