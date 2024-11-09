@@ -95,9 +95,8 @@ class RandomHorizontalFlip(HorizontalFlip):
         Any
 
     Note:
-        This is a direct alias for albumentations.HorizontalFlip transform.
-        It is provided to make migration from torchvision and Kornia easier by
-        maintaining API compatibility.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
 
     Example:
         >>> transform = A.RandomHorizontalFlip(p=0.5)
@@ -148,9 +147,8 @@ class RandomVerticalFlip(VerticalFlip):
         Any
 
     Note:
-        This is a direct alias for albumentations.VerticalFlip transform.
-        It is provided to make migration from torchvision and Kornia easier by
-        maintaining API compatibility.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
 
     Example:
         >>> transform = A.RandomVerticalFlip(p=0.5)
