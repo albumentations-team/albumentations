@@ -405,8 +405,8 @@ class RandomAffine(Affine):
     class InitSchema(BaseTransformInitSchema):
         degrees: ScaleFloatType
         translate: tuple[float, float]
-        scale: ScaleFloatType | dict[str, tuple[float, float]]
-        shear: ScaleFloatType | dict[str, tuple[float, float]] | tuple[float, float, float, float]
+        scale: ScaleFloatType | fgeometric.XYFloatDict
+        shear: ScaleFloatType | fgeometric.XYFloatDict | tuple[float, float, float, float]
         interpolation: InterpolationType
         fill: ColorType
 
@@ -414,8 +414,8 @@ class RandomAffine(Affine):
         @classmethod
         def process_shear(
             cls,
-            value: ScaleFloatType | dict[str, tuple[float, float]] | tuple[float, float, float, float],
-        ) -> dict[str, tuple[float, float]]:
+            value: ScaleFloatType | fgeometric.XYFloatDict | tuple[float, float, float, float],
+        ) -> fgeometric.XYFloatDict:
             """Convert shear parameter to internal format."""
             if isinstance(value, Number):
                 return {"x": (-value, value), "y": (-value, value)}
@@ -432,7 +432,7 @@ class RandomAffine(Affine):
         degrees: float | tuple[float, float] = 0,
         translate: tuple[float, float] = (0, 0),
         scale: tuple[float, float] = (1, 1),
-        shear: float | tuple[float, float] | tuple[float, float, float, float] | dict[str, tuple[float, float]] = 0,
+        shear: float | tuple[float, float] | tuple[float, float, float, float] | fgeometric.XYFloatDict = 0,
         interpolation: int = cv2.INTER_LINEAR,
         fill: ColorType = 0,
         p: float = 1.0,
@@ -448,9 +448,9 @@ class RandomAffine(Affine):
         self.degrees = degrees
         self.translate = translate
         self.fill = fill
-        self.shear = shear
+        self.shear = shear  # type: ignore[assignment]
         self.interpolation = interpolation
-        self.scale = scale
+        self.scale = scale  # type: ignore[assignment]
 
         # Convert torchvision parameters to Albumentations format
         rotate = (-degrees, degrees) if isinstance(degrees, (int, float)) else degrees
