@@ -263,6 +263,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [RandomPerspective](https://explore.albumentations.ai/transform/RandomPerspective)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomResizedCrop](https://explore.albumentations.ai/transform/RandomResizedCrop)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomRotate90](https://explore.albumentations.ai/transform/RandomRotate90)                     | ✓     | ✓    | ✓      | ✓         |
+| [RandomRotation](https://explore.albumentations.ai/transform/RandomRotation)                     | ✓     | ✓    | ✓      | ✓         |
 | [RandomScale](https://explore.albumentations.ai/transform/RandomScale)                           | ✓     | ✓    | ✓      | ✓         |
 | [RandomSizedBBoxSafeCrop](https://explore.albumentations.ai/transform/RandomSizedBBoxSafeCrop)   | ✓     | ✓    | ✓      | ✓         |
 | [RandomSizedCrop](https://explore.albumentations.ai/transform/RandomSizedCrop)                   | ✓     | ✓    | ✓      | ✓         |
