@@ -1956,6 +1956,9 @@ class Pad(DualTransform):
 
     Image types:
         uint8, float32
+
+    References:
+        - https://pytorch.org/vision/main/generated/torchvision.transforms.v2.Pad.html
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
