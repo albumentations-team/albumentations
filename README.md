@@ -254,6 +254,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Perspective](https://explore.albumentations.ai/transform/Perspective)                           | ✓     | ✓    | ✓      | ✓         |
 | [PiecewiseAffine](https://explore.albumentations.ai/transform/PiecewiseAffine)                   | ✓     | ✓    | ✓      | ✓         |
 | [PixelDropout](https://explore.albumentations.ai/transform/PixelDropout)                         | ✓     | ✓    | ✓      | ✓         |
+| [RandomAffine](https://explore.albumentations.ai/transform/RandomAffine)                         | ✓     | ✓    | ✓      | ✓         |
 | [RandomCrop](https://explore.albumentations.ai/transform/RandomCrop)                             | ✓     | ✓    | ✓      | ✓         |
 | [RandomCropFromBorders](https://explore.albumentations.ai/transform/RandomCropFromBorders)       | ✓     | ✓    | ✓      | ✓         |
 | [RandomGridShuffle](https://explore.albumentations.ai/transform/RandomGridShuffle)               | ✓     | ✓    | ✓      | ✓         |

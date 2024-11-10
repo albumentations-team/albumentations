@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast, overload
 import numpy as np
 
 from .serialization import Serializable
-from .types import PAIR, ScalarType, ScaleFloatType, ScaleIntType, ScaleType
+from .types import PAIR, Number, ScaleFloatType, ScaleIntType, ScaleType
 
 if TYPE_CHECKING:
     import torch
@@ -48,8 +48,8 @@ def custom_sort(item: Any) -> tuple[int, Real | str]:
 
 class LabelEncoder:
     def __init__(self) -> None:
-        self.classes_: dict[str | int | float, int] = {}
-        self.inverse_classes_: dict[int, str | int | float] = {}
+        self.classes_: dict[str | Real, int] = {}
+        self.inverse_classes_: dict[int, str | Real] = {}
         self.num_classes: int = 0
         self.is_numerical: bool = True
 
@@ -293,31 +293,31 @@ class DataProcessor(ABC):
         raise ValueError(f"Label encoder for {label_field} not found")
 
 
-def validate_args(low: ScaleType | None, bias: ScalarType | None) -> None:
+def validate_args(low: ScaleType | None, bias: Number | None) -> None:
     if low is not None and bias is not None:
         raise ValueError("Arguments 'low' and 'bias' cannot be used together.")
 
 
-def process_sequence(param: Sequence[ScalarType]) -> tuple[ScalarType, ScalarType]:
+def process_sequence(param: Sequence[Number]) -> tuple[Number, Number]:
     if len(param) != PAIR:
         raise ValueError("Sequence must contain exactly 2 elements.")
     return min(param), max(param)
 
 
-def process_scalar(param: ScalarType, low: ScalarType | None) -> tuple[ScalarType, ScalarType]:
+def process_scalar(param: Number, low: Number | None) -> tuple[Number, Number]:
     if isinstance(low, Real):
         return (low, param) if low < param else (param, low)
     return -param, param
 
 
-def apply_bias(min_val: ScalarType, max_val: ScalarType, bias: ScalarType) -> tuple[ScalarType, ScalarType]:
+def apply_bias(min_val: Number, max_val: Number, bias: Number) -> tuple[Number, Number]:
     return bias + min_val, bias + max_val
 
 
 def ensure_int_output(
-    min_val: ScalarType,
-    max_val: ScalarType,
-    param: ScalarType,
+    min_val: Number,
+    max_val: Number,
+    param: Number,
 ) -> tuple[int, int] | tuple[float, float]:
     return (int(min_val), int(max_val)) if isinstance(param, int) else (float(min_val), float(max_val))
 
@@ -331,21 +331,21 @@ def ensure_contiguous_output(arg: np.ndarray | Sequence[np.ndarray]) -> np.ndarr
 
 
 @overload
-def to_tuple(param: ScaleIntType, low: ScaleType | None = None, bias: ScalarType | None = None) -> tuple[int, int]: ...
+def to_tuple(param: ScaleIntType, low: ScaleType | None = None, bias: Number | None = None) -> tuple[int, int]: ...
 
 
 @overload
 def to_tuple(
     param: ScaleFloatType,
     low: ScaleType | None = None,
-    bias: ScalarType | None = None,
+    bias: Number | None = None,
 ) -> tuple[float, float]: ...
 
 
 def to_tuple(
     param: ScaleType,
     low: ScaleType | None = None,
-    bias: ScalarType | None = None,
+    bias: Number | None = None,
 ) -> tuple[int, int] | tuple[float, float]:
     """Convert input argument to a min-max tuple.
 
@@ -395,7 +395,7 @@ def to_tuple(
     if isinstance(param, Sequence):
         min_val, max_val = process_sequence(param)
     elif isinstance(param, Real):
-        min_val, max_val = process_scalar(param, cast(ScalarType, low))
+        min_val, max_val = process_scalar(param, cast(Real, low))
     else:
         raise TypeError("Argument 'param' must be either a scalar or a sequence of 2 elements.")
 

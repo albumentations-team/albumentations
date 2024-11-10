@@ -25,9 +25,9 @@ from albumentations.core.types import (
     ColorType,
     D4Type,
     PositionType,
-    ScalarType,
     ScaleFloatType,
     ScaleIntType,
+    ScaleType,
     Targets,
     d4_group_elements,
 )
@@ -234,8 +234,8 @@ class ElasticTransform(BaseDistortion):
         sigma: float = 50,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ScalarType | list[ScalarType] | None = None,
-        mask_value: ScalarType | list[ScalarType] | None = None,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
         always_apply: bool | None = None,
         approximate: bool = False,
         same_dxdy: bool = False,
@@ -590,11 +590,11 @@ class Affine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: ScaleFloatType | dict[str, Any] | None
-        translate_percent: ScaleFloatType | dict[str, Any] | None
-        translate_px: ScaleIntType | dict[str, Any] | None
-        rotate: ScaleFloatType | None
-        shear: ScaleFloatType | dict[str, Any] | None
+        scale: ScaleFloatType | fgeometric.XYFloatScale
+        translate_percent: ScaleFloatType | fgeometric.XYFloatScale | None
+        translate_px: ScaleIntType | fgeometric.XYIntScale | None
+        rotate: ScaleFloatType
+        shear: ScaleFloatType | fgeometric.XYFloatScale
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
 
@@ -606,13 +606,67 @@ class Affine(DualTransform):
         rotate_method: Literal["largest_box", "ellipse"]
         balanced_scale: bool
 
+        @field_validator("shear", "scale")
+        @classmethod
+        def process_shear(
+            cls,
+            value: ScaleFloatType | fgeometric.XYFloatScale,
+            info: ValidationInfo,
+        ) -> fgeometric.XYFloatDict:
+            return cast(fgeometric.XYFloatDict, cls._handle_dict_arg(value, info.field_name))
+
+        @field_validator("rotate")
+        @classmethod
+        def process_rotate(
+            cls,
+            value: ScaleFloatType,
+        ) -> tuple[float, float]:
+            return to_tuple(value, value)
+
+        @model_validator(mode="after")
+        def handle_translate(self) -> Self:
+            if self.translate_percent is None and self.translate_px is None:
+                self.translate_px = 0
+
+            if self.translate_percent is not None and self.translate_px is not None:
+                msg = "Expected either translate_percent or translate_px to be provided, but both were provided."
+                raise ValueError(msg)
+
+            if self.translate_percent is not None:
+                self.translate_percent = self._handle_dict_arg(
+                    self.translate_percent,
+                    "translate_percent",
+                    default=0.0,
+                )  # type: ignore[assignment]
+
+            if self.translate_px is not None:
+                self.translate_px = self._handle_dict_arg(self.translate_px, "translate_px", default=0)  # type: ignore[assignment]
+
+            return self
+
+        @staticmethod
+        def _handle_dict_arg(
+            val: ScaleType | fgeometric.XYFloatScale | fgeometric.XYIntScale,
+            name: str | None,
+            default: float = 1.0,
+        ) -> dict[str, Any]:
+            if isinstance(val, dict):
+                if "x" not in val and "y" not in val:
+                    raise ValueError(
+                        f'Expected {name} dictionary to contain at least key "x" or key "y". Found neither of them.',
+                    )
+                x = val.get("x", default)
+                y = val.get("y", default)
+                return {"x": to_tuple(x, x), "y": to_tuple(y, y)}  # type: ignore[arg-type]
+            return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
+
     def __init__(
         self,
-        scale: ScaleFloatType | dict[str, Any] | None = None,
-        translate_percent: ScaleFloatType | dict[str, Any] | None = None,
-        translate_px: ScaleIntType | dict[str, Any] | None = None,
-        rotate: ScaleFloatType | None = None,
-        shear: ScaleFloatType | dict[str, Any] | None = None,
+        scale: ScaleFloatType | fgeometric.XYFloatScale = 1,
+        translate_percent: ScaleFloatType | fgeometric.XYFloatScale | None = None,
+        translate_px: ScaleIntType | fgeometric.XYIntScale | None = None,
+        rotate: ScaleFloatType = 0,
+        shear: ScaleFloatType | fgeometric.XYFloatScale = 0,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: ColorType = 0,
@@ -627,27 +681,17 @@ class Affine(DualTransform):
     ):
         super().__init__(p=p, always_apply=always_apply)
 
-        params = [scale, translate_percent, translate_px, rotate, shear]
-        if all(p is None for p in params):
-            scale = {"x": (0.9, 1.1), "y": (0.9, 1.1)}
-            translate_percent = {"x": (-0.1, 0.1), "y": (-0.1, 0.1)}
-            rotate = (-15, 15)
-            shear = {"x": (-10, 10), "y": (-10, 10)}
-        else:
-            scale = scale if scale is not None else 1.0
-            rotate = rotate if rotate is not None else 0.0
-            shear = shear if shear is not None else 0.0
-
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
         self.cval = cval
         self.cval_mask = cval_mask
         self.mode = mode
-        self.scale = self._handle_dict_arg(scale, "scale")
-        self.translate_percent, self.translate_px = self._handle_translate_arg(translate_px, translate_percent)
-        self.rotate = to_tuple(rotate, rotate)
+        self.scale = cast(fgeometric.XYFloatDict, scale)
+        self.translate_percent = cast(fgeometric.XYFloatDict, translate_percent)
+        self.translate_px = cast(fgeometric.XYIntDict, translate_px)
+        self.rotate = cast(tuple[float, float], rotate)
         self.fit_output = fit_output
-        self.shear = self._handle_dict_arg(shear, "shear")
+        self.shear = cast(fgeometric.XYFloatDict, shear)
         self.keep_ratio = keep_ratio
         self.rotate_method = rotate_method
         self.balanced_scale = balanced_scale
@@ -672,45 +716,6 @@ class Affine(DualTransform):
             "rotate_method",
             "balanced_scale",
         )
-
-    @staticmethod
-    def _handle_dict_arg(
-        val: float | tuple[float, float] | dict[str, Any],
-        name: str,
-        default: float = 1.0,
-    ) -> dict[str, Any]:
-        if isinstance(val, dict):
-            if "x" not in val and "y" not in val:
-                raise ValueError(
-                    f'Expected {name} dictionary to contain at least key "x" or key "y". Found neither of them.',
-                )
-            x = val.get("x", default)
-            y = val.get("y", default)
-            return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
-        return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
-
-    @classmethod
-    def _handle_translate_arg(
-        cls,
-        translate_px: ScaleFloatType | dict[str, Any] | None,
-        translate_percent: ScaleFloatType | dict[str, Any] | None,
-    ) -> Any:
-        if translate_percent is None and translate_px is None:
-            translate_px = 0
-
-        if translate_percent is not None and translate_px is not None:
-            msg = "Expected either translate_percent or translate_px to be provided, but both were provided."
-            raise ValueError(msg)
-
-        if translate_percent is not None:
-            # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
-
-        if translate_px is None:
-            msg = "translate_px is None."
-            raise ValueError(msg)
-        # translate by pixels
-        return translate_percent, cls._handle_dict_arg(translate_px, "translate_px")
 
     def apply(
         self,
@@ -764,18 +769,18 @@ class Affine(DualTransform):
         self,
         keypoints: np.ndarray,
         matrix: np.ndarray,
-        scale: dict[str, Any],
+        scale: fgeometric.XYFloat,
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.keypoints_affine(keypoints, matrix, params["shape"], scale, self.mode)
 
     @staticmethod
     def get_scale(
-        scale: dict[str, float | tuple[float, float]],
+        scale: fgeometric.XYFloatDict,
         keep_ratio: bool,
         balanced_scale: bool,
         random_state: random.Random,
-    ) -> fgeometric.ScaleDict:
+    ) -> fgeometric.XYFloat:
         result_scale = {}
         for key, value in scale.items():
             if isinstance(value, (int, float)):
@@ -806,7 +811,7 @@ class Affine(DualTransform):
         if keep_ratio:
             result_scale["y"] = result_scale["x"]
 
-        return cast(fgeometric.ScaleDict, result_scale)
+        return cast(fgeometric.XYFloat, result_scale)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
@@ -836,20 +841,23 @@ class Affine(DualTransform):
             "output_shape": output_shape,
         }
 
-    def _get_translate_params(self, image_shape: tuple[int, int]) -> fgeometric.TranslateDict:
+    def _get_translate_params(self, image_shape: tuple[int, int]) -> fgeometric.XYInt:
         height, width = image_shape[:2]
         if self.translate_px is not None:
-            return cast(
-                fgeometric.TranslateDict,
-                {key: self.py_random.randint(*value) for key, value in self.translate_px.items()},
-            )
+            return {
+                "x": self.py_random.randint(*self.translate_px["x"]),
+                "y": self.py_random.randint(*self.translate_px["y"]),
+            }
         if self.translate_percent is not None:
             translate = {key: self.py_random.uniform(*value) for key, value in self.translate_percent.items()}
-            return cast(fgeometric.TranslateDict, {"x": translate["x"] * width, "y": translate["y"] * height})
-        return cast(fgeometric.TranslateDict, {"x": 0, "y": 0})
+            return cast(fgeometric.XYInt, {"x": int(translate["x"] * width), "y": int(translate["y"] * height)})
+        return cast(fgeometric.XYInt, {"x": 0, "y": 0})
 
-    def _get_shear_params(self) -> fgeometric.ShearDict:
-        return cast(fgeometric.ShearDict, {key: -self.py_random.uniform(*value) for key, value in self.shear.items()})
+    def _get_shear_params(self) -> fgeometric.XYFloat:
+        return {
+            "x": -self.py_random.uniform(*self.shear["x"]),
+            "y": -self.py_random.uniform(*self.shear["y"]),
+        }
 
 
 class ShiftScaleRotate(Affine):
@@ -946,6 +954,8 @@ class ShiftScaleRotate(Affine):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
+        shift_limit_x = cast(tuple[float, float], shift_limit_x)
+        shift_limit_y = cast(tuple[float, float], shift_limit_y)
         super().__init__(
             scale=scale_limit,
             translate_percent={"x": shift_limit_x, "y": shift_limit_y},
@@ -967,8 +977,9 @@ class ShiftScaleRotate(Affine):
             DeprecationWarning,
             stacklevel=2,
         )
-        self.shift_limit_x = cast(tuple[float, float], shift_limit_x)
-        self.shift_limit_y = cast(tuple[float, float], shift_limit_y)
+        self.shift_limit_x = shift_limit_x
+        self.shift_limit_y = shift_limit_y
+
         self.scale_limit = cast(tuple[float, float], scale_limit)
         self.rotate_limit = cast(tuple[int, int], rotate_limit)
         self.border_mode = border_mode

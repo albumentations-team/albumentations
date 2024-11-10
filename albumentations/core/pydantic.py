@@ -6,7 +6,7 @@ import cv2
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 
-from albumentations.core.types import NumericType, ScalarType, ScaleFloatType, ScaleIntType, ScaleType
+from albumentations.core.types import Number, ScaleFloatType, ScaleIntType, ScaleType
 from albumentations.core.utils import to_tuple
 
 valid_interpolations = {
@@ -46,7 +46,7 @@ def check_valid_border_modes(value: int) -> int:
     return value
 
 
-def nondecreasing(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
+def nondecreasing(value: tuple[Number, Number]) -> tuple[Number, Number]:
     if not value[0] <= value[1]:
         raise ValueError(f"First value should be less than the second value, got {value} instead")
     return value
@@ -96,13 +96,13 @@ def convert_to_1plus_range(value: ScaleType) -> tuple[float, float]:
     return to_tuple(value, low=1)
 
 
-def check_1plus(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
+def check_1plus(value: tuple[Number, Number]) -> tuple[Number, Number]:
     if any(x < 1 for x in value):
         raise ValueError(f"All values should be >= 1, got {value} instead")
     return value
 
 
-def check_0plus(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
+def check_0plus(value: tuple[Number, Number]) -> tuple[Number, Number]:
     if any(x < 0 for x in value):
         raise ValueError(f"All values should be >= 0, got {value} instead")
     return value
@@ -117,7 +117,7 @@ OnePlusIntRangeType = Annotated[
 ]
 
 OnePlusIntNonDecreasingRangeType = Annotated[
-    tuple[ScalarType, ScalarType],
+    tuple[Number, Number],
     AfterValidator(check_1plus),
     AfterValidator(nondecreasing),
     AfterValidator(float2int),
@@ -128,8 +128,8 @@ def convert_to_0plus_range(value: ScaleType) -> tuple[float, float]:
     return to_tuple(value, low=0)
 
 
-def check_01(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
-    if not all(0 <= x <= 1 for x in value):
+def check_01(value: tuple[Number, Number]) -> tuple[Number, Number]:
+    if not all(0.0 <= x <= 1.0 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
     return value
 

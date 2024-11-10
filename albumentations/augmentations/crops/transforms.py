@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from numbers import Real
 from typing import Annotated, Any, cast
 from warnings import warn
 
@@ -26,10 +27,10 @@ from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
     PAIR,
     ColorType,
+    Number,
     PercentType,
     PositionType,
     PxType,
-    ScalarType,
     ScaleFloatType,
     ScaleIntType,
     Targets,
@@ -103,16 +104,16 @@ class BaseCropAndPad(BaseCrop):
     class InitSchema(BaseTransformInitSchema):
         pad_if_needed: bool
         pad_mode: BorderModeType
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType]
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType]
+        pad_cval: ColorType
+        pad_cval_mask: ColorType
         pad_position: PositionType
 
     def __init__(
         self,
         pad_if_needed: bool,
         pad_mode: int,
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType],
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType],
+        pad_cval: ColorType,
+        pad_cval_mask: ColorType,
         pad_position: PositionType,
         p: float,
         always_apply: bool | None = None,
@@ -281,8 +282,8 @@ class RandomCrop(BaseCropAndPad):
         width: int,
         pad_if_needed: bool = False,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
+        pad_cval: float | tuple[float, float] | list[float] = 0.0,
+        pad_cval_mask: float | tuple[float, float] | list[float] = 0.0,
         pad_position: PositionType = "center",
         p: float = 1.0,
         always_apply: bool | None = None,
@@ -395,8 +396,8 @@ class CenterCrop(BaseCropAndPad):
         width: int,
         pad_if_needed: bool = False,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
+        pad_cval: Number | tuple[Number, Number] | list[Number] = 0,
+        pad_cval_mask: Number | tuple[Number, Number] | list[Number] = 0,
         pad_position: PositionType = "center",
         p: float = 1.0,
         always_apply: bool | None = None,
@@ -523,8 +524,8 @@ class Crop(BaseCropAndPad):
         y_max: int = 1024,
         pad_if_needed: bool = False,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
+        pad_cval: Number | tuple[Number, Number] | list[Number] = 0,
+        pad_cval_mask: Number | tuple[Number, Number] | list[Number] = 0,
         pad_position: PositionType = "center",
         always_apply: bool | None = None,
         p: float = 1.0,
@@ -1543,8 +1544,8 @@ class CropAndPad(DualTransform):
         px: PxType | None
         percent: PercentType | None
         pad_mode: BorderModeType
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType]
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType]
+        pad_cval: float | tuple[float, float] | list[float]
+        pad_cval_mask: float | tuple[float, float] | list[float]
         keep_size: bool
         sample_independently: bool
         interpolation: InterpolationType
@@ -1565,8 +1566,8 @@ class CropAndPad(DualTransform):
         px: int | list[int] | None = None,
         percent: float | list[float] | None = None,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
-        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
+        pad_cval: float | tuple[float, float] | list[float] = 0.0,
+        pad_cval_mask: float | tuple[float, float] | list[float] = 0.0,
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
@@ -1774,19 +1775,21 @@ class CropAndPad(DualTransform):
 
     def _get_pad_value(
         self,
-        pad_value: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType],
-    ) -> ScalarType:
-        if isinstance(pad_value, (int, float)):
+        pad_value: ColorType,
+    ) -> int | float:
+        if isinstance(pad_value, (list, tuple)):
+            if len(pad_value) == PAIR:
+                a, b = pad_value
+                if isinstance(a, int) and isinstance(b, int):
+                    return self.py_random.randint(a, b)
+                return self.py_random.uniform(a, b)
+            return self.py_random.choice(pad_value)
+
+        if isinstance(pad_value, Real):
             return pad_value
 
-        if len(pad_value) == PAIR:
-            a, b = pad_value
-            if isinstance(a, int) and isinstance(b, int):
-                return self.py_random.randint(a, b)
-
-            return self.py_random.uniform(a, b)
-
-        return self.py_random.choice(pad_value)
+        msg = "pad_value should be a number or list, or tuple of two numbers."
+        raise ValueError(msg)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (

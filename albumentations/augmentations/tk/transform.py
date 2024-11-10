@@ -1,18 +1,27 @@
 from __future__ import annotations
 
-from typing import Annotated
+from numbers import Real
+from typing import Annotated, cast
 from warnings import warn
 
 import cv2
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, field_validator
 
-from albumentations.augmentations.geometric.transforms import HorizontalFlip, Perspective, VerticalFlip
+from albumentations.augmentations.geometric import functional as fgeometric
+from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
 from albumentations.augmentations.transforms import ImageCompression, ToGray
 from albumentations.core.pydantic import InterpolationType, check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import ColorType, Targets
+from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
 
-__all__ = ["RandomJPEG", "RandomHorizontalFlip", "RandomVerticalFlip", "RandomGrayscale", "RandomPerspective"]
+__all__ = [
+    "RandomJPEG",
+    "RandomHorizontalFlip",
+    "RandomVerticalFlip",
+    "RandomGrayscale",
+    "RandomPerspective",
+    "RandomAffine",
+]
 
 
 class RandomJPEG(ImageCompression):
@@ -328,3 +337,134 @@ class RandomPerspective(Perspective):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "distortion_scale", "interpolation", "fill"
+
+
+class RandomAffine(Affine):
+    """Perform a random affine transformation with center invariance.
+
+    This transform is an alias for Affine, provided for compatibility with
+    torchvision and Kornia APIs. For new code, it is recommended to use
+    albumentations.Affine directly.
+
+    Args:
+        degrees (float | tuple[float, float]): Range of degrees to select from.
+            If degrees is a single number, the range will be (-degrees, +degrees).
+            Set to None to deactivate rotations. Default: 0.
+        translate (tuple[float, float]): Tuple of maximum absolute fraction for horizontal
+            and vertical translations (dx, dy). For example (0.3, 0.3) means translation is randomly
+            sampled from (-0.3 * width, 0.3 * width) and (-0.3 * height, 0.3 * height).
+            Default: (0, 0).
+        scale (tuple[float, float]): Scaling factor interval, e.g (0.8, 1.2).
+            Scale is randomly sampled from the range. Default: (1, 1).
+        shear (float | tuple[float, float] | tuple[float, float, float, float]):
+            Range of degrees for shear transformation. If a single number, shear parallel
+            to x axis in range (-shear, +shear). If 2 values, x-axis shear in (shear[0], shear[1]).
+            If 4 values, x-axis and y-axis shear in (shear[0], shear[1]) and (shear[2], shear[3]).
+            Default: 0.
+        interpolation (int): interpolation method. Default: cv2.INTER_LINEAR.
+        fill (int | float | list[int] | list[float]): padding value if border_mode is cv2.BORDER_CONSTANT.
+            Default: 0.
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, keypoints, bboxes
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform is implemented as a subset of Affine with fixed parameters:
+        - No scale per axis
+        - No additional transform parameters
+
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
+
+        For more flexibility, consider using albumentations.Affine directly, which supports:
+        - Additional border modes
+        - Different interpolation methods
+        - Independent control of each transformation parameter
+        - Scale per axis
+        - Additional transform parameters
+        - Mask fill value
+        - Different interpolation methods for mask
+        - Different padding modes
+
+    Example:
+        >>> transform = A.RandomAffine(degrees=30, translate=(0.1, 0.1), scale=(0.9, 1.1))
+        >>> # Consider using instead:
+        >>> transform = A.Affine(rotate=(-30, 30), translate_percent=(-0.1, 0.1), scale=(0.9, 1.1))
+
+    References:
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomAffine.html
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomAffine
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        degrees: ScaleFloatType
+        translate: tuple[float, float]
+        scale: tuple[float, float] | fgeometric.XYFloatDict
+        shear: ScaleFloatType | tuple[float, float, float, float] | fgeometric.XYFloatDict
+        interpolation: InterpolationType
+        fill: ColorType
+
+        @field_validator("shear", mode="after")
+        @classmethod
+        def process_shear(
+            cls,
+            value: ScaleFloatType | tuple[float, float, float, float],
+        ) -> fgeometric.XYFloatDict:
+            """Convert shear parameter to internal format."""
+            if isinstance(value, Real):
+                return {"x": (-value, value), "y": (-value, value)}
+            if isinstance(value, (tuple, list)):
+                if len(value) == PAIR:
+                    return {"x": (-value[0], value[1]), "y": (-value[0], value[1])}
+                return {"x": (value[0], value[1]), "y": (value[2], value[3])}  # type: ignore[misc]
+            if isinstance(value, dict):
+                return value
+            raise TypeError(f"Invalid shear value: {value}")
+
+    def __init__(
+        self,
+        degrees: float | tuple[float, float] = 0,
+        translate: tuple[float, float] = (0, 0),
+        scale: tuple[float, float] | fgeometric.XYFloatDict = (1, 1),
+        shear: float | tuple[float, float] | tuple[float, float, float, float] | fgeometric.XYFloatDict = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        fill: ColorType = 0,
+        p: float = 1.0,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomAffine is an alias for Affine transform. "
+            "Consider using Affine directly from albumentations.Affine.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        self.degrees = degrees
+        self.translate = translate
+        self.fill = fill
+        self.shear = cast(fgeometric.XYFloatDict, shear)
+        self.interpolation = interpolation
+        self.scale = cast(fgeometric.XYFloatDict, scale)
+
+        # Convert torchvision parameters to Albumentations format
+        rotate = (-degrees, degrees) if isinstance(degrees, (int, float)) else degrees
+        translate_percent = {"x": (-translate[0], translate[0]), "y": (-translate[1], translate[1])}
+
+        super().__init__(
+            rotate=rotate,
+            translate_percent=cast(fgeometric.XYFloatScale, translate_percent),
+            scale=cast(fgeometric.XYFloatScale, scale),
+            shear=cast(fgeometric.XYFloatScale, shear),
+            interpolation=interpolation,
+            cval=fill,
+            p=p,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "degrees", "translate", "scale", "shear", "interpolation", "fill"
