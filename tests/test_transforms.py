@@ -1251,6 +1251,7 @@ def test_coarse_dropout_invalid_input(params):
             },
             A.RandomAffine: {"degrees": 10},
             A.Affine: {"rotate": 10},
+            A.Pad: {"padding": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1352,6 +1353,7 @@ def test_change_image(augmentation_cls, params):
             A.TextImage,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
+            A.Pad,
         },
     ),
 )

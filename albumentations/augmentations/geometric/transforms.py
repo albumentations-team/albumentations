@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from numbers import Real
 from typing import Annotated, Any, Literal, cast
 from warnings import warn
 
@@ -51,7 +52,11 @@ __all__ = [
     "D4",
     "GridElasticDeform",
     "RandomGridShuffle",
+    "Pad",
 ]
+
+NUM_PADS_XY = 2
+NUM_PADS_ALL_SIDES = 4
 
 
 class BaseDistortion(DualTransform):
@@ -1202,231 +1207,6 @@ class PiecewiseAffine(DualTransform):
         return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
 
 
-class PadIfNeeded(DualTransform):
-    """Pads the sides of an image if the image dimensions are less than the specified minimum dimensions.
-    If the `pad_height_divisor` or `pad_width_divisor` is specified, the function additionally ensures
-    that the image dimensions are divisible by these values.
-
-    Args:
-        min_height (int | None): Minimum desired height of the image. Ensures image height is at least this value.
-            If not specified, pad_height_divisor must be provided.
-        min_width (int | None): Minimum desired width of the image. Ensures image width is at least this value.
-            If not specified, pad_width_divisor must be provided.
-        pad_height_divisor (int | None): If set, pads the image height to make it divisible by this value.
-            If not specified, min_height must be provided.
-        pad_width_divisor (int | None): If set, pads the image width to make it divisible by this value.
-            If not specified, min_width must be provided.
-        position (Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]):
-            Position where the image is to be placed after padding. Default is 'center'.
-        border_mode (int): Specifies the border mode to use if padding is required.
-            The default is `cv2.BORDER_REFLECT_101`.
-        value (int, float, list[int], list[float] | None): Value to fill the border pixels if
-            the border mode is `cv2.BORDER_CONSTANT`. Default is None.
-        mask_value (int, float, list[int], list[float] | None): Similar to `value` but used for padding masks.
-            Default is None.
-        p (float): Probability of applying the transform. Default is 1.0.
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-
-    Note:
-        - Either `min_height` or `pad_height_divisor` must be set, but not both.
-        - Either `min_width` or `pad_width_divisor` must be set, but not both.
-        - If `border_mode` is set to `cv2.BORDER_CONSTANT`, `value` must be provided.
-        - The transform will maintain consistency across all targets (image, mask, bboxes, keypoints).
-        - For bounding boxes, the coordinates will be adjusted to account for the padding.
-        - For keypoints, their positions will be shifted according to the padding.
-
-    Example:
-        >>> import albumentations as A
-        >>> transform = A.Compose([
-        ...     A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=cv2.BORDER_CONSTANT, value=0),
-        ... ])
-        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
-        >>> padded_image = transformed['image']
-        >>> padded_mask = transformed['mask']
-        >>> adjusted_bboxes = transformed['bboxes']
-        >>> adjusted_keypoints = transformed['keypoints']
-    """
-
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
-    class InitSchema(BaseTransformInitSchema):
-        min_height: int | None = Field(ge=1)
-        min_width: int | None = Field(ge=1)
-        pad_height_divisor: int | None = Field(ge=1)
-        pad_width_divisor: int | None = Field(ge=1)
-        position: PositionType
-        border_mode: BorderModeType
-        value: ColorType | None
-        mask_value: ColorType | None
-
-        @model_validator(mode="after")
-        def validate_divisibility(self) -> Self:
-            if (self.min_height is None) == (self.pad_height_divisor is None):
-                msg = "Only one of 'min_height' and 'pad_height_divisor' parameters must be set"
-                raise ValueError(msg)
-            if (self.min_width is None) == (self.pad_width_divisor is None):
-                msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
-                raise ValueError(msg)
-
-            if self.border_mode == cv2.BORDER_CONSTANT and self.value is None:
-                msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'value' must be provided."
-                raise ValueError(msg)
-
-            return self
-
-    def __init__(
-        self,
-        min_height: int | None = 1024,
-        min_width: int | None = 1024,
-        pad_height_divisor: int | None = None,
-        pad_width_divisor: int | None = None,
-        position: PositionType = "center",
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
-        always_apply: bool | None = None,
-        p: float = 1.0,
-    ):
-        super().__init__(p=p, always_apply=always_apply)
-        self.min_height = min_height
-        self.min_width = min_width
-        self.pad_width_divisor = pad_width_divisor
-        self.pad_height_divisor = pad_height_divisor
-        self.position = position
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
-
-    def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-        params = super().update_params(params, **kwargs)
-        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.get_padding_params(
-            image_shape=params["shape"][:2],
-            min_height=self.min_height,
-            min_width=self.min_width,
-            pad_height_divisor=self.pad_height_divisor,
-            pad_width_divisor=self.pad_width_divisor,
-        )
-
-        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.adjust_padding_by_position(
-            h_top=h_pad_top,
-            h_bottom=h_pad_bottom,
-            w_left=w_pad_left,
-            w_right=w_pad_right,
-            position=self.position,
-            py_random=self.py_random,
-        )
-
-        params.update(
-            {
-                "pad_top": h_pad_top,
-                "pad_bottom": h_pad_bottom,
-                "pad_left": w_pad_left,
-                "pad_right": w_pad_right,
-            },
-        )
-        return params
-
-    def apply(
-        self,
-        img: np.ndarray,
-        pad_top: int,
-        pad_bottom: int,
-        pad_left: int,
-        pad_right: int,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.pad_with_params(
-            img,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            border_mode=self.border_mode,
-            value=self.value,
-        )
-
-    def apply_to_mask(
-        self,
-        mask: np.ndarray,
-        pad_top: int,
-        pad_bottom: int,
-        pad_left: int,
-        pad_right: int,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.pad_with_params(
-            mask,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            border_mode=self.border_mode,
-            value=self.mask_value,
-        )
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        pad_top: int,
-        pad_bottom: int,
-        pad_left: int,
-        pad_right: int,
-        **params: Any,
-    ) -> np.ndarray:
-        image_shape = params["shape"][:2]
-        bboxes_np = denormalize_bboxes(bboxes, params["shape"])
-
-        result = fgeometric.pad_bboxes(
-            bboxes_np,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            self.border_mode,
-            image_shape=image_shape,
-        )
-
-        rows, cols = params["shape"][:2]
-
-        return normalize_bboxes(result, (rows + pad_top + pad_bottom, cols + pad_left + pad_right))
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        pad_top: int,
-        pad_bottom: int,
-        pad_left: int,
-        pad_right: int,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.pad_keypoints(
-            keypoints,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            self.border_mode,
-            image_shape=params["shape"][:2],
-        )
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "min_height",
-            "min_width",
-            "pad_height_divisor",
-            "pad_width_divisor",
-            "position",
-            "border_mode",
-            "value",
-            "mask_value",
-        )
-
-
 class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
 
@@ -2155,3 +1935,301 @@ class RandomGridShuffle(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("grid",)
+
+
+class Pad(DualTransform):
+    """Pad the sides of an image by specified number of pixels.
+
+    Args:
+        padding (int, tuple[int, int] or tuple[int, int, int, int]): Padding values. Can be:
+            * int - pad all sides by this value
+            * tuple[int, int] - (pad_x, pad_y) to pad left/right by pad_x and top/bottom by pad_y
+            * tuple[int, int, int, int] - (left, top, right, bottom) specific padding per side
+        fill_value (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT
+        mask_fill_value (int, float, list of int, list of float): Padding value for mask if border_mode
+            is cv2.BORDER_CONSTANT
+        border_mode (OpenCV flag): OpenCV border mode
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    References:
+        - https://pytorch.org/vision/main/generated/torchvision.transforms.v2.Pad.html
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        padding: int | tuple[int, int] | tuple[int, int, int, int]
+        fill_value: ColorType | None
+        mask_fill_value: ColorType | None
+        border_mode: BorderModeType
+
+    def __init__(
+        self,
+        padding: int | tuple[int, int] | tuple[int, int, int, int] = 0,
+        fill_value: ColorType | None = 0,
+        mask_fill_value: ColorType | None = None,
+        border_mode: BorderModeType = cv2.BORDER_CONSTANT,
+        always_apply: bool | None = None,
+        p: float = 1.0,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.padding = padding
+        self.fill_value = fill_value  # type: ignore[assignment]
+        self.mask_fill_value = mask_fill_value
+        self.border_mode = border_mode
+
+    def apply(
+        self,
+        img: np.ndarray,
+        pad_top: int,
+        pad_bottom: int,
+        pad_left: int,
+        pad_right: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.pad_with_params(
+            img,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            border_mode=self.border_mode,
+            value=self.fill_value,
+        )
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        pad_top: int,
+        pad_bottom: int,
+        pad_left: int,
+        pad_right: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.pad_with_params(
+            mask,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            border_mode=self.border_mode,
+            value=self.mask_fill_value,
+        )
+
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        pad_top: int,
+        pad_bottom: int,
+        pad_left: int,
+        pad_right: int,
+        **params: Any,
+    ) -> np.ndarray:
+        image_shape = params["shape"][:2]
+        bboxes_np = denormalize_bboxes(bboxes, params["shape"])
+
+        result = fgeometric.pad_bboxes(
+            bboxes_np,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            self.border_mode,
+            image_shape=image_shape,
+        )
+
+        rows, cols = params["shape"][:2]
+        return normalize_bboxes(result, (rows + pad_top + pad_bottom, cols + pad_left + pad_right))
+
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        pad_top: int,
+        pad_bottom: int,
+        pad_left: int,
+        pad_right: int,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.pad_keypoints(
+            keypoints,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            self.border_mode,
+            image_shape=params["shape"][:2],
+        )
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(self.padding, Real):
+            pad_top = pad_bottom = pad_left = pad_right = self.padding
+        elif isinstance(self.padding, (tuple, list)):
+            if len(self.padding) == NUM_PADS_XY:
+                pad_left = pad_right = self.padding[0]
+                pad_top = pad_bottom = self.padding[1]
+            elif len(self.padding) == NUM_PADS_ALL_SIDES:
+                pad_left, pad_top, pad_right, pad_bottom = self.padding  # type: ignore[misc]
+            else:
+                raise TypeError("Padding must be a single number, a pair of numbers, or a quadruple of numbers")
+        else:
+            raise TypeError("Padding must be a single number, a pair of numbers, or a quadruple of numbers")
+
+        return {"pad_top": pad_top, "pad_bottom": pad_bottom, "pad_left": pad_left, "pad_right": pad_right}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            "padding",
+            "fill_value",
+            "mask_fill_value",
+            "border_mode",
+        )
+
+
+class PadIfNeeded(Pad):
+    """Pads the sides of an image if the image dimensions are less than the specified minimum dimensions.
+    If the `pad_height_divisor` or `pad_width_divisor` is specified, the function additionally ensures
+    that the image dimensions are divisible by these values.
+
+    Args:
+        min_height (int | None): Minimum desired height of the image. Ensures image height is at least this value.
+            If not specified, pad_height_divisor must be provided.
+        min_width (int | None): Minimum desired width of the image. Ensures image width is at least this value.
+            If not specified, pad_width_divisor must be provided.
+        pad_height_divisor (int | None): If set, pads the image height to make it divisible by this value.
+            If not specified, min_height must be provided.
+        pad_width_divisor (int | None): If set, pads the image width to make it divisible by this value.
+            If not specified, min_width must be provided.
+        position (Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]):
+            Position where the image is to be placed after padding. Default is 'center'.
+        border_mode (int): Specifies the border mode to use if padding is required.
+            The default is `cv2.BORDER_REFLECT_101`.
+        value (int, float, list[int], list[float] | None): Value to fill the border pixels if
+            the border mode is `cv2.BORDER_CONSTANT`. Default is None.
+        mask_value (int, float, list[int], list[float] | None): Similar to `value` but used for padding masks.
+            Default is None.
+        p (float): Probability of applying the transform. Default is 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - Either `min_height` or `pad_height_divisor` must be set, but not both.
+        - Either `min_width` or `pad_width_divisor` must be set, but not both.
+        - If `border_mode` is set to `cv2.BORDER_CONSTANT`, `value` must be provided.
+        - The transform will maintain consistency across all targets (image, mask, bboxes, keypoints).
+        - For bounding boxes, the coordinates will be adjusted to account for the padding.
+        - For keypoints, their positions will be shifted according to the padding.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        ...     A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=cv2.BORDER_CONSTANT, value=0),
+        ... ])
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+        >>> padded_image = transformed['image']
+        >>> padded_mask = transformed['mask']
+        >>> adjusted_bboxes = transformed['bboxes']
+        >>> adjusted_keypoints = transformed['keypoints']
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        min_height: int | None = Field(ge=1)
+        min_width: int | None = Field(ge=1)
+        pad_height_divisor: int | None = Field(ge=1)
+        pad_width_divisor: int | None = Field(ge=1)
+        position: PositionType
+        border_mode: BorderModeType
+        value: ColorType | None
+        mask_value: ColorType | None
+
+        @model_validator(mode="after")
+        def validate_divisibility(self) -> Self:
+            if (self.min_height is None) == (self.pad_height_divisor is None):
+                msg = "Only one of 'min_height' and 'pad_height_divisor' parameters must be set"
+                raise ValueError(msg)
+            if (self.min_width is None) == (self.pad_width_divisor is None):
+                msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
+                raise ValueError(msg)
+
+            if self.border_mode == cv2.BORDER_CONSTANT and self.value is None:
+                msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'value' must be provided."
+                raise ValueError(msg)
+
+            return self
+
+    def __init__(
+        self,
+        min_height: int | None = 1024,
+        min_width: int | None = 1024,
+        pad_height_divisor: int | None = None,
+        pad_width_divisor: int | None = None,
+        position: PositionType = "center",
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
+        p: float = 1.0,
+    ):
+        # Initialize with dummy padding that will be calculated later
+        super().__init__(
+            padding=0,
+            fill_value=value,
+            mask_fill_value=mask_value,
+            border_mode=border_mode,
+            always_apply=always_apply,
+            p=p,
+        )
+        self.min_height = min_height
+        self.min_width = min_width
+        self.pad_height_divisor = pad_height_divisor
+        self.pad_width_divisor = pad_width_divisor
+        self.position = position
+        self.border_mode = border_mode
+        self.value = value
+        self.mask_value = mask_value
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.get_padding_params(
+            image_shape=params["shape"][:2],
+            min_height=self.min_height,
+            min_width=self.min_width,
+            pad_height_divisor=self.pad_height_divisor,
+            pad_width_divisor=self.pad_width_divisor,
+        )
+
+        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.adjust_padding_by_position(
+            h_top=h_pad_top,
+            h_bottom=h_pad_bottom,
+            w_left=w_pad_left,
+            w_right=w_pad_right,
+            position=self.position,
+            py_random=self.py_random,
+        )
+
+        return {
+            "pad_top": h_pad_top,
+            "pad_bottom": h_pad_bottom,
+            "pad_left": w_pad_left,
+            "pad_right": w_pad_right,
+        }
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            "min_height",
+            "min_width",
+            "pad_height_divisor",
+            "pad_width_divisor",
+            "position",
+            "border_mode",
+            "value",
+            "mask_value",
+        )

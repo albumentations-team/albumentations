@@ -250,6 +250,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [NoOp](https://explore.albumentations.ai/transform/NoOp)                                         | ✓     | ✓    | ✓      | ✓         |
 | [OpticalDistortion](https://explore.albumentations.ai/transform/OpticalDistortion)               | ✓     | ✓    | ✓      | ✓         |
 | [OverlayElements](https://explore.albumentations.ai/transform/OverlayElements)                   | ✓     | ✓    |        |           |
+| [Pad](https://explore.albumentations.ai/transform/Pad)                                           | ✓     | ✓    | ✓      | ✓         |
 | [PadIfNeeded](https://explore.albumentations.ai/transform/PadIfNeeded)                           | ✓     | ✓    | ✓      | ✓         |
 | [Perspective](https://explore.albumentations.ai/transform/Perspective)                           | ✓     | ✓    | ✓      | ✓         |
 | [PiecewiseAffine](https://explore.albumentations.ai/transform/PiecewiseAffine)                   | ✓     | ✓    | ✓      | ✓         |
