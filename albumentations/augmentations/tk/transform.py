@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from numbers import Number
+from typing import Annotated, cast
 from warnings import warn
 
 import cv2
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, field_validator
 
+from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
 from albumentations.augmentations.transforms import ImageCompression, ToGray
 from albumentations.core.pydantic import InterpolationType, check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import ColorType, ScaleFloatType, Targets
+from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
 
 __all__ = [
     "RandomJPEG",
@@ -403,17 +405,34 @@ class RandomAffine(Affine):
     class InitSchema(BaseTransformInitSchema):
         degrees: ScaleFloatType
         translate: tuple[float, float]
-        scale: ScaleFloatType | dict[str, Any]
-        shear: ScaleFloatType | dict[str, Any]
+        scale: ScaleFloatType | dict[str, tuple[float, float]]
+        shear: ScaleFloatType | dict[str, tuple[float, float]] | tuple[float, float, float, float]
         interpolation: InterpolationType
         fill: ColorType
+
+        @field_validator("shear", mode="after")
+        @classmethod
+        def process_shear(
+            cls,
+            value: ScaleFloatType | dict[str, tuple[float, float]] | tuple[float, float, float, float],
+        ) -> dict[str, tuple[float, float]]:
+            """Convert shear parameter to internal format."""
+            if isinstance(value, Number):
+                return {"x": (-value, value), "y": (-value, value)}
+            if isinstance(value, (tuple, list)):
+                if len(value) == PAIR:
+                    return {"x": (-value[0], value[1]), "y": (-value[0], value[1])}
+                return {"x": (value[0], value[1]), "y": (value[2], value[3])}  # type: ignore[misc]
+            if isinstance(value, dict):
+                return value
+            raise TypeError(f"Invalid shear value: {value}")
 
     def __init__(
         self,
         degrees: float | tuple[float, float] = 0,
         translate: tuple[float, float] = (0, 0),
         scale: tuple[float, float] = (1, 1),
-        shear: float | tuple[float, float] | tuple[float, float, float, float] = 0,
+        shear: float | tuple[float, float] | tuple[float, float, float, float] | dict[str, tuple[float, float]] = 0,
         interpolation: int = cv2.INTER_LINEAR,
         fill: ColorType = 0,
         p: float = 1.0,
@@ -437,24 +456,11 @@ class RandomAffine(Affine):
         rotate = (-degrees, degrees) if isinstance(degrees, (int, float)) else degrees
         translate_percent = {"x": (-translate[0], translate[0]), "y": (-translate[1], translate[1])}
 
-        if isinstance(shear, (int, float)):
-            shear_x = (-shear, shear)
-            shear_y = (-shear, shear)
-            shear_processed: dict[str, Any] = {"x": shear_x, "y": shear_y}
-        elif isinstance(shear, (tuple, list)):
-            shear_x = (-shear[0], shear[1])
-            shear_y = (-shear[2], shear[3]) if len(shear) > 2 else (-shear[1], shear[1])  # noqa: PLR2004
-            shear_processed = {"x": shear_x, "y": shear_y}
-        elif isinstance(shear, dict):
-            shear_processed = shear
-        else:
-            raise TypeError(f"Invalid shear value: {shear}")
-
         super().__init__(
             rotate=rotate,
-            translate_percent=translate_percent,
+            translate_percent=cast(fgeometric.XYFloatScale, translate_percent),
             scale=scale,
-            shear=shear_processed,
+            shear=cast(fgeometric.XYFloatScale, shear),
             interpolation=interpolation,
             cval=fill,
             p=p,

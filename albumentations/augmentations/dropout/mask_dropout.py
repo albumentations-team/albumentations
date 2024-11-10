@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from numbers import Real
 from typing import Any, Literal, cast
 
 import cv2
@@ -10,7 +11,7 @@ from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, no
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ScalarType, ScaleIntType, Targets
+from albumentations.core.types import ScaleIntType, Targets
 
 __all__ = ["MaskDropout"]
 
@@ -74,13 +75,13 @@ class MaskDropout(DualTransform):
         max_objects: OnePlusIntRangeType
 
         image_fill_value: float | Literal["inpaint"]
-        mask_fill_value: ScalarType
+        mask_fill_value: Real
 
     def __init__(
         self,
         max_objects: ScaleIntType = (1, 1),
         image_fill_value: float | Literal["inpaint"] = 0,
-        mask_fill_value: ScalarType = 0,
+        mask_fill_value: float = 0,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):

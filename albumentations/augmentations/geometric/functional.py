@@ -3,12 +3,13 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, Callable, Literal, TypedDict, cast
+from typing import Any, Callable, Literal, cast
 from warnings import warn
 
 import cv2
 import numpy as np
 from albucore import get_num_channels, hflip, maybe_process_in_chunks, preserve_channel_dim, vflip
+from typing_extensions import NotRequired, TypedDict
 
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import bboxes_from_masks, denormalize_bboxes, masks_from_bboxes, normalize_bboxes
@@ -20,7 +21,6 @@ from albumentations.core.types import (
     ColorType,
     D4Type,
     PositionType,
-    ScalarType,
 )
 
 __all__ = [
@@ -562,7 +562,7 @@ def keypoints_affine(
     keypoints: np.ndarray,
     matrix: np.ndarray,
     image_shape: tuple[int, int],
-    scale: dict[str, float],
+    scale: XYFloat,
     mode: int,
 ) -> np.ndarray:
     """Apply an affine transformation to keypoints.
@@ -1335,8 +1335,8 @@ def pad(
     return img
 
 
-def extend_value(value: ColorType, num_channels: int) -> Sequence[ScalarType]:
-    return [value] * num_channels if isinstance(value, (int, float)) else value
+def extend_value(value: ColorType, num_channels: int) -> Sequence[float]:
+    return [value] * num_channels if isinstance(value, float) else value
 
 
 def copy_make_border_with_value_extension(
@@ -2111,25 +2111,40 @@ def flip_keypoints(
     return flipped_keypoints
 
 
-class TranslateDict(TypedDict):
+class XYFloat(TypedDict):
     x: float
     y: float
 
 
-class ShearDict(TypedDict):
-    x: float
-    y: float
+class XYInt(TypedDict):
+    x: int
+    y: int
 
 
-class ScaleDict(TypedDict):
-    x: float
-    y: float
+class XYFloatScale(TypedDict):
+    x: NotRequired[float | tuple[float, float]]
+    y: NotRequired[float | tuple[float, float]]
+
+
+class XYIntScale(TypedDict):
+    x: int | tuple[int, int] | None
+    y: int | tuple[int, int] | None
+
+
+class XYFloatDict(TypedDict):
+    x: tuple[float, float]
+    y: tuple[float, float]
+
+
+class XYIntDict(TypedDict):
+    x: tuple[int, int]
+    y: tuple[int, int]
 
 
 def create_affine_transformation_matrix(
-    translate: TranslateDict,
-    shear: ShearDict,
-    scale: ScaleDict,
+    translate: XYInt,
+    shear: XYFloat,
+    scale: XYFloat,
     rotate: float,
     shift: tuple[float, float],
 ) -> np.ndarray:

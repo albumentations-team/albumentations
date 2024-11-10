@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from numbers import Real
 from typing import Annotated, Any
 from warnings import warn
 
@@ -9,7 +10,7 @@ from typing_extensions import Self
 
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_1plus, nondecreasing
-from albumentations.core.types import ColorType, DropoutFillValue, NumericType, ScalarType
+from albumentations.core.types import ColorType, DropoutFillValue, Number
 
 __all__ = ["CoarseDropout"]
 
@@ -25,10 +26,10 @@ class CoarseDropout(BaseDropout):
     Args:
         num_holes_range (tuple[int, int]): Range (min, max) for the number of rectangular
             regions to drop out. Default: (1, 1)
-        hole_height_range (tuple[ScalarType, ScalarType]): Range (min, max) for the height
+        hole_height_range (tuple[Real, Real]): Range (min, max) for the height
             of dropout regions. If int, specifies absolute pixel values. If float,
             interpreted as a fraction of the image height. Default: (8, 8)
-        hole_width_range (tuple[ScalarType, ScalarType]): Range (min, max) for the width
+        hole_width_range (tuple[Real, Real]): Range (min, max) for the width
             of dropout regions. If int, specifies absolute pixel values. If float,
             interpreted as a fraction of the image width. Default: (8, 8)
         fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
@@ -95,26 +96,24 @@ class CoarseDropout(BaseDropout):
         max_holes: int | None = Field(ge=0)
         num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
 
-        min_height: ScalarType | None = Field(ge=0)
-        max_height: ScalarType | None = Field(ge=0)
-        hole_height_range: tuple[ScalarType, ScalarType]
+        min_height: float | None = Field(ge=0)
+        max_height: float | None = Field(ge=0)
+        hole_height_range: tuple[float, float]
 
-        min_width: ScalarType | None = Field(ge=0)
-        max_width: ScalarType | None = Field(ge=0)
-        hole_width_range: tuple[ScalarType, ScalarType]
+        min_width: float | None = Field(ge=0)
+        max_width: float | None = Field(ge=0)
+        hole_width_range: tuple[float, float]
 
         @staticmethod
         def update_range(
-            min_value: NumericType | None,
-            max_value: NumericType | None,
-            default_range: tuple[NumericType, NumericType],
-        ) -> tuple[NumericType, NumericType]:
-            if max_value is not None:
-                return (min_value or max_value, max_value)
-            return default_range
+            min_value: Number | None,
+            max_value: Number | None,
+            default_range: tuple[Number, Number],
+        ) -> tuple[Number, Number]:
+            return (min_value or max_value, max_value) if max_value is not None else default_range
 
         @staticmethod
-        def validate_range(range_value: tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
+        def validate_range(range_value: tuple[float, float], range_name: str, minimum: float = 0) -> None:
             if not minimum <= range_value[0] <= range_value[1]:
                 raise ValueError(
                     f"First value in {range_name} should be less or equal than the second value "
@@ -156,16 +155,16 @@ class CoarseDropout(BaseDropout):
     def __init__(
         self,
         max_holes: int | None = None,
-        max_height: ScalarType | None = None,
-        max_width: ScalarType | None = None,
+        max_height: Real | None = None,
+        max_width: Real | None = None,
         min_holes: int | None = None,
-        min_height: ScalarType | None = None,
-        min_width: ScalarType | None = None,
+        min_height: Real | None = None,
+        min_width: Real | None = None,
         fill_value: DropoutFillValue = 0,
         mask_fill_value: ColorType | None = None,
         num_holes_range: tuple[int, int] = (1, 1),
-        hole_height_range: tuple[ScalarType, ScalarType] = (8, 8),
-        hole_width_range: tuple[ScalarType, ScalarType] = (8, 8),
+        hole_height_range: tuple[float, float] = (8, 8),
+        hole_width_range: tuple[float, float] = (8, 8),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -177,8 +176,8 @@ class CoarseDropout(BaseDropout):
     def calculate_hole_dimensions(
         self,
         image_shape: tuple[int, int],
-        height_range: tuple[ScalarType, ScalarType],
-        width_range: tuple[ScalarType, ScalarType],
+        height_range: tuple[float, float],
+        width_range: tuple[float, float],
         size: int,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate random hole dimensions based on the provided ranges."""
