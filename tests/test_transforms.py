@@ -1252,6 +1252,7 @@ def test_coarse_dropout_invalid_input(params):
             A.RandomAffine: {"degrees": 10},
             A.Affine: {"rotate": 10},
             A.Pad: {"padding": 10},
+            A.RandomRotation: {"degrees": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1319,6 +1320,7 @@ def test_change_image(augmentation_cls, params):
             A.TimeMasking: {"time_mask_param": 10},
             A.RandomAffine: {"degrees": 10},
             A.Affine: {"rotate": 10},
+            A.RandomRotation: {"degrees": 10},
         },
         except_augmentations={
             A.Crop,
