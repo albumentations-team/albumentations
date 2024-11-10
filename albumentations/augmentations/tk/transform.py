@@ -405,8 +405,8 @@ class RandomAffine(Affine):
     class InitSchema(BaseTransformInitSchema):
         degrees: ScaleFloatType
         translate: tuple[float, float]
-        scale: tuple[float, float]
-        shear: ScaleFloatType | tuple[float, float, float, float]
+        scale: tuple[float, float] | fgeometric.XYFloatDict
+        shear: ScaleFloatType | tuple[float, float, float, float] | fgeometric.XYFloatDict
         interpolation: InterpolationType
         fill: ColorType
 
@@ -423,14 +423,16 @@ class RandomAffine(Affine):
                 if len(value) == PAIR:
                     return {"x": (-value[0], value[1]), "y": (-value[0], value[1])}
                 return {"x": (value[0], value[1]), "y": (value[2], value[3])}  # type: ignore[misc]
+            if isinstance(value, dict):
+                return value
             raise TypeError(f"Invalid shear value: {value}")
 
     def __init__(
         self,
         degrees: float | tuple[float, float] = 0,
         translate: tuple[float, float] = (0, 0),
-        scale: tuple[float, float] = (1, 1),
-        shear: float | tuple[float, float] | tuple[float, float, float, float] = 0,
+        scale: tuple[float, float] | fgeometric.XYFloatDict = (1, 1),
+        shear: float | tuple[float, float] | tuple[float, float, float, float] | fgeometric.XYFloatDict = 0,
         interpolation: int = cv2.INTER_LINEAR,
         fill: ColorType = 0,
         p: float = 1.0,
@@ -457,7 +459,7 @@ class RandomAffine(Affine):
         super().__init__(
             rotate=rotate,
             translate_percent=cast(fgeometric.XYFloatScale, translate_percent),
-            scale=scale,
+            scale=cast(fgeometric.XYFloatScale, scale),
             shear=cast(fgeometric.XYFloatScale, shear),
             interpolation=interpolation,
             cval=fill,
