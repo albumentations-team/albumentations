@@ -14,6 +14,8 @@ ColorType = Union[float, Sequence[float]]
 
 Number = TypeVar("Number", float, int)
 
+ScalarType = Union[float, int]
+
 ScaleIntType = Union[int, tuple[int, int]]
 ScaleFloatType = Union[float, tuple[float, float]]
 

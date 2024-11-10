@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from numbers import Real
 from typing import Annotated, Any
 from warnings import warn
 
@@ -10,7 +9,7 @@ from typing_extensions import Self
 
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_1plus, nondecreasing
-from albumentations.core.types import ColorType, DropoutFillValue, Number
+from albumentations.core.types import ColorType, DropoutFillValue, Number, ScalarType
 
 __all__ = ["CoarseDropout"]
 
@@ -96,13 +95,13 @@ class CoarseDropout(BaseDropout):
         max_holes: int | None = Field(ge=0)
         num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
 
-        min_height: float | None = Field(ge=0)
-        max_height: float | None = Field(ge=0)
-        hole_height_range: tuple[float, float]
+        min_height: ScalarType | None = Field(ge=0)
+        max_height: ScalarType | None = Field(ge=0)
+        hole_height_range: tuple[ScalarType, ScalarType]
 
-        min_width: float | None = Field(ge=0)
-        max_width: float | None = Field(ge=0)
-        hole_width_range: tuple[float, float]
+        min_width: ScalarType | None = Field(ge=0)
+        max_width: ScalarType | None = Field(ge=0)
+        hole_width_range: tuple[ScalarType, ScalarType]
 
         @staticmethod
         def update_range(
@@ -155,16 +154,16 @@ class CoarseDropout(BaseDropout):
     def __init__(
         self,
         max_holes: int | None = None,
-        max_height: Real | None = None,
-        max_width: Real | None = None,
+        max_height: ScalarType | None = None,
+        max_width: ScalarType | None = None,
         min_holes: int | None = None,
-        min_height: Real | None = None,
-        min_width: Real | None = None,
+        min_height: ScalarType | None = None,
+        min_width: ScalarType | None = None,
         fill_value: DropoutFillValue = 0,
         mask_fill_value: ColorType | None = None,
         num_holes_range: tuple[int, int] = (1, 1),
-        hole_height_range: tuple[float, float] = (8, 8),
-        hole_width_range: tuple[float, float] = (8, 8),
+        hole_height_range: tuple[ScalarType, ScalarType] = (8, 8),
+        hole_width_range: tuple[ScalarType, ScalarType] = (8, 8),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
