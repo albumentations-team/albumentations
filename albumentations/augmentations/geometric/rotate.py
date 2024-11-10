@@ -292,9 +292,9 @@ class Rotate(DualTransform):
         center = fgeometric.center(params["shape"][:2])
         bbox_center = fgeometric.center_bbox(params["shape"][:2])
 
-        translate: fgeometric.TranslateDict = {"x": 0, "y": 0}
-        shear: fgeometric.ShearDict = {"x": 0, "y": 0}
-        scale: fgeometric.ScaleDict = {"x": 1, "y": 1}
+        translate: fgeometric.XYInt = {"x": 0, "y": 0}
+        shear: fgeometric.XYFloat = {"x": 0, "y": 0}
+        scale: fgeometric.XYFloat = {"x": 1, "y": 1}
         rotate = angle
 
         matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, center)
