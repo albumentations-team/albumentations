@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from numbers import Number
+from numbers import Real
 from typing import Annotated, cast
 from warnings import warn
 
@@ -405,8 +405,8 @@ class RandomAffine(Affine):
     class InitSchema(BaseTransformInitSchema):
         degrees: ScaleFloatType
         translate: tuple[float, float]
-        scale: ScaleFloatType | fgeometric.XYFloatDict
-        shear: ScaleFloatType | fgeometric.XYFloatDict | tuple[float, float, float, float]
+        scale: tuple[float, float]
+        shear: ScaleFloatType | tuple[float, float, float, float]
         interpolation: InterpolationType
         fill: ColorType
 
@@ -414,17 +414,15 @@ class RandomAffine(Affine):
         @classmethod
         def process_shear(
             cls,
-            value: ScaleFloatType | fgeometric.XYFloatDict | tuple[float, float, float, float],
+            value: ScaleFloatType | tuple[float, float, float, float],
         ) -> fgeometric.XYFloatDict:
             """Convert shear parameter to internal format."""
-            if isinstance(value, Number):
+            if isinstance(value, Real):
                 return {"x": (-value, value), "y": (-value, value)}
             if isinstance(value, (tuple, list)):
                 if len(value) == PAIR:
                     return {"x": (-value[0], value[1]), "y": (-value[0], value[1])}
                 return {"x": (value[0], value[1]), "y": (value[2], value[3])}  # type: ignore[misc]
-            if isinstance(value, dict):
-                return value
             raise TypeError(f"Invalid shear value: {value}")
 
     def __init__(
@@ -432,7 +430,7 @@ class RandomAffine(Affine):
         degrees: float | tuple[float, float] = 0,
         translate: tuple[float, float] = (0, 0),
         scale: tuple[float, float] = (1, 1),
-        shear: float | tuple[float, float] | tuple[float, float, float, float] | fgeometric.XYFloatDict = 0,
+        shear: float | tuple[float, float] | tuple[float, float, float, float] = 0,
         interpolation: int = cv2.INTER_LINEAR,
         fill: ColorType = 0,
         p: float = 1.0,
@@ -448,9 +446,9 @@ class RandomAffine(Affine):
         self.degrees = degrees
         self.translate = translate
         self.fill = fill
-        self.shear = shear  # type: ignore[assignment]
+        self.shear = cast(fgeometric.XYFloatDict, shear)
         self.interpolation = interpolation
-        self.scale = scale  # type: ignore[assignment]
+        self.scale = cast(fgeometric.XYFloatDict, scale)
 
         # Convert torchvision parameters to Albumentations format
         rotate = (-degrees, degrees) if isinstance(degrees, (int, float)) else degrees
