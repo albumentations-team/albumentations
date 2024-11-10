@@ -389,4 +389,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomPerspective, {}],
     [A.RandomAffine, {}],
     [A.Pad, {"padding": 10}],
+    [A.RandomRotation, {"degrees": 33}],
 ]

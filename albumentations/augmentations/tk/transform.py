@@ -21,6 +21,7 @@ __all__ = [
     "RandomGrayscale",
     "RandomPerspective",
     "RandomAffine",
+    "RandomRotation",
 ]
 
 
@@ -468,3 +469,92 @@ class RandomAffine(Affine):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "degrees", "translate", "scale", "shear", "interpolation", "fill"
+
+
+class RandomRotation(Affine):
+    """Rotate the input randomly by an angle.
+
+    This transform is an alias for Affine, provided for compatibility with
+    torchvision and Kornia APIs. For new code, it is recommended to use
+    albumentations.Affine directly.
+
+    Args:
+        degrees (float | tuple[float, float]): Range of degrees to select from.
+            If degrees is a single number, the range will be (-degrees, +degrees).
+            Default: 0.
+        interpolation (int): interpolation method. Default: cv2.INTER_LINEAR.
+        expand (bool): If True, expands the output image to make it large enough to hold
+            the entire rotated image. If False, make the output image the same size
+            as the input. Default: False.
+        fill (int | float | list[int] | list[float]): padding value if border_mode is cv2.BORDER_CONSTANT.
+            Default: 0.
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This is a direct alias for albumentations.Affine transform with rotation only.
+        It is provided for compatibility with torchvision and Kornia APIs to make
+        it easier to use Albumentations alongside these libraries.
+
+        For more flexibility, consider using albumentations.Affine directly, which supports:
+        - Additional border modes
+        - Different interpolation methods
+        - Independent control of each transformation parameter
+        - Scale per axis
+        - Additional transform parameters
+        - Mask fill value
+        - Different interpolation methods for mask
+        - Different padding modes
+
+    Example:
+        >>> transform = A.RandomRotation(degrees=30)
+        >>> # Consider using instead:
+        >>> transform = A.Affine(rotate=(-30, 30))
+
+    References:
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomRotation.html
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomRotate
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        degrees: ScaleFloatType
+        interpolation: InterpolationType
+        expand: bool
+        fill: ColorType
+
+    def __init__(
+        self,
+        degrees: float | tuple[float, float] = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        expand: bool = False,
+        fill: ColorType = 0,
+        p: float = 1.0,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomRotation is an alias for Affine transform. "
+            "Consider using Affine directly from albumentations.Affine.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        self.degrees = degrees
+        self.fill = fill
+        self.interpolation = interpolation
+        self.expand = expand
+
+        super().__init__(
+            rotate=degrees,
+            interpolation=interpolation,
+            cval=fill,
+            fit_output=expand,
+            p=p,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "degrees", "interpolation", "expand", "fill"
