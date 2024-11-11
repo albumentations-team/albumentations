@@ -157,7 +157,7 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_to_albumentations(data, self.params.format, image_shape, check_validity=True)
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Normalize array of bounding boxes.
 
@@ -176,7 +176,7 @@ def normalize_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.nda
     return normalized
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def denormalize_bboxes(
     bboxes: np.ndarray,
     image_shape: tuple[int, int],
@@ -239,7 +239,7 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, image_shape: tuple[int, i
     return (bboxes_denorm[:, 2] - bboxes_denorm[:, 0]) * (bboxes_denorm[:, 3] - bboxes_denorm[:, 1])
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def convert_bboxes_to_albumentations(
     bboxes: np.ndarray,
     source_format: Literal["coco", "pascal_voc", "yolo"],
@@ -298,7 +298,7 @@ def convert_bboxes_to_albumentations(
     return converted_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def convert_bboxes_from_albumentations(
     bboxes: np.ndarray,
     target_format: Literal["coco", "pascal_voc", "yolo"],
@@ -349,7 +349,7 @@ def convert_bboxes_from_albumentations(
     return converted_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def check_bboxes(bboxes: np.ndarray) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser than maximums.
 
@@ -386,7 +386,7 @@ def check_bboxes(bboxes: np.ndarray) -> None:
         raise ValueError(f"y_max is less than or equal to y_min for bbox {invalid_bbox}.")
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def clip_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
     """Clips the bounding box coordinates to ensure they fit within the boundaries of an image.
 
