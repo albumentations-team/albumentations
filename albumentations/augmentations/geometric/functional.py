@@ -63,7 +63,7 @@ ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
     """Rotates bounding boxes by 90 degrees CCW (see np.rot90)
 
@@ -106,7 +106,7 @@ def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
     return rotated_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_d4(
     bboxes: np.ndarray,
     group_member: D4Type,
@@ -152,7 +152,7 @@ def bboxes_d4(
     raise ValueError(f"Invalid group member: {group_member}")
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_rot90(
     keypoints: np.ndarray,
@@ -199,7 +199,7 @@ def keypoints_rot90(
     return rotated_keypoints
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def keypoints_d4(
     keypoints: np.ndarray,
     group_member: D4Type,
@@ -265,7 +265,7 @@ def scale(img: np.ndarray, scale: float, interpolation: int) -> np.ndarray:
     return resize(img, new_size, interpolation)
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
     """Scales keypoints by scale_x and scale_y.
 
@@ -360,7 +360,7 @@ def perspective(
     return warped
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def perspective_bboxes(
     bboxes: np.ndarray,
     image_shape: tuple[int, int],
@@ -440,7 +440,7 @@ def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
     return np.arctan2(-matrix[1, 0], matrix[0, 0])
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def perspective_keypoints(
     keypoints: np.ndarray,
@@ -556,7 +556,7 @@ def warp_affine(
     return warp_fn(image)
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_affine(
     keypoints: np.ndarray,
@@ -634,7 +634,7 @@ def keypoints_affine(
     return keypoints
 
 
-@handle_empty_array
+@handle_empty_array("points")
 def apply_affine_to_points(points: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply affine transformation to a set of points.
 
@@ -705,7 +705,7 @@ def calculate_affine_transform_padding(
     return pad_left, pad_right, pad_top, pad_bottom
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
 
@@ -759,7 +759,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndar
     return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """Apply an affine transformation to bounding boxes using an ellipse approximation method.
 
@@ -816,7 +816,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_affine(
     bboxes: np.ndarray,
     matrix: np.ndarray,
@@ -1119,7 +1119,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.rot90(img, factor)
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     """Flip bounding boxes vertically around the x-axis.
 
@@ -1137,7 +1137,7 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     return flipped_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     """Flip bounding boxes horizontally around the y-axis.
 
@@ -1155,7 +1155,7 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     return flipped_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
@@ -1182,7 +1182,7 @@ def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
     raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
     """Transpose bounding boxes by swapping x and y coordinates.
 
@@ -1199,7 +1199,7 @@ def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
     return transposed_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     """Flip keypoints vertically around the x-axis.
@@ -1222,7 +1222,7 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     return flipped_keypoints
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     """Flip keypoints horizontally around the y-axis.
@@ -1245,7 +1245,7 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     return flipped_keypoints
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_flip(keypoints: np.ndarray, d: int, image_shape: tuple[int, int]) -> np.ndarray:
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
@@ -1278,7 +1278,7 @@ def keypoints_flip(keypoints: np.ndarray, d: int, image_shape: tuple[int, int]) 
     raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
     """Transposes keypoints along the main diagonal.
@@ -1401,7 +1401,7 @@ def remap(
     return cv2.remap(img, map_xy, None, interpolation, borderMode=border_mode, borderValue=value)
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def remap_keypoints(
     keypoints: np.ndarray,
     map_x: np.ndarray,
@@ -1436,7 +1436,7 @@ def remap_keypoints(
     return np.column_stack([new_x, new_y, keypoints[:, 2:]])
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def remap_bboxes(
     bboxes: np.ndarray,
     map_x: np.ndarray,
@@ -1528,7 +1528,7 @@ def generate_displacement_fields(
     return dx, dy
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def pad_bboxes(
     bboxes: np.ndarray,
     pad_top: int,
@@ -1711,7 +1711,7 @@ def generate_reflected_bboxes(
     return shift_bboxes(result, -shift_vector) if center_in_origin else result
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def flip_bboxes(
     bboxes: np.ndarray,
     flip_horizontal: bool = False,
@@ -1807,7 +1807,7 @@ def distort_image(image: np.ndarray, generated_mesh: np.ndarray, interpolation: 
     return distorted_image
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bbox_distort_image(
     bboxes: np.ndarray,
     generated_mesh: np.ndarray,
@@ -1827,7 +1827,7 @@ def bbox_distort_image(
     return bboxes
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def distort_image_keypoints(
     keypoints: np.ndarray,
     generated_mesh: np.ndarray,
@@ -1958,7 +1958,7 @@ def generate_distorted_grid_polygons(
     return polygons
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def pad_keypoints(
     keypoints: np.ndarray,
     pad_top: int,
@@ -2093,7 +2093,7 @@ def generate_reflected_keypoints(
     return shift_keypoints(result, -shift_vector) if center_in_origin else result
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def flip_keypoints(
     keypoints: np.ndarray,
     flip_horizontal: bool = False,
@@ -2605,7 +2605,7 @@ def create_piecewise_affine_maps(
     return map_x, map_y
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_piecewise_affine(
     bboxes: np.ndarray,
     map_x: np.ndarray,
@@ -2834,7 +2834,7 @@ def is_valid_component(
     return (min_area is None or component_area >= min_area) and (min_visibility is None or visibility >= min_visibility)
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_grid_shuffle(
     bboxes: np.ndarray,
     tiles: np.ndarray,

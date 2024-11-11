@@ -1737,7 +1737,7 @@ def morphology(img: np.ndarray, kernel: np.ndarray, operation: Literal["dilation
     raise ValueError(f"Unsupported operation: {operation}")
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def bboxes_morphology(
     bboxes: np.ndarray,
     kernel: np.ndarray,

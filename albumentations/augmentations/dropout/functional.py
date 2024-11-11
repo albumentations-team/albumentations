@@ -211,7 +211,7 @@ def cutout(
     return fill_holes_with_value(img, holes, fill_array)
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.ndarray:
     """Filter out keypoints that are inside any of the holes.
 
@@ -441,7 +441,7 @@ def generate_grid_holes(
     return np.column_stack((x_min, y_min, x_max, y_max))
 
 
-@handle_empty_array
+@handle_empty_array("bboxes")
 def mask_dropout_bboxes(
     bboxes: np.ndarray,
     dropout_mask: np.ndarray,
@@ -487,7 +487,7 @@ def mask_dropout_bboxes(
     return bboxes[keep_mask]
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def mask_dropout_keypoints(keypoints: np.ndarray, dropout_mask: np.ndarray) -> np.ndarray:
     keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])] for kp in keypoints])
     return keypoints[keep_indices]

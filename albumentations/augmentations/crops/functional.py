@@ -102,7 +102,7 @@ def crop_bboxes_by_coords(
     return normalize_bboxes(cropped_bboxes, crop_shape) if normalized_input else cropped_bboxes
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def crop_keypoints_by_coords(
     keypoints: np.ndarray,
     crop_coords: tuple[int, int, int, int],
@@ -215,7 +215,7 @@ def crop_and_pad_bboxes(
     return normalize_bboxes(denormalized_bboxes, result_shape)
 
 
-@handle_empty_array
+@handle_empty_array("keypoints")
 def crop_and_pad_keypoints(
     keypoints: np.ndarray,
     crop_params: tuple[int, int, int, int] | None = None,
