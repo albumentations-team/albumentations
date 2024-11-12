@@ -630,8 +630,6 @@ class RandomErasing(Erasing):
             ratio=ratio,
             fill_value=value,
         )
-        self.scale = scale
-        self.ratio = ratio
         self.value = value
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
