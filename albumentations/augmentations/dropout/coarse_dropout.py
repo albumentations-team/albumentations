@@ -8,10 +8,10 @@ from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Self
 
 from albumentations.augmentations.dropout.transforms import BaseDropout
-from albumentations.core.pydantic import check_1plus, nondecreasing
+from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 from albumentations.core.types import ColorType, DropoutFillValue, Number, ScalarType
 
-__all__ = ["CoarseDropout"]
+__all__ = ["CoarseDropout", "Erasing"]
 
 
 class CoarseDropout(BaseDropout):
@@ -223,3 +223,158 @@ class CoarseDropout(BaseDropout):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (*super().get_transform_init_args_names(), "num_holes_range", "hole_height_range", "hole_width_range")
+
+
+class Erasing(BaseDropout):
+    """Randomly erases rectangular regions in an image, following the Random Erasing Data Augmentation technique.
+
+    This augmentation helps improve model robustness by randomly masking out rectangular regions in the image,
+    simulating occlusions and encouraging the model to learn from partial information. It's particularly
+    effective for image classification and person re-identification tasks.
+
+    Args:
+        scale (tuple[float, float]): Range for the proportion of image area to erase.
+            The actual area will be randomly sampled from (scale[0] * image_area, scale[1] * image_area).
+            Default: (0.02, 0.33)
+        ratio (tuple[float, float]): Range for the aspect ratio (width/height) of the erased region.
+            The actual ratio will be randomly sampled from (ratio[0], ratio[1]).
+            Default: (0.3, 3.3)
+        fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
+            "inpaint_ns"]): Value used to fill the erased regions. Can be:
+            - int or float: fills all channels with this value
+            - tuple: fills each channel with corresponding value
+            - "random": fills each pixel with random values
+            - "random_uniform": fills entire erased region with a single random color
+            - "inpaint_telea": uses OpenCV Telea inpainting method
+            - "inpaint_ns": uses OpenCV Navier-Stokes inpainting method
+            Default: 0
+        mask_fill_value (ColorType | None): Value used to fill erased regions in the mask.
+            If None, mask regions are not modified. Default: None
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The transform attempts to find valid erasing parameters up to 10 times.
+          If unsuccessful, no erasing is performed.
+        - The actual erased area and aspect ratio are randomly sampled within
+          the specified ranges for each application.
+        - When using inpainting methods, only grayscale or RGB images are supported.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> # Basic usage with default parameters
+        >>> transform = A.Erasing()
+        >>> transformed = transform(image=image)
+        >>> # Custom configuration
+        >>> transform = A.Erasing(
+        ...     scale=(0.1, 0.4),
+        ...     ratio=(0.5, 2.0),
+        ...     fill_value="random_uniform",
+        ...     p=1.0
+        ... )
+        >>> transformed = transform(image=image)
+
+    References:
+        - Paper: https://arxiv.org/abs/1708.04896
+        - Implementation inspired by torchvision:
+          https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomErasing
+    """
+
+    class InitSchema(BaseDropout.InitSchema):
+        scale: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
+        ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
+
+    def __init__(
+        self,
+        scale: tuple[float, float] = (0.02, 0.33),
+        ratio: tuple[float, float] = (0.3, 3.3),
+        fill_value: DropoutFillValue = 0,
+        mask_fill_value: ColorType | None = None,
+        p: float = 0.5,
+        always_apply: bool = False,
+    ):
+        super().__init__(
+            fill_value=fill_value,
+            mask_fill_value=mask_fill_value,
+            p=p,
+            always_apply=always_apply,
+        )
+        self.scale = scale
+        self.ratio = ratio
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Calculate erasing parameters using direct mathematical derivation.
+
+        Given:
+        - Image dimensions (H, W)
+        - Target area (A)
+        - Aspect ratio (r = w/h)
+
+        We know:
+        - h * w = A (area equation)
+        - w = r * h (aspect ratio equation)
+
+        Therefore:
+        - h * (r * h) = A
+        - h² = A/r
+        - h = sqrt(A/r)
+        - w = r * sqrt(A/r) = sqrt(A*r)
+        """
+        height, width = params["shape"][:2]
+        total_area = height * width
+
+        # Calculate maximum valid area based on dimensions and aspect ratio
+        max_area = total_area * self.scale[1]
+        min_area = total_area * self.scale[0]
+
+        # For each aspect ratio r, the maximum area is constrained by:
+        # h = sqrt(A/r) ≤ H and w = sqrt(A*r) ≤ W
+        # Therefore: A ≤ min(r*H², W²/r)
+        r_min, r_max = self.ratio
+
+        def area_constraint_h(r: float) -> float:
+            return r * height * height
+
+        def area_constraint_w(r: float) -> float:
+            return width * width / r
+
+        # Find maximum valid area considering aspect ratio constraints
+        max_area_h = min(area_constraint_h(r_min), area_constraint_h(r_max))
+        max_area_w = min(area_constraint_w(r_min), area_constraint_w(r_max))
+        max_valid_area = min(max_area, max_area_h, max_area_w)
+
+        if max_valid_area < min_area:
+            return {"holes": np.array([], dtype=np.int32).reshape((0, 4))}
+
+        # Sample valid area and aspect ratio
+        erase_area = self.py_random.uniform(min_area, max_valid_area)
+
+        # Calculate valid aspect ratio range for this area
+        max_r = min(r_max, width * width / erase_area)
+        min_r = max(r_min, erase_area / (height * height))
+
+        if min_r > max_r:
+            return {"holes": np.array([], dtype=np.int32).reshape((0, 4))}
+
+        aspect_ratio = self.py_random.uniform(min_r, max_r)
+
+        # Calculate dimensions
+        h = int(round(np.sqrt(erase_area / aspect_ratio)))
+        w = int(round(np.sqrt(erase_area * aspect_ratio)))
+
+        # Sample position
+        top = self.py_random.randint(0, height - h)
+        left = self.py_random.randint(0, width - w)
+
+        holes = np.array([[left, top, left + w, top + h]], dtype=np.int32)
+        return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("scale", "ratio", "fill_value", "mask_fill_value")

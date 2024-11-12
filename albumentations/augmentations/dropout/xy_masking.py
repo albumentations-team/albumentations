@@ -9,7 +9,7 @@ from typing_extensions import Self
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import ColorType, DropoutFillValue, ScaleIntType, Targets
+from albumentations.core.types import ColorType, DropoutFillValue, ScaleIntType
 
 __all__ = ["XYMasking"]
 
@@ -49,8 +49,6 @@ class XYMasking(BaseDropout):
 
     Note: Either `max_x_length` or `max_y_length` or both must be defined.
     """
-
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
         num_masks_x: NonNegativeIntRangeType
