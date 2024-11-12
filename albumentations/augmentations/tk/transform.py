@@ -580,7 +580,7 @@ class RandomErasing(Erasing):
             Default: 0.0
 
     Targets:
-        image
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
