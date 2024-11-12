@@ -6,7 +6,9 @@ from warnings import warn
 
 import cv2
 from pydantic import AfterValidator, Field, field_validator
+from typing_extensions import Literal
 
+from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
 from albumentations.augmentations.transforms import ImageCompression, ToGray
@@ -22,6 +24,7 @@ __all__ = [
     "RandomPerspective",
     "RandomAffine",
     "RandomRotation",
+    "RandomErasing",
 ]
 
 
@@ -558,3 +561,76 @@ class RandomRotation(Affine):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "degrees", "interpolation", "expand", "fill"
+
+
+class RandomErasing(Erasing):
+    """Randomly select a rectangle region in the input image and erase its pixels.
+    This is an alias for Erasing transform with torchvision-compatible parameters.
+
+    Args:
+        p (float): Probability of applying the transform. Default: 0.5.
+        scale (tuple[float, float]): Range of proportion of erased area against input image.
+            Default: (0.02, 0.33).
+        ratio (tuple[float, float]): Range of aspect ratio of erased area.
+            Default: (0.3, 3.3).
+        value (float | tuple[float, float, float] | Literal["random"]): Erasing value.
+            - If float: Used to erase all pixels
+            - If tuple: Used to erase R, G, B channels respectively
+            - If "random": Erase each pixel with random values
+            Default: 0.0
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This is a direct alias for albumentations.Erasing transform with torchvision-compatible parameters.
+        It is provided for compatibility with torchvision API to make it easier to use Albumentations
+        alongside torchvision.
+
+        For more flexibility, consider using albumentations.Erasing directly, which supports:
+        - Additional erasing modes
+        - Per-channel erasing values
+        - Custom fill values for masks
+        - Different erasing patterns
+        - Independent control of erasing parameters
+        - Additional transform parameters
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3))
+        >>> transformed = transform(image=image)
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        scale: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
+        ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
+        value: float | tuple[float, ...] | Literal["random"]
+
+    def __init__(
+        self,
+        scale: tuple[float, float] = (0.02, 0.33),
+        ratio: tuple[float, float] = (0.3, 3.3),
+        value: float | tuple[float, ...] | Literal["random"] = 0.0,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomErasing is an alias for Erasing transform. "
+            "Consider using Erasing directly from albumentations.Erasing.",
+            UserWarning,
+            stacklevel=2,
+        )
+        # Convert torchvision parameters to Erasing parameters
+        super().__init__(
+            p=p,
+            scale=scale,
+            ratio=ratio,
+            fill_value=value,
+        )
+        self.value = value
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "scale", "ratio", "value"

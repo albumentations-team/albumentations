@@ -238,6 +238,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [CropNonEmptyMaskIfExists](https://explore.albumentations.ai/transform/CropNonEmptyMaskIfExists) | ✓     | ✓    | ✓      | ✓         |
 | [D4](https://explore.albumentations.ai/transform/D4)                                             | ✓     | ✓    | ✓      | ✓         |
 | [ElasticTransform](https://explore.albumentations.ai/transform/ElasticTransform)                 | ✓     | ✓    | ✓      | ✓         |
+| [Erasing](https://explore.albumentations.ai/transform/Erasing)                                   | ✓     | ✓    | ✓      | ✓         |
 | [FrequencyMasking](https://explore.albumentations.ai/transform/FrequencyMasking)                 | ✓     | ✓    | ✓      | ✓         |
 | [GridDistortion](https://explore.albumentations.ai/transform/GridDistortion)                     | ✓     | ✓    | ✓      | ✓         |
 | [GridDropout](https://explore.albumentations.ai/transform/GridDropout)                           | ✓     | ✓    | ✓      | ✓         |
@@ -258,6 +259,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [RandomAffine](https://explore.albumentations.ai/transform/RandomAffine)                         | ✓     | ✓    | ✓      | ✓         |
 | [RandomCrop](https://explore.albumentations.ai/transform/RandomCrop)                             | ✓     | ✓    | ✓      | ✓         |
 | [RandomCropFromBorders](https://explore.albumentations.ai/transform/RandomCropFromBorders)       | ✓     | ✓    | ✓      | ✓         |
+| [RandomErasing](https://explore.albumentations.ai/transform/RandomErasing)                       | ✓     | ✓    | ✓      | ✓         |
 | [RandomGridShuffle](https://explore.albumentations.ai/transform/RandomGridShuffle)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomHorizontalFlip](https://explore.albumentations.ai/transform/RandomHorizontalFlip)         | ✓     | ✓    | ✓      | ✓         |
 | [RandomPerspective](https://explore.albumentations.ai/transform/RandomPerspective)               | ✓     | ✓    | ✓      | ✓         |

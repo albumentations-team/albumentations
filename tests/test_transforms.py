@@ -2067,6 +2067,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.RandomHorizontalFlip,
             A.RandomVerticalFlip,
             A.RandomAffine,
+            A.RandomErasing,
         },
     ),
 )
@@ -2081,7 +2082,7 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
     bboxes = np.array([[x_min, y_min, x_max, y_max]])
     keypoints = np.array([[x_min, y_min], [x_max, y_max]])
 
-    transform = A.Compose([aug], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xy"), seed=42)
+    transform = A.Compose([aug], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xy", remove_invisible=False), seed=42)
 
     transformed = transform(image=image, bboxes=bboxes, keypoints=keypoints, labels=[1])
 
