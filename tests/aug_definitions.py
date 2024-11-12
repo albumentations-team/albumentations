@@ -391,4 +391,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Pad, {"padding": 10}],
     [A.RandomRotation, {"degrees": 33}],
     [A.Erasing, {}],
+    [A.RandomErasing, {}],
 ]
