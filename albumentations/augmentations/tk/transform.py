@@ -649,9 +649,12 @@ class RandomInvert(InvertImg):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
     Note:
-        This is a direct alias for albumentations.Erasing transform with torchvision-compatible parameters.
-        It is provided for compatibility with torchvision and kornia API to make it easier to use Albumentations
+        This is a direct alias for albumentations.InvertImg transform.
+        It is provided for compatibility with torchvision and Kornia API to make it easier to use Albumentations
         alongside torchvision.
 
     Example:
