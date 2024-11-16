@@ -1775,7 +1775,7 @@ def test_gauss_noise(mean, image):
     )
 
     assert np.abs(mean - apply_params["gauss"].mean()) < 0.5
-    result = A.Compose([aug])(image=image)
+    result = A.Compose([aug], seed=42)(image=image)
 
     assert not (result["image"] >= image).all()
 
