@@ -15,6 +15,7 @@ from albumentations.augmentations.geometric.transforms import Affine, Horizontal
 from albumentations.augmentations.transforms import (
     CLAHE,
     ColorJitter,
+    Equalize,
     ImageCompression,
     InvertImg,
     RandomBrightnessContrast,
@@ -39,6 +40,7 @@ __all__ = [
     "RandomContrast",
     "RandomBrightness",
     "RandomChannelDropout",
+    "RandomEqualize",
 ]
 
 
@@ -1025,3 +1027,63 @@ class RandomChannelDropout(ChannelDropout):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_drop_channels", "fill_value"
+
+
+class RandomEqualize(Equalize):
+    """Equalize given image using histogram equalization.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform is a specialized case of Equalize with fixed parameters:
+        - Uses OpenCV's equalization method (mode='cv')
+        - Applies equalization to each channel independently (by_channels=True)
+        - Does not support masking
+
+        For more flexibility, consider using Equalize directly which provides:
+        - Choice between OpenCV and Pillow equalization methods
+        - Option to equalize luminance channel only
+        - Support for masked equalization
+        - Additional parameters for fine-tuning the equalization process
+
+    Example:
+        >>> # RandomEqualize way (Kornia compatibility)
+        >>> transform = A.Compose([A.RandomEqualize(p=0.5)])
+        >>> # Equivalent Equalize way with full functionality
+        >>> transform = A.Compose([A.Equalize(mode='cv', by_channels=True, p=0.5)])
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomEqualize
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
+    def __init__(
+        self,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomEqualize is a specialized version of Equalize transform. "
+            "Consider using Equalize directly from albumentations.Equalize for more flexibility.",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(
+            mode="cv",
+            by_channels=True,
+            mask=None,
+            mask_params=(),
+            p=p,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ()

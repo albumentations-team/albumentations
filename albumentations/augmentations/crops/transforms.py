@@ -1321,10 +1321,6 @@ class BBoxSafeRandomCrop(BaseCrop):
 
         return {"crop_coords": (crop_x_min, crop_y_min, crop_x_max, crop_y_max)}
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["bboxes"]
-
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("erosion_rate",)
 
