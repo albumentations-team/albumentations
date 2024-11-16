@@ -3562,6 +3562,9 @@ class ColorJitter(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        1, 3
+
     Note:
         - The order of application for these color transformations is random for each image.
         - The ranges for brightness, contrast, and saturation are applied as multiplicative factors.
@@ -3668,7 +3671,7 @@ class ColorJitter(ImageOnlyTransform):
             img = self.transforms[i](img, color_transforms[i])
         return img
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "brightness", "contrast", "saturation", "hue"
 
 

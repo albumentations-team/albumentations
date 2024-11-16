@@ -1253,6 +1253,7 @@ def test_coarse_dropout_invalid_input(params):
             A.Affine: {"rotate": 10},
             A.Pad: {"padding": 10},
             A.RandomRotation: {"degrees": 10},
+            A.RandomHue: {"hue": (-0.2, 0.2)},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1321,6 +1322,7 @@ def test_change_image(augmentation_cls, params):
             A.RandomAffine: {"degrees": 10},
             A.Affine: {"rotate": 10},
             A.RandomRotation: {"degrees": 10},
+            A.RandomHue: {"hue": (-0.2, 0.2)},
         },
         except_augmentations={
             A.Crop,
@@ -1865,6 +1867,7 @@ def test_random_sun_flare_invalid_input(params):
                 "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.RandomHue: {"hue": (-0.2, 0.2)},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1881,7 +1884,7 @@ def test_return_nonzero(augmentation_cls, params):
     """Mistakes in clipping may lead to zero image, testing for that"""
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
 
-    aug = A.Compose([augmentation_cls(**params, p=1)])
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
     data = {
         "image": image,
