@@ -11,8 +11,8 @@ from typing_extensions import Literal
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
-from albumentations.augmentations.transforms import ColorJitter, ImageCompression, InvertImg, ToGray
-from albumentations.core.pydantic import InterpolationType, check_0plus, nondecreasing
+from albumentations.augmentations.transforms import CLAHE, ColorJitter, ImageCompression, InvertImg, ToGray
+from albumentations.core.pydantic import InterpolationType, check_0plus, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
 
@@ -27,6 +27,7 @@ __all__ = [
     "RandomErasing",
     "RandomInvert",
     "RandomHue",
+    "RandomClahe",
 ]
 
 
@@ -517,9 +518,9 @@ class RandomRotation(Affine):
         - Different padding modes
 
     Example:
-        >>> transform = A.RandomRotation(degrees=30)
+        >>> transform = A.Compose([A.RandomRotation(degrees=30)])
         >>> # Consider using instead:
-        >>> transform = A.Affine(rotate=(-30, 30))
+        >>> transform = A.Compose([A.Affine(rotate=(-30, 30))])
 
     References:
         - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomRotation.html
@@ -602,7 +603,7 @@ class RandomErasing(Erasing):
 
     Example:
         >>> import albumentations as A
-        >>> transform = A.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3))
+        >>> transform = A.Compose([A.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3))])
         >>> transformed = transform(image=image)
     """
 
@@ -749,3 +750,69 @@ class RandomHue(ColorJitter):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("hue",)
+
+
+class RandomClahe(CLAHE):
+    """Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) randomly.
+
+    This transform is an alias for CLAHE, provided for compatibility with
+    Kornia API. For new code, it is recommended to use albumentations.CLAHE directly.
+
+    Args:
+        clip_limit (tuple[float, float]): Clipping limit. Higher values give more contrast. Default: (1, 4).
+        tile_grid_size (tuple[int, int]): Size of grid for histogram equalization.
+            Larger grid size gives more contrast. Default: (8, 8).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        1, 3
+
+    Note:
+        This is a direct alias for albumentations.CLAHE transform.
+        It is provided for compatibility with Kornia API to make it easier
+        to use Albumentations alongside Kornia.
+
+    Example:
+        >>> transform = A.Compose([A.RandomClahe(clip_limit=(1, 4), tile_grid_size=(8, 8), p=0.5)])
+        >>> # Consider using instead:
+        >>> transform = A.Compose([A.CLAHE(clip_limit=(1, 4), tile_grid_size=(8, 8), p=0.5)])
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomClahe
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        clip_limit: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
+        tile_grid_size: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+
+    def __init__(
+        self,
+        clip_limit: float | tuple[float, float] = (1, 4),
+        tile_grid_size: tuple[int, int] = (8, 8),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomClahe is an alias for CLAHE transform. Consider using CLAHE directly from albumentations.CLAHE.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        if isinstance(clip_limit, (int, float)):
+            clip_limit = (0, clip_limit)
+
+        super().__init__(
+            clip_limit=clip_limit,
+            tile_grid_size=tile_grid_size,
+            p=p,
+            always_apply=always_apply,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("clip_limit", "tile_grid_size")

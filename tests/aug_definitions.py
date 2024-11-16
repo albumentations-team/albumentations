@@ -394,4 +394,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomErasing, {}],
     [A.RandomInvert, {}],
     [A.RandomHue, {"hue": (-0.2, 0.2)}],
+    [A.RandomClahe, {}],
 ]
