@@ -1689,6 +1689,7 @@ class RandomToneCurve(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
+
         num_channels = get_num_channels(image)
 
         if self.per_channel and num_channels != 1:
@@ -2216,6 +2217,10 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             maximum value of the image's dtype. If False, uses the mean pixel value for adjustment.
             Default: True.
 
+        ensure_safe_range (bool): If True, adjusts alpha and beta to prevent overflow/underflow.
+            This ensures output values stay within the valid range for the image dtype without clipping.
+            Default: False.
+
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2230,7 +2235,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     Note:
         - The order of operation is: contrast adjustment, then brightness adjustment.
         - For uint8 images, the output is clipped to [0, 255] range.
-        - For float32 images, the output may exceed the [0, 1] range.
+        - For float32 images, the output is clipped to [0, 1] range.
         - The `brightness_by_max` parameter affects how brightness is adjusted:
           * If True, brightness adjustment is more pronounced and can lead to more saturated results.
           * If False, brightness adjustment is more subtle and preserves the overall lighting better.
@@ -2283,12 +2288,14 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         brightness_limit: SymmetricRangeType
         contrast_limit: SymmetricRangeType
         brightness_by_max: bool
+        ensure_safe_range: bool
 
     def __init__(
         self,
         brightness_limit: ScaleFloatType = (-0.2, 0.2),
         contrast_limit: ScaleFloatType = (-0.2, 0.2),
         brightness_by_max: bool = True,
+        ensure_safe_range: bool = False,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -2296,18 +2303,33 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         self.brightness_limit = cast(tuple[float, float], brightness_limit)
         self.contrast_limit = cast(tuple[float, float], contrast_limit)
         self.brightness_by_max = brightness_by_max
+        self.ensure_safe_range = ensure_safe_range
 
     def apply(self, img: np.ndarray, alpha: float, beta: float, **params: Any) -> np.ndarray:
-        return fmain.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
+        return albucore.multiply_add(img, alpha, beta, inplace=False)
 
-    def get_params(self) -> dict[str, float]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
+        image = data["image"] if "image" in data else data["images"][0]
+
+        # Sample initial values
+        alpha = 1.0 + self.py_random.uniform(*self.contrast_limit)
+        beta = self.py_random.uniform(*self.brightness_limit)
+
+        max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+        # Scale beta according to brightness_by_max setting
+        beta = beta * max_value if self.brightness_by_max else beta * np.mean(image)
+
+        # Clip values to safe ranges if needed
+        if self.ensure_safe_range:
+            alpha, beta = fmain.get_safe_brightness_contrast_params(alpha, beta, max_value)
+
         return {
-            "alpha": 1.0 + self.py_random.uniform(*self.contrast_limit),
-            "beta": 0.0 + self.py_random.uniform(*self.brightness_limit),
+            "alpha": alpha,
+            "beta": beta,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return "brightness_limit", "contrast_limit", "brightness_by_max"
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "brightness_limit", "contrast_limit", "brightness_by_max", "ensure_safe_range"
 
 
 class GaussNoise(ImageOnlyTransform):
@@ -3419,11 +3441,12 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return multiply(img, multiplier)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        img = data["image"] if "image" in data else data["images"][0]
-        num_channels = get_num_channels(img)
+        image = data["image"] if "image" in data else data["images"][0]
+
+        num_channels = get_num_channels(image)
 
         if self.elementwise:
-            shape = img.shape if self.per_channel else (*img.shape[:2], 1)
+            shape = image.shape if self.per_channel else (*image.shape[:2], 1)
         else:
             shape = (num_channels,) if self.per_channel else (1,)
 
@@ -3437,7 +3460,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
             # Reshape to broadcast correctly when not elementwise but per_channel
             multiplier = multiplier.reshape(1, 1, -1)
 
-        if multiplier.shape != img.shape:
+        if multiplier.shape != image.shape:
             multiplier = multiplier.squeeze()
 
         return {"multiplier": multiplier}
@@ -4391,30 +4414,31 @@ class PixelDropout(DualTransform):
         return fdropout.mask_dropout_keypoints(keypoints, drop_mask)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        img = data["image"] if "image" in data else data["images"][0]
-        shape = img.shape if self.per_channel else img.shape[:2]
+        image = data["image"] if "image" in data else data["images"][0]
+
+        shape = image.shape if self.per_channel else image.shape[:2]
 
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
         drop_mask = self.random_generator.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
         drop_value: float | Sequence[float] | np.ndarray
 
-        if drop_mask.ndim != img.ndim:
+        if drop_mask.ndim != image.ndim:
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
-            drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
+            drop_shape = 1 if is_grayscale_image(image) else int(image.shape[-1])
 
-            if img.dtype == np.uint8:
+            if image.dtype == np.uint8:
                 drop_value = self.random_generator.integers(
                     0,
-                    int(MAX_VALUES_BY_DTYPE[img.dtype]),
+                    int(MAX_VALUES_BY_DTYPE[image.dtype]),
                     size=drop_shape,
-                    dtype=img.dtype,
+                    dtype=image.dtype,
                 )
-            elif img.dtype == np.float32:
-                drop_value = self.random_generator.uniform(0, 1, size=drop_shape).astype(img.dtype)
+            elif image.dtype == np.float32:
+                drop_value = self.random_generator.uniform(0, 1, size=drop_shape).astype(image.dtype)
             else:
-                raise ValueError(f"Unsupported dtype: {img.dtype}")
+                raise ValueError(f"Unsupported dtype: {image.dtype}")
         else:
             drop_value = self.drop_value
 

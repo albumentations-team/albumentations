@@ -60,7 +60,6 @@ __all__ = [
     "adjust_contrast_torchvision",
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
-    "brightness_contrast_adjust",
     "channel_shuffle",
     "clahe",
     "convolve",
@@ -1066,21 +1065,6 @@ def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
     return np.power(img, gamma)
 
 
-def brightness_contrast_adjust(
-    img: np.ndarray,
-    alpha: float = 1,
-    beta: float = 0,
-    beta_by_max: bool = False,
-) -> np.ndarray:
-    if beta_by_max:
-        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
-        value = beta * max_value
-    else:
-        value = beta * np.mean(img)
-
-    return multiply_add(img, alpha, value, inplace=False)
-
-
 @float32_io
 @clipped
 def iso_noise(
@@ -1978,3 +1962,36 @@ def shot_noise(img: np.ndarray, scale: float, random_generator: np.random.Genera
 
     # Scale back and apply gamma correction
     return power(np.clip(noisy_img, 0, 1, out=noisy_img), 1 / 2.2)
+
+
+def get_safe_brightness_contrast_params(
+    alpha: float,
+    beta: float,
+    max_value: float,
+) -> tuple[float, float]:
+    """Calculate safe alpha and beta values to prevent overflow/underflow.
+
+    For any pixel value x, we want: 0 <= alpha * x + beta <= max_value
+
+    Args:
+        alpha: Contrast factor (1 means no change)
+        beta: Brightness offset
+        max_value: Maximum allowed value (255 for uint8, 1 for float32)
+
+    Returns:
+        tuple[float, float]: Safe (alpha, beta) values that prevent overflow/underflow
+    """
+    if alpha > 0:
+        # For x = max_value: alpha * max_value + beta <= max_value
+        # For x = 0: beta >= 0
+        safe_beta = np.clip(beta, 0, max_value)
+        # From alpha * max_value + safe_beta <= max_value
+        safe_alpha = min(alpha, (max_value - safe_beta) / max_value)
+    else:
+        # For x = 0: beta <= max_value
+        # For x = max_value: alpha * max_value + beta >= 0
+        safe_beta = min(beta, max_value)
+        # From alpha * max_value + safe_beta >= 0
+        safe_alpha = max(alpha, -safe_beta / max_value)
+
+    return safe_alpha, safe_beta

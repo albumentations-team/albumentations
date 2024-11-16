@@ -488,33 +488,33 @@ class TemplateTransform(ImageOnlyTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        img = data["image"] if "image" in data else data["images"][0]
+        image = data["image"] if "image" in data else data["images"][0]
 
         template = self.py_random.choice(self.templates)
 
         if self.template_transform is not None:
             template = self.template_transform(image=template)["image"]
 
-        if get_num_channels(template) not in [1, get_num_channels(img)]:
+        if get_num_channels(template) not in [1, get_num_channels(image)]:
             msg = (
                 "Template must be a single channel or "
                 "has the same number of channels as input "
-                f"image ({get_num_channels(img)}), got {get_num_channels(template)}"
+                f"image ({get_num_channels(image)}), got {get_num_channels(template)}"
             )
             raise ValueError(msg)
 
-        if template.dtype != img.dtype:
+        if template.dtype != image.dtype:
             msg = "Image and template must be the same image type"
             raise ValueError(msg)
 
-        if img.shape[:2] != template.shape[:2]:
-            template = fgeometric.resize(template, img.shape[:2], interpolation=cv2.INTER_AREA)
+        if image.shape[:2] != template.shape[:2]:
+            template = fgeometric.resize(template, image.shape[:2], interpolation=cv2.INTER_AREA)
 
-        if get_num_channels(template) == 1 and get_num_channels(img) > 1:
+        if get_num_channels(template) == 1 and get_num_channels(image) > 1:
             # Replicate single channel template across all channels to match input image
-            template = cv2.merge([template] * get_num_channels(img))
+            template = cv2.merge([template] * get_num_channels(image))
         # in order to support grayscale image with dummy dim
-        template = template.reshape(img.shape)
+        template = template.reshape(image.shape)
 
         return {"template": template}
 
