@@ -31,17 +31,17 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 Albumentations thrives on developer contributions. We appreciate our sponsors who help sustain the project's infrastructure.
 
-### Gold Sponsors
+| 🏆 Gold Sponsors |
+|-----------------|
+| Your company could be here |
 
-Your company could be here
+| 🥈 Silver Sponsors |
+|-------------------|
+| <a href="https://datature.io" target="_blank"><img src="https://albumentations.ai/assets/sponsors/datature-full.png" width="100" alt="Datature"/></a> |
 
-### Silver Sponsors
-
-<a href="https://datature.io" target="_blank"><img src="https://albumentations.ai/assets/sponsors/datature-full.png" width="100" alt="Datature - Build, Train, and Deploy Enterprise Computer Vision Applications in One Platform"/></a>
-
-### Bronze Sponsors
-
-<a href="https://roboflow.com" target="_blank"><img src="https://albumentations.ai/assets/sponsors/roboflow.png" width="100" alt="Roboflow - Computer vision infrastructure for developers"/></a>
+| 🥉 Bronze Sponsors |
+|-------------------|
+| <a href="https://roboflow.com" target="_blank"><img src="https://albumentations.ai/assets/sponsors/roboflow.png" width="100" alt="Roboflow"/></a> |
 
 ---
 
@@ -54,9 +54,6 @@ Your sponsorship is a way to say "thank you" to the maintainers and contributors
 - [Albumentations](#albumentations)
   - [Why Albumentations](#why-albumentations)
   - [Community-Driven Project, Supported By](#community-driven-project-supported-by)
-    - [Gold Sponsors](#gold-sponsors)
-    - [Silver Sponsors](#silver-sponsors)
-    - [Bronze Sponsors](#bronze-sponsors)
     - [💝 Become a Sponsor](#-become-a-sponsor)
   - [Table of contents](#table-of-contents)
   - [Authors](#authors)
