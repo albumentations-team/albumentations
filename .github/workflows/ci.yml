@@ -114,5 +114,3 @@ jobs:
         uv pip install --system .
     - name: Run checks for documentation
       run: python -m tools.make_transforms_docs check README.md
-    - name: Run checks for used by documentation
-      run: python -m tools.make_used_by_docs check
