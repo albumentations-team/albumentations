@@ -11,7 +11,7 @@ from typing_extensions import Literal
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
-from albumentations.augmentations.transforms import ImageCompression, InvertImg, ToGray
+from albumentations.augmentations.transforms import ColorJitter, ImageCompression, InvertImg, ToGray
 from albumentations.core.pydantic import InterpolationType, check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
@@ -26,6 +26,7 @@ __all__ = [
     "RandomRotation",
     "RandomErasing",
     "RandomInvert",
+    "RandomHue",
 ]
 
 
@@ -658,9 +659,9 @@ class RandomInvert(InvertImg):
         alongside torchvision.
 
     Example:
-        >>> transform = A.RandomInvert(p=0.5)
+        >>> transform = A.Compose([A.RandomInvert(p=0.5)])
         >>> # Consider using instead:
-        >>> transform = A.InvertImg(p=0.5)
+        >>> transform = A.Compose([A.InvertImg(p=0.5)])
 
     References:
         - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomInvert.html
@@ -682,3 +683,69 @@ class RandomInvert(InvertImg):
             stacklevel=2,
         )
         super().__init__(p=p)
+
+
+class RandomHue(ColorJitter):
+    """Randomly adjust the hue of the input image.
+
+    This transform is a specialized version of ColorJitter that only adjusts hue.
+    For more flexibility (brightness, contrast, saturation), consider using
+    ColorJitter directly.
+
+    Args:
+        hue (tuple[float, float]): Range for changing hue.
+            Values should be in the range [-0.5, 0.5]. Default: (0, 0)
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        1, 3
+
+    Note:
+        This is a specialized version of albumentations.ColorJitter transform.
+        It is provided for compatibility with Kornia APIs.
+        For more flexibility, including brightness, contrast, and saturation adjustments,
+        consider using ColorJitter directly.
+
+    Example:
+        >>> transform = A.Compose([A.RandomHue(hue=(-0.2, 0.2), p=0.5)])
+        >>> # Consider using instead:
+        >>> transform = A.Compose([A.ColorJitter(hue=(-0.2, 0.2), p=0.5)])
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomHue
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        hue: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
+
+    def __init__(
+        self,
+        hue: tuple[float, float] = (0, 0),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomHue is a specialized version of ColorJitter. "
+            "For more flexibility (brightness, contrast, saturation adjustments), "
+            "consider using ColorJitter directly from albumentations.ColorJitter.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            hue=hue,
+            brightness=(1, 1),  # No brightness change
+            contrast=(1, 1),  # No contrast change
+            saturation=(1, 1),  # No saturation change
+            p=p,
+            always_apply=always_apply,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("hue",)
