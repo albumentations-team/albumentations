@@ -11,7 +11,7 @@ from typing_extensions import Literal
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
-from albumentations.augmentations.transforms import ImageCompression, ToGray
+from albumentations.augmentations.transforms import ImageCompression, InvertImg, ToGray
 from albumentations.core.pydantic import InterpolationType, check_0plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
@@ -25,6 +25,7 @@ __all__ = [
     "RandomAffine",
     "RandomRotation",
     "RandomErasing",
+    "RandomInvert",
 ]
 
 
@@ -634,3 +635,47 @@ class RandomErasing(Erasing):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "scale", "ratio", "value"
+
+
+class RandomInvert(InvertImg):
+    """Invert the input image values randomly with a given probability.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This is a direct alias for albumentations.Erasing transform with torchvision-compatible parameters.
+        It is provided for compatibility with torchvision and kornia API to make it easier to use Albumentations
+        alongside torchvision.
+
+    Example:
+        >>> transform = A.RandomInvert(p=0.5)
+        >>> # Consider using instead:
+        >>> transform = A.InvertImg(p=0.5)
+
+    References:
+        - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomInvert.html
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomInvert
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
+    def __init__(
+        self,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        warn(
+            "RandomInvert is an alias for InvertImg transform. "
+            "Consider using InvertImg directly from albumentations.InvertImg.",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(p=p)
