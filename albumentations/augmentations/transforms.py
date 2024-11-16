@@ -1689,6 +1689,7 @@ class RandomToneCurve(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
+
         num_channels = get_num_channels(image)
 
         if self.per_channel and num_channels != 1:
@@ -3440,11 +3441,12 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return multiply(img, multiplier)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        img = data["image"] if "image" in data else data["images"][0]
-        num_channels = get_num_channels(img)
+        image = data["image"] if "image" in data else data["images"][0]
+
+        num_channels = get_num_channels(image)
 
         if self.elementwise:
-            shape = img.shape if self.per_channel else (*img.shape[:2], 1)
+            shape = image.shape if self.per_channel else (*image.shape[:2], 1)
         else:
             shape = (num_channels,) if self.per_channel else (1,)
 
@@ -3458,7 +3460,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
             # Reshape to broadcast correctly when not elementwise but per_channel
             multiplier = multiplier.reshape(1, 1, -1)
 
-        if multiplier.shape != img.shape:
+        if multiplier.shape != image.shape:
             multiplier = multiplier.squeeze()
 
         return {"multiplier": multiplier}
@@ -4412,30 +4414,31 @@ class PixelDropout(DualTransform):
         return fdropout.mask_dropout_keypoints(keypoints, drop_mask)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        img = data["image"] if "image" in data else data["images"][0]
-        shape = img.shape if self.per_channel else img.shape[:2]
+        image = data["image"] if "image" in data else data["images"][0]
+
+        shape = image.shape if self.per_channel else image.shape[:2]
 
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
         drop_mask = self.random_generator.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
         drop_value: float | Sequence[float] | np.ndarray
 
-        if drop_mask.ndim != img.ndim:
+        if drop_mask.ndim != image.ndim:
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
-            drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
+            drop_shape = 1 if is_grayscale_image(image) else int(image.shape[-1])
 
-            if img.dtype == np.uint8:
+            if image.dtype == np.uint8:
                 drop_value = self.random_generator.integers(
                     0,
-                    int(MAX_VALUES_BY_DTYPE[img.dtype]),
+                    int(MAX_VALUES_BY_DTYPE[image.dtype]),
                     size=drop_shape,
-                    dtype=img.dtype,
+                    dtype=image.dtype,
                 )
-            elif img.dtype == np.float32:
-                drop_value = self.random_generator.uniform(0, 1, size=drop_shape).astype(img.dtype)
+            elif image.dtype == np.float32:
+                drop_value = self.random_generator.uniform(0, 1, size=drop_shape).astype(image.dtype)
             else:
-                raise ValueError(f"Unsupported dtype: {img.dtype}")
+                raise ValueError(f"Unsupported dtype: {image.dtype}")
         else:
             drop_value = self.drop_value
 

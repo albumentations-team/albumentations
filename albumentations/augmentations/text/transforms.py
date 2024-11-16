@@ -184,7 +184,7 @@ class TextImage(ImageOnlyTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        image = data["image"]
+        image = data["image"] if "image" in data else data["images"][0]
 
         metadata = data[self.metadata_key]
 

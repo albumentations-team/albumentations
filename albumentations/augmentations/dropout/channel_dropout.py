@@ -93,6 +93,7 @@ class ChannelDropout(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: Mapping[str, Any], data: Mapping[str, Any]) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
+
         num_channels = get_num_channels(image)
 
         if num_channels == 1:
