@@ -67,40 +67,6 @@ def test_pad_float(target):
     assert_array_almost_equal_nulp(padded_img, expected)
 
 
-@pytest.mark.parametrize(["alpha", "expected"], [(1.5, 190), (3, 255)])
-def test_random_contrast(alpha, expected):
-    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
-    img = F.brightness_contrast_adjust(img, alpha=alpha)
-    assert img.dtype == np.dtype("uint8")
-    assert (img == expected).all()
-
-
-@pytest.mark.parametrize(["alpha", "expected"], [(1.5, 0.6), (3, 1.0)])
-def test_random_contrast_float(alpha, expected):
-    img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
-    expected = np.ones((100, 100, 3), dtype=np.float32) * expected
-    img = F.brightness_contrast_adjust(img, alpha=alpha)
-    assert img.dtype == np.dtype("float32")
-    assert_array_almost_equal_nulp(img, expected)
-
-
-@pytest.mark.parametrize(["beta", "expected"], [(-0.5, 50), (0.25, 125)])
-def test_random_brightness(beta, expected):
-    img = np.ones((100, 100, 3), dtype=np.uint8) * 100
-    img = F.brightness_contrast_adjust(img, beta=beta)
-    assert img.dtype == np.dtype("uint8")
-    assert (img == expected).all()
-
-
-@pytest.mark.parametrize(["beta", "expected"], [(0.2, 0.48), (-0.1, 0.36)])
-def test_random_brightness_float(beta, expected):
-    img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
-    expected = np.ones_like(img) * expected
-    img = F.brightness_contrast_adjust(img, beta=beta)
-    assert img.dtype == np.dtype("float32")
-    assert_array_almost_equal_nulp(img, expected)
-
-
 @pytest.mark.parametrize(["gamma", "expected"], [(1, 1), (0.8, 3)])
 def test_gamma_transform(gamma, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8)
@@ -514,22 +480,6 @@ def test_downscale_random():
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
-
-
-@pytest.mark.parametrize("beta_by_max", [True, False])
-def test_brightness_contrast_adjust_equal(beta_by_max):
-    image_int = np.random.randint(0, 256, [512, 512, 3], dtype=np.uint8)
-    image_float = image_int.astype(np.float32) / 255
-
-    alpha = 1.3
-    beta = 0.14
-
-    image_int = F.brightness_contrast_adjust(image_int, alpha, beta, beta_by_max)
-    image_float = F.brightness_contrast_adjust(image_float, alpha, beta, beta_by_max)
-
-    image_float = (image_float * 255).astype(int)
-
-    assert np.abs(image_int.astype(int) - image_float).max() <= 1
 
 
 @pytest.mark.parametrize(

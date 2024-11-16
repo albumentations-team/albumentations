@@ -2216,6 +2216,10 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             maximum value of the image's dtype. If False, uses the mean pixel value for adjustment.
             Default: True.
 
+        ensure_safe_range (bool): If True, adjusts alpha and beta to prevent overflow/underflow.
+            This ensures output values stay within the valid range for the image dtype without clipping.
+            Default: False.
+
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2283,12 +2287,14 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         brightness_limit: SymmetricRangeType
         contrast_limit: SymmetricRangeType
         brightness_by_max: bool
+        ensure_safe_range: bool
 
     def __init__(
         self,
         brightness_limit: ScaleFloatType = (-0.2, 0.2),
         contrast_limit: ScaleFloatType = (-0.2, 0.2),
         brightness_by_max: bool = True,
+        ensure_safe_range: bool = False,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -2296,18 +2302,33 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         self.brightness_limit = cast(tuple[float, float], brightness_limit)
         self.contrast_limit = cast(tuple[float, float], contrast_limit)
         self.brightness_by_max = brightness_by_max
+        self.ensure_safe_range = ensure_safe_range
 
     def apply(self, img: np.ndarray, alpha: float, beta: float, **params: Any) -> np.ndarray:
-        return fmain.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
+        return albucore.multiply_add(img, alpha, beta, inplace=False)
 
-    def get_params(self) -> dict[str, float]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
+        image = data["image"] if "image" in data else data["images"][0]
+
+        # Sample initial values
+        alpha = 1.0 + self.py_random.uniform(*self.contrast_limit)
+        beta = self.py_random.uniform(*self.brightness_limit)
+
+        max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+        # Scale beta according to brightness_by_max setting
+        beta = beta * max_value if self.brightness_by_max else beta * np.mean(image)
+
+        # Clip values to safe ranges if needed
+        if self.ensure_safe_range:
+            alpha, beta = fmain.get_safe_brightness_contrast_params(alpha, beta, max_value)
+
         return {
-            "alpha": 1.0 + self.py_random.uniform(*self.contrast_limit),
-            "beta": 0.0 + self.py_random.uniform(*self.brightness_limit),
+            "alpha": alpha,
+            "beta": beta,
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "brightness_limit", "contrast_limit", "brightness_by_max"
+        return "brightness_limit", "contrast_limit", "brightness_by_max", "ensure_safe_range"
 
 
 class GaussNoise(ImageOnlyTransform):
