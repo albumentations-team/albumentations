@@ -8,6 +8,7 @@ import cv2
 from pydantic import AfterValidator, Field, field_validator
 from typing_extensions import Literal
 
+from albumentations.augmentations.dropout.channel_dropout import ChannelDropout
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
@@ -37,6 +38,7 @@ __all__ = [
     "RandomClahe",
     "RandomContrast",
     "RandomBrightness",
+    "RandomChannelDropout",
 ]
 
 
@@ -956,3 +958,70 @@ class RandomBrightness(RandomBrightnessContrast):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("brightness",)
+
+
+class RandomChannelDropout(ChannelDropout):
+    """Randomly drop channels in the input image.
+
+    This transform is an alias for ChannelDropout, provided for compatibility with
+    Kornia API. For new code, it is recommended to use albumentations.ChannelDropout directly.
+
+    Args:
+        num_drop_channels (int): Number of channels to drop randomly. Default: 1.
+        fill_value (float): Value to fill the dropped channels. Default: 0.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        This transform is a specialized version of ChannelDropout provided primarily for compatibility
+        with Kornia's API.
+
+        Consider using ChannelDropout directly for:
+         - the ability to sample a number of channels to drop from a range
+
+
+    Example:
+        >>> # RandomChannelDropout way (Kornia compatibility)
+        >>> transform = A.Compose([A.RandomChannelDropout(num_drop_channels=2, fill_value=128)])
+        >>> # Preferred ChannelDropout way
+        >>> transform = A.Compose([A.ChannelDropout(channel_drop_range=(2, 2), fill_value=128)])
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomChannelDropout
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        num_drop_channels: int
+        fill_value: float
+
+    def __init__(
+        self,
+        num_drop_channels: int = 1,
+        fill_value: float = 0,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomChannelDropout is an alias for ChannelDropout transform. "
+            "Consider using ChannelDropout directly from albumentations.ChannelDropout.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            channel_drop_range=(num_drop_channels, num_drop_channels),
+            fill_value=fill_value,
+            p=p,
+        )
+        self.num_drop_channels = num_drop_channels
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "num_drop_channels", "fill_value"
