@@ -2553,6 +2553,9 @@ class CLAHE(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        1, 3
+
     Example:
         >>> import numpy as np
         >>> import albumentations as A
@@ -2592,7 +2595,7 @@ class CLAHE(ImageOnlyTransform):
     def get_params(self) -> dict[str, float]:
         return {"clip_limit": self.py_random.uniform(*self.clip_limit)}
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("clip_limit", "tile_grid_size")
 
 
