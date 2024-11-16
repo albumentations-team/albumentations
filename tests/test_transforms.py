@@ -1362,6 +1362,7 @@ def test_change_image(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.Pad,
+            A.RandomChannelDropout,
         },
     ),
 )
