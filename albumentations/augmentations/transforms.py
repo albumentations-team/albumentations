@@ -2230,7 +2230,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     Note:
         - The order of operation is: contrast adjustment, then brightness adjustment.
         - For uint8 images, the output is clipped to [0, 255] range.
-        - For float32 images, the output may exceed the [0, 1] range.
+        - For float32 images, the output is clipped to [0, 1] range.
         - The `brightness_by_max` parameter affects how brightness is adjusted:
           * If True, brightness adjustment is more pronounced and can lead to more saturated results.
           * If False, brightness adjustment is more subtle and preserves the overall lighting better.
@@ -2306,7 +2306,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             "beta": 0.0 + self.py_random.uniform(*self.brightness_limit),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "brightness_limit", "contrast_limit", "brightness_by_max"
 
 

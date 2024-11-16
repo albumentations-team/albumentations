@@ -11,7 +11,14 @@ from typing_extensions import Literal
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.geometric.transforms import Affine, HorizontalFlip, Perspective, VerticalFlip
-from albumentations.augmentations.transforms import CLAHE, ColorJitter, ImageCompression, InvertImg, ToGray
+from albumentations.augmentations.transforms import (
+    CLAHE,
+    ColorJitter,
+    ImageCompression,
+    InvertImg,
+    RandomBrightnessContrast,
+    ToGray,
+)
 from albumentations.core.pydantic import InterpolationType, check_0plus, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
@@ -28,6 +35,8 @@ __all__ = [
     "RandomInvert",
     "RandomHue",
     "RandomClahe",
+    "RandomContrast",
+    "RandomBrightness",
 ]
 
 
@@ -745,7 +754,6 @@ class RandomHue(ColorJitter):
             contrast=(1, 1),  # No contrast change
             saturation=(1, 1),  # No saturation change
             p=p,
-            always_apply=always_apply,
         )
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
@@ -811,8 +819,140 @@ class RandomClahe(CLAHE):
             clip_limit=clip_limit,
             tile_grid_size=tile_grid_size,
             p=p,
-            always_apply=always_apply,
         )
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("clip_limit", "tile_grid_size")
+
+
+class RandomContrast(RandomBrightnessContrast):
+    """Randomly adjust the contrast of the input image.
+
+    This transform is a specialized version of RandomBrightnessContrast that only adjusts contrast.
+
+    Args:
+        contrast (tuple[float, float]): Factor range for changing contrast.
+            - A factor of 0.0 gives black image
+            - A factor of 1.0 gives the original image
+            - A factor > 1.0 increases contrast
+            - A factor < 1.0 decreases contrast
+            Default: (1, 1)
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        This is a specialized version of albumentations.RandomBrightnessContrast transform.
+        It is provided for compatibility with Kornia APIs.
+        For more flexibility, including brightness adjustments, consider using
+        RandomBrightnessContrast directly.
+
+    Example:
+        >>> transform = A.Compose([A.RandomContrast(contrast=(0.8, 1.2), p=0.5)])
+        >>> # Consider using instead:
+        >>> transform = A.Compose([A.RandomBrightnessContrast(contrast=(0.8, 1.2), brightness_limit=0, p=0.5)])
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomContrast
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        contrast: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
+
+    def __init__(
+        self,
+        contrast: tuple[float, float] = (1, 1),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomContrast is a specialized version of RandomBrightnessContrast. "
+            "For more flexibility (including brightness adjustments), "
+            "consider using RandomBrightnessContrast directly from albumentations.RandomBrightnessContrast.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            contrast_limit=(contrast[0] - 1, contrast[1] - 1),
+            brightness_limit=0,  # No brightness change
+            p=p,
+        )
+
+        self.contrast = contrast
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("contrast",)
+
+
+class RandomBrightness(RandomBrightnessContrast):
+    """Randomly adjust the brightness of the input image.
+
+    This transform is a specialized version of RandomBrightnessContrast that only adjusts brightness.
+
+    Args:
+        brightness (tuple[float, float]): Range for changing brightness.
+            - A factor of 0.0 gives a black image
+            - A factor of 1.0 gives the original image
+            - A factor > 1.0 increases brightness
+            - A factor < 1.0 decreases brightness
+            Default: (0.8, 1.2)
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        This is a specialized version of albumentations.RandomBrightnessContrast transform.
+        For more flexibility (including contrast adjustments), consider using
+        RandomBrightnessContrast directly.
+
+    Example:
+        >>> transform = A.Compose([A.RandomBrightness(brightness=(0.8, 1.2), p=0.5)])
+        >>> # Consider using instead:
+        >>> transform = A.Compose([A.RandomBrightnessContrast(brightness_limit=(0.8, 1.2), contrast_limit=0, p=0.5)])
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomBrightness
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        brightness: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
+
+    def __init__(
+        self,
+        brightness: tuple[float, float] = (1, 1),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomBrightness is a specialized version of RandomBrightnessContrast. "
+            "For more flexibility (including contrast adjustments), "
+            "consider using RandomBrightnessContrast directly from albumentations.RandomBrightnessContrast.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            brightness_limit=brightness,
+            contrast_limit=0,  # No contrast change
+            p=p,
+        )
+
+        self.brightness = brightness
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("brightness",)
