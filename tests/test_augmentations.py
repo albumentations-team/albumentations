@@ -391,6 +391,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomRain,
             A.RandomGravel,
             A.RandomChannelDropout,
+            A.RandomPlanckianJitter,
         },
     ),
 )

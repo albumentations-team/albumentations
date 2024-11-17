@@ -1356,6 +1356,7 @@ def test_change_image(augmentation_cls, params):
             A.ChannelShuffle,
             A.ChromaticAberration,
             A.PlanckianJitter,
+            A.RandomPlanckianJitter,
             A.OverlayElements,
             A.FromFloat,
             A.TextImage,

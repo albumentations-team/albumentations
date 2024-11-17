@@ -400,4 +400,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomChannelDropout, {}],
     [A.RandomEqualize, {}],
     [A.RandomGaussianBlur, {}],
+    [A.RandomPlanckianJitter, {}],
 ]
