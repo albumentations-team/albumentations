@@ -611,6 +611,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomGrayscale,
             A.RandomHue,
             A.RandomClahe,
+            A.RandomSaturation,
         },
     ),
 )
@@ -703,6 +704,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomGrayscale,
             A.RandomHue,
             A.RandomClahe,
+            A.RandomSaturation,
         },
     ),
 )
@@ -789,6 +791,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomGrayscale,
             A.RandomHue,
             A.RandomClahe,
+            A.RandomSaturation,
         },
     ),
 )
@@ -877,6 +880,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RandomGrayscale,
             A.RandomHue,
             A.RandomClahe,
+            A.RandomSaturation,
         },
     ),
 )
@@ -1102,7 +1106,6 @@ def test_pad_if_needed_position(params, image_shape):
             A.TextImage,
             A.RGBShift,
             A.HueSaturationValue,
-            A.GaussNoise,
             A.ColorJitter,
         },
     ),

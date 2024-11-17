@@ -17,14 +17,23 @@ from albumentations.augmentations.transforms import (
     CLAHE,
     ColorJitter,
     Equalize,
+    GaussNoise,
     ImageCompression,
     InvertImg,
     PlanckianJitter,
+    Posterize,
     RandomBrightnessContrast,
     Solarize,
     ToGray,
 )
-from albumentations.core.pydantic import InterpolationType, check_0plus, check_01, check_1plus, nondecreasing
+from albumentations.core.pydantic import (
+    InterpolationType,
+    check_0plus,
+    check_01,
+    check_1plus,
+    check_range_bounds,
+    nondecreasing,
+)
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, ScaleIntType, Targets
 
@@ -48,6 +57,9 @@ __all__ = [
     "RandomPlanckianJitter",
     "RandomMedianBlur",
     "RandomSolarize",
+    "RandomPosterize",
+    "RandomSaturation",
+    "GaussianNoise",
 ]
 
 
@@ -1378,3 +1390,203 @@ class RandomSolarize(Solarize):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("thresholds",)
+
+
+class RandomPosterize(Posterize):
+    """Reduce the number of bits for each color channel.
+
+    This transform is an alias for Posterize, provided for compatibility with
+    Kornia API. For new code, it is recommended to use albumentations.Posterize directly.
+
+    Args:
+        num_bits (tuple[int, int]): Range for number of bits to keep for each channel.
+            Values should be in range [0, 8] for uint8 images.
+            Default: (3, 3).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Note:
+        This transform is a direct alias for Posterize with identical functionality.
+        For new projects, it is recommended to use Posterize directly as it
+        provides a more consistent interface within the Albumentations ecosystem.
+
+        For float32 images:
+        1. Image is converted to uint8 (multiplied by 255 and clipped)
+        2. Posterization is applied
+        3. Image is converted back to float32 (divided by 255)
+
+    Example:
+        >>> # RandomPosterize way (Kornia compatibility)
+        >>> transform = A.RandomPosterize(num_bits=(3, 3))  # Fixed 3 bits per channel
+        >>> transform = A.RandomPosterize(num_bits=(3, 5))  # Random from 3 to 5 bits
+        >>> # Preferred Posterize way
+        >>> transform = A.Posterize(bits=(3, 3))
+        >>> transform = A.Posterize(bits=(3, 5))
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomPosterize
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        num_bits: Annotated[tuple[int, int], AfterValidator(check_range_bounds(0, 8)), AfterValidator(nondecreasing)]
+
+    def __init__(
+        self,
+        num_bits: tuple[int, int] = (3, 3),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomPosterize is an alias for Posterize transform. "
+            "Consider using Posterize directly from albumentations.Posterize.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            num_bits=num_bits,
+            p=p,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("num_bits",)
+
+
+class RandomSaturation(ColorJitter):
+    """Randomly change the saturation of an RGB image.
+
+    This is a specialized version of ColorJitter that only adjusts saturation.
+
+    Args:
+        saturation (tuple[float, float]): Range for the saturation factor.
+            Values should be non-negative numbers.
+            A saturation factor of 0 will result in a grayscale image
+            A saturation factor of 1 will give the original image
+            A saturation factor of 2 will enhance the saturation by a factor of 2
+            Default: (1.0, 1.0)
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        1, 3
+
+    Note:
+        - This transform can only be applied to RGB/BGR images.
+        - The saturation adjustment is done by converting to HSV color space,
+          modifying the S channel, and converting back to RGB.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.RandomSaturation(saturation_range=(0.5, 1.5), p=0.5)
+        >>> # Reduce saturation by 50% to increase by 50%
+        >>>
+        >>> transform = A.RandomSaturation(saturation_range=(0.0, 1.0), p=0.5)
+        >>> # Randomly convert to grayscale with 50% probability
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        saturation: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
+
+    def __init__(
+        self,
+        saturation: tuple[float, float] = (1.0, 1.0),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(
+            brightness=(1.0, 1.0),  # No brightness change
+            contrast=(1.0, 1.0),  # No contrast change
+            saturation=saturation,
+            hue=(0.0, 0.0),  # No hue change
+            p=p,
+        )
+        self.saturation = saturation
+
+    def get_transform_init_args_names(self) -> tuple[str]:
+        return ("saturation",)
+
+
+class GaussianNoise(GaussNoise):
+    """Add Gaussian noise to the input image.
+
+    A specialized version of GaussNoise that follows torchvision's API.
+
+    Args:
+        mean (float): Mean of the Gaussian noise as a fraction
+            of the maximum value (255 for uint8 images or 1.0 for float images).
+            Value should be in range [0, 1]. Default: 0.0.
+        sigma (float): Standard deviation of the Gaussian noise as a fraction
+            of the maximum value (255 for uint8 images or 1.0 for float images).
+            Value should be in range [0, 1]. Default: 0.1.
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The noise parameters (sigma and mean) are normalized to [0, 1] range:
+          * For uint8 images, they are multiplied by 255
+          * For float32 images, they are used directly
+        - Unlike GaussNoise, this transform:
+          * Uses fixed sigma and mean values (no ranges)
+          * Always applies same noise to all channels
+          * Does not support noise_scale_factor optimization
+        - For more flexibility, use GaussNoise which allows sampling both std and mean
+          from ranges and supports per-channel noise
+
+    Example:
+        >>> import albumentations as A
+        >>> # Add noise with sigma=0.1 (10% of the image range)
+        >>> transform = A.GaussianNoise(mean=0.0, sigma=0.1, p=1.0)
+
+    References:
+        - torchvision: https://pytorch.org/vision/master/generated/torchvision.transforms.v2.GaussianNoise.html
+        - kornia: https://kornia.readthedocs.io/en/latest/augmentation.module.html#kornia.augmentation.RandomGaussianNoise
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        mean: float = Field(ge=-1, le=1)
+        sigma: float = Field(ge=0, le=1)
+
+    def __init__(
+        self,
+        mean: float = 0.0,
+        sigma: float = 0.1,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "GaussianNoise is a specialized version of GaussNoise that follows torchvision's API. "
+            "Consider using GaussNoise directly from albumentations.GaussNoise.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            std_range=(sigma, sigma),  # Fixed sigma value
+            mean_range=(mean, mean),  # Fixed mean value
+            per_channel=False,  # Always apply same noise to all channels
+            noise_scale_factor=1.0,  # No noise scale optimization
+            p=p,
+        )
+        self.mean = mean
+        self.sigma = sigma
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "mean", "sigma"
