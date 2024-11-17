@@ -1293,7 +1293,7 @@ class RandomMedianBlur(MedianBlur):
         p: float = 0.5,
     ):
         warn(
-            "RandomMedianBlur is an alias for MedianBlur transform. "
+            "RandomMedianBlur is a specialized version of MedianBlur with a probability parameter. "
             "Consider using MedianBlur directly from albumentations.MedianBlur.",
             UserWarning,
             stacklevel=2,
