@@ -1557,6 +1557,7 @@ class GaussianNoise(GaussNoise):
 
     References:
         - torchvision: https://pytorch.org/vision/master/generated/torchvision.transforms.v2.GaussianNoise.html
+        - kornia: https://kornia.readthedocs.io/en/latest/augmentation.module.html#kornia.augmentation.RandomGaussianNoise
     """
 
     class InitSchema(BaseTransformInitSchema):
