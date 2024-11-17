@@ -8,7 +8,7 @@ INSTALL_REQUIRES = [
     "scipy>=1.10.0",
     "PyYAML",
     "typing-extensions>=4.9.0; python_version<'3.10'",
-    "pydantic>=2.7.0",
+    "pydantic>=2.9.2",
     "albucore==0.0.21",
     "eval-type-backport",
 ]

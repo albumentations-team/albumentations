@@ -1100,7 +1100,6 @@ def test_pad_if_needed_position(params, image_shape):
             A.TemplateTransform,
             A.OverlayElements,
             A.TextImage,
-            A.Solarize,
             A.RGBShift,
             A.HueSaturationValue,
             A.GaussNoise,

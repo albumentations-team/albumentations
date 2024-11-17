@@ -335,30 +335,25 @@ def test_swap_tiles_on_image(img, tiles, mapping, expected):
     np.testing.assert_array_equal(result_img, expected)
 
 
-@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
-def test_solarize(dtype):
-    max_value = MAX_VALUES_BY_DTYPE[dtype]
+@pytest.mark.parametrize("image", IMAGES)
+@pytest.mark.parametrize("threshold", [0.0, 1/3, 2/3, 1.0, 1.1])
+def test_solarize(image, threshold):
+    max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+    check_img = image.copy()
 
-    if dtype == np.dtype("float32"):
-        img = np.arange(2**10, dtype=np.float32) / (2**10)
-        img = img.reshape([2**5, 2**5])
+    if image.dtype == np.uint8:
+        threshold_value = threshold * max_value
     else:
-        max_count = 1024
-        count = min(max_value + 1, 1024)
-        step = max(1, (max_value + 1) // max_count)
-        shape = [int(np.sqrt(count))] * 2
-        img = np.arange(0, max_value + 1, step, dtype=dtype).reshape(shape)
+        threshold_value = threshold
 
-    for threshold in [0, max_value // 3, max_value // 3 * 2, max_value, max_value + 1]:
-        check_img = img.copy()
-        cond = check_img >= threshold
-        check_img[cond] = max_value - check_img[cond]
+    cond = check_img >= threshold_value
+    check_img[cond] = max_value - check_img[cond]
 
-        result_img = F.solarize(img, threshold=threshold)
+    result_img = F.solarize(image, threshold=threshold)
 
-        assert np.all(np.isclose(result_img, check_img))
-        assert np.min(result_img) >= 0
-        assert np.max(result_img) <= max_value
+    assert np.all(np.isclose(result_img, check_img))
+    assert np.min(result_img) >= 0
+    assert np.max(result_img) <= max_value
 
 
 @pytest.mark.parametrize(
