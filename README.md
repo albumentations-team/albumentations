@@ -219,6 +219,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomChannelDropout](https://explore.albumentations.ai/transform/RandomChannelDropout)
 - [RandomClahe](https://explore.albumentations.ai/transform/RandomClahe)
 - [RandomContrast](https://explore.albumentations.ai/transform/RandomContrast)
+- [RandomEqualize](https://explore.albumentations.ai/transform/RandomEqualize)
 - [RandomFog](https://explore.albumentations.ai/transform/RandomFog)
 - [RandomGamma](https://explore.albumentations.ai/transform/RandomGamma)
 - [RandomGravel](https://explore.albumentations.ai/transform/RandomGravel)
