@@ -22,7 +22,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.MotionBlur, {"blur_limit": 3}],
     [A.MedianBlur, {"blur_limit": 3}],
     [A.GaussianBlur, {"blur_limit": 3}],
-    [A.GaussNoise, {"var_limit": (20, 90), "mean": 10, "per_channel": False}],
+    [A.GaussNoise, {"std_range": (0.2, 0.44), "mean_range": (0.0, 0.0), "per_channel": False}],
     [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
     [A.CoarseDropout, {"num_holes_range": (2, 5), "hole_height_range": (3, 4), "hole_width_range": (4, 6)}],

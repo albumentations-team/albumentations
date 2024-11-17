@@ -47,6 +47,7 @@ from albumentations.core.pydantic import (
     check_0plus,
     check_01,
     check_1plus,
+    check_range_bounds,
     nondecreasing,
 )
 from albumentations.core.transforms_interface import (
@@ -2367,9 +2368,16 @@ class GaussNoise(ImageOnlyTransform):
     """Apply Gaussian noise to the input image.
 
     Args:
-        var_limit (tuple[float, float] | float): Variance range for noise. If var_limit is a single float value,
-            the range will be (0, var_limit). Default: (10.0, 50.0).
-        mean (float): Mean of the noise. Default: 0.
+        std_range (tuple[float, float]): Range for noise standard deviation as a fraction
+            of the maximum value (255 for uint8 images or 1.0 for float images).
+            Values should be in range [0, 1]. Default: (0.2, 0.44).
+        mean_range (tuple[float, float]): Range for noise mean as a fraction
+            of the maximum value (255 for uint8 images or 1.0 for float images).
+            Values should be in range [-1, 1]. Default: (0.0, 0.0).
+        var_limit (tuple[float, float] | float): [Deprecated] Variance range for noise.
+            If var_limit is a single float value, the range will be (0, var_limit).
+            Default: (10.0, 50.0).
+        mean (float): [Deprecated] Mean of the noise. Default: 0.
         per_channel (bool): If True, noise will be sampled for each channel independently.
             Otherwise, the noise will be sampled once for all channels. Default: True.
         noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
@@ -2386,77 +2394,114 @@ class GaussNoise(ImageOnlyTransform):
     Number of channels:
         Any
 
-    Returns:
-        numpy.ndarray: Image with applied Gaussian noise.
-
     Note:
-        - The noise is generated in the same range as the input image.
-        - For uint8 input images, the noise is generated in the range [0, 255].
-        - For float32 input images, the noise is generated in the range [0, 1].
-        - The resulting image is clipped to keep its values in the input range.
-        - Setting per_channel=False is faster but applies the same noise to all channels.
-        - The noise_scale_factor parameter allows for a trade-off between transform speed and noise granularity.
+        - The noise parameters (std_range and mean_range) are normalized to [0, 1] range:
+          * For uint8 images, they are multiplied by 255
+          * For float32 images, they are used directly
+        - The behavior differs between old and new parameters:
+          * When using var_limit (deprecated): samples variance uniformly and takes sqrt to get std dev
+          * When using std_range: samples standard deviation directly (aligned with torchvision/kornia)
+        - Setting per_channel=False is faster but applies the same noise to all channels
+        - The noise_scale_factor parameter allows for a trade-off between transform speed and noise granularity
 
     Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
         >>>
-        >>> # Apply Gaussian noise with default parameters
-        >>> transform = A.GaussNoise(p=1.0)
+        >>> # Apply Gaussian noise with normalized std_range
+        >>> transform = A.GaussNoise(std_range=(0.1, 0.2), p=1.0)  # 10-20% of max value
         >>> noisy_image = transform(image=image)['image']
         >>>
-        >>> # Apply Gaussian noise with custom variance range and mean
+        >>> # Using deprecated var_limit (will be converted to std_range)
         >>> transform = A.GaussNoise(var_limit=(50.0, 100.0), mean=10, p=1.0)
         >>> noisy_image = transform(image=image)['image']
-        >>>
-        >>> # Apply the same noise to all channels
-        >>> transform = A.GaussNoise(per_channel=False, p=1.0)
-        >>> noisy_image = transform(image=image)['image']
-        >>>
-        >>> # Apply noise with reduced granularity for faster processing
-        >>> transform = A.GaussNoise(noise_scale_factor=0.5, p=1.0)
-        >>> noisy_image = transform(image=image)['image']
-
     """
 
     class InitSchema(BaseTransformInitSchema):
-        var_limit: NonNegativeFloatRangeType
-        mean: float
+        var_limit: ScaleFloatType | None = Field(
+            deprecated="var_limit parameter is deprecated. Use std_range instead.",
+        )
+        mean: float | None = Field(
+            deprecated="mean parameter is deprecated. Use mean_range instead.",
+        )
+        std_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
+        mean_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(-1, 1)),
+            AfterValidator(nondecreasing),
+        ]
         per_channel: bool
         noise_scale_factor: float = Field(gt=0, le=1)
 
+        @model_validator(mode="after")
+        def check_range(self) -> Self:
+            if self.var_limit is not None:
+                self.var_limit = to_tuple(self.var_limit, 0)
+                if self.var_limit[1] > 1:
+                    # Convert legacy uint8 variance to normalized std dev
+                    self.std_range = (math.sqrt(10 / 255), math.sqrt(50 / 255))
+                else:
+                    # Already normalized variance, convert to std dev
+                    self.std_range = (math.sqrt(self.var_limit[0]), math.sqrt(self.var_limit[1]))
+            if self.mean is not None:
+                self.mean_range = (0.0, 0.0)
+
+            if self.mean is not None:
+                if self.mean >= 1:
+                    # Convert legacy uint8 mean to normalized range
+                    self.mean_range = (self.mean / 255, self.mean / 255)
+                else:
+                    # Already normalized mean
+                    self.mean_range = (self.mean, self.mean)
+
+            return self
+
     def __init__(
         self,
-        var_limit: ScaleFloatType = (10.0, 50.0),
-        mean: float = 0,
+        var_limit: ScaleFloatType | None = None,
+        mean: float | None = None,
+        std_range: tuple[float, float] = (0.2, 0.44),  # sqrt(10 / 255), sqrt(50 / 255)
+        mean_range: tuple[float, float] = (0.0, 0.0),
         per_channel: bool = True,
         noise_scale_factor: float = 1,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.var_limit = cast(tuple[float, float], var_limit)
-        self.mean = mean
+        self.std_range = std_range
+        self.mean_range = mean_range
         self.per_channel = per_channel
         self.noise_scale_factor = noise_scale_factor
+
+        self.var_limit = var_limit
 
     def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.add_noise(img, gauss)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         image = data["image"] if "image" in data else data["images"][0]
-        var = self.py_random.uniform(*self.var_limit)
-        sigma = math.sqrt(var)
+        max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+
+        if self.var_limit is not None:
+            # Legacy behavior: sample variance uniformly then take sqrt
+            var = self.py_random.uniform(self.std_range[0] ** 2, self.std_range[1] ** 2)
+            sigma = math.sqrt(var)
+        else:
+            # New behavior: sample std dev directly (aligned with torchvision/kornia)
+            sigma = self.py_random.uniform(*self.std_range)
+
+        sigma *= max_value
+        mean = self.py_random.uniform(*self.mean_range) * max_value
 
         if self.per_channel:
             target_shape = image.shape
             if self.noise_scale_factor == 1:
-                gauss = self.random_generator.normal(self.mean, sigma, target_shape)
+                gauss = self.random_generator.normal(mean, sigma, target_shape)
             else:
                 gauss = fmain.generate_approx_gaussian_noise(
                     target_shape,
-                    self.mean,
+                    mean,
                     sigma,
                     self.noise_scale_factor,
                     self.random_generator,
@@ -2464,11 +2509,11 @@ class GaussNoise(ImageOnlyTransform):
         else:
             target_shape = image.shape[:2]
             if self.noise_scale_factor == 1:
-                gauss = self.random_generator.normal(self.mean, sigma, target_shape)
+                gauss = self.random_generator.normal(mean, sigma, target_shape)
             else:
                 gauss = fmain.generate_approx_gaussian_noise(
                     target_shape,
-                    self.mean,
+                    mean,
                     sigma,
                     self.noise_scale_factor,
                     self.random_generator,
@@ -2480,7 +2525,7 @@ class GaussNoise(ImageOnlyTransform):
         return {"gauss": gauss}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "var_limit", "per_channel", "mean", "noise_scale_factor"
+        return "std_range", "mean_range", "per_channel", "noise_scale_factor"
 
 
 class ISONoise(ImageOnlyTransform):

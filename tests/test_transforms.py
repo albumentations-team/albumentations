@@ -7,7 +7,7 @@ from typing import Any, Type
 import cv2
 import numpy as np
 import pytest
-from albucore import to_float, clip
+from albucore import to_float, clip, MAX_VALUES_BY_DTYPE
 
 from torchvision import transforms as torch_transforms
 
@@ -1767,9 +1767,9 @@ def test_random_fog_invalid_input(params):
 
 
 @pytest.mark.parametrize("image", IMAGES + [np.full((100, 100), 128, dtype=np.uint8)])
-@pytest.mark.parametrize("mean", (0, 10, -10))
+@pytest.mark.parametrize("mean", (0, 0.1, -0.1))
 def test_gauss_noise(mean, image):
-    aug = A.GaussNoise(p=1, noise_scale_factor=1.0, mean=mean)
+    aug = A.GaussNoise(p=1, noise_scale_factor=1.0, mean_range=(mean, mean))
     aug.set_random_seed(42)
 
     apply_params = aug.get_params_dependent_on_data(
@@ -1777,7 +1777,7 @@ def test_gauss_noise(mean, image):
         data={"image": image},
     )
 
-    assert np.abs(mean - apply_params["gauss"].mean()) < 0.5
+    assert np.abs(mean - apply_params["gauss"].mean() / MAX_VALUES_BY_DTYPE[image.dtype]) < 0.5
     result = A.Compose([aug], seed=42)(image=image)
 
     assert not (result["image"] >= image).all()

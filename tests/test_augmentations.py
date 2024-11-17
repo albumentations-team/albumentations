@@ -1106,7 +1106,6 @@ def test_pad_if_needed_position(params, image_shape):
             A.TextImage,
             A.RGBShift,
             A.HueSaturationValue,
-            A.GaussNoise,
             A.ColorJitter,
         },
     ),
