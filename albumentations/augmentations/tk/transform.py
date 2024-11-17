@@ -20,11 +20,19 @@ from albumentations.augmentations.transforms import (
     ImageCompression,
     InvertImg,
     PlanckianJitter,
+    Posterize,
     RandomBrightnessContrast,
     Solarize,
     ToGray,
 )
-from albumentations.core.pydantic import InterpolationType, check_0plus, check_01, check_1plus, nondecreasing
+from albumentations.core.pydantic import (
+    InterpolationType,
+    check_0plus,
+    check_01,
+    check_1plus,
+    check_range_bounds,
+    nondecreasing,
+)
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, ScaleIntType, Targets
 
@@ -48,6 +56,7 @@ __all__ = [
     "RandomPlanckianJitter",
     "RandomMedianBlur",
     "RandomSolarize",
+    "RandomPosterize",
 ]
 
 
@@ -1378,3 +1387,68 @@ class RandomSolarize(Solarize):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("thresholds",)
+
+
+class RandomPosterize(Posterize):
+    """Reduce the number of bits for each color channel.
+
+    This transform is an alias for Posterize, provided for compatibility with
+    Kornia API. For new code, it is recommended to use albumentations.Posterize directly.
+
+    Args:
+        num_bits (tuple[int, int]): Range for number of bits to keep for each channel.
+            Values should be in range [0, 8] for uint8 images.
+            Default: (3, 3).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform is a direct alias for Posterize with identical functionality.
+        For new projects, it is recommended to use Posterize directly as it
+        provides a more consistent interface within the Albumentations ecosystem.
+
+        For float32 images:
+        1. Image is converted to uint8 (multiplied by 255 and clipped)
+        2. Posterization is applied
+        3. Image is converted back to float32 (divided by 255)
+
+    Example:
+        >>> # RandomPosterize way (Kornia compatibility)
+        >>> transform = A.RandomPosterize(num_bits=(3, 3))  # Fixed 3 bits per channel
+        >>> transform = A.RandomPosterize(num_bits=(3, 5))  # Random from 3 to 5 bits
+        >>> # Preferred Posterize way
+        >>> transform = A.Posterize(bits=(3, 3))
+        >>> transform = A.Posterize(bits=(3, 5))
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomPosterize
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        num_bits: Annotated[tuple[int, int], AfterValidator(check_range_bounds(0, 8)), AfterValidator(nondecreasing)]
+
+    def __init__(
+        self,
+        num_bits: tuple[int, int] = (3, 3),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomPosterize is an alias for Posterize transform. "
+            "Consider using Posterize directly from albumentations.Posterize.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            num_bits=num_bits,
+            p=p,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("num_bits",)

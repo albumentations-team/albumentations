@@ -403,4 +403,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomPlanckianJitter, {}],
     [A.RandomMedianBlur, {}],
     [A.RandomSolarize, {}],
+    [A.RandomPosterize, {}],
 ]

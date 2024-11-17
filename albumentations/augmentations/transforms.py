@@ -2018,7 +2018,7 @@ class Posterize(ImageOnlyTransform):
         num_bits = self.num_bits
         return {"num_bits": self.py_random.randint(int(num_bits[0]), int(num_bits[1]))}  # type: ignore[arg-type]
 
-    def get_transform_init_args_names(self) -> tuple[str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("num_bits",)
 
 
