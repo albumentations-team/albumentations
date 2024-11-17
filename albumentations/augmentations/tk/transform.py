@@ -1407,6 +1407,9 @@ class RandomPosterize(Posterize):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
     Note:
         This transform is a direct alias for Posterize with identical functionality.
         For new projects, it is recommended to use Posterize directly as it
