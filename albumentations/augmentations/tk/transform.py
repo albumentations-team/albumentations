@@ -17,6 +17,7 @@ from albumentations.augmentations.transforms import (
     CLAHE,
     ColorJitter,
     Equalize,
+    GaussNoise,
     ImageCompression,
     InvertImg,
     PlanckianJitter,
@@ -58,6 +59,7 @@ __all__ = [
     "RandomSolarize",
     "RandomPosterize",
     "RandomSaturation",
+    "GaussianNoise",
 ]
 
 
@@ -1515,3 +1517,75 @@ class RandomSaturation(ColorJitter):
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("saturation",)
+
+
+class GaussianNoise(GaussNoise):
+    """Add Gaussian noise to the input image.
+
+    A specialized version of GaussNoise that follows torchvision's API.
+
+    Args:
+        mean (float): Mean of the Gaussian noise as a fraction
+            of the maximum value (255 for uint8 images or 1.0 for float images).
+            Value should be in range [0, 1]. Default: 0.0.
+        sigma (float): Standard deviation of the Gaussian noise as a fraction
+            of the maximum value (255 for uint8 images or 1.0 for float images).
+            Value should be in range [0, 1]. Default: 0.1.
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The noise parameters (sigma and mean) are normalized to [0, 1] range:
+          * For uint8 images, they are multiplied by 255
+          * For float32 images, they are used directly
+        - Unlike GaussNoise, this transform:
+          * Uses fixed sigma and mean values (no ranges)
+          * Always applies same noise to all channels
+          * Does not support noise_scale_factor optimization
+        - For more flexibility, use GaussNoise which allows sampling both std and mean
+          from ranges and supports per-channel noise
+
+    Example:
+        >>> import albumentations as A
+        >>> # Add noise with sigma=0.1 (10% of the image range)
+        >>> transform = A.GaussianNoise(mean=0.0, sigma=0.1, p=1.0)
+
+    References:
+        - torchvision: https://pytorch.org/vision/master/generated/torchvision.transforms.v2.GaussianNoise.html
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        mean: float = Field(ge=-1, le=1)
+        sigma: float = Field(ge=0, le=1)
+
+    def __init__(
+        self,
+        mean: float = 0.0,
+        sigma: float = 0.1,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "GaussianNoise is a specialized version of GaussNoise that follows torchvision's API. "
+            "Consider using GaussNoise directly from albumentations.GaussNoise.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            std_range=(sigma, sigma),  # Fixed sigma value
+            mean_range=(mean, mean),  # Fixed mean value
+            per_channel=False,  # Always apply same noise to all channels
+            noise_scale_factor=1.0,  # No noise scale optimization
+            p=p,
+        )
+        self.mean = mean
+        self.sigma = sigma
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "mean", "sigma"
