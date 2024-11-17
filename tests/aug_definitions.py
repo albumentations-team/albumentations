@@ -404,4 +404,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomMedianBlur, {}],
     [A.RandomSolarize, {}],
     [A.RandomPosterize, {}],
+    [A.RandomSaturation, {}],
 ]

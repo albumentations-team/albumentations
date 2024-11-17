@@ -57,6 +57,7 @@ __all__ = [
     "RandomMedianBlur",
     "RandomSolarize",
     "RandomPosterize",
+    "RandomSaturation",
 ]
 
 
@@ -1455,3 +1456,62 @@ class RandomPosterize(Posterize):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("num_bits",)
+
+
+class RandomSaturation(ColorJitter):
+    """Randomly change the saturation of an RGB image.
+
+    This is a specialized version of ColorJitter that only adjusts saturation.
+
+    Args:
+        saturation (tuple[float, float]): Range for the saturation factor.
+            Values should be non-negative numbers.
+            A saturation factor of 0 will result in a grayscale image
+            A saturation factor of 1 will give the original image
+            A saturation factor of 2 will enhance the saturation by a factor of 2
+            Default: (1.0, 1.0)
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        1, 3
+
+    Note:
+        - This transform can only be applied to RGB/BGR images.
+        - The saturation adjustment is done by converting to HSV color space,
+          modifying the S channel, and converting back to RGB.
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.RandomSaturation(saturation_range=(0.5, 1.5), p=0.5)
+        >>> # Reduce saturation by 50% to increase by 50%
+        >>>
+        >>> transform = A.RandomSaturation(saturation_range=(0.0, 1.0), p=0.5)
+        >>> # Randomly convert to grayscale with 50% probability
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        saturation: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
+
+    def __init__(
+        self,
+        saturation: tuple[float, float] = (1.0, 1.0),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(
+            brightness=(1.0, 1.0),  # No brightness change
+            contrast=(1.0, 1.0),  # No contrast change
+            saturation=saturation,
+            hue=(0.0, 0.0),  # No hue change
+            p=p,
+        )
+        self.saturation = saturation
+
+    def get_transform_init_args_names(self) -> tuple[str]:
+        return ("saturation",)

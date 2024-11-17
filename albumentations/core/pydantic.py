@@ -147,22 +147,29 @@ def repeat_if_scalar(value: ScaleType) -> tuple[float, float]:
     return (value, value) if isinstance(value, (int, float)) else value
 
 
-def check_range_bounds(min_val: int, max_val: int) -> Callable[[tuple[int, int]], tuple[int, int]]:
+def check_range_bounds(
+    min_val: Number,
+    max_val: Number | None = None,
+) -> Callable[[tuple[Number, Number]], tuple[Number, Number]]:
     """Validates that both values in a tuple are within specified bounds.
 
     Args:
         min_val: Minimum allowed value (inclusive)
-        max_val: Maximum allowed value (inclusive)
+        max_val: Maximum allowed value (inclusive). If None, only lower bound is checked.
 
     Returns:
-        Validator function that checks if both values in tuple are within [min_val, max_val]
+        Validator function that checks if both values in tuple are within bounds.
+        If max_val is None, only checks that values are >= min_val.
 
     Raises:
         ValueError: If any value in tuple is outside the allowed range
     """
 
-    def validator(value: tuple[int, int]) -> tuple[int, int]:
-        if not (min_val <= value[0] <= max_val and min_val <= value[1] <= max_val):
+    def validator(value: tuple[Number, Number]) -> tuple[Number, Number]:
+        if max_val is None:
+            if not (value[0] >= min_val and value[1] >= min_val):
+                raise ValueError(f"All values in {value} must be >= {min_val}")
+        elif not (min_val <= value[0] <= max_val and min_val <= value[1] <= max_val):
             raise ValueError(f"All values in {value} must be in range [{min_val}, {max_val}]")
         return value
 
