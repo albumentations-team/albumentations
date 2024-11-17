@@ -1880,14 +1880,20 @@ class Solarize(ImageOnlyTransform):
         )
         threshold_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
 
+        @staticmethod
+        def normalize_threshold(
+            threshold: ScaleFloatType | None,
+            threshold_range: tuple[float, float],
+        ) -> tuple[float, float]:
+            """Convert legacy threshold or use threshold_range, normalizing to [0,1] range."""
+            if threshold is None:
+                return threshold_range
+            value = to_tuple(threshold, threshold)
+            return (value[0] / 255, value[1] / 255) if value[1] > 1 else value
+
         @model_validator(mode="after")
         def process_threshold(self) -> Self:
-            if self.threshold is not None:
-                value = to_tuple(self.threshold, self.threshold)
-                if value[1] > 1:
-                    self.threshold_range = (value[0] / 255, value[1] / 255)
-                else:
-                    self.threshold_range = value
+            self.threshold_range = self.normalize_threshold(self.threshold, self.threshold_range)
             return self
 
     def __init__(
