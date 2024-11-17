@@ -21,9 +21,10 @@ from albumentations.augmentations.transforms import (
     InvertImg,
     PlanckianJitter,
     RandomBrightnessContrast,
+    Solarize,
     ToGray,
 )
-from albumentations.core.pydantic import InterpolationType, check_0plus, check_1plus, nondecreasing
+from albumentations.core.pydantic import InterpolationType, check_0plus, check_01, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import PAIR, ColorType, ScaleFloatType, ScaleIntType, Targets
 
@@ -46,6 +47,7 @@ __all__ = [
     "RandomGaussianBlur",
     "RandomPlanckianJitter",
     "RandomMedianBlur",
+    "RandomSolarize",
 ]
 
 
@@ -1306,3 +1308,73 @@ class RandomMedianBlur(MedianBlur):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("kernel_size",)
+
+
+class RandomSolarize(Solarize):
+    """Invert all pixel values above a threshold.
+
+    This transform is an alias for Solarize, provided for compatibility with
+    Kornia API naming convention, but using Albumentations' parameter format.
+
+    Args:
+        thresholds (tuple[float, float]): Range for solarizing threshold as a fraction
+            of maximum value. The thresholds should be in the range [0, 1] and will be multiplied by the
+            maximum value of the image type (255 for uint8 images or 1.0 for float images).
+            Default: (0.1, 0.1).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform differs from Kornia's RandomSolarize in parameter format:
+        - Uses normalized thresholds [0, 1] for both uint8 and float32 images
+        - No support for post-solarization brightness addition
+
+        For brightness adjustment, use composition with RandomBrightness:
+        ```python
+        A.Compose([
+            A.RandomSolarize(thresholds=0.1),
+            A.RandomBrightness(limit=0.1)
+        ])
+        ```
+
+    Example:
+        >>> # RandomSolarize with fixed threshold at 10% of max value
+        >>> transform = A.RandomSolarize(thresholds=0.1)  # 25.5 for uint8, 0.1 for float32
+        >>> # RandomSolarize with threshold range
+        >>> transform = A.RandomSolarize(thresholds=(0.1, 0.1))
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomSolarize
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        thresholds: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
+
+    def __init__(
+        self,
+        thresholds: tuple[float, float] = (0.1, 0.1),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomSolarize is an alias for Solarize transform. "
+            "Consider using Solarize directly from albumentations.Solarize. "
+            "Note: parameter format differs from Kornia's implementation."
+            "For brightness addition, use composition with RandomBrightness.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        super().__init__(
+            threshold_range=thresholds,
+            p=p,
+        )
+        self.thresholds = thresholds
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("thresholds",)

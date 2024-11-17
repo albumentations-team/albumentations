@@ -775,7 +775,14 @@ def test_augmentations_serialization(augmentation_cls: A.BasicTransform, params:
         fields = set()
         if hasattr(model_cls, "InitSchema"):
             for field_name, field in model_cls.InitSchema.model_fields.items():
-                if not field.deprecated:
+                # Check if field is deprecated either directly or in its default annotation
+                is_deprecated = (
+                    field.deprecated is not None
+                    or (hasattr(field.default, "metadata")
+                        and any(getattr(m, "deprecated", None) is not None
+                            for m in field.default.metadata))
+                )
+                if not is_deprecated:
                     fields.add(field_name)
 
         return fields

@@ -48,7 +48,6 @@ from albumentations.core.pydantic import (
     check_01,
     check_1plus,
     nondecreasing,
-    repeat_if_scalar,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -1815,11 +1814,10 @@ class Solarize(ImageOnlyTransform):
     In this implementation, all pixel values above a threshold are inverted.
 
     Args:
-        threshold (float | tuple[float, float]): Range for solarizing threshold.
-            If threshold is a single int, the range will be [threshold, threshold].
-            If it's a tuple of (min, max), the range will be [min, max].
-            The threshold should be in the range [0, 255] for uint8 images or [0, 1.0] for float images.
-            Default: 128.
+        threshold_range (tuple[float, float]): Range for solarizing threshold as a fraction
+            of maximum value. The threshold_range should be in the range [0, 1] and will be multiplied by the
+            maximum value of the image type (255 for uint8 images or 1.0 for float images).
+            Default: (0.5, 0.5) (corresponds to 127.5 for uint8 and 0.5 for float32).
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1828,36 +1826,43 @@ class Solarize(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        Any
+
     Note:
         - For uint8 images, pixel values above the threshold are inverted as: 255 - pixel_value
         - For float32 images, pixel values above the threshold are inverted as: 1.0 - pixel_value
         - The threshold is applied to each channel independently
+        - The threshold is calculated in two steps:
+          1. Sample a value from threshold_range
+          2. Multiply by the image's maximum value:
+             * For uint8: threshold = sampled_value * 255
+             * For float32: threshold = sampled_value * 1.0
         - This transform can create interesting artistic effects or be used for data augmentation
-
-    Raises:
-        TypeError: If the input image data type is not supported.
 
     Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>>
-        # Solarize uint8 image with fixed threshold
+        # Solarize uint8 image with fixed threshold at 50% of max value (127.5)
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.Solarize(threshold=128, p=1.0)
+        >>> transform = A.Solarize(threshold_range=(0.5, 0.5), p=1.0)
         >>> solarized_image = transform(image=image)['image']
         >>>
-        # Solarize uint8 image with random threshold
-        >>> transform = A.Solarize(threshold=(100, 200), p=1.0)
+        # Solarize uint8 image with random threshold between 40-60% of max value (102-153)
+        >>> transform = A.Solarize(threshold_range=(0.4, 0.6), p=1.0)
         >>> solarized_image = transform(image=image)['image']
         >>>
-        # Solarize float32 image
+        # Solarize float32 image at 50% of max value (0.5)
         >>> image = np.random.rand(100, 100, 3).astype(np.float32)
-        >>> transform = A.Solarize(threshold=0.5, p=1.0)
+        >>> transform = A.Solarize(threshold_range=(0.5, 0.5), p=1.0)
         >>> solarized_image = transform(image=image)['image']
 
     Mathematical Formulation:
-        For each pixel value p and threshold t:
-        if p > t:
+        Let f be a value sampled from threshold_range (min, max).
+        For each pixel value p:
+        threshold = f * max_value
+        if p > threshold:
             p_new = max_value - p
         else:
             p_new = p
@@ -1869,20 +1874,46 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: Annotated[ScaleFloatType, AfterValidator(repeat_if_scalar), AfterValidator(check_0plus)]
+        threshold: ScaleFloatType | None = Field(
+            default=None,
+            deprecated="threshold parameter is deprecated. Use threshold_range instead.",
+        )
+        threshold_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
 
-    def __init__(self, threshold: ScaleFloatType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
+        @staticmethod
+        def normalize_threshold(
+            threshold: ScaleFloatType | None,
+            threshold_range: tuple[float, float],
+        ) -> tuple[float, float]:
+            """Convert legacy threshold or use threshold_range, normalizing to [0,1] range."""
+            if threshold is None:
+                return threshold_range
+            value = to_tuple(threshold, threshold)
+            return (value[0] / 255, value[1] / 255) if value[1] > 1 else value
+
+        @model_validator(mode="after")
+        def process_threshold(self) -> Self:
+            self.threshold_range = self.normalize_threshold(self.threshold, self.threshold_range)
+            return self
+
+    def __init__(
+        self,
+        threshold: ScaleFloatType | None = None,
+        threshold_range: tuple[float, float] = (0.5, 0.5),
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
         super().__init__(p=p, always_apply=always_apply)
-        self.threshold = cast(tuple[float, float], threshold)
+        self.threshold_range = threshold_range
 
-    def apply(self, img: np.ndarray, threshold: int, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, threshold: float, **params: Any) -> np.ndarray:
         return fmain.solarize(img, threshold)
 
     def get_params(self) -> dict[str, float]:
-        return {"threshold": self.py_random.uniform(*self.threshold)}
+        return {"threshold": self.py_random.uniform(*self.threshold_range)}
 
-    def get_transform_init_args_names(self) -> tuple[str]:
-        return ("threshold",)
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("threshold_range",)
 
 
 class Posterize(ImageOnlyTransform):

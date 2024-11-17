@@ -233,6 +233,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomRain](https://explore.albumentations.ai/transform/RandomRain)
 - [RandomShadow](https://explore.albumentations.ai/transform/RandomShadow)
 - [RandomSnow](https://explore.albumentations.ai/transform/RandomSnow)
+- [RandomSolarize](https://explore.albumentations.ai/transform/RandomSolarize)
 - [RandomSunFlare](https://explore.albumentations.ai/transform/RandomSunFlare)
 - [RandomToneCurve](https://explore.albumentations.ai/transform/RandomToneCurve)
 - [RingingOvershoot](https://explore.albumentations.ai/transform/RingingOvershoot)

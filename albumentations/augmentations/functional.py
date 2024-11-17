@@ -126,27 +126,34 @@ def shift_hsv(img: np.ndarray, hue_shift: float, sat_shift: float, val_shift: fl
 
 
 @clipped
-def solarize(img: np.ndarray, threshold: int) -> np.ndarray:
+def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
     """Invert all pixel values above a threshold.
 
     Args:
-        img: The image to solarize.
-        threshold: All pixels above this grayscale level are inverted.
+        img: The image to solarize. Can be uint8 or float32.
+        threshold: Normalized threshold value in range [0, 1].
+            For uint8 images: pixels above threshold * 255 are inverted
+            For float32 images: pixels above threshold are inverted
 
     Returns:
         Solarized image.
 
+    Note:
+        The threshold is normalized to [0, 1] range for both uint8 and float32 images.
+        For uint8 images, the threshold is internally scaled by 255.
     """
     dtype = img.dtype
     max_val = MAX_VALUES_BY_DTYPE[dtype]
 
     if dtype == np.uint8:
-        lut = [(i if i < threshold else max_val - i) for i in range(int(max_val) + 1)]
+        lut = [(max_val - i if i >= threshold * max_val else i) for i in range(int(max_val) + 1)]
 
         prev_shape = img.shape
         img = sz_lut(img, np.array(lut, dtype=dtype), inplace=False)
 
         return np.expand_dims(img, -1) if len(prev_shape) != img.ndim else img
+
+    img = img.copy()
 
     cond = img >= threshold
     img[cond] = max_val - img[cond]
