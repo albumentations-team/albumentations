@@ -8,7 +8,7 @@ import cv2
 from pydantic import AfterValidator, Field, field_validator
 from typing_extensions import Literal
 
-from albumentations.augmentations.blur.transforms import GaussianBlur
+from albumentations.augmentations.blur.transforms import GaussianBlur, MedianBlur
 from albumentations.augmentations.dropout.channel_dropout import ChannelDropout
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
@@ -45,6 +45,7 @@ __all__ = [
     "RandomEqualize",
     "RandomGaussianBlur",
     "RandomPlanckianJitter",
+    "RandomMedianBlur",
 ]
 
 
@@ -1240,3 +1241,68 @@ class RandomPlanckianJitter(PlanckianJitter):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("mode",)
+
+
+class RandomMedianBlur(MedianBlur):
+    """Apply median blur to the input image.
+
+    This transform is a specialized version of MedianBlur that uses fixed kernel size.
+    It is provided for compatibility with Kornia API. For new code, it is recommended
+    to use albumentations.MedianBlur directly.
+
+    Args:
+        kernel_size (tuple[int, int]): Aperture linear size.
+            Must be odd and greater than 1. Default: (3, 3).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform is a specialized version of MedianBlur with fixed parameters:
+        - Uses fixed kernel size instead of sampling from a range
+        - No support for dynamic kernel size selection
+
+        For more flexibility, consider using MedianBlur directly which provides:
+        - Ability to sample kernel size from a range
+        - Support for both fixed and dynamic kernel sizes
+        - More consistent interface within Albumentations
+
+    Example:
+        >>> # RandomMedianBlur way (Kornia compatibility)
+        >>> transform = A.RandomMedianBlur(kernel_size=(3, 3))
+        >>> # Preferred MedianBlur way with sampling
+        >>> transform = A.MedianBlur(blur_limit=(3, 7))
+        >>> # Or with fixed size
+        >>> transform = A.MedianBlur(blur_limit=3)
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomMedianBlur
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        kernel_size: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+
+    def __init__(
+        self,
+        kernel_size: tuple[int, int] = (3, 3),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomMedianBlur is an alias for MedianBlur transform. "
+            "Consider using MedianBlur directly from albumentations.MedianBlur.",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(
+            blur_limit=kernel_size,
+            p=p,
+        )
+        self.kernel_size = kernel_size
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("kernel_size",)
