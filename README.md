@@ -228,6 +228,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomHue](https://explore.albumentations.ai/transform/RandomHue)
 - [RandomInvert](https://explore.albumentations.ai/transform/RandomInvert)
 - [RandomJPEG](https://explore.albumentations.ai/transform/RandomJPEG)
+- [RandomMedianBlur](https://explore.albumentations.ai/transform/RandomMedianBlur)
 - [RandomPlanckianJitter](https://explore.albumentations.ai/transform/RandomPlanckianJitter)
 - [RandomRain](https://explore.albumentations.ai/transform/RandomRain)
 - [RandomShadow](https://explore.albumentations.ai/transform/RandomShadow)
