@@ -146,7 +146,7 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
     max_val = MAX_VALUES_BY_DTYPE[dtype]
 
     if dtype == np.uint8:
-        lut = [(i if i < threshold * max_val else max_val - i) for i in range(int(max_val) + 1)]
+        lut = [(max_val - i if i >= threshold * max_val else i) for i in range(int(max_val) + 1)]
 
         prev_shape = img.shape
         img = sz_lut(img, np.array(lut, dtype=dtype), inplace=False)
