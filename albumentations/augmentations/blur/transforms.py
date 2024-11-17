@@ -151,18 +151,8 @@ class MotionBlur(Blur):
           https://docs.opencv.org/master/d4/d86/group__imgproc__filter.html#ga27c049795ce870216ddfb366086b5a04
     """
 
-    class InitSchema(BaseTransformInitSchema):
+    class InitSchema(BlurInitSchema):
         allow_shifted: bool
-        blur_limit: ScaleIntType
-
-        @model_validator(mode="after")
-        def process_blur(self) -> Self:
-            self.blur_limit = to_tuple(self.blur_limit, 3)
-
-            if self.allow_shifted and isinstance(self.blur_limit, tuple) and any(x % 2 != 1 for x in self.blur_limit):
-                raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
-
-            return self
 
     def __init__(
         self,
@@ -358,11 +348,6 @@ class GaussianBlur(ImageOnlyTransform):
                     stacklevel=2,
                 )
 
-            if isinstance(self.blur_limit, tuple):
-                for v in self.blur_limit:
-                    if v != 0 and v % 2 != 1:
-                        raise ValueError(f"Blur limit must be 0 or odd. Got: {self.blur_limit}")
-
             return self
 
     def __init__(
@@ -386,7 +371,7 @@ class GaussianBlur(ImageOnlyTransform):
 
         return {"ksize": ksize, "sigma": self.py_random.uniform(*self.sigma_limit)}
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "blur_limit", "sigma_limit"
 
 

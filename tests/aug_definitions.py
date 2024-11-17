@@ -399,4 +399,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomBrightness, {"brightness": (0.8, 1.2)}],
     [A.RandomChannelDropout, {}],
     [A.RandomEqualize, {}],
+    [A.RandomGaussianBlur, {}],
 ]

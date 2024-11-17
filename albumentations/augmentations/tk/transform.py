@@ -8,6 +8,7 @@ import cv2
 from pydantic import AfterValidator, Field, field_validator
 from typing_extensions import Literal
 
+from albumentations.augmentations.blur.transforms import GaussianBlur
 from albumentations.augmentations.dropout.channel_dropout import ChannelDropout
 from albumentations.augmentations.dropout.coarse_dropout import Erasing
 from albumentations.augmentations.geometric import functional as fgeometric
@@ -23,7 +24,7 @@ from albumentations.augmentations.transforms import (
 )
 from albumentations.core.pydantic import InterpolationType, check_0plus, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import PAIR, ColorType, ScaleFloatType, Targets
+from albumentations.core.types import PAIR, ColorType, ScaleFloatType, ScaleIntType, Targets
 
 __all__ = [
     "RandomJPEG",
@@ -41,6 +42,7 @@ __all__ = [
     "RandomBrightness",
     "RandomChannelDropout",
     "RandomEqualize",
+    "RandomGaussianBlur",
 ]
 
 
@@ -1087,3 +1089,76 @@ class RandomEqualize(Equalize):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
+
+
+class RandomGaussianBlur(GaussianBlur):
+    """Apply Gaussian blur to the input image.
+
+    This transform is an alias for GaussianBlur, provided for compatibility with
+    Kornia API. For new code, it is recommended to use albumentations.GaussianBlur directly.
+
+    Args:
+        kernel_size (int | tuple[int, int]): Gaussian kernel size.
+            - If a single int is provided, kernel_size will be (kernel_size, kernel_size).
+            - If a tuple of two ints is provided, it defines the kernel size range.
+            Must be odd and greater than or equal to 3. Default: (3, 7).
+        sigma (float | tuple[float, float]): Gaussian kernel standard deviation.
+            - If a single float is provided, sigma will be (sigma, sigma).
+            - If a tuple of two floats is provided, it defines the sigma range.
+            If 0, it will be computed as sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8.
+            Default: 0.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform is a direct alias for GaussianBlur with identical functionality.
+        The only difference is in parameter naming to match Kornia's API:
+        - 'kernel_size' instead of 'blur_limit'
+        - 'sigma' instead of 'sigma_limit'
+
+        For new projects, it is recommended to use GaussianBlur directly as it
+        provides a more consistent interface within the Albumentations ecosystem.
+
+    Example:
+        >>> # RandomGaussianBlur way (Kornia compatibility)
+        >>> transform = A.RandomGaussianBlur(kernel_size=(3, 7), sigma=(0.1, 2))
+        >>> # Preferred GaussianBlur way
+        >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.1, 2))
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomGaussianBlur
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        kernel_size: ScaleIntType
+        sigma: ScaleFloatType
+
+    def __init__(
+        self,
+        kernel_size: ScaleIntType = (3, 7),
+        sigma: ScaleFloatType = 0,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomGaussianBlur is an alias for GaussianBlur transform. "
+            "Consider using GaussianBlur directly from albumentations.GaussianBlur.",
+            UserWarning,
+            stacklevel=2,
+        )
+        super().__init__(
+            blur_limit=kernel_size,
+            sigma_limit=sigma,
+            p=p,
+            always_apply=always_apply,
+        )
+        self.kernel_size = kernel_size
+        self.sigma = sigma
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("kernel_size", "sigma")
