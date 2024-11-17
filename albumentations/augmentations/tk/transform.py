@@ -19,6 +19,7 @@ from albumentations.augmentations.transforms import (
     Equalize,
     ImageCompression,
     InvertImg,
+    PlanckianJitter,
     RandomBrightnessContrast,
     ToGray,
 )
@@ -43,6 +44,7 @@ __all__ = [
     "RandomChannelDropout",
     "RandomEqualize",
     "RandomGaussianBlur",
+    "RandomPlanckianJitter",
 ]
 
 
@@ -1161,4 +1163,80 @@ class RandomGaussianBlur(GaussianBlur):
         self.sigma = sigma
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("kernel_size", "sigma")
+        return "kernel_size", "sigma"
+
+
+class RandomPlanckianJitter(PlanckianJitter):
+    """Apply Planckian Jitter to simulate realistic illumination changes.
+
+    This transform is a specialized version of PlanckianJitter that uses blackbody
+    radiation model to create physically accurate color temperature variations.
+    It is provided for compatibility with Kornia's API.
+
+    Args:
+        mode (Literal["blackbody", "cied"]): The illuminant model to use.
+            - "blackbody": Uses Planckian blackbody radiation model
+            - "cied": Uses CIE standard illuminant D series
+            Default: "blackbody"
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        3
+
+    Note:
+        This transform is a specialized version of PlanckianJitter with fixed parameters:
+        - Uses uniform sampling method
+        - Default temperature ranges:
+            * For blackbody mode: [3000K, 15000K]
+            * For CIED mode: [4000K, 15000K]
+
+        For more flexibility, consider using PlanckianJitter directly which provides:
+        - Custom temperature ranges
+        - Choice of sampling methods (uniform or gaussian)
+        - More control over the color temperature distribution
+
+    Example:
+        >>> # RandomPlanckianJitter way (Kornia compatibility)
+        >>> transform = A.RandomPlanckianJitter(mode="blackbody")
+        >>> # Equivalent PlanckianJitter way with full functionality
+        >>> transform = A.PlanckianJitter(mode="blackbody", sampling_method="uniform")
+
+    References:
+        - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomPlanckianJitter
+        - [ZBTvdW22] Zhu, M., et al. "Simple and effective temperature-based color augmentation."
+          arXiv preprint arXiv:2211.05108 (2022).
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        mode: Literal["blackbody", "cied"]
+
+    def __init__(
+        self,
+        mode: Literal["blackbody", "cied"] = "blackbody",
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        warn(
+            "RandomPlanckianJitter is a specialized version of PlanckianJitter transform. "
+            "Consider using PlanckianJitter directly from albumentations.PlanckianJitter for more flexibility.",
+            UserWarning,
+            stacklevel=2,
+        )
+        # Use default temperature ranges based on mode
+        temperature_range = None  # Will use defaults from PlanckianJitter
+
+        super().__init__(
+            mode=mode,
+            temperature_limit=temperature_range,
+            sampling_method="uniform",
+            p=p,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("mode",)

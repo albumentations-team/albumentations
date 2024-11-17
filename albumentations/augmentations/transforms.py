@@ -4926,7 +4926,7 @@ class PlanckianJitter(ImageOnlyTransform):
         uint8, float32
 
     Number of channels:
-        Any
+        3
 
     Note:
         - The transform preserves the overall brightness of the image while shifting its color.
