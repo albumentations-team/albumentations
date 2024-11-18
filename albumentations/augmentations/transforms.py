@@ -121,6 +121,7 @@ __all__ = [
     "ShotNoise",
     "AdditiveNoise",
     "SaltAndPepper",
+    "PlasmaBrightnessContrast",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -5036,8 +5037,8 @@ class PlanckianJitter(ImageOnlyTransform):
         mode: Literal["blackbody", "cied"] = "blackbody",
         temperature_limit: tuple[int, int] | None = None,
         sampling_method: Literal["uniform", "gaussian"] = "uniform",
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ) -> None:
         super().__init__(p=p, always_apply=always_apply)
 
@@ -5154,7 +5155,7 @@ class ShotNoise(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         scale_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_0plus)]
 
-    def __init__(self, scale_range: tuple[float, float] = (0.1, 0.3), always_apply: bool = False, p: float = 0.5):
+    def __init__(self, scale_range: tuple[float, float] = (0.1, 0.3), p: float = 0.5, always_apply: bool = False):
         super().__init__(p=p, always_apply=always_apply)
         self.scale_range = scale_range
 
@@ -5355,8 +5356,8 @@ class AdditiveNoise(ImageOnlyTransform):
         spatial_mode: Literal["constant", "per_pixel", "shared"] = "constant",
         noise_params: dict[str, Any] | None = None,
         approximation: float = 1.0,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.noise_type = noise_type
@@ -5480,8 +5481,8 @@ class RGBShift(AdditiveNoise):
         r_shift_limit: ScaleFloatType = (-20, 20),
         g_shift_limit: ScaleFloatType = (-20, 20),
         b_shift_limit: ScaleFloatType = (-20, 20),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         # Convert RGB shift limits to normalized ranges if needed
         def normalize_range(limit: tuple[float, float]) -> tuple[float, float]:
@@ -5602,10 +5603,10 @@ class SaltAndPepper(ImageOnlyTransform):
         self,
         amount: tuple[float, float] = (0.01, 0.06),
         salt_vs_pepper: tuple[float, float] = (0.4, 0.6),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.amount = amount
         self.salt_vs_pepper = salt_vs_pepper
 
@@ -5634,3 +5635,180 @@ class SaltAndPepper(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "amount", "salt_vs_pepper"
+
+
+class PlasmaBrightnessContrast(ImageOnlyTransform):
+    """Apply plasma fractal pattern to modify image brightness and contrast.
+
+    This transform uses the Diamond-Square algorithm to generate organic-looking fractal patterns
+    that are then used to create spatially-varying brightness and contrast adjustments.
+    The result is a natural-looking, non-uniform modification of the image.
+
+    Args:
+        brightness_range ((float, float)): Range for brightness adjustment strength.
+            Values between -1 and 1:
+            - Positive values increase brightness
+            - Negative values decrease brightness
+            - 0 means no brightness change
+            Default: (-0.3, 0.3)
+
+        contrast_range ((float, float)): Range for contrast adjustment strength.
+            Values between -1 and 1:
+            - Positive values increase contrast
+            - Negative values decrease contrast
+            - 0 means no contrast change
+            Default: (-0.3, 0.3)
+
+        plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
+            Larger values create more detailed patterns. Default: 256
+
+    roughness (float): Controls the roughness of the plasma pattern.
+        Higher values create more rough/sharp transitions.
+        Must be greater than 0.
+        Typical values are between 1.0 and 5.0. Default: 3.0
+
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        Any
+
+    Mathematical Formulation:
+        1. Plasma Pattern Generation:
+           The Diamond-Square algorithm generates a pattern P(x,y) ∈ [0,1] by:
+           - Starting with random corner values
+           - Recursively computing midpoints using:
+             M = (V1 + V2 + V3 + V4)/4 + R(d)
+           where V1..V4 are corner values and R(d) is random noise that
+           decreases with distance d according to the roughness parameter.
+
+        2. Brightness Adjustment:
+           For each pixel (x,y):
+           O(x,y) = I(x,y) + b·P(x,y)·max_value
+           where:
+           - I is the input image
+           - b is the brightness factor
+           - P is the plasma pattern
+           - max_value is the maximum possible pixel value
+
+        3. Contrast Adjustment:
+           For each pixel (x,y):
+           O(x,y) = μ + (I(x,y) - μ)·(1 + c·P(x,y))
+           where:
+           - μ is the mean pixel value
+           - c is the contrast factor
+           - P is the plasma pattern
+
+    Note:
+        - The plasma pattern creates smooth, organic variations in the adjustments
+        - Brightness and contrast modifications are applied sequentially
+        - Final values are clipped to valid range [0, max_value]
+        - The same plasma pattern is used for both brightness and contrast
+          to maintain coherent spatial variations
+
+    Examples:
+        >>> import albumentations as A
+        >>> import numpy as np
+
+        # Default parameters
+        >>> transform = A.PlasmaBrightnessContrast(p=1.0)
+
+        # Custom adjustments with fine pattern
+        >>> transform = A.PlasmaBrightnessContrast(
+        ...     brightness_range=(-0.5, 0.5),
+        ...     contrast_range=(-0.3, 0.3),
+        ...     plasma_size=512,  # More detailed pattern
+        ...     roughness=2.5,    # Smoother transitions
+        ...     p=1.0
+        ... )
+
+    References:
+        .. [1] Fournier, Fussell, and Carpenter, "Computer rendering of stochastic models,"
+               Communications of the ACM, 1982.
+               Paper introducing the Diamond-Square algorithm.
+
+        .. [2] Miller, "The Diamond-Square Algorithm: A Detailed Analysis,"
+               Journal of Computer Graphics Techniques, 2016.
+               Comprehensive analysis of the algorithm and its properties.
+
+        .. [3] Ebert et al., "Texturing & Modeling: A Procedural Approach,"
+               Chapter 12: Noise, Hypertexture, Antialiasing, and Gesture.
+               Detailed coverage of procedural noise patterns.
+
+        .. [4] Diamond-Square algorithm:
+               https://en.wikipedia.org/wiki/Diamond-square_algorithm
+
+        .. [5] Plasma effect:
+               https://lodev.org/cgtutor/plasma.html
+
+    See Also:
+        - RandomBrightnessContrast: For uniform brightness/contrast adjustments
+        - CLAHE: For contrast limited adaptive histogram equalization
+        - FancyPCA: For color-based contrast enhancement
+        - HistogramMatching: For reference-based contrast adjustment
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        brightness_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(-1, 1))]
+        contrast_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(-1, 1))]
+        plasma_size: int = Field(default=256, gt=0)
+        roughness: float = Field(default=3.0, gt=0)
+
+    def __init__(
+        self,
+        brightness_range: tuple[float, float] = (-0.3, 0.3),
+        contrast_range: tuple[float, float] = (-0.3, 0.3),
+        plasma_size: int = 256,
+        roughness: float = 3.0,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.brightness_range = brightness_range
+        self.contrast_range = contrast_range
+        self.plasma_size = plasma_size
+        self.roughness = roughness
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"] if "image" in data else data["images"][0]
+
+        # Sample adjustment strengths
+        brightness = self.py_random.uniform(*self.brightness_range)
+        contrast = self.py_random.uniform(*self.contrast_range)
+
+        # Generate plasma pattern
+        plasma = fmain.generate_plasma_pattern(
+            target_shape=image.shape[:2],
+            size=self.plasma_size,
+            roughness=self.roughness,
+            random_generator=self.random_generator,
+        )
+
+        return {
+            "brightness_factor": brightness,
+            "contrast_factor": contrast,
+            "plasma_pattern": plasma,
+        }
+
+    def apply(
+        self,
+        img: np.ndarray,
+        brightness_factor: float,
+        contrast_factor: float,
+        plasma_pattern: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fmain.apply_plasma_brightness_contrast(
+            img,
+            brightness_factor,
+            contrast_factor,
+            plasma_pattern,
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "brightness_range", "contrast_range", "plasma_size", "roughness"

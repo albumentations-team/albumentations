@@ -253,7 +253,7 @@ def resize(img: np.ndarray, target_shape: tuple[int, int], interpolation: int) -
     if target_shape == img.shape[:2]:
         return img
 
-    height, width = target_shape
+    height, width = target_shape[:2]
     resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 

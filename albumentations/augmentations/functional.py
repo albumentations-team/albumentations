@@ -2192,3 +2192,163 @@ def apply_salt_and_pepper(
     result[salt_mask] = MAX_VALUES_BY_DTYPE[img.dtype]
     result[pepper_mask] = 0
     return result
+
+
+def get_grid_size(size: int, target_shape: tuple[int, int]) -> int:
+    """Round up to nearest power of 2."""
+    return 2 ** int(np.ceil(np.log2(max(size, *target_shape))))
+
+
+def random_offset(current_size: int, total_size: int, roughness: float, random_generator: np.random.Generator) -> float:
+    """Calculate random offset based on current grid size."""
+    return (random_generator.random() - 0.5) * (current_size / total_size) ** (roughness / 2)
+
+
+def initialize_grid(grid_size: int, random_generator: np.random.Generator) -> np.ndarray:
+    """Initialize grid with random corners."""
+    pattern = np.zeros((grid_size + 1, grid_size + 1), dtype=np.float32)
+    for corner in [(0, 0), (0, -1), (-1, 0), (-1, -1)]:
+        pattern[corner] = random_generator.random()
+    return pattern
+
+
+def square_step(
+    pattern: np.ndarray,
+    y: int,
+    x: int,
+    step: int,
+    grid_size: int,
+    roughness: float,
+    random_generator: np.random.Generator,
+) -> float:
+    """Compute center value during square step."""
+    corners = [
+        pattern[y, x],  # top-left
+        pattern[y, x + step],  # top-right
+        pattern[y + step, x],  # bottom-left
+        pattern[y + step, x + step],  # bottom-right
+    ]
+    return sum(corners) / 4.0 + random_offset(step, grid_size, roughness, random_generator)
+
+
+def diamond_step(
+    pattern: np.ndarray,
+    y: int,
+    x: int,
+    half: int,
+    grid_size: int,
+    roughness: float,
+    random_generator: np.random.Generator,
+) -> float:
+    """Compute edge value during diamond step."""
+    points = []
+    if y >= half:
+        points.append(pattern[y - half, x])
+    if y + half <= grid_size:
+        points.append(pattern[y + half, x])
+    if x >= half:
+        points.append(pattern[y, x - half])
+    if x + half <= grid_size:
+        points.append(pattern[y, x + half])
+
+    return sum(points) / len(points) + random_offset(half * 2, grid_size, roughness, random_generator)
+
+
+def generate_plasma_pattern(
+    target_shape: tuple[int, int],
+    size: int,
+    roughness: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate a plasma fractal pattern using the Diamond-Square algorithm.
+
+    The Diamond-Square algorithm creates a natural-looking noise pattern by recursively
+    subdividing a grid and adding random displacements at each step. The roughness
+    parameter controls how quickly the random displacements decrease with each iteration.
+
+    Args:
+        target_shape: Final shape (height, width) of the pattern
+        size: Initial size of the pattern grid. Will be rounded up to nearest power of 2.
+            Larger values create more detailed patterns.
+        roughness: Controls pattern roughness. Higher values create more rough/sharp transitions.
+            Typical values are between 1.0 and 5.0.
+        random_generator: NumPy random generator.
+
+    Returns:
+        Normalized plasma pattern array of shape target_shape with values in [0, 1]
+    """
+    # Initialize grid
+    grid_size = get_grid_size(size, target_shape)
+    pattern = initialize_grid(grid_size, random_generator)
+
+    # Diamond-Square algorithm
+    step_size = grid_size
+    while step_size > 1:
+        half_step = step_size // 2
+
+        # Square step
+        for y in range(0, grid_size, step_size):
+            for x in range(0, grid_size, step_size):
+                if half_step > 0:
+                    pattern[y + half_step, x + half_step] = square_step(
+                        pattern,
+                        y,
+                        x,
+                        step_size,
+                        half_step,
+                        roughness,
+                        random_generator,
+                    )
+
+        # Diamond step
+        for y in range(0, grid_size + 1, half_step):
+            for x in range((y + half_step) % step_size, grid_size + 1, step_size):
+                pattern[y, x] = diamond_step(pattern, y, x, half_step, grid_size, roughness, random_generator)
+
+        step_size = half_step
+
+    min_pattern = pattern.min()
+
+    # Normalize to [0, 1] range
+    pattern = (pattern - min_pattern) / (pattern.max() - min_pattern)
+
+    return (
+        fgeometric.resize(pattern, target_shape, interpolation=cv2.INTER_LINEAR)
+        if pattern.shape != target_shape
+        else pattern
+    )
+
+
+@clipped
+def apply_plasma_brightness_contrast(
+    img: np.ndarray,
+    brightness_factor: float,
+    contrast_factor: float,
+    plasma_pattern: np.ndarray,
+) -> np.ndarray:
+    """Apply plasma-based brightness and contrast adjustments.
+
+    The plasma pattern is used to create spatially-varying adjustments:
+    1. Brightness is modified by adding the pattern * brightness_factor
+    2. Contrast is modified by interpolating between mean and original
+       using the pattern * contrast_factor
+    """
+    result = img.copy()
+
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+
+    # Expand plasma pattern to match image dimensions
+    plasma_pattern = plasma_pattern[..., np.newaxis] if img.ndim > MONO_CHANNEL_DIMENSIONS else plasma_pattern
+
+    # Apply brightness adjustment
+    if brightness_factor != 0:
+        brightness_adjustment = plasma_pattern * brightness_factor * max_value
+        result = np.clip(result + brightness_adjustment, 0, max_value)
+
+    # Apply contrast adjustment
+    if contrast_factor != 0:
+        mean = result.mean()
+        contrast_weights = plasma_pattern * contrast_factor + 1
+        result = np.clip(mean + (result - mean) * contrast_weights, 0, max_value)
+
+    return result
