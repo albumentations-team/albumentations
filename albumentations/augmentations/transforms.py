@@ -120,6 +120,7 @@ __all__ = [
     "PlanckianJitter",
     "ShotNoise",
     "AdditiveNoise",
+    "SaltAndPepper",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -5511,3 +5512,125 @@ class RGBShift(AdditiveNoise):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "r_shift_limit", "g_shift_limit", "b_shift_limit"
+
+
+class SaltAndPepper(ImageOnlyTransform):
+    """Apply salt and pepper noise to the input image.
+
+    Salt and pepper noise is a form of impulse noise that randomly sets pixels to either maximum value (salt)
+    or minimum value (pepper). The amount and proportion of salt vs pepper noise can be controlled.
+
+    Args:
+        amount ((float, float)): Range for total amount of noise (both salt and pepper).
+            Values between 0 and 1. For example:
+            - 0.05 means 5% of all pixels will be replaced with noise
+            - (0.01, 0.06) will sample amount uniformly from 1% to 6%
+            Default: (0.01, 0.06)
+
+        salt_vs_pepper ((float, float)): Range for ratio of salt (white) vs pepper (black) noise.
+            Values between 0 and 1. For example:
+            - 0.5 means equal amounts of salt and pepper
+            - 0.7 means 70% of noisy pixels will be salt, 30% pepper
+            - (0.4, 0.6) will sample ratio uniformly from 40% to 60%
+            Default: (0.4, 0.6)
+
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - Salt noise sets pixels to maximum value (255 for uint8, 1.0 for float32)
+        - Pepper noise sets pixels to 0
+        - Salt and pepper masks are generated independently, so a pixel could theoretically
+          be selected for both (in this case, pepper overrides salt)
+        - The actual number of affected pixels might slightly differ from the specified amount
+          due to random sampling and potential overlap of salt and pepper masks
+
+    Mathematical Formulation:
+        For an input image I, the output O is:
+        O[x,y] = max_value,  if salt_mask[x,y] = True
+        O[x,y] = 0,         if pepper_mask[x,y] = True
+        O[x,y] = I[x,y],    otherwise
+
+        where:
+        P(salt_mask[x,y] = True) = amount * salt_ratio
+        P(pepper_mask[x,y] = True) = amount * (1 - salt_ratio)
+        amount ∈ [amount_min, amount_max]
+        salt_ratio ∈ [salt_vs_pepper_min, salt_vs_pepper_max]
+
+    Examples:
+        >>> import albumentations as A
+        >>> import numpy as np
+
+        # Apply salt and pepper noise with default parameters
+        >>> transform = A.SaltAndPepper(p=1.0)
+        >>> noisy_image = transform(image=image)["image"]
+
+        # Heavy noise with more salt than pepper
+        >>> transform = A.SaltAndPepper(
+        ...     amount=(0.1, 0.2),       # 10-20% of pixels will be noisy
+        ...     salt_vs_pepper=(0.7, 0.9),  # 70-90% of noise will be salt
+        ...     p=1.0
+        ... )
+        >>> noisy_image = transform(image=image)["image"]
+
+    References:
+        .. [1] R. C. Gonzalez and R. E. Woods, "Digital Image Processing (4th Edition),"
+               Chapter 5: Image Restoration and Reconstruction.
+
+        .. [2] A. K. Jain, "Fundamentals of Digital Image Processing,"
+               Chapter 7: Image Degradation and Restoration.
+
+        .. [3] Salt and pepper noise:
+               https://en.wikipedia.org/wiki/Salt-and-pepper_noise
+
+    See Also:
+        - GaussNoise: For additive Gaussian noise
+        - MultiplicativeNoise: For multiplicative noise
+        - ISONoise: For camera sensor noise simulation
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        amount: Annotated[tuple[float, float], AfterValidator(check_01)]
+        salt_vs_pepper: Annotated[tuple[float, float], AfterValidator(check_01)]
+
+    def __init__(
+        self,
+        amount: tuple[float, float] = (0.01, 0.06),
+        salt_vs_pepper: tuple[float, float] = (0.4, 0.6),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.amount = amount
+        self.salt_vs_pepper = salt_vs_pepper
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"] if "image" in data else data["images"][0]
+
+        # Sample total amount and salt ratio
+        total_amount = self.py_random.uniform(*self.amount)
+        salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
+
+        # Calculate individual probabilities
+        prob_salt = total_amount * salt_ratio
+        prob_pepper = total_amount * (1 - salt_ratio)
+
+        # Generate masks
+        salt_mask = self.random_generator.random(image.shape) < prob_salt
+        pepper_mask = self.random_generator.random(image.shape) < prob_pepper
+
+        return {
+            "salt_mask": salt_mask,
+            "pepper_mask": pepper_mask,
+        }
+
+    def apply(self, img: np.ndarray, salt_mask: np.ndarray, pepper_mask: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.apply_salt_and_pepper(img, salt_mask, pepper_mask)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "amount", "salt_vs_pepper"

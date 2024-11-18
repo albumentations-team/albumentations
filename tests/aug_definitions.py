@@ -407,4 +407,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomSaturation, {}],
     [A.GaussianNoise, {}],
     [A.AdditiveNoise, {}],
+    [A.SaltAndPepper, {}],
 ]

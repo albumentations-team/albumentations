@@ -2170,3 +2170,25 @@ def sharpen_gaussian(img: np.ndarray, alpha: float, kernel_size: int, sigma: flo
     """Sharpen image using Gaussian blur."""
     blurred = cv2.GaussianBlur(img, ksize=(kernel_size, kernel_size), sigmaX=sigma, sigmaY=sigma)
     return add_weighted(blurred, 1 - alpha, img, alpha)
+
+
+def apply_salt_and_pepper(
+    img: np.ndarray,
+    salt_mask: np.ndarray,
+    pepper_mask: np.ndarray,
+) -> np.ndarray:
+    """Apply salt and pepper noise to image using pre-computed masks.
+
+    Args:
+        img: Input image
+        salt_mask: Boolean mask for salt (white) noise
+        pepper_mask: Boolean mask for pepper (black) noise
+
+    Returns:
+        Image with applied salt and pepper noise
+    """
+    result = img.copy()
+
+    result[salt_mask] = MAX_VALUES_BY_DTYPE[img.dtype]
+    result[pepper_mask] = 0
+    return result
