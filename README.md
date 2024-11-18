@@ -214,6 +214,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [PixelDistributionAdaptation](https://explore.albumentations.ai/transform/PixelDistributionAdaptation)
 - [PlanckianJitter](https://explore.albumentations.ai/transform/PlanckianJitter)
 - [PlasmaBrightnessContrast](https://explore.albumentations.ai/transform/PlasmaBrightnessContrast)
+- [PlasmaShadow](https://explore.albumentations.ai/transform/PlasmaShadow)
 - [Posterize](https://explore.albumentations.ai/transform/Posterize)
 - [RGBShift](https://explore.albumentations.ai/transform/RGBShift)
 - [RandomBrightness](https://explore.albumentations.ai/transform/RandomBrightness)

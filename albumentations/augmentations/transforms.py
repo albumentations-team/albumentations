@@ -122,6 +122,7 @@ __all__ = [
     "AdditiveNoise",
     "SaltAndPepper",
     "PlasmaBrightnessContrast",
+    "PlasmaShadow",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -3404,8 +3405,8 @@ class MultiplicativeNoise(ImageOnlyTransform):
         multiplier: ScaleFloatType = (0.9, 1.1),
         per_channel: bool = False,
         elementwise: bool = False,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.multiplier = cast(tuple[float, float], multiplier)
@@ -3625,8 +3626,8 @@ class ColorJitter(ImageOnlyTransform):
         contrast: ScaleFloatType = (0.8, 1.2),
         saturation: ScaleFloatType = (0.8, 1.2),
         hue: ScaleFloatType = (-0.5, 0.5),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
 
@@ -3818,8 +3819,8 @@ class Sharpen(ImageOnlyTransform):
         method: Literal["kernel", "gaussian"] = "kernel",
         kernel_size: int = 5,
         sigma: float = 1.0,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
@@ -3921,8 +3922,8 @@ class Emboss(ImageOnlyTransform):
         self,
         alpha: tuple[float, float] = (0.2, 0.5),
         strength: tuple[float, float] = (0.2, 0.7),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
@@ -4055,8 +4056,8 @@ class Superpixels(ImageOnlyTransform):
         n_segments: ScaleIntType = (100, 100),
         max_size: int | None = 128,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.p_replace = cast(tuple[float, float], p_replace)
@@ -4180,8 +4181,8 @@ class RingingOvershoot(ImageOnlyTransform):
         self,
         blur_limit: ScaleIntType = (7, 15),
         cutoff: tuple[float, float] = (np.pi / 4, np.pi / 2),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.blur_limit = cast(tuple[int, int], blur_limit)
@@ -4296,8 +4297,8 @@ class UnsharpMask(ImageOnlyTransform):
         sigma_limit: ScaleFloatType = 0.0,
         alpha: ScaleFloatType = (0.2, 0.5),
         threshold: int = 10,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.blur_limit = cast(tuple[int, int], blur_limit)
@@ -4400,8 +4401,8 @@ class PixelDropout(DualTransform):
         per_channel: bool = False,
         drop_value: ScaleFloatType | None = 0,
         mask_drop_value: ScaleFloatType | None = None,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.dropout_prob = dropout_prob
@@ -4596,8 +4597,8 @@ class Spatter(ImageOnlyTransform):
         intensity: ScaleFloatType = (0.6, 0.6),
         mode: SpatterMode | Sequence[SpatterMode] = "rain",
         color: Sequence[int] | dict[str, Sequence[int]] | None = None,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.mean = cast(tuple[float, float], mean)
@@ -4756,8 +4757,8 @@ class ChromaticAberration(ImageOnlyTransform):
         secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
         mode: ChromaticAberrationMode = "green_purple",
         interpolation: InterpolationType = cv2.INTER_LINEAR,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.primary_distortion_limit = cast(tuple[float, float], primary_distortion_limit)
@@ -4875,8 +4876,8 @@ class Morphological(DualTransform):
         self,
         scale: ScaleIntType = (2, 3),
         operation: MorphologyMode = "dilation",
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.scale = cast(tuple[int, int], scale)
@@ -5359,7 +5360,7 @@ class AdditiveNoise(ImageOnlyTransform):
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.noise_type = noise_type
         self.spatial_mode = spatial_mode
         self.noise_params = noise_params
@@ -5662,12 +5663,12 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
             Larger values create more detailed patterns. Default: 256
 
-    roughness (float): Controls the roughness of the plasma pattern.
-        Higher values create more rough/sharp transitions.
-        Must be greater than 0.
-        Typical values are between 1.0 and 5.0. Default: 3.0
+        roughness (float): Controls the roughness of the plasma pattern.
+            Higher values create more rough/sharp transitions.
+            Must be greater than 0.
+            Typical values are between 1.0 and 5.0. Default: 3.0
 
-        p (float): Probability of applying the transform. Default: 0.5.
+            p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -5768,7 +5769,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.brightness_range = brightness_range
         self.contrast_range = contrast_range
         self.plasma_size = plasma_size
@@ -5812,3 +5813,149 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "brightness_range", "contrast_range", "plasma_size", "roughness"
+
+
+class PlasmaShadow(ImageOnlyTransform):
+    """Apply plasma-based shadow effect to the image.
+
+    Creates organic-looking shadows using plasma fractal noise pattern.
+    The shadow intensity varies smoothly across the image, creating natural-looking
+    darkening effects that can simulate shadows, shading, or lighting variations.
+
+    Args:
+        shadow_intensity ((float, float)): Range for shadow intensity.
+            Values between 0 and 1:
+            - 0 means no shadow (original image)
+            - 1 means maximum darkening (black)
+            - Values between create partial shadows
+            Default: (0.3, 0.7)
+
+        plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
+            Larger values create more detailed shadow patterns:
+            - Small values (~64): Large, smooth shadow regions
+            - Medium values (~256): Balanced detail level
+            - Large values (~512+): Fine shadow details
+            Default: 256
+
+        roughness (float): Controls the roughness of the plasma pattern.
+            Higher values create more rough/sharp shadow transitions.
+            Must be greater than 0:
+            - Low values (~1.0): Very smooth transitions
+            - Medium values (~3.0): Natural-looking shadows
+            - High values (~5.0): More dramatic, sharp shadows
+            Default: 3.0
+
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The transform darkens the image using a plasma pattern
+        - Works with any number of channels (grayscale, RGB, multispectral)
+        - Shadow pattern is generated using Diamond-Square algorithm
+        - The same shadow pattern is applied to all channels
+        - Final values are clipped to valid range [0, max_value]
+
+    Mathematical Formulation:
+        1. Plasma Pattern Generation:
+           The Diamond-Square algorithm generates a pattern P(x,y) ∈ [0,1]
+           with fractal characteristics controlled by roughness parameter.
+
+        2. Shadow Application:
+           For each pixel (x,y):
+           O(x,y) = I(x,y) * (1 - i·P(x,y))
+           where:
+           - I is the input image
+           - P is the plasma pattern
+           - i is the shadow intensity
+           - O is the output image
+
+    Examples:
+        >>> import albumentations as A
+        >>> import numpy as np
+
+        # Default parameters for natural shadows
+        >>> transform = A.PlasmaShadow(p=1.0)
+
+        # Subtle, smooth shadows
+        >>> transform = A.PlasmaShadow(
+        ...     shadow_intensity=(0.1, 0.3),
+        ...     plasma_size=128,
+        ...     roughness=1.5,
+        ...     p=1.0
+        ... )
+
+        # Dramatic, detailed shadows
+        >>> transform = A.PlasmaShadow(
+        ...     shadow_intensity=(0.5, 0.9),
+        ...     plasma_size=512,
+        ...     roughness=4.0,
+        ...     p=1.0
+        ... )
+
+    References:
+        .. [1] Fournier, Fussell, and Carpenter, "Computer rendering of stochastic models,"
+               Communications of the ACM, 1982.
+               Paper introducing the Diamond-Square algorithm.
+
+        .. [2] Diamond-Square algorithm:
+               https://en.wikipedia.org/wiki/Diamond-square_algorithm
+
+    See Also:
+        - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
+        - RandomShadow: For geometric shadow effects
+        - RandomToneCurve: For global lighting adjustments
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        shadow_intensity: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
+        plasma_size: int = Field(default=256, gt=0)
+        roughness: float = Field(default=3.0, gt=0)
+
+    def __init__(
+        self,
+        shadow_intensity: tuple[float, float] = (0.3, 0.7),
+        plasma_size: int = 256,
+        roughness: float = 3.0,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.shadow_intensity = shadow_intensity
+        self.plasma_size = plasma_size
+        self.roughness = roughness
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"] if "image" in data else data["images"][0]
+
+        # Sample shadow intensity
+        intensity = self.py_random.uniform(*self.shadow_intensity)
+
+        # Generate plasma pattern
+        plasma = fmain.generate_plasma_pattern(
+            target_shape=image.shape[:2],
+            size=self.plasma_size,
+            roughness=self.roughness,
+            random_generator=self.random_generator,
+        )
+
+        return {
+            "intensity": intensity,
+            "plasma_pattern": plasma,
+        }
+
+    def apply(
+        self,
+        img: np.ndarray,
+        intensity: float,
+        plasma_pattern: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fmain.apply_plasma_shadow(img, intensity, plasma_pattern)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "shadow_intensity", "plasma_size", "roughness"
