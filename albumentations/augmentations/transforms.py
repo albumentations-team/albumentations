@@ -3680,26 +3680,34 @@ class ColorJitter(ImageOnlyTransform):
 
 
 class Sharpen(ImageOnlyTransform):
-    """Sharpen the input image and overlays the result with the original image.
+    """Sharpen the input image using either kernel-based or Gaussian interpolation method.
 
-    This transform applies a sharpening filter to the input image and then blends
-    the sharpened image with the original using a specified alpha value.
+    Implements two different approaches to image sharpening:
+    1. Traditional kernel-based method using Laplacian operator
+    2. Gaussian interpolation method (similar to Kornia's approach)
 
     Args:
-        alpha (tuple[float, float]): Range to choose the visibility of the sharpened image.
-            At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
+        alpha (tuple[float, float]): Range for the visibility of sharpening effect.
+            At 0, only the original image is visible, at 1.0 only its processed version is visible.
             Values should be in the range [0, 1].
-            Default: (0.2, 0.5).
+            Used in both methods. Default: (0.2, 0.5).
 
-        lightness (tuple of float): Range to choose the lightness of the sharpened image.
-            Larger values will create images with higher contrast.
-            Values should be greater than 0.
-            Default: (0.5, 1.0).
+        lightness (tuple[float, float]): Range for the lightness of the sharpened image.
+            Only used in 'kernel' method. Larger values create higher contrast.
+            Values should be greater than 0. Default: (0.5, 1.0).
+
+        method (str): Sharpening algorithm to use:
+            - 'kernel': Traditional kernel-based sharpening using Laplacian operator
+            - 'gaussian': Interpolation between Gaussian blurred and original image
+            Default: 'kernel'
+
+        kernel_size (int): Size of the Gaussian blur kernel for 'gaussian' method.
+            Must be odd. Default: 5
+
+        sigma (float): Standard deviation for Gaussian kernel in 'gaussian' method.
+            Default: 1.0
 
         p (float): Probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
 
     Image types:
         uint8, float32
@@ -3707,90 +3715,149 @@ class Sharpen(ImageOnlyTransform):
     Number of channels:
         Any
 
-    Note:
-        - The sharpening effect is achieved using a 3x3 sharpening kernel.
-        - The kernel is dynamically generated based on the 'alpha' and 'lightness' parameters.
-        - Higher 'alpha' values will result in a more pronounced sharpening effect.
-        - Higher 'lightness' values will increase the contrast of the sharpened areas.
-        - This transform can be useful for:
-          * Enhancing edge details in images
-          * Improving the perceived quality of slightly blurred images
-          * Creating a more crisp appearance in photographs
-
     Mathematical Formulation:
-        The sharpening kernel K is defined as:
+        1. Kernel Method:
+           The sharpening operation is based on the Laplacian operator L:
+           L = [[-1, -1, -1],
+                [-1,  8, -1],
+                [-1, -1, -1]]
 
-        K = (1 - alpha) * I + alpha * L
+           The final kernel K is a weighted sum:
+           K = (1 - a)I + a(L + λI)
 
-        where:
-        - alpha is the alpha value (from the 'alpha' parameter)
-        - I is the identity kernel [[0, 0, 0], [0, 1, 0], [0, 0, 0]]
-        - L is the Laplacian kernel [[-1, -1, -1], [-1, 8+l, -1], [-1, -1, -1]]
-          (l is the lightness value from the 'lightness' parameter)
+           where:
+           - a is the alpha value
+           - λ is the lightness value
+           - I is the identity kernel
 
-        The sharpened image S is obtained by convolving the input image I with the kernel K:
+           The output image O is computed as:
+           O = K * I  (convolution)
 
-        S = I * K
+        2. Gaussian Method:
+           Based on the unsharp mask principle:
+           O = aI + (1-a)G
 
-        The final output O is a blend of the original and sharpened images:
+           where:
+           - I is the input image
+           - G is the Gaussian blurred version of I
+           - a is the alpha value (sharpness)
 
-        O = (1 - alpha) * I + alpha * S
+           The Gaussian kernel G(x,y) is defined as:
+           G(x,y) = (1/(2πs²))exp(-(x²+y²)/(2s²))
+
+    Note:
+        - Kernel sizes must be odd to maintain spatial alignment
+        - Methods produce different visual results:
+          * Kernel method: More pronounced edges, possible artifacts
+          * Gaussian method: More natural look, limited to original sharpness
 
     Examples:
-        >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> import numpy as np
 
-        # Apply sharpening with default parameters
-        >>> transform = A.Sharpen(p=1.0)
-        >>> sharpened_image = transform(image=image)['image']
+        # Traditional kernel sharpening
+        >>> transform = A.Sharpen(
+        ...     alpha=(0.2, 0.5),
+        ...     lightness=(0.5, 1.0),
+        ...     method='kernel',
+        ...     p=1.0
+        ... )
 
-        # Apply sharpening with custom parameters
-        >>> transform = A.Sharpen(alpha=(0.4, 0.7), lightness=(0.8, 1.2), p=1.0)
-        >>> sharpened_image = transform(image=image)['image']
+        # Gaussian interpolation sharpening
+        >>> transform = A.Sharpen(
+        ...     alpha=(0.5, 1.0),
+        ...     method='gaussian',
+        ...     kernel_size=5,
+        ...     sigma=1.0,
+        ...     p=1.0
+        ... )
 
     References:
-        - Image sharpening: https://en.wikipedia.org/wiki/Unsharp_masking
-        - Laplacian operator: https://en.wikipedia.org/wiki/Laplace_operator
-        - "Digital Image Processing" by Rafael C. Gonzalez and Richard E. Woods, 4th Edition
+        .. [1] R. C. Gonzalez and R. E. Woods, "Digital Image Processing (4th Edition),"
+               Chapter 3: Intensity Transformations and Spatial Filtering.
+
+        .. [2] J. C. Russ, "The Image Processing Handbook (7th Edition),"
+               Chapter 4: Image Enhancement.
+
+        .. [3] T. Acharya and A. K. Ray, "Image Processing: Principles and Applications,"
+               Chapter 5: Image Enhancement.
+
+        .. [4] Unsharp masking:
+               https://en.wikipedia.org/wiki/Unsharp_masking
+
+        .. [5] Laplacian operator:
+               https://en.wikipedia.org/wiki/Laplace_operator
+
+        .. [6] Gaussian blur:
+               https://en.wikipedia.org/wiki/Gaussian_blur
+
+    See Also:
+        - Blur: For Gaussian blurring
+        - UnsharpMask: Alternative sharpening method
+        - RandomBrightnessContrast: For adjusting image contrast
     """
 
     class InitSchema(BaseTransformInitSchema):
         alpha: Annotated[tuple[float, float], AfterValidator(check_01)]
         lightness: Annotated[tuple[float, float], AfterValidator(check_0plus)]
+        method: Literal["kernel", "gaussian"]
+        kernel_size: int = Field(ge=3)
+        sigma: float = Field(gt=0)
+
+    @field_validator("kernel_size")
+    @classmethod
+    def check_kernel_size(cls, value: int) -> int:
+        return value + 1 if value % 2 == 0 else value
 
     def __init__(
         self,
         alpha: tuple[float, float] = (0.2, 0.5),
         lightness: tuple[float, float] = (0.5, 1.0),
+        method: Literal["kernel", "gaussian"] = "kernel",
+        kernel_size: int = 5,
+        sigma: float = 1.0,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
         self.lightness = lightness
+        self.method = method
+        self.kernel_size = kernel_size
+        self.sigma = sigma
 
     @staticmethod
-    def __generate_sharpening_matrix(alpha_sample: np.ndarray, lightness_sample: np.ndarray) -> np.ndarray:
+    def __generate_sharpening_matrix(alpha: np.ndarray, lightness: np.ndarray) -> np.ndarray:
         matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
         matrix_effect = np.array(
-            [[-1, -1, -1], [-1, 8 + lightness_sample, -1], [-1, -1, -1]],
+            [[-1, -1, -1], [-1, 8 + lightness, -1], [-1, -1, -1]],
             dtype=np.float32,
         )
 
-        return (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
+        return (1 - alpha) * matrix_nochange + alpha * matrix_effect
 
-    def get_params(self) -> dict[str, np.ndarray]:
+    def get_params(self) -> dict[str, Any]:
         alpha = self.py_random.uniform(*self.alpha)
-        lightness = self.py_random.uniform(*self.lightness)
-        sharpening_matrix = self.__generate_sharpening_matrix(alpha_sample=alpha, lightness_sample=lightness)
-        return {"sharpening_matrix": sharpening_matrix}
 
-    def apply(self, img: np.ndarray, sharpening_matrix: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.convolve(img, sharpening_matrix)
+        if self.method == "kernel":
+            lightness = self.py_random.uniform(*self.lightness)
+            return {"alpha": alpha, "sharpening_matrix": self.__generate_sharpening_matrix(alpha, lightness)}
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        return ("alpha", "lightness")
+        return {"alpha": alpha, "sharpening_matrix": None}
+
+    def apply(
+        self,
+        img: np.ndarray,
+        alpha: float,
+        sharpening_matrix: np.ndarray | None = None,
+        **params: Any,
+    ) -> np.ndarray:
+        if self.method == "kernel":
+            return fmain.convolve(img, sharpening_matrix)
+        return fmain.sharpen_gaussian(img, alpha, self.kernel_size, self.sigma)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "alpha", "lightness", "method", "kernel_size", "sigma"
 
 
 class Emboss(ImageOnlyTransform):

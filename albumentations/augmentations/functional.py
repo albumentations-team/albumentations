@@ -2163,3 +2163,10 @@ def generate_shared_noise(
     if len(shape) > MONO_CHANNEL_DIMENSIONS:
         return np.broadcast_to(noise_map[..., None], shape)
     return noise_map
+
+
+@preserve_channel_dim
+def sharpen_gaussian(img: np.ndarray, alpha: float, kernel_size: int, sigma: float) -> np.ndarray:
+    """Sharpen image using Gaussian blur."""
+    blurred = cv2.GaussianBlur(img, ksize=(kernel_size, kernel_size), sigmaX=sigma, sigmaY=sigma)
+    return add_weighted(blurred, 1 - alpha, img, alpha)
