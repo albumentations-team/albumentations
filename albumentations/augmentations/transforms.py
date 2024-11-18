@@ -2397,8 +2397,8 @@ class GaussNoise(ImageOnlyTransform):
 
         self.var_limit = var_limit
 
-    def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.add_noise(img, gauss)
+    def apply(self, img: np.ndarray, noise_map: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.add_noise(img, noise_map)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         image = data["image"] if "image" in data else data["images"][0]
@@ -2412,38 +2412,19 @@ class GaussNoise(ImageOnlyTransform):
             # New behavior: sample std dev directly (aligned with torchvision/kornia)
             sigma = self.py_random.uniform(*self.std_range)
 
-        sigma *= max_value
-        mean = self.py_random.uniform(*self.mean_range) * max_value
+        mean = self.py_random.uniform(*self.mean_range)
 
-        if self.per_channel:
-            target_shape = image.shape
-            if self.noise_scale_factor == 1:
-                gauss = self.random_generator.normal(mean, sigma, target_shape)
-            else:
-                gauss = fmain.generate_approx_gaussian_noise(
-                    target_shape,
-                    mean,
-                    sigma,
-                    self.noise_scale_factor,
-                    self.random_generator,
-                )
-        else:
-            target_shape = image.shape[:2]
-            if self.noise_scale_factor == 1:
-                gauss = self.random_generator.normal(mean, sigma, target_shape)
-            else:
-                gauss = fmain.generate_approx_gaussian_noise(
-                    target_shape,
-                    mean,
-                    sigma,
-                    self.noise_scale_factor,
-                    self.random_generator,
-                )
+        noise_map = fmain.generate_noise(
+            noise_type="gaussian",
+            spatial_mode="per_pixel" if self.per_channel else "shared",
+            shape=image.shape,
+            params={"mean_range": (mean, mean), "std_range": (sigma, sigma)},
+            max_value=max_value,
+            approximation=self.noise_scale_factor,
+            random_generator=self.random_generator,
+        )
 
-            if image.ndim > MONO_CHANNEL_DIMENSIONS:
-                gauss = np.expand_dims(gauss, -1)
-
-        return {"gauss": gauss}
+        return {"noise_map": noise_map}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "std_range", "mean_range", "per_channel", "noise_scale_factor"

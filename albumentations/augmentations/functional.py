@@ -82,7 +82,6 @@ __all__ = [
     "chromatic_aberration",
     "erode",
     "dilate",
-    "generate_approx_gaussian_noise",
 ]
 
 
@@ -1825,27 +1824,6 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody
     img[:, :, 2] = multiply_by_constant(img[:, :, 2], coeffs[2] / coeffs[1], inplace=True)
 
     return img
-
-
-def generate_approx_gaussian_noise(
-    shape: tuple[int, ...],
-    mean: float,
-    sigma: float,
-    scale: float,
-    random_generator: np.random.Generator,
-) -> np.ndarray:
-    # Determine the low-resolution shape
-    downscaled_height = int(shape[0] * scale)
-    downsaled_width = int(shape[1] * scale)
-
-    if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
-        low_res_noise = random_generator.normal(mean, sigma, (downscaled_height, downsaled_width, shape[-1]))
-    else:
-        low_res_noise = random_generator.normal(mean, sigma, (downscaled_height, downsaled_width))
-
-    # Upsample the noise to the original shape using OpenCV
-    result = cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
-    return result.reshape(shape)
 
 
 @clipped
