@@ -1257,6 +1257,7 @@ def test_coarse_dropout_invalid_input(params):
             A.RandomContrast: {"contrast": (0.8, 1.2)},
             A.RandomBrightness: {"brightness": (0.8, 1.2)},
             A.RandomSaturation: {"saturation": (0.8, 1.2)},
+            A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1329,6 +1330,7 @@ def test_change_image(augmentation_cls, params):
             A.RandomContrast: {"contrast": (0.8, 1.2)},
             A.RandomBrightness: {"brightness": (0.8, 1.2)},
             A.RandomSaturation: {"saturation": (0.8, 1.2)},
+            A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
         },
         except_augmentations={
             A.Crop,
@@ -1777,7 +1779,7 @@ def test_gauss_noise(mean, image):
         data={"image": image},
     )
 
-    assert np.abs(mean - apply_params["gauss"].mean() / MAX_VALUES_BY_DTYPE[image.dtype]) < 0.5
+    assert np.abs(mean - apply_params["noise_map"].mean() / MAX_VALUES_BY_DTYPE[image.dtype]) < 0.5
     result = A.Compose([aug], seed=42)(image=image)
 
     assert not (result["image"] >= image).all()

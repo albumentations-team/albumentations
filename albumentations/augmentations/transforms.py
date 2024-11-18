@@ -24,7 +24,7 @@ from albucore import (
     normalize_per_image,
     to_float,
 )
-from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
 from typing_extensions import Literal, Self, TypedDict
@@ -119,6 +119,7 @@ __all__ = [
     "Morphological",
     "PlanckianJitter",
     "ShotNoise",
+    "AdditiveNoise",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -2145,86 +2146,6 @@ class Equalize(ImageOnlyTransform):
         return "mode", "by_channels", "mask", "mask_params"
 
 
-class RGBShift(ImageOnlyTransform):
-    """Randomly shift values for each channel of the input RGB image.
-
-    Args:
-        r_shift_limit ((int, int) or int): range for changing values for the red channel. If r_shift_limit is a
-            single int, the range will be (-r_shift_limit, r_shift_limit). Default: (-20, 20).
-        g_shift_limit ((int, int) or int): range for changing values for the green channel. If g_shift_limit is a
-            single int, the range will be (-g_shift_limit, g_shift_limit). Default: (-20, 20).
-        b_shift_limit ((int, int) or int): range for changing values for the blue channel. If b_shift_limit is a
-            single int, the range will be (-b_shift_limit, b_shift_limit). Default: (-20, 20).
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-
-    Note:
-        - For uint8 images, the shift values represent absolute pixel values in the range [0, 255].
-          For example, a shift of 20 for a uint8 image would add 20 to the corresponding channel.
-        - For float32 images, the shift values represent fractions of the full value range [0, 1].
-          For example, a shift of 0.1 for a float32 image would add 0.1 to the corresponding channel.
-        - The shift values are applied independently to each channel.
-        - After applying the shift, values are clipped to the valid range for the image dtype:
-          [0, 255] for uint8 and [0, 1] for float32.
-
-    Examples:
-        >>> import numpy as np
-        >>> import albumentations as A
-        >>>
-        # Shift RGB channels for uint8 image
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.RGBShift(r_shift_limit=30, g_shift_limit=30, b_shift_limit=30, p=1.0)
-        >>> shifted_image = transform(image=image)['image']
-        >>>
-        # Shift RGB channels for float32 image
-        >>> image = np.random.rand(100, 100, 3).astype(np.float32)
-        >>> transform = A.RGBShift(r_shift_limit=0.1, g_shift_limit=0.1, b_shift_limit=0.1, p=1.0)
-        >>> shifted_image = transform(image=image)['image']
-
-    """
-
-    class InitSchema(BaseTransformInitSchema):
-        r_shift_limit: SymmetricRangeType
-        g_shift_limit: SymmetricRangeType
-        b_shift_limit: SymmetricRangeType
-
-    def __init__(
-        self,
-        r_shift_limit: ScaleFloatType = (-20, 20),
-        g_shift_limit: ScaleFloatType = (-20, 20),
-        b_shift_limit: ScaleFloatType = (-20, 20),
-        always_apply: bool | None = None,
-        p: float = 0.5,
-    ):
-        super().__init__(p=p, always_apply=always_apply)
-        self.r_shift_limit = cast(tuple[float, float], r_shift_limit)
-        self.g_shift_limit = cast(tuple[float, float], g_shift_limit)
-        self.b_shift_limit = cast(tuple[float, float], b_shift_limit)
-
-    def apply(self, img: np.ndarray, shift: np.ndarray, **params: Any) -> np.ndarray:
-        non_rgb_error(img)
-        return albucore.add_vector(img, shift, inplace=False)
-
-    def get_params(self) -> dict[str, Any]:
-        return {
-            "shift": np.array(
-                [
-                    self.py_random.uniform(*self.r_shift_limit),
-                    self.py_random.uniform(*self.g_shift_limit),
-                    self.py_random.uniform(*self.b_shift_limit),
-                ],
-            ),
-        }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "r_shift_limit", "g_shift_limit", "b_shift_limit"
-
-
 class RandomBrightnessContrast(ImageOnlyTransform):
     """Randomly changes the brightness and contrast of the input image.
 
@@ -2476,8 +2397,8 @@ class GaussNoise(ImageOnlyTransform):
 
         self.var_limit = var_limit
 
-    def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.add_noise(img, gauss)
+    def apply(self, img: np.ndarray, noise_map: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.add_noise(img, noise_map)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         image = data["image"] if "image" in data else data["images"][0]
@@ -2491,38 +2412,19 @@ class GaussNoise(ImageOnlyTransform):
             # New behavior: sample std dev directly (aligned with torchvision/kornia)
             sigma = self.py_random.uniform(*self.std_range)
 
-        sigma *= max_value
-        mean = self.py_random.uniform(*self.mean_range) * max_value
+        mean = self.py_random.uniform(*self.mean_range)
 
-        if self.per_channel:
-            target_shape = image.shape
-            if self.noise_scale_factor == 1:
-                gauss = self.random_generator.normal(mean, sigma, target_shape)
-            else:
-                gauss = fmain.generate_approx_gaussian_noise(
-                    target_shape,
-                    mean,
-                    sigma,
-                    self.noise_scale_factor,
-                    self.random_generator,
-                )
-        else:
-            target_shape = image.shape[:2]
-            if self.noise_scale_factor == 1:
-                gauss = self.random_generator.normal(mean, sigma, target_shape)
-            else:
-                gauss = fmain.generate_approx_gaussian_noise(
-                    target_shape,
-                    mean,
-                    sigma,
-                    self.noise_scale_factor,
-                    self.random_generator,
-                )
+        noise_map = fmain.generate_noise(
+            noise_type="gaussian",
+            spatial_mode="per_pixel" if self.per_channel else "shared",
+            shape=image.shape,
+            params={"mean_range": (mean, mean), "std_range": (sigma, sigma)},
+            max_value=max_value,
+            approximation=self.noise_scale_factor,
+            random_generator=self.random_generator,
+        )
 
-            if image.ndim > MONO_CHANNEL_DIMENSIONS:
-                gauss = np.expand_dims(gauss, -1)
-
-        return {"gauss": gauss}
+        return {"noise_map": noise_map}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "std_range", "mean_range", "per_channel", "noise_scale_factor"
@@ -5199,3 +5101,346 @@ class ShotNoise(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("scale_range",)
+
+
+class NoiseParamsBase(BaseModel):
+    """Base class for all noise parameter models."""
+
+    model_config = ConfigDict(extra="forbid")
+    noise_type: str
+
+
+class UniformParams(NoiseParamsBase):
+    noise_type: Literal["uniform"] = "uniform"
+    ranges: list[tuple[float, float]] = Field(description="List of (min, max) ranges for each channel", min_length=1)
+
+    @field_validator("ranges", mode="after")
+    @classmethod
+    def validate_ranges(cls, v: list[tuple[float, float]]) -> list[tuple[float, float]]:
+        for min_val, max_val in v:
+            if not (-1 <= min_val <= max_val <= 1):
+                raise ValueError("Range values must be in [-1, 1] and min <= max")
+        return v
+
+
+class GaussianParams(NoiseParamsBase):
+    noise_type: Literal["gaussian"] = "gaussian"
+    mean_range: tuple[float, float] = Field(default=(0.0, 0.0), description="Range for mean value", ge=-1, le=1)
+    std_range: tuple[float, float] = Field(default=(0.1, 0.1), description="Range for standard deviation", ge=0, le=1)
+
+
+class LaplaceParams(NoiseParamsBase):
+    noise_type: Literal["laplace"] = "laplace"
+    mean_range: tuple[float, float] = Field(default=(0.0, 0.0), description="Range for location parameter", ge=-1, le=1)
+    scale_range: tuple[float, float] = Field(default=(0.1, 0.1), description="Range for scale parameter", ge=0, le=1)
+
+
+class BetaParams(NoiseParamsBase):
+    noise_type: Literal["beta"] = "beta"
+    alpha_range: tuple[float, float] = Field(default=(2.0, 2.0), description="Range for alpha parameter", gt=0)
+    beta_range: tuple[float, float] = Field(default=(2.0, 2.0), description="Range for beta parameter", gt=0)
+    scale_range: tuple[float, float] = Field(default=(1.0, 1.0), description="Range for scale parameter", ge=0, le=1)
+
+
+class PoissonParams(NoiseParamsBase):
+    noise_type: Literal["poisson"] = "poisson"
+    lambda_range: tuple[float, float] = Field(default=(1.0, 1.0), description="Range for lambda parameter", gt=0)
+
+
+NoiseParams = Annotated[
+    Union[UniformParams, GaussianParams, LaplaceParams, BetaParams, PoissonParams],
+    Field(discriminator="noise_type"),
+]
+
+
+class AdditiveNoise(ImageOnlyTransform):
+    """Apply random noise to image channels using various noise distributions.
+
+    This transform generates noise using different probability distributions and applies it
+    to image channels. The noise can be generated in three spatial modes and supports
+    multiple noise distributions, each with configurable parameters.
+
+    Args:
+        noise_type: Type of noise distribution to use. Options:
+            - "uniform": Uniform distribution, good for simple random perturbations
+            - "gaussian": Normal distribution, models natural random processes
+            - "laplace": Similar to Gaussian but with heavier tails, good for outliers
+            - "beta": Flexible bounded distribution, can be symmetric or skewed
+            - "poisson": Models sensor/shot noise, intensity-dependent
+
+        spatial_mode: How to generate and apply the noise. Options:
+            - "constant": One noise value per channel, fastest
+            - "per_pixel": Independent noise value for each pixel and channel, slowest
+            - "shared": One noise map shared across all channels, medium speed
+
+        approximation: float in [0, 1], default=1.0
+            Controls noise generation speed vs quality tradeoff.
+            - 1.0: Generate full resolution noise (slowest, highest quality)
+            - 0.5: Generate noise at half resolution and upsample
+            - 0.25: Generate noise at quarter resolution and upsample
+            Only affects 'per_pixel' and 'shared' spatial modes.
+
+        noise_params: Parameters for the chosen noise distribution.
+            Must match the noise_type:
+
+            uniform:
+                ranges: list[tuple[float, float]]
+                    List of (min, max) ranges for each channel.
+                    Each range must be in [-1, 1].
+                    Length must match number of channels.
+                    Example: [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)] for RGB
+
+            gaussian:
+                mean_range: tuple[float, float], default (0.0, 0.0)
+                    Range for sampling mean value, in [-1, 1]
+                std_range: tuple[float, float], default (0.1, 0.1)
+                    Range for sampling standard deviation, in [0, 1]
+
+            laplace:
+                mean_range: tuple[float, float], default (0.0, 0.0)
+                    Range for sampling location parameter, in [-1, 1]
+                scale_range: tuple[float, float], default (0.1, 0.1)
+                    Range for sampling scale parameter, in [0, 1]
+
+            beta:
+                alpha_range: tuple[float, float], default (2.0, 2.0)
+                    Range for sampling first shape parameter, in (0, inf)
+                beta_range: tuple[float, float], default (2.0, 2.0)
+                    Range for sampling second shape parameter, in (0, inf)
+                scale_range: tuple[float, float], default (1.0, 1.0)
+                    Range for sampling output scale, in [0, 1]
+
+            poisson:
+                lambda_range: tuple[float, float], default (1.0, 1.0)
+                    Range for sampling intensity parameter, in (0, inf)
+                    Higher values = more noise
+
+    Note:
+        Performance considerations:
+            - "constant" mode is fastest as it generates only C values (C = number of channels)
+            - "shared" mode generates HxW values and reuses them for all channels
+            - "per_pixel" mode generates HxWxC values, slowest but most flexible
+
+        Distribution characteristics:
+            - uniform: Equal probability within range, good for simple perturbations
+            - gaussian: Bell-shaped, symmetric, good for natural noise
+            - laplace: Like gaussian but with heavier tails, good for outliers
+            - beta: Very flexible shape, can be uniform, bell-shaped, or U-shaped
+            - poisson: Discrete, variance increases with intensity, models sensor noise
+
+        Implementation details:
+            - All noise is generated in normalized range and scaled by image max value
+            - For uint8 images, final noise range is [-255, 255]
+            - For float images, final noise range is [-1, 1]
+            - Poisson noise is handled differently as it's intensity-dependent
+
+    Examples:
+        Constant RGB shift with different ranges per channel:
+        >>> transform = AdditiveNoise(
+        ...     noise_type="uniform",
+        ...     spatial_mode="constant",
+        ...     noise_params={"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}
+        ... )
+
+        Gaussian noise shared across channels:
+        >>> transform = AdditiveNoise(
+        ...     noise_type="gaussian",
+        ...     spatial_mode="shared",
+        ...     noise_params={"mean_range": (0.0, 0.0), "std_range": (0.05, 0.15)}
+        ... )
+
+        Poisson noise for modeling sensor noise:
+        >>> transform = AdditiveNoise(
+        ...     noise_type="poisson",
+        ...     spatial_mode="per_pixel",
+        ...     noise_params={"lambda_range": (1.0, 5.0)}
+        ... )
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"]
+        spatial_mode: Literal["constant", "per_pixel", "shared"]
+        noise_params: dict[str, Any] | None
+        approximation: float = Field(ge=0.0, le=1.0)
+
+        @model_validator(mode="after")
+        def validate_noise_params(self) -> Self:
+            if isinstance(self.noise_params, dict):
+                # Convert dict to appropriate NoiseParams object
+                params_class = {
+                    "uniform": UniformParams,
+                    "gaussian": GaussianParams,
+                    "laplace": LaplaceParams,
+                    "beta": BetaParams,
+                    "poisson": PoissonParams,
+                }[self.noise_type]
+
+                # Add noise_type to params if not present
+                params_dict = {**self.noise_params, "noise_type": self.noise_type}
+                self.noise_params = params_class(**params_dict)
+
+            return self
+
+    def __init__(
+        self,
+        noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"] = "uniform",
+        spatial_mode: Literal["constant", "per_pixel", "shared"] = "constant",
+        noise_params: dict[str, Any] | None = None,
+        approximation: float = 1.0,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.noise_type = noise_type
+        self.spatial_mode = spatial_mode
+        self.noise_params = noise_params
+        self.approximation = approximation
+
+    def apply(self, img: np.ndarray, noise_map: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.add_noise(img, noise_map)
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"] if "image" in data else data["images"][0]
+
+        max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+
+        noise_map = fmain.generate_noise(
+            noise_type=self.noise_type,
+            spatial_mode=self.spatial_mode,
+            shape=image.shape,
+            params=self.noise_params,
+            max_value=max_value,
+            approximation=self.approximation,
+            random_generator=self.random_generator,
+        )
+        return {"noise_map": noise_map}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "noise_type", "spatial_mode", "noise_params", "approximation"
+
+
+class RGBShift(AdditiveNoise):
+    """Randomly shift values for each channel of the input RGB image.
+
+    A specialized version of AdditiveNoise that applies constant uniform shifts to RGB channels.
+    Each channel (R,G,B) can have its own shift range specified.
+
+    Args:
+        r_shift_limit ((int, int) or int): Range for shifting the red channel. Options:
+            - If tuple (min, max): Sample shift value from this range
+            - If int: Sample shift value from (-r_shift_limit, r_shift_limit)
+            - For uint8 images: Values represent absolute shifts in [0, 255]
+            - For float images: Values represent relative shifts in [0, 1]
+            Default: (-20, 20)
+
+        g_shift_limit ((int, int) or int): Range for shifting the green channel. Options:
+            - If tuple (min, max): Sample shift value from this range
+            - If int: Sample shift value from (-g_shift_limit, g_shift_limit)
+            - For uint8 images: Values represent absolute shifts in [0, 255]
+            - For float images: Values represent relative shifts in [0, 1]
+            Default: (-20, 20)
+
+        b_shift_limit ((int, int) or int): Range for shifting the blue channel. Options:
+            - If tuple (min, max): Sample shift value from this range
+            - If int: Sample shift value from (-b_shift_limit, b_shift_limit)
+            - For uint8 images: Values represent absolute shifts in [0, 255]
+            - For float images: Values represent relative shifts in [0, 1]
+            Default: (-20, 20)
+
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - Values are shifted independently for each channel
+        - For uint8 images:
+            * Input ranges like (-20, 20) represent pixel value shifts
+            * A shift of 20 means adding 20 to that channel
+            * Final values are clipped to [0, 255]
+        - For float32 images:
+            * Input ranges like (-0.1, 0.1) represent relative shifts
+            * A shift of 0.1 means adding 0.1 to that channel
+            * Final values are clipped to [0, 1]
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+
+        # Shift RGB channels of uint8 image
+        >>> transform = A.RGBShift(
+        ...     r_shift_limit=30,  # Will sample red shift from [-30, 30]
+        ...     g_shift_limit=(-20, 20),  # Will sample green shift from [-20, 20]
+        ...     b_shift_limit=(-10, 10),  # Will sample blue shift from [-10, 10]
+        ...     p=1.0
+        ... )
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> shifted = transform(image=image)["image"]
+
+        # Same effect using AdditiveNoise
+        >>> transform = A.AdditiveNoise(
+        ...     noise_type="uniform",
+        ...     spatial_mode="constant",  # One value per channel
+        ...     noise_params={
+        ...         "ranges": [(-30/255, 30/255), (-20/255, 20/255), (-10/255, 10/255)]
+        ...     },
+        ...     p=1.0
+        ... )
+
+    See Also:
+        - AdditiveNoise: More general noise transform with various options:
+            * Different noise distributions (uniform, gaussian, laplace, beta, poisson)
+            * Spatial modes (constant, per-pixel, shared)
+            * Approximation for faster computation
+        - RandomToneCurve: For non-linear color transformations
+        - RandomBrightnessContrast: For combined brightness and contrast adjustments
+        - PlankianJitter: For color temperature adjustments
+        - HueSaturationValue: For HSV color space adjustments
+        - ColorJitter: For combined brightness, contrast, saturation adjustments
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        r_shift_limit: SymmetricRangeType
+        g_shift_limit: SymmetricRangeType
+        b_shift_limit: SymmetricRangeType
+
+    def __init__(
+        self,
+        r_shift_limit: ScaleFloatType = (-20, 20),
+        g_shift_limit: ScaleFloatType = (-20, 20),
+        b_shift_limit: ScaleFloatType = (-20, 20),
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        # Convert RGB shift limits to normalized ranges if needed
+        def normalize_range(limit: tuple[float, float]) -> tuple[float, float]:
+            # If any value is > 1, assume uint8 range and normalize
+            if abs(limit[0]) > 1 or abs(limit[1]) > 1:
+                return (limit[0] / 255.0, limit[1] / 255.0)
+            return limit
+
+        ranges = [
+            normalize_range(cast(tuple[float, float], r_shift_limit)),
+            normalize_range(cast(tuple[float, float], g_shift_limit)),
+            normalize_range(cast(tuple[float, float], b_shift_limit)),
+        ]
+
+        # Initialize with fixed noise type and spatial mode
+        super().__init__(
+            noise_type="uniform",
+            spatial_mode="constant",
+            noise_params={"ranges": ranges},
+            approximation=1.0,
+            p=p,
+        )
+
+        # Store original limits for get_transform_init_args
+        self.r_shift_limit = cast(tuple[float, float], r_shift_limit)
+        self.g_shift_limit = cast(tuple[float, float], g_shift_limit)
+        self.b_shift_limit = cast(tuple[float, float], b_shift_limit)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "r_shift_limit", "g_shift_limit", "b_shift_limit"

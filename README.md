@@ -184,6 +184,7 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 
 Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms:
 
+- [AdditiveNoise](https://explore.albumentations.ai/transform/AdditiveNoise)
 - [AdvancedBlur](https://explore.albumentations.ai/transform/AdvancedBlur)
 - [Blur](https://explore.albumentations.ai/transform/Blur)
 - [CLAHE](https://explore.albumentations.ai/transform/CLAHE)
