@@ -117,7 +117,7 @@ class MotionBlur(Blur):
             - 45°: Diagonal motion blur ↗
             - 90°: Vertical motion blur ↑
             - 135°: Diagonal motion blur ↖
-            Default: (-45, 45)
+            Default: (0, 360)
 
         direction_range (tuple[float, float]): Range for motion bias.
             Controls how the blur extends from the center:
@@ -219,8 +219,8 @@ class MotionBlur(Blur):
         self,
         blur_limit: ScaleIntType = 7,
         allow_shifted: bool = True,
-        angle_range: tuple[float, float] = (-45, 45),
-        direction_range: tuple[float, float] = (-0.5, 0.5),
+        angle_range: tuple[float, float] = (0, 360),
+        direction_range: tuple[float, float] = (-1.0, 1.0),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
