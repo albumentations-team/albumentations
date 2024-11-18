@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from itertools import product
 from math import ceil
+from random import Random
 from typing import Literal
 from warnings import warn
 
@@ -160,3 +161,66 @@ def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int
         return final_result
 
     return result
+
+
+def create_motion_kernel(
+    kernel_size: int,
+    angle: float,
+    direction: float,
+    allow_shifted: bool,
+    random_state: Random,
+) -> np.ndarray:
+    """Create a motion blur kernel.
+
+    Args:
+        kernel_size: Size of the kernel (must be odd)
+        angle: Angle in degrees (counter-clockwise)
+        direction: Blur direction (-1.0 to 1.0)
+        allow_shifted: Allow kernel to be randomly shifted from center
+        random_state: Python's random.Random instance
+
+    Returns:
+        Motion blur kernel
+    """
+    kernel = np.zeros((kernel_size, kernel_size), dtype=np.float32)
+    center = kernel_size // 2
+
+    # Convert angle to radians
+    angle_rad = np.deg2rad(angle)
+
+    # Calculate direction vector
+    dx = np.cos(angle_rad)
+    dy = np.sin(angle_rad)
+
+    # Create line points with direction bias
+    line_length = kernel_size // 2
+    t = np.linspace(-line_length, line_length, kernel_size * 2)
+
+    # Apply direction bias
+    if direction != 0:
+        t = t * (1 + direction)
+
+    # Generate line coordinates
+    x = center + dx * t
+    y = center + dy * t
+
+    # Apply random shift if allowed
+    if allow_shifted and random_state is not None:
+        shift_x = random_state.uniform(-1, 1) * line_length / 2
+        shift_y = random_state.uniform(-1, 1) * line_length / 2
+        x += shift_x
+        y += shift_y
+
+    # Round coordinates and clip to kernel bounds
+    x = np.clip(np.round(x), 0, kernel_size - 1).astype(int)
+    y = np.clip(np.round(y), 0, kernel_size - 1).astype(int)
+
+    # Keep only unique points to avoid multiple assignments
+    points = np.unique(np.column_stack([y, x]), axis=0)
+    kernel[points[:, 0], points[:, 1]] = 1
+
+    # Ensure at least one point is set
+    if not kernel.any():
+        kernel[center, center] = 1
+
+    return kernel
