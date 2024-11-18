@@ -3849,7 +3849,7 @@ class Sharpen(ImageOnlyTransform):
         self,
         img: np.ndarray,
         alpha: float,
-        sharpening_matrix: np.ndarray | None = None,
+        sharpening_matrix: np.ndarray | None,
         **params: Any,
     ) -> np.ndarray:
         if self.method == "kernel":
