@@ -102,8 +102,8 @@ class RandomJPEG(ImageCompression):
     def __init__(
         self,
         jpeg_quality: tuple[int, int] = (50, 50),
-        always_apply: bool = False,
         p: float = 0.5,
+        always_apply: bool = False,
     ):
         warn(
             "RandomJPEG is a specialized version of ImageCompression. "
@@ -173,7 +173,7 @@ class RandomHorizontalFlip(HorizontalFlip):
             UserWarning,
             stacklevel=2,
         )
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
 
 class RandomVerticalFlip(VerticalFlip):
@@ -342,8 +342,6 @@ class RandomPerspective(Perspective):
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomPerspective
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
     class InitSchema(BaseTransformInitSchema):
         distortion_scale: float = Field(ge=0, le=1)
         fill: ColorType
@@ -438,8 +436,6 @@ class RandomAffine(Affine):
         - torchvision: https://pytorch.org/vision/stable/generated/torchvision.transforms.v2.RandomAffine.html
         - Kornia: https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomAffine
     """
-
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
         degrees: ScaleFloatType
@@ -760,8 +756,8 @@ class RandomHue(ColorJitter):
     def __init__(
         self,
         hue: tuple[float, float] = (0, 0),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomHue is a specialized version of ColorJitter. "
@@ -826,8 +822,8 @@ class RandomClahe(CLAHE):
         self,
         clip_limit: float | tuple[float, float] = (1, 4),
         tile_grid_size: tuple[int, int] = (8, 8),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomClahe is an alias for CLAHE transform. Consider using CLAHE directly from albumentations.CLAHE.",
@@ -892,8 +888,8 @@ class RandomContrast(RandomBrightnessContrast):
     def __init__(
         self,
         contrast: tuple[float, float] = (1, 1),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomContrast is a specialized version of RandomBrightnessContrast. "
@@ -958,8 +954,8 @@ class RandomBrightness(RandomBrightnessContrast):
     def __init__(
         self,
         brightness: tuple[float, float] = (1, 1),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomBrightness is a specialized version of RandomBrightnessContrast. "
@@ -1027,8 +1023,8 @@ class RandomChannelDropout(ChannelDropout):
         self,
         num_drop_channels: int = 1,
         fill_value: float = 0,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomChannelDropout is an alias for ChannelDropout transform. "
@@ -1087,8 +1083,8 @@ class RandomEqualize(Equalize):
 
     def __init__(
         self,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomEqualize is a specialized version of Equalize transform. "
@@ -1159,8 +1155,8 @@ class RandomGaussianBlur(GaussianBlur):
         self,
         kernel_size: ScaleIntType = (3, 7),
         sigma: ScaleFloatType = 0,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomGaussianBlur is an alias for GaussianBlur transform. "
@@ -1172,7 +1168,6 @@ class RandomGaussianBlur(GaussianBlur):
             blur_limit=kernel_size,
             sigma_limit=sigma,
             p=p,
-            always_apply=always_apply,
         )
         self.kernel_size = kernel_size
         self.sigma = sigma
@@ -1234,8 +1229,8 @@ class RandomPlanckianJitter(PlanckianJitter):
     def __init__(
         self,
         mode: Literal["blackbody", "cied"] = "blackbody",
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomPlanckianJitter is a specialized version of PlanckianJitter transform. "
@@ -1303,8 +1298,8 @@ class RandomMedianBlur(MedianBlur):
     def __init__(
         self,
         kernel_size: tuple[int, int] = (3, 3),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomMedianBlur is a specialized version of MedianBlur with a probability parameter. "
@@ -1370,8 +1365,8 @@ class RandomSolarize(Solarize):
     def __init__(
         self,
         thresholds: tuple[float, float] = (0.1, 0.1),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomSolarize is an alias for Solarize transform. "
@@ -1441,8 +1436,8 @@ class RandomPosterize(Posterize):
     def __init__(
         self,
         num_bits: tuple[int, int] = (3, 3),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "RandomPosterize is an alias for Posterize transform. "
@@ -1503,8 +1498,8 @@ class RandomSaturation(ColorJitter):
     def __init__(
         self,
         saturation: tuple[float, float] = (1.0, 1.0),
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(
             brightness=(1.0, 1.0),  # No brightness change
@@ -1568,8 +1563,8 @@ class GaussianNoise(GaussNoise):
         self,
         mean: float = 0.0,
         sigma: float = 0.1,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         warn(
             "GaussianNoise is a specialized version of GaussNoise that follows torchvision's API. "
