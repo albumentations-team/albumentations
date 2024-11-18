@@ -1257,6 +1257,7 @@ def test_coarse_dropout_invalid_input(params):
             A.RandomContrast: {"contrast": (0.8, 1.2)},
             A.RandomBrightness: {"brightness": (0.8, 1.2)},
             A.RandomSaturation: {"saturation": (0.8, 1.2)},
+            A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1329,6 +1330,7 @@ def test_change_image(augmentation_cls, params):
             A.RandomContrast: {"contrast": (0.8, 1.2)},
             A.RandomBrightness: {"brightness": (0.8, 1.2)},
             A.RandomSaturation: {"saturation": (0.8, 1.2)},
+            A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
         },
         except_augmentations={
             A.Crop,

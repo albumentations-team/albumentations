@@ -2002,3 +2002,186 @@ def get_safe_brightness_contrast_params(
         safe_alpha = max(alpha, -safe_beta / max_value)
 
     return safe_alpha, safe_beta
+
+
+def generate_noise(
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    spatial_mode: Literal["constant", "per_pixel", "shared"],
+    shape: tuple[int, ...],
+    params: dict[str, Any] | None,
+    max_value: float,
+    approximation: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    if params is None:
+        return np.zeros(shape, dtype=np.float32)
+    """Generate noise with optional approximation for speed."""
+    if spatial_mode == "constant":
+        return generate_constant_noise(noise_type, shape, params, max_value, random_generator)
+
+    if approximation == 1.0:
+        if spatial_mode == "shared":
+            return generate_shared_noise(noise_type, shape, params, max_value, random_generator)
+        return generate_per_pixel_noise(noise_type, shape, params, max_value, random_generator)
+
+    # Calculate reduced size for noise generation
+    height, width = shape[:2]
+    reduced_height = max(1, int(height * approximation))
+    reduced_width = max(1, int(width * approximation))
+    reduced_shape = (reduced_height, reduced_width) + shape[2:]
+
+    # Generate noise at reduced resolution
+    if spatial_mode == "shared":
+        noise = generate_shared_noise(noise_type, reduced_shape, params, max_value, random_generator)
+    else:  # per_pixel
+        noise = generate_per_pixel_noise(noise_type, reduced_shape, params, max_value, random_generator)
+
+    # Resize noise to original size using existing resize function
+    return fgeometric.resize(noise, (height, width), interpolation=cv2.INTER_LINEAR)
+
+
+def generate_constant_noise(
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    shape: tuple[int, ...],
+    params: dict[str, Any],
+    max_value: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate one value per channel."""
+    num_channels = shape[-1] if len(shape) > MONO_CHANNEL_DIMENSIONS else 1
+    return sample_noise(noise_type, (num_channels,), params, max_value, random_generator)
+
+
+def generate_per_pixel_noise(
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    shape: tuple[int, ...],
+    params: dict[str, Any],
+    max_value: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate separate noise map for each channel."""
+    return sample_noise(noise_type, shape, params, max_value, random_generator)
+
+
+def sample_noise(
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    size: tuple[int, ...],
+    params: dict[str, Any],
+    max_value: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Sample from specific noise distribution."""
+    if noise_type == "uniform":
+        return sample_uniform(size, params, random_generator) * max_value
+    if noise_type == "gaussian":
+        return sample_gaussian(size, params, random_generator) * max_value
+    if noise_type == "laplace":
+        return sample_laplace(size, params, random_generator) * max_value
+    if noise_type == "beta":
+        return sample_beta(size, params, random_generator) * max_value
+    if noise_type == "poisson":
+        return sample_poisson(size, params, random_generator, max_value)
+
+    raise ValueError(f"Unknown noise type: {noise_type}")
+
+
+def sample_uniform(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+    """Sample from uniform distribution."""
+    if len(size) == 1:  # constant mode
+        if len(params["ranges"]) < size[0]:
+            raise ValueError(f"Not enough ranges provided. Expected {size[0]}, got {len(params['ranges'])}")
+        return np.array([random_generator.uniform(low, high) for low, high in params["ranges"][: size[0]]])
+
+    # use first range for spatial noise
+    low, high = params["ranges"][0]  # use first range for spatial noise
+    return random_generator.uniform(low, high, size=size)
+
+
+def sample_gaussian(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+    """Sample from Gaussian distribution."""
+    mean = random_generator.uniform(*params["mean_range"])
+    std = random_generator.uniform(*params["std_range"])
+    return random_generator.normal(mean, std, size=size)
+
+
+def sample_laplace(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+    """Sample from Laplace distribution.
+
+    The Laplace distribution is also known as the double exponential distribution.
+    It has heavier tails than the Gaussian distribution.
+    """
+    loc = random_generator.uniform(*params["mean_range"])
+    scale = random_generator.uniform(*params["scale_range"])
+    return random_generator.laplace(loc=loc, scale=scale, size=size)
+
+
+def sample_beta(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+    """Sample from Beta distribution.
+
+    The Beta distribution is bounded by [0, 1] and then scaled and shifted to [-scale, scale].
+    Alpha and beta parameters control the shape of the distribution.
+    """
+    alpha = random_generator.uniform(*params["alpha_range"])
+    beta = random_generator.uniform(*params["beta_range"])
+    scale = random_generator.uniform(*params["scale_range"])
+
+    # Sample from Beta[0,1] and transform to [-scale,scale]
+    samples = random_generator.beta(alpha, beta, size=size)
+    return (2 * samples - 1) * scale
+
+
+def sample_poisson(
+    size: tuple[int, ...],
+    params: dict[str, Any],
+    random_generator: np.random.Generator,
+    max_value: float,
+) -> np.ndarray:
+    """Sample from Poisson distribution.
+
+    For uint8 images (max_value=255), lambda is scaled accordingly as Poisson noise
+    is intensity-dependent.
+    """
+    lam = random_generator.uniform(*params["lambda_range"])
+
+    # Scale lambda based on max_value as Poisson noise is intensity-dependent
+    scaled_lam = lam * max_value
+
+    # Generate Poisson samples
+    samples = random_generator.poisson(lam=scaled_lam, size=size)
+
+    # Center around 0 and normalize by standard deviation
+    # For Poisson, variance = lambda
+    noise = (samples - scaled_lam) / np.sqrt(scaled_lam)
+
+    # Scale to match max_value range
+    return np.clip(noise * max_value, -max_value, max_value)
+
+
+def generate_shared_noise(
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    shape: tuple[int, ...],
+    params: dict[str, Any],
+    max_value: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate one noise map and broadcast to all channels.
+
+    Args:
+        noise_type: Type of noise distribution to use
+        shape: Shape of the input image (H, W) or (H, W, C)
+        params: Parameters for the noise distribution
+        max_value: Maximum value for the noise distribution
+        random_generator: NumPy random generator instance
+
+    Returns:
+        Noise array of shape (H, W) or (H, W, C) where the same noise
+        pattern is shared across all channels
+    """
+    # Generate noise for (H, W)
+    height, width = shape[:2]
+    noise_map = sample_noise(noise_type, (height, width), params, max_value, random_generator)
+
+    # If input is multichannel, broadcast noise to all channels
+    if len(shape) > MONO_CHANNEL_DIMENSIONS:
+        return np.broadcast_to(noise_map[..., None], shape)
+    return noise_map
