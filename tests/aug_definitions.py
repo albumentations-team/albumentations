@@ -409,4 +409,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.AdditiveNoise, {}],
     [A.SaltAndPepper, {}],
     [A.PlasmaBrightnessContrast, {}],
+    [A.PlasmaShadow, {}],
 ]

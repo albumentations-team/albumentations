@@ -2352,3 +2352,30 @@ def apply_plasma_brightness_contrast(
         result = np.clip(mean + (result - mean) * contrast_weights, 0, max_value)
 
     return result
+
+
+@clipped
+def apply_plasma_shadow(
+    img: np.ndarray,
+    intensity: float,
+    plasma_pattern: np.ndarray,
+) -> np.ndarray:
+    """Apply plasma-based shadow effect by darkening.
+
+    Args:
+        img: Input image
+        intensity: Shadow intensity in [0, 1]
+        plasma_pattern: Generated plasma pattern of shape (H, W)
+
+    Returns:
+        Image with applied shadow effect
+    """
+    result = img.copy()
+
+    # Expand dimensions to match image
+    plasma_pattern = plasma_pattern[..., np.newaxis] if img.ndim > MONO_CHANNEL_DIMENSIONS else plasma_pattern
+
+    # Apply shadow by darkening (multiplying by values < 1)
+    shadow_mask = 1 - plasma_pattern * intensity
+
+    return result * shadow_mask
