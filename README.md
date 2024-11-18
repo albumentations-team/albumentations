@@ -240,6 +240,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomSunFlare](https://explore.albumentations.ai/transform/RandomSunFlare)
 - [RandomToneCurve](https://explore.albumentations.ai/transform/RandomToneCurve)
 - [RingingOvershoot](https://explore.albumentations.ai/transform/RingingOvershoot)
+- [SaltAndPepper](https://explore.albumentations.ai/transform/SaltAndPepper)
 - [Sharpen](https://explore.albumentations.ai/transform/Sharpen)
 - [ShotNoise](https://explore.albumentations.ai/transform/ShotNoise)
 - [Solarize](https://explore.albumentations.ai/transform/Solarize)
