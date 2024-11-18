@@ -2376,6 +2376,6 @@ def apply_plasma_shadow(
     plasma_pattern = plasma_pattern[..., np.newaxis] if img.ndim > MONO_CHANNEL_DIMENSIONS else plasma_pattern
 
     # Apply shadow by darkening (multiplying by values < 1)
-    shadow_mask = 1 - (plasma_pattern * intensity)
+    shadow_mask = 1 - plasma_pattern * intensity
 
     return result * shadow_mask
