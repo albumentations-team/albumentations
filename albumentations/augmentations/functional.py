@@ -2381,41 +2381,64 @@ def apply_plasma_shadow(
     return result * shadow_mask
 
 
+def prepare_illumination_input(img: np.ndarray) -> tuple[np.ndarray, int, int]:
+    """Prepare image for illumination effect.
+
+    Args:
+        img: Input image
+
+    Returns:
+        tuple of:
+        - float32 image
+        - height
+        - width
+    """
+    result = img.astype(np.float32)
+    height, width = img.shape[:2]
+    return result, height, width
+
+
+def apply_illumination_pattern(
+    img: np.ndarray,
+    pattern: np.ndarray,
+    intensity: float,
+) -> np.ndarray:
+    """Apply illumination pattern to image.
+
+    Args:
+        img: Input image
+        pattern: Illumination pattern of shape (H, W)
+        intensity: Effect strength (-0.2 to 0.2)
+
+    Returns:
+        Image with applied illumination
+    """
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        pattern = pattern[..., np.newaxis]
+    return img * (1 + intensity * pattern)
+
+
 @clipped
 def apply_linear_illumination(
     img: np.ndarray,
     intensity: float,
     angle: float,
 ) -> np.ndarray:
-    """Apply linear gradient illumination effect.
+    """Apply linear gradient illumination effect."""
+    result, height, width = prepare_illumination_input(img)
 
-    Args:
-        img: Input image
-        intensity: Effect strength and direction (-0.2 to 0.2)
-        angle: Gradient angle in degrees
-    """
-    result = img.astype(np.float32)
-    height, width = img.shape[:2]
-
-    # Create gradient
+    # Create gradient coordinates
     y, x = np.ogrid[:height, :width]
 
-    # Convert angle to radians
-    angle_rad = np.deg2rad(angle)
-
     # Calculate gradient direction
-    dx = np.cos(angle_rad)
-    dy = np.sin(angle_rad)
+    angle_rad = np.deg2rad(angle)
+    dx, dy = np.cos(angle_rad), np.sin(angle_rad)
 
     # Create normalized gradient
     gradient = (x * dx + y * dy) / np.sqrt(height * height + width * width)
     gradient = (gradient + 1) / 2  # Normalize to [0, 1]
 
-    # Apply illumination
-    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        gradient = gradient[..., np.newaxis]
-
-    return result * (1 + intensity * gradient)
+    return apply_illumination_pattern(result, gradient, intensity)
 
 
 @clipped
@@ -2424,39 +2447,26 @@ def apply_corner_illumination(
     intensity: float,
     corner: Literal[0, 1, 2, 3],
 ) -> np.ndarray:
-    """Apply corner-based illumination effect.
+    """Apply corner-based illumination effect."""
+    result, height, width = prepare_illumination_input(img)
 
-    Args:
-        img: Input image
-        intensity: Effect strength and direction (-0.2 to 0.2)
-        corner: Corner index (0: top-left, 1: top-right, 2: bottom-right, 3: bottom-left)
-    """
-    result = img.astype(np.float32)
-    height, width = img.shape[:2]
-
-    # Create distance map from corner
+    # Create distance map coordinates
     y, x = np.ogrid[:height, :width]
 
     # Adjust coordinates based on corner
-    if corner == 0:  # top-left
-        pass
-    elif corner == 1:  # top-right
+    if corner == 1:  # top-right
         x = width - 1 - x
     elif corner == 2:  # bottom-right  # noqa: PLR2004
         x = width - 1 - x
         y = height - 1 - y
-    else:  # bottom-left
+    elif corner == 3:  # bottom-left  # noqa: PLR2004
         y = height - 1 - y
 
     # Calculate normalized distance
     distance = np.sqrt(x * x + y * y) / np.sqrt(height * height + width * width)
-    distance = 1 - distance  # Invert so corner is brightest
+    pattern = 1 - distance  # Invert so corner is brightest
 
-    # Apply illumination
-    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        distance = distance[..., np.newaxis]
-
-    return result * (1 + intensity * distance)
+    return apply_illumination_pattern(result, pattern, intensity)
 
 
 @clipped
@@ -2466,30 +2476,16 @@ def apply_gaussian_illumination(
     center: tuple[float, float],
     sigma: float,
 ) -> np.ndarray:
-    """Apply gaussian illumination effect.
+    """Apply gaussian illumination effect."""
+    result, height, width = prepare_illumination_input(img)
 
-    Args:
-        img: Input image
-        intensity: Effect strength and direction (-0.2 to 0.2)
-        center: Relative position (x, y) of gaussian center
-        sigma: Spread of gaussian effect (0.2 to 1.0)
-    """
-    result = img.astype(np.float32)
-    height, width = img.shape[:2]
-
-    # Create gaussian
+    # Create coordinate grid
     y, x = np.ogrid[:height, :width]
 
-    # Convert relative center position to pixels
+    # Calculate gaussian pattern
     center_x = width * center[0]
     center_y = height * center[1]
-
-    # Calculate gaussian
     sigma_pixels = max(height, width) * sigma
     gaussian = np.exp(-((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2))
 
-    # Apply illumination
-    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        gaussian = gaussian[..., np.newaxis]
-
-    return result * (1 + intensity * gaussian)
+    return apply_illumination_pattern(result, gaussian, intensity)
