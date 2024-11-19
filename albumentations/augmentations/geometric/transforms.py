@@ -1415,8 +1415,11 @@ class OpticalDistortion(BaseDistortion):
             For fisheye model: recommended range (-0.3, 0.3)
             Default: (-0.05, 0.05)
 
-        shift_limit (float | tuple[float, float]): Range of shifts for the image center.
-            If shift_limit is a single float, range will be (-shift_limit, shift_limit).
+        shift_limit (float | tuple[float, float]): Range of relative shifts for the image center.
+            Values are multiplied by image dimensions to get absolute shift in pixels:
+            - dx = shift_x * image_width
+            - dy = shift_y * image_height
+            If shift_limit is a single float value, the range will be (-shift_limit, shift_limit).
             Default: (-0.05, 0.05)
 
         mode (Literal['camera', 'fisheye']): Distortion model to use:
