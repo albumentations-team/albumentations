@@ -1402,30 +1402,46 @@ class Transpose(DualTransform):
 class OpticalDistortion(BaseDistortion):
     """Apply optical distortion to images, masks, bounding boxes, and keypoints.
 
-    This transformation simulates lens distortion effects by warping the image using
-    a camera matrix and distortion coefficients. It's particularly useful for
-    augmenting data in computer vision tasks where camera lens effects are relevant.
+    Supports two distortion models:
+    1. Camera matrix model (original):
+       Uses OpenCV's camera calibration model with k1=k2=k distortion coefficients
+
+    2. Fisheye model:
+       Direct radial distortion: r_dist = r * (1 + gamma * r²)
 
     Args:
-        distort_limit (float or tuple of float): Range of distortion coefficient.
-            If distort_limit is a single float, the range will be (-distort_limit, distort_limit).
-            Default: (-0.05, 0.05).
-        shift_limit (float or tuple of float): Range of shifts for the image center.
-            If shift_limit is a single float, the range will be (-shift_limit, shift_limit).
-            Default: (-0.05, 0.05).
+        distort_limit (float | tuple[float, float]): Range of distortion coefficient.
+            For camera model: recommended range (-0.05, 0.05)
+            For fisheye model: recommended range (-0.3, 0.3)
+            Default: (-0.05, 0.05)
+
+        shift_limit (float | tuple[float, float]): Range of shifts for the image center.
+            If shift_limit is a single float, range will be (-shift_limit, shift_limit).
+            Default: (-0.05, 0.05)
+
+        mode (Literal['camera', 'fisheye']): Distortion model to use:
+            - 'camera': Original camera matrix model
+            - 'fisheye': Fisheye lens model
+            Default: 'camera'
+
         interpolation (OpenCV flag): Interpolation method used for image transformation.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC,
             cv2.INTER_AREA, cv2.INTER_LANCZOS4. Default: cv2.INTER_LINEAR.
+
         border_mode (OpenCV flag): Border mode used for handling pixels outside the image.
             Should be one of: cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101. Default: cv2.BORDER_REFLECT_101.
+
         value (int, float, list of int, list of float): Padding value if border_mode
             is cv2.BORDER_CONSTANT. Default: None.
+
         mask_value (int, float, list of int, list of float): Padding value for mask
             if border_mode is cv2.BORDER_CONSTANT. Default: None.
+
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
+
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1439,6 +1455,8 @@ class OpticalDistortion(BaseDistortion):
         - The distortion coefficient (k) is randomly sampled from the distort_limit range.
         - The image center is shifted by dx and dy, randomly sampled from the shift_limit range.
         - Bounding boxes and keypoints are transformed along with the image to maintain consistency.
+        - Fisheye model directly applies radial distortion
+        - Both models use shift_limit to control distortion center
 
     Example:
         >>> import albumentations as A
@@ -1455,6 +1473,7 @@ class OpticalDistortion(BaseDistortion):
     class InitSchema(BaseDistortion.InitSchema):
         distort_limit: SymmetricRangeType
         shift_limit: SymmetricRangeType
+        mode: Literal["camera", "fisheye"]
 
     def __init__(
         self,
@@ -1465,6 +1484,7 @@ class OpticalDistortion(BaseDistortion):
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
         mask_interpolation: int = cv2.INTER_NEAREST,
+        mode: Literal["camera", "fisheye"] = "camera",
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
@@ -1478,28 +1498,31 @@ class OpticalDistortion(BaseDistortion):
         )
         self.shift_limit = cast(tuple[float, float], shift_limit)
         self.distort_limit = cast(tuple[float, float], distort_limit)
+        self.mode = mode
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
+        height, width = image_shape
 
-        fx = width
-        fy = height
-
+        # Get distortion coefficient
         k = self.py_random.uniform(*self.distort_limit)
-        dx = round(self.py_random.uniform(*self.shift_limit))
-        dy = round(self.py_random.uniform(*self.shift_limit))
 
+        # Calculate center shift
+        dx = round(self.py_random.uniform(*self.shift_limit) * width)
+        dy = round(self.py_random.uniform(*self.shift_limit) * height)
         cx = width * 0.5 + dx
         cy = height * 0.5 + dy
 
-        camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
-        distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-        map_x, map_y = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+        # Get distortion maps based on mode
+        if self.mode == "camera":
+            map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(image_shape, cx, cy, k)
+        else:  # fisheye
+            map_x, map_y = fgeometric.get_fisheye_distortion_maps(image_shape, cx, cy, k)
 
         return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (*super().get_transform_init_args_names(), "distort_limit", "shift_limit")
+        return ("distort_limit", "shift_limit", "mode", *super().get_transform_init_args_names())
 
 
 class GridDistortion(BaseDistortion):
