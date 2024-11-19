@@ -412,4 +412,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.PlasmaShadow, {}],
     [A.Illumination, {}],
     [A.ThinPlateSpline, {}],
+    [A.AutoContrast, {}],
 ]
