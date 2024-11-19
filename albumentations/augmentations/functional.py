@@ -2422,7 +2422,7 @@ def apply_linear_illumination(
 def apply_corner_illumination(
     img: np.ndarray,
     intensity: float,
-    corner: int,
+    corner: Literal[0, 1, 2, 3],
 ) -> np.ndarray:
     """Apply corner-based illumination effect.
 
