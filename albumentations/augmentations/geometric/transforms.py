@@ -18,6 +18,7 @@ from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
     SymmetricRangeType,
+    check_01,
     check_1plus,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -53,6 +54,7 @@ __all__ = [
     "GridElasticDeform",
     "RandomGridShuffle",
     "Pad",
+    "ThinPlateSpline",
 ]
 
 NUM_PADS_XY = 2
@@ -73,7 +75,7 @@ class BaseDistortion(DualTransform):
         border_mode (int): Border mode to be used for handling pixels outside the image boundaries.
             Should be one of the OpenCV border types (e.g., cv2.BORDER_REFLECT_101,
             cv2.BORDER_CONSTANT). Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of int, list of float, optional): Padding value if border_mode is
+        value (ColorType | None): Padding value if border_mode is
             cv2.BORDER_CONSTANT. Default: None
         mask_value (ColorType | None): Padding value for mask if
             border_mode is cv2.BORDER_CONSTANT. Default: None
@@ -241,21 +243,20 @@ class ElasticTransform(BaseDistortion):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
-        always_apply: bool | None = None,
         approximate: bool = False,
         same_dxdy: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
         noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(
             interpolation=interpolation,
             border_mode=border_mode,
             value=value,
             mask_value=mask_value,
-            always_apply=always_apply,
-            p=p,
             mask_interpolation=mask_interpolation,
+            p=p,
         )
         self.alpha = alpha
         self.sigma = sigma
@@ -1464,15 +1465,14 @@ class OpticalDistortion(BaseDistortion):
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        always_apply: bool | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(
             interpolation=interpolation,
             border_mode=border_mode,
             value=value,
             mask_value=mask_value,
-            always_apply=always_apply,
             mask_interpolation=mask_interpolation,
             p=p,
         )
@@ -1563,6 +1563,8 @@ class GridDistortion(BaseDistortion):
         num_steps: Annotated[int, Field(ge=1)]
         distort_limit: SymmetricRangeType
         normalized: bool
+        value: ColorType | None
+        mask_value: ColorType | None
 
         @field_validator("distort_limit")
         @classmethod
@@ -1590,13 +1592,14 @@ class GridDistortion(BaseDistortion):
             border_mode=border_mode,
             value=value,
             mask_value=mask_value,
-            always_apply=always_apply,
             mask_interpolation=mask_interpolation,
             p=p,
         )
         self.num_steps = num_steps
         self.distort_limit = cast(tuple[float, float], distort_limit)
         self.normalized = normalized
+        self.value = value
+        self.mask_value = mask_value
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
@@ -1754,7 +1757,7 @@ class GridElasticDeform(DualTransform):
         p: float = 1.0,
         always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.num_grid_xy = num_grid_xy
         self.magnitude = magnitude
         self.interpolation = interpolation
@@ -2233,3 +2236,161 @@ class PadIfNeeded(Pad):
             "value",
             "mask_value",
         )
+
+
+class ThinPlateSpline(BaseDistortion):
+    r"""Apply Thin Plate Spline (TPS) transformation to create smooth, non-rigid deformations.
+
+    Imagine the image printed on a thin metal plate that can be bent and warped smoothly:
+    - Control points act like pins pushing or pulling the plate
+    - The plate resists sharp bending, creating smooth deformations
+    - The transformation maintains continuity (no tears or folds)
+    - Areas between control points are interpolated naturally
+
+    The transform works by:
+    1. Creating a regular grid of control points (like pins in the plate)
+    2. Randomly displacing these points (like pushing/pulling the pins)
+    3. Computing a smooth interpolation (like the plate bending)
+    4. Applying the resulting deformation to the image
+
+
+    Args:
+        scale_range (tuple[float, float]): Range for random displacement of control points.
+            Values should be in [0.0, 1.0]:
+            - 0.0: No displacement (identity transform)
+            - 0.1: Subtle warping
+            - 0.2-0.4: Moderate deformation (recommended range)
+            - 0.5+: Strong warping
+            Default: (0.2, 0.4)
+
+        num_control_points (int): Number of control points per side.
+            Creates a grid of num_control_points x num_control_points points.
+            - 2: Minimal deformation (affine-like)
+            - 3-4: Moderate flexibility (recommended)
+            - 5+: More local deformation control
+            Must be >= 2. Default: 4
+
+        interpolation (int): OpenCV interpolation flag. Used for image sampling.
+            See also: cv2.INTER_*
+            Default: cv2.INTER_LINEAR
+
+        border_mode (int): OpenCV border mode. Determines how to fill areas
+            outside the image.
+            See also: cv2.BORDER_*
+            Default: cv2.BORDER_CONSTANT
+
+        value (int | float | list[int] | list[float] | None): Padding value if
+            border_mode is cv2.BORDER_CONSTANT.
+            Default: None
+
+        mask_value (int | float | list[int] | list[float] | None): Padding value
+            for mask if border_mode is cv2.BORDER_CONSTANT.
+            Default: None
+
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Targets:
+        image, mask, keypoints, bboxes
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The transformation preserves smoothness and continuity
+        - Stronger scale values may create more extreme deformations
+        - Higher number of control points allows more local deformations
+        - The same deformation is applied consistently to all targets
+
+    Example:
+        >>> import albumentations as A
+        >>> # Basic usage
+        >>> transform = A.ThinPlateSpline()
+        >>>
+        >>> # Subtle deformation
+        >>> transform = A.ThinPlateSpline(
+        ...     scale_range=(0.1, 0.2),
+        ...     num_control_points=3
+        ... )
+        >>>
+        >>> # Strong warping with fine control
+        >>> transform = A.ThinPlateSpline(
+        ...     scale_range=(0.3, 0.5),
+        ...     num_control_points=5,
+        ...     border_mode=cv2.BORDER_REFLECT_101
+        ... )
+
+    References:
+        - "Principal Warps: Thin-Plate Splines and the Decomposition of Deformations"
+          by F.L. Bookstein
+          https://doi.org/10.1109/34.24792
+
+        - Thin Plate Splines in Computer Vision:
+          https://en.wikipedia.org/wiki/Thin_plate_spline
+
+        - Similar implementation in Kornia:
+          https://kornia.readthedocs.io/en/latest/augmentation.html#kornia.augmentation.RandomThinPlateSpline
+
+    See Also:
+        - ElasticTransform: For different type of non-rigid deformation
+        - GridDistortion: For grid-based warping
+        - OpticalDistortion: For lens-like distortions
+    """
+
+    class InitSchema(BaseDistortion.InitSchema):
+        scale_range: Annotated[tuple[float, float], AfterValidator(check_01)]
+        num_control_points: int = Field(ge=2)
+
+    def __init__(
+        self,
+        scale_range: tuple[float, float] = (0.2, 0.4),
+        num_control_points: int = 4,
+        interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
+        border_mode: int = cv2.BORDER_CONSTANT,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(
+            interpolation=interpolation,
+            mask_interpolation=mask_interpolation,
+            border_mode=border_mode,
+            value=value,
+            mask_value=mask_value,
+            p=p,
+        )
+        self.scale_range = scale_range
+        self.num_control_points = num_control_points
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
+
+        # Create regular grid of control points
+        grid_size = self.num_control_points
+        x = np.linspace(0, 1, grid_size)
+        y = np.linspace(0, 1, grid_size)
+        src_points = np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)
+
+        # Add random displacement to destination points
+        scale = self.py_random.uniform(*self.scale_range)
+        dst_points = src_points + self.random_generator.normal(0, scale, src_points.shape)
+
+        # Compute TPS weights
+        weights, affine = fgeometric.compute_tps_weights(src_points, dst_points)
+
+        # Create grid of points
+        x, y = np.meshgrid(np.arange(width), np.arange(height))
+        points = np.stack([x.flatten(), y.flatten()], axis=1).astype(np.float32)
+
+        # Transform points
+        transformed = fgeometric.tps_transform(points / [width, height], src_points, weights, affine)
+        transformed *= [width, height]
+
+        return {
+            "map_x": transformed[:, 0].reshape(height, width).astype(np.float32),
+            "map_y": transformed[:, 1].reshape(height, width).astype(np.float32),
+        }
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("scale_range", "num_control_points", *super().get_transform_init_args_names())
