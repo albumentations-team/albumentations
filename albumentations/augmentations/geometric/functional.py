@@ -3000,18 +3000,16 @@ def compute_tps_weights(src_points: np.ndarray, dst_points: np.ndarray) -> tuple
     """
     num_points = src_points.shape[0]
 
-    # Compute kernel matrix of pairwise distances
-    kernel_matrix = np.zeros((num_points, num_points))
-    for i in range(num_points):
-        for j in range(num_points):
-            if i != j:
-                # U(r) = r² log(r) is the TPS kernel function
-                dist = np.linalg.norm(src_points[i] - src_points[j])
-                kernel_matrix[i, j] = dist * dist * np.log(dist + 1e-6)
+    # Compute pairwise distances
+    distances = np.linalg.norm(src_points[:, None] - src_points, axis=2)
 
-    # Construct affine terms matrix
+    # Apply TPS kernel function: U(r) = r² log(r)
+    # Add small epsilon to avoid log(0)
+    kernel_matrix = np.where(distances > 0, distances * distances * np.log(distances + 1e-6), 0)
+
+    # Construct affine terms matrix [1, x, y]
     affine_terms = np.ones((num_points, 3))
-    affine_terms[:, 1:] = src_points  # [1, x, y] for each point
+    affine_terms[:, 1:] = src_points
 
     # Build system matrix
     system_matrix = np.zeros((num_points + 3, num_points + 3))
@@ -3055,21 +3053,14 @@ def tps_transform(
         1. Nonlinear warping based on distances to control points
         2. Global affine transformation (scale, rotation, translation)
     """
-    num_controls = control_points.shape[0]
-    num_targets = target_points.shape[0]
+    # Compute all pairwise distances at once: (num_targets, num_controls)
+    distances = np.linalg.norm(target_points[:, None] - control_points, axis=2)
 
-    # Compute kernel matrix of distances to control points
-    kernel_matrix = np.zeros((num_targets, num_controls))
-    for i in range(num_targets):
-        for j in range(num_controls):
-            dist = np.linalg.norm(target_points[i] - control_points[j])
-            if dist > 0:
-                # U(r) = r² log(r) is the TPS kernel function
-                kernel_matrix[i, j] = dist * dist * np.log(dist)
+    # Apply TPS kernel function: U(r) = r² log(r)
+    kernel_matrix = np.where(distances > 0, distances * distances * np.log(distances + 1e-6), 0)
 
     # Prepare affine terms [1, x, y] for each point
-    affine_terms = np.ones((num_targets, 3))
-    affine_terms[:, 1:] = target_points
+    affine_terms = np.c_[np.ones(len(target_points)), target_points]
 
     # Combine nonlinear and affine transformations
     return kernel_matrix @ nonlinear_weights + affine_terms @ affine_weights
