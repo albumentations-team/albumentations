@@ -123,6 +123,7 @@ __all__ = [
     "SaltAndPepper",
     "PlasmaBrightnessContrast",
     "PlasmaShadow",
+    "Illumination",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -5959,3 +5960,219 @@ class PlasmaShadow(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "shadow_intensity", "plasma_size", "roughness"
+
+
+class Illumination(ImageOnlyTransform):
+    """Apply various illumination effects to the image.
+
+    This transform simulates different lighting conditions by applying controlled
+    illumination patterns. It can create effects like:
+    - Directional lighting (linear mode)
+    - Corner shadows/highlights (corner mode)
+    - Spotlights or local lighting (gaussian mode)
+
+    These effects can be used to:
+    - Simulate natural lighting variations
+    - Add dramatic lighting effects
+    - Create synthetic shadows or highlights
+    - Augment training data with different lighting conditions
+
+    Args:
+        mode (str): Type of illumination pattern:
+            - 'linear': Creates a smooth gradient across the image,
+                       simulating directional lighting like sunlight
+                       through a window
+            - 'corner': Applies gradient from any corner,
+                       simulating light source from a corner
+            - 'gaussian': Creates a circular spotlight effect,
+                         simulating local light sources
+            Default: 'linear'
+
+        intensity_range (tuple[float, float]): Range for effect strength.
+            Values between 0.01 and 0.2:
+            - 0.01-0.05: Subtle lighting changes
+            - 0.05-0.1: Moderate lighting effects
+            - 0.1-0.2: Strong lighting effects
+            Default: (0.01, 0.2)
+
+        effect_type (str): Type of lighting change:
+            - 'brighten': Only adds light (like a spotlight)
+            - 'darken': Only removes light (like a shadow)
+            - 'both': Randomly chooses between brightening and darkening
+            Default: 'both'
+
+        angle_range (tuple[float, float]): Range for gradient angle in degrees.
+            Controls direction of linear gradient:
+            - 0°: Left to right
+            - 90°: Top to bottom
+            - 180°: Right to left
+            - 270°: Bottom to top
+            Only used for 'linear' mode.
+            Default: (0, 360)
+
+        center_range (tuple[float, float]): Range for spotlight position.
+            Values between 0 and 1 representing relative position:
+            - (0, 0): Top-left corner
+            - (1, 1): Bottom-right corner
+            - (0.5, 0.5): Center of image
+            Only used for 'gaussian' mode.
+            Default: (0.1, 0.9)
+
+        sigma_range (tuple[float, float]): Range for spotlight size.
+            Values between 0.2 and 1.0:
+            - 0.2: Small, focused spotlight
+            - 0.5: Medium-sized light area
+            - 1.0: Broad, soft lighting
+            Only used for 'gaussian' mode.
+            Default: (0.2, 1.0)
+
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Examples:
+        >>> import albumentations as A
+        >>> # Simulate sunlight through window
+        >>> transform = A.Illumination(
+        ...     mode='linear',
+        ...     intensity_range=(0.05, 0.1),
+        ...     effect_type='brighten',
+        ...     angle_range=(30, 60)
+        ... )
+        >>>
+        >>> # Create dramatic corner shadow
+        >>> transform = A.Illumination(
+        ...     mode='corner',
+        ...     intensity_range=(0.1, 0.2),
+        ...     effect_type='darken'
+        ... )
+        >>>
+        >>> # Add multiple spotlights
+        >>> transform1 = A.Illumination(
+        ...     mode='gaussian',
+        ...     intensity_range=(0.05, 0.15),
+        ...     effect_type='brighten',
+        ...     center_range=(0.2, 0.4),
+        ...     sigma_range=(0.2, 0.3)
+        ... )
+        >>> transform2 = A.Illumination(
+        ...     mode='gaussian',
+        ...     intensity_range=(0.05, 0.15),
+        ...     effect_type='darken',
+        ...     center_range=(0.6, 0.8),
+        ...     sigma_range=(0.3, 0.5)
+        ... )
+        >>> transforms = A.Compose([transform1, transform2])
+
+    References:
+        - Lighting in Computer Vision:
+          https://en.wikipedia.org/wiki/Lighting_in_computer_vision
+
+        - Image-based lighting:
+          https://en.wikipedia.org/wiki/Image-based_lighting
+
+        - Similar implementation in Kornia:
+          https://kornia.readthedocs.io/en/latest/augmentation.html#randomlinearillumination
+
+        - Research on lighting augmentation:
+          "Learning Deep Representations of Fine-grained Visual Descriptions"
+          https://arxiv.org/abs/1605.05395
+
+        - Photography lighting patterns:
+          https://en.wikipedia.org/wiki/Lighting_pattern
+
+    Note:
+        - The transform preserves image range and dtype
+        - Effects are applied multiplicatively to preserve texture
+        - Can be combined with other transforms for complex lighting scenarios
+        - Useful for training models to be robust to lighting variations
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        mode: Literal["linear", "corner", "gaussian"]
+        intensity_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0.01, 0.2))]
+        effect_type: Literal["brighten", "darken", "both"]
+        angle_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 360))]
+        center_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
+        sigma_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0.2, 1.0))]
+
+    def __init__(
+        self,
+        mode: Literal["linear", "corner", "gaussian"] = "linear",
+        intensity_range: tuple[float, float] = (0.01, 0.2),
+        effect_type: Literal["brighten", "darken", "both"] = "both",
+        angle_range: tuple[float, float] = (0, 360),
+        center_range: tuple[float, float] = (0.1, 0.9),
+        sigma_range: tuple[float, float] = (0.2, 1.0),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.mode = mode
+        self.intensity_range = intensity_range
+        self.effect_type = effect_type
+        self.angle_range = angle_range
+        self.center_range = center_range
+        self.sigma_range = sigma_range
+
+    def get_params(self) -> dict[str, Any]:
+        intensity = self.py_random.uniform(*self.intensity_range)
+
+        # Determine if brightening or darkening
+        sign = 1  # brighten
+        if self.effect_type == "both":
+            sign = 1 if self.py_random.random() > 0.5 else -1  # noqa: PLR2004
+        elif self.effect_type == "darken":
+            sign = -1
+
+        intensity *= sign
+
+        if self.mode == "linear":
+            angle = self.py_random.uniform(*self.angle_range)
+            return {
+                "intensity": intensity,
+                "angle": angle,
+            }
+        if self.mode == "corner":
+            corner = self.py_random.randint(0, 3)  # Choose random corner
+            return {
+                "intensity": intensity,
+                "corner": corner,
+            }
+
+        x = self.py_random.uniform(*self.center_range)
+        y = self.py_random.uniform(*self.center_range)
+        sigma = self.py_random.uniform(*self.sigma_range)
+        return {
+            "intensity": intensity,
+            "center": (x, y),
+            "sigma": sigma,
+        }
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        if self.mode == "linear":
+            return fmain.apply_linear_illumination(
+                img,
+                intensity=params["intensity"],
+                angle=params["angle"],
+            )
+        if self.mode == "corner":
+            return fmain.apply_corner_illumination(
+                img,
+                intensity=params["intensity"],
+                corner=params["corner"],
+            )
+
+        return fmain.apply_gaussian_illumination(
+            img,
+            intensity=params["intensity"],
+            center=params["center"],
+            sigma=params["sigma"],
+        )
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "mode", "intensity_range", "effect_type", "angle_range", "center_range", "sigma_range"

@@ -2379,3 +2379,113 @@ def apply_plasma_shadow(
     shadow_mask = 1 - plasma_pattern * intensity
 
     return result * shadow_mask
+
+
+def prepare_illumination_input(img: np.ndarray) -> tuple[np.ndarray, int, int]:
+    """Prepare image for illumination effect.
+
+    Args:
+        img: Input image
+
+    Returns:
+        tuple of:
+        - float32 image
+        - height
+        - width
+    """
+    result = img.astype(np.float32)
+    height, width = img.shape[:2]
+    return result, height, width
+
+
+def apply_illumination_pattern(
+    img: np.ndarray,
+    pattern: np.ndarray,
+    intensity: float,
+) -> np.ndarray:
+    """Apply illumination pattern to image.
+
+    Args:
+        img: Input image
+        pattern: Illumination pattern of shape (H, W)
+        intensity: Effect strength (-0.2 to 0.2)
+
+    Returns:
+        Image with applied illumination
+    """
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        pattern = pattern[..., np.newaxis]
+    return img * (1 + intensity * pattern)
+
+
+@clipped
+def apply_linear_illumination(
+    img: np.ndarray,
+    intensity: float,
+    angle: float,
+) -> np.ndarray:
+    """Apply linear gradient illumination effect."""
+    result, height, width = prepare_illumination_input(img)
+
+    # Create gradient coordinates
+    y, x = np.ogrid[:height, :width]
+
+    # Calculate gradient direction
+    angle_rad = np.deg2rad(angle)
+    dx, dy = np.cos(angle_rad), np.sin(angle_rad)
+
+    # Create normalized gradient
+    gradient = (x * dx + y * dy) / np.sqrt(height * height + width * width)
+    gradient = (gradient + 1) / 2  # Normalize to [0, 1]
+
+    return apply_illumination_pattern(result, gradient, intensity)
+
+
+@clipped
+def apply_corner_illumination(
+    img: np.ndarray,
+    intensity: float,
+    corner: Literal[0, 1, 2, 3],
+) -> np.ndarray:
+    """Apply corner-based illumination effect."""
+    result, height, width = prepare_illumination_input(img)
+
+    # Create distance map coordinates
+    y, x = np.ogrid[:height, :width]
+
+    # Adjust coordinates based on corner
+    if corner == 1:  # top-right
+        x = width - 1 - x
+    elif corner == 2:  # bottom-right  # noqa: PLR2004
+        x = width - 1 - x
+        y = height - 1 - y
+    elif corner == 3:  # bottom-left  # noqa: PLR2004
+        y = height - 1 - y
+
+    # Calculate normalized distance
+    distance = np.sqrt(x * x + y * y) / np.sqrt(height * height + width * width)
+    pattern = 1 - distance  # Invert so corner is brightest
+
+    return apply_illumination_pattern(result, pattern, intensity)
+
+
+@clipped
+def apply_gaussian_illumination(
+    img: np.ndarray,
+    intensity: float,
+    center: tuple[float, float],
+    sigma: float,
+) -> np.ndarray:
+    """Apply gaussian illumination effect."""
+    result, height, width = prepare_illumination_input(img)
+
+    # Create coordinate grid
+    y, x = np.ogrid[:height, :width]
+
+    # Calculate gaussian pattern
+    center_x = width * center[0]
+    center_y = height * center[1]
+    sigma_pixels = max(height, width) * sigma
+    gaussian = np.exp(-((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2))
+
+    return apply_illumination_pattern(result, gaussian, intensity)
