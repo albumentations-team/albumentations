@@ -2526,15 +2526,22 @@ def auto_contrast(img: np.ndarray) -> np.ndarray:
         # Calculate cumulative distribution
         cdf = hist.cumsum()
 
+        min_value = cdf.min()
+        max_value = cdf.max()
+
+        if min_value == max_value:
+            continue
+
         # Normalize CDF
-        cdf = (cdf - cdf.min()) * max_value / (cdf.max() - cdf.min() + 1e-6)
+        cdf = (cdf - min_value) * max_value / (max_value - min_value + 1e-6)
 
-        # Linear interpolation of CDF to get scaling
-        scaling_lookup = clip(np.around(cdf), img.dtype)
+        # Create lookup table
+        lut = clip(np.around(cdf), np.uint8)
 
+        # Apply lookup table
         if img.ndim > MONO_CHANNEL_DIMENSIONS:
-            result[..., i] = scaling_lookup[channel]
+            result[..., i] = sz_lut(channel, lut)
         else:
-            result = scaling_lookup[channel]
+            result = sz_lut(channel, lut)
 
     return result
