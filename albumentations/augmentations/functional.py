@@ -2489,3 +2489,59 @@ def apply_gaussian_illumination(
     gaussian = np.exp(-((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2))
 
     return apply_illumination_pattern(result, gaussian, intensity)
+
+
+@uint8_io
+def auto_contrast(img: np.ndarray) -> np.ndarray:
+    """Apply auto contrast to the image.
+
+    Auto contrast enhances image contrast by stretching the intensity range
+    to use the full range while preserving relative intensities.
+
+    Args:
+        img: Input image in uint8 or float32 format.
+
+    Returns:
+        Contrast-enhanced image in the same dtype as input.
+
+    Note:
+        The function:
+        1. Computes histogram for each channel
+        2. Creates cumulative distribution
+        3. Normalizes to full intensity range
+        4. Uses lookup table for scaling
+    """
+    result = img.copy()
+
+    num_channels = get_num_channels(img)
+
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+
+    for i in range(num_channels):
+        channel = img[..., i] if img.ndim > MONO_CHANNEL_DIMENSIONS else img
+
+        # Compute histogram
+        hist = np.histogram(channel.flatten(), bins=256, range=(0, max_value))[0]
+
+        # Calculate cumulative distribution
+        cdf = hist.cumsum()
+
+        min_value = cdf.min()
+        max_value = cdf.max()
+
+        if min_value == max_value:
+            continue
+
+        # Normalize CDF
+        cdf = (cdf - min_value) * max_value / (max_value - min_value + 1e-6)
+
+        # Create lookup table
+        lut = clip(np.around(cdf), np.uint8)
+
+        # Apply lookup table
+        if img.ndim > MONO_CHANNEL_DIMENSIONS:
+            result[..., i] = sz_lut(channel, lut)
+        else:
+            result = sz_lut(channel, lut)
+
+    return result

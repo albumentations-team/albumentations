@@ -124,6 +124,7 @@ __all__ = [
     "PlasmaBrightnessContrast",
     "PlasmaShadow",
     "Illumination",
+    "AutoContrast",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -6108,7 +6109,7 @@ class Illumination(ImageOnlyTransform):
         angle_range: tuple[float, float] = (0, 360),
         center_range: tuple[float, float] = (0.1, 0.9),
         sigma_range: tuple[float, float] = (0.2, 1.0),
-        always_apply: bool = False,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
@@ -6176,3 +6177,40 @@ class Illumination(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "mode", "intensity_range", "effect_type", "angle_range", "center_range", "sigma_range"
+
+
+class AutoContrast(ImageOnlyTransform):
+    """Apply random auto contrast to images.
+
+    Auto contrast enhances image contrast by stretching the intensity range
+    to use the full range while preserving relative intensities. For each
+    color channel:
+    1. Compute histogram
+    2. Find cumulative percentiles
+    3. Clip and scale intensities to full range
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
+    def __init__(
+        self,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        return fmain.auto_contrast(img)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ()

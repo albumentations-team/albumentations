@@ -186,6 +186,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 
 - [AdditiveNoise](https://explore.albumentations.ai/transform/AdditiveNoise)
 - [AdvancedBlur](https://explore.albumentations.ai/transform/AdvancedBlur)
+- [AutoContrast](https://explore.albumentations.ai/transform/AutoContrast)
 - [Blur](https://explore.albumentations.ai/transform/Blur)
 - [CLAHE](https://explore.albumentations.ai/transform/CLAHE)
 - [ChannelDropout](https://explore.albumentations.ai/transform/ChannelDropout)
