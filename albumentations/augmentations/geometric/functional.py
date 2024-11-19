@@ -2978,3 +2978,98 @@ def shuffle_tiles_within_shape_groups(
             mapping[old] = new
 
     return mapping
+
+
+def compute_tps_weights(src_points: np.ndarray, dst_points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Compute Thin Plate Spline weights.
+
+    Args:
+        src_points: Source control points with shape (num_points, 2)
+        dst_points: Destination control points with shape (num_points, 2)
+
+    Returns:
+        tuple of:
+        - nonlinear_weights: TPS kernel weights for nonlinear deformation (num_points, 2)
+        - affine_weights: Weights for affine transformation (3, 2)
+            [constant term, x scale/shear, y scale/shear]
+
+    Note:
+        The TPS interpolation is decomposed into:
+        1. Nonlinear part (controlled by kernel weights)
+        2. Affine part (global scaling, rotation, translation)
+    """
+    num_points = src_points.shape[0]
+
+    # Compute kernel matrix of pairwise distances
+    kernel_matrix = np.zeros((num_points, num_points))
+    for i in range(num_points):
+        for j in range(num_points):
+            if i != j:
+                # U(r) = r² log(r) is the TPS kernel function
+                dist = np.linalg.norm(src_points[i] - src_points[j])
+                kernel_matrix[i, j] = dist * dist * np.log(dist + 1e-6)
+
+    # Construct affine terms matrix
+    affine_terms = np.ones((num_points, 3))
+    affine_terms[:, 1:] = src_points  # [1, x, y] for each point
+
+    # Build system matrix
+    system_matrix = np.zeros((num_points + 3, num_points + 3))
+    system_matrix[:num_points, :num_points] = kernel_matrix
+    system_matrix[:num_points, num_points:] = affine_terms
+    system_matrix[num_points:, :num_points] = affine_terms.T
+
+    # Right-hand side of the system
+    target_coords = np.zeros((num_points + 3, 2))
+    target_coords[:num_points] = dst_points
+
+    # Solve the system for both x and y coordinates
+    all_weights = np.linalg.solve(system_matrix, target_coords)
+
+    # Split weights into nonlinear and affine components
+    nonlinear_weights = all_weights[:num_points]
+    affine_weights = all_weights[num_points:]
+
+    return nonlinear_weights, affine_weights
+
+
+def tps_transform(
+    target_points: np.ndarray,
+    control_points: np.ndarray,
+    nonlinear_weights: np.ndarray,
+    affine_weights: np.ndarray,
+) -> np.ndarray:
+    """Apply Thin Plate Spline transformation to points.
+
+    Args:
+        target_points: Points to transform with shape (num_targets, 2)
+        control_points: Original control points with shape (num_controls, 2)
+        nonlinear_weights: TPS kernel weights with shape (num_controls, 2)
+        affine_weights: Affine transformation weights with shape (3, 2)
+
+    Returns:
+        Transformed points with shape (num_targets, 2)
+
+    Note:
+        The transformation combines:
+        1. Nonlinear warping based on distances to control points
+        2. Global affine transformation (scale, rotation, translation)
+    """
+    num_controls = control_points.shape[0]
+    num_targets = target_points.shape[0]
+
+    # Compute kernel matrix of distances to control points
+    kernel_matrix = np.zeros((num_targets, num_controls))
+    for i in range(num_targets):
+        for j in range(num_controls):
+            dist = np.linalg.norm(target_points[i] - control_points[j])
+            if dist > 0:
+                # U(r) = r² log(r) is the TPS kernel function
+                kernel_matrix[i, j] = dist * dist * np.log(dist)
+
+    # Prepare affine terms [1, x, y] for each point
+    affine_terms = np.ones((num_targets, 3))
+    affine_terms[:, 1:] = target_points
+
+    # Combine nonlinear and affine transformations
+    return kernel_matrix @ nonlinear_weights + affine_terms @ affine_weights
