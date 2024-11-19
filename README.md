@@ -205,6 +205,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [HistogramMatching](https://explore.albumentations.ai/transform/HistogramMatching)
 - [HueSaturationValue](https://explore.albumentations.ai/transform/HueSaturationValue)
 - [ISONoise](https://explore.albumentations.ai/transform/ISONoise)
+- [Illumination](https://explore.albumentations.ai/transform/Illumination)
 - [ImageCompression](https://explore.albumentations.ai/transform/ImageCompression)
 - [InvertImg](https://explore.albumentations.ai/transform/InvertImg)
 - [MedianBlur](https://explore.albumentations.ai/transform/MedianBlur)
