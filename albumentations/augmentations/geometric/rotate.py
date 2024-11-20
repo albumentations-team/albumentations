@@ -5,8 +5,8 @@ from typing import Annotated, Any, cast
 
 import cv2
 import numpy as np
-from pydantic import AfterValidator
-from typing_extensions import Literal
+from pydantic import AfterValidator, Field, model_validator
+from typing_extensions import Literal, Self
 
 from albumentations.augmentations.crops import functional as fcrops
 from albumentations.augmentations.geometric.transforms import Affine, Perspective
@@ -66,8 +66,8 @@ class RotateInitSchema(BaseTransformInitSchema):
 
     border_mode: BorderModeType
 
-    value: ColorType | None
-    mask_value: ColorType | None
+    fill: ColorType | None
+    fill_mask: ColorType | None
 
 
 class Rotate(DualTransform):
@@ -82,9 +82,8 @@ class Rotate(DualTransform):
         border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT
-            applied for masks.
+        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill_mask (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
             Default: 'largest_box'
         crop_border (bool): Whether to crop border after rotation. If True, the output image size might differ
@@ -137,6 +136,20 @@ class Rotate(DualTransform):
         rotate_method: Literal["largest_box", "ellipse"]
         crop_border: bool
 
+        fill: ColorType
+        fill_mask: ColorType
+
+        value: ColorType | None = Field(default=None, deprecated="Deprecated use fill instead")
+        mask_value: ColorType | None = Field(default=None, deprecated="Deprecated use fill_mask instead")
+
+        @model_validator(mode="after")
+        def validate_value(self) -> Self:
+            if self.value is not None:
+                self.fill = self.value
+            if self.mask_value is not None:
+                self.fill_mask = self.mask_value
+            return self
+
     def __init__(
         self,
         limit: ScaleFloatType = (-90, 90),
@@ -147,16 +160,18 @@ class Rotate(DualTransform):
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        always_apply: bool | None = None,
+        fill: ColorType = 0,
+        fill_mask: ColorType = 0,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.limit = cast(tuple[float, float], limit)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
         self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
+        self.fill = fill
+        self.fill_mask = fill_mask
         self.rotate_method = rotate_method
         self.crop_border = crop_border
 
@@ -174,7 +189,7 @@ class Rotate(DualTransform):
             img,
             matrix,
             self.interpolation,
-            self.value,
+            self.fill,
             self.border_mode,
             params["shape"][:2],
         )
@@ -196,7 +211,7 @@ class Rotate(DualTransform):
             mask,
             matrix,
             self.mask_interpolation,
-            self.mask_value,
+            self.fill_mask,
             self.border_mode,
             params["shape"][:2],
         )
@@ -242,7 +257,7 @@ class Rotate(DualTransform):
             matrix,
             params["shape"][:2],
             scale={"x": 1, "y": 1},
-            mode=self.border_mode,
+            border_mode=self.border_mode,
         )
         if self.crop_border:
             return fcrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
@@ -310,8 +325,8 @@ class Rotate(DualTransform):
             "limit",
             "interpolation",
             "border_mode",
-            "value",
-            "mask_value",
+            "fill",
+            "fill_mask",
             "rotate_method",
             "crop_border",
             "mask_interpolation",
@@ -334,11 +349,11 @@ class SafeRotate(Affine):
         border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of int, list of float): Padding value if border_mode is cv2.BORDER_CONSTANT applied
+        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill_mask (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT applied
             for masks.
-        rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
-            Default: 'largest_box'
+        rotate_method (Literal["largest_box", "ellipse"]): Method to rotate bounding boxes.
+            Should be 'largest_box' or 'ellipse'. Default: 'largest_box'
         mask_interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
@@ -399,28 +414,27 @@ class SafeRotate(Affine):
         mask_value: ColorType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         mask_interpolation: int = cv2.INTER_NEAREST,
-        always_apply: bool | None = None,
+        fill: ColorType = 0,
+        fill_mask: ColorType = 0,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
-        value = 0 if value is None else value
-        mask_value = 0 if mask_value is None else mask_value
         super().__init__(
             rotate=limit,
             interpolation=interpolation,
-            mode=border_mode,
-            cval=value,
-            cval_mask=mask_value,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
             rotate_method=rotate_method,
             fit_output=True,
             mask_interpolation=mask_interpolation,
             p=p,
-            always_apply=always_apply,
         )
         self.limit = cast(tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
+        self.fill = fill
+        self.fill_mask = fill_mask
         self.rotate_method = rotate_method
         self.mask_interpolation = mask_interpolation
 
@@ -429,8 +443,8 @@ class SafeRotate(Affine):
             "limit",
             "interpolation",
             "border_mode",
-            "value",
-            "mask_value",
+            "fill",
+            "fill_mask",
             "rotate_method",
             "mask_interpolation",
         )
@@ -521,9 +535,9 @@ class RotateAndProject(Perspective):
             - cv2.BORDER_REFLECT_101: reflects border pixels without duplicating edge pixels
             - cv2.BORDER_REPLICATE: replicates border pixels
             Default: cv2.BORDER_CONSTANT
-        pad_val (int, float, list): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
             Default: 0
-        mask_pad_val (int, float, list): Padding value for masks if border_mode is cv2.BORDER_CONSTANT.
+        fill_mask (ColorType): Padding value for masks if border_mode is cv2.BORDER_CONSTANT.
             Default: 0
         interpolation (OpenCV flag): Interpolation method for image transformation.
             Should be one of:
@@ -567,9 +581,9 @@ class RotateAndProject(Perspective):
         focal_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
         mask_interpolation: InterpolationType
         interpolation: InterpolationType
-        pad_mode: int
-        pad_val: ColorType
-        mask_pad_val: ColorType
+        border_mode: int
+        fill: ColorType
+        fill_mask: ColorType
 
     def __init__(
         self,
@@ -577,9 +591,9 @@ class RotateAndProject(Perspective):
         y_angle_range: tuple[float, float] = (-15, 15),
         z_angle_range: tuple[float, float] = (-15, 15),
         focal_range: tuple[float, float] = (0.5, 1.5),
-        pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_val: ColorType = 0,
-        mask_pad_val: ColorType = 0,
+        border_mode: int = cv2.BORDER_CONSTANT,
+        fill: ColorType = 0,
+        fill_mask: ColorType = 0,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
@@ -588,9 +602,9 @@ class RotateAndProject(Perspective):
         super().__init__(
             scale=(0, 0),  # Unused but required by parent
             keep_size=True,
-            pad_mode=pad_mode,
-            pad_val=pad_val,
-            mask_pad_val=mask_pad_val,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
             p=p,
@@ -599,8 +613,8 @@ class RotateAndProject(Perspective):
         self.y_angle_range = y_angle_range
         self.z_angle_range = z_angle_range
         self.focal_range = focal_range
-        self.pad_val = pad_val
-        self.mask_pad_val = mask_pad_val
+        self.fill = fill
+        self.fill_mask = fill_mask
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
 
@@ -641,9 +655,9 @@ class RotateAndProject(Perspective):
             "y_angle_range",
             "z_angle_range",
             "focal_range",
-            "pad_mode",
-            "pad_val",
-            "mask_pad_val",
+            "border_mode",
+            "fill",
+            "fill_mask",
             "interpolation",
             "mask_interpolation",
         )
