@@ -25,7 +25,6 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 - **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarks/), with optimizations for production use.
 - **Deep Learning Integration**: Works with [PyTorch](https://pytorch.org/), [TensorFlow](https://www.tensorflow.org/), and other frameworks. Part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
 - **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](https://albumentations.ai/docs/#authors).
-- **Widely Used**: Applied in [research, competitions, and production systems](https://albumentations.ai/whos_using) across many organizations.
 
 ## Community-Driven Project, Supported By
 
