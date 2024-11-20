@@ -5,7 +5,8 @@ from typing import Annotated, Any
 
 import numpy as np
 from albucore import get_num_channels
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, model_validator
+from typing_extensions import Self
 
 from albumentations.core.pydantic import check_1plus
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
@@ -35,7 +36,7 @@ class ChannelDropout(ImageOnlyTransform):
         channel_drop_range (tuple[int, int]): Range from which to choose the number
             of channels to drop. The actual number will be randomly selected from
             the inclusive range [min, max]. Default: (1, 1).
-        fill_value (float): Pixel value used to fill the dropped channels.
+        fill (float): Pixel value used to fill the dropped channels.
             Default: 0.
         p (float): Probability of applying the transform. Must be in the range
             [0, 1]. Default: 0.5.
@@ -55,7 +56,7 @@ class ChannelDropout(ImageOnlyTransform):
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.ChannelDropout(channel_drop_range=(1, 2), fill_value=128, p=1.0)
+        >>> transform = A.ChannelDropout(channel_drop_range=(1, 2), fill=128, p=1.0)
         >>> result = transform(image=image)
         >>> dropped_image = result['image']
         >>> assert dropped_image.shape == image.shape
@@ -74,22 +75,30 @@ class ChannelDropout(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         channel_drop_range: Annotated[tuple[int, int], AfterValidator(check_1plus)]
-        fill_value: Annotated[float, Field(description="Pixel value for the dropped channel.")]
+        fill_value: float | None = Field(deprecated="fill_value is deprecated, use fill instead")
+        fill: float
+
+        @model_validator(mode="after")
+        def validate_fill(self) -> Self:
+            if self.fill_value is not None:
+                self.fill = self.fill_value
+            return self
 
     def __init__(
         self,
         channel_drop_range: tuple[int, int] = (1, 1),
-        fill_value: float = 0,
-        always_apply: bool | None = None,
+        fill_value: float | None = None,
+        fill: float = 0,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
 
         self.channel_drop_range = channel_drop_range
-        self.fill_value = fill_value
+        self.fill = fill
 
     def apply(self, img: np.ndarray, channels_to_drop: tuple[int, ...], **params: Any) -> np.ndarray:
-        return channel_dropout(img, channels_to_drop, self.fill_value)
+        return channel_dropout(img, channels_to_drop, self.fill)
 
     def get_params_dependent_on_data(self, params: Mapping[str, Any], data: Mapping[str, Any]) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
@@ -111,4 +120,4 @@ class ChannelDropout(ImageOnlyTransform):
         return {"channels_to_drop": channels_to_drop}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "channel_drop_range", "fill_value"
+        return "channel_drop_range", "fill"

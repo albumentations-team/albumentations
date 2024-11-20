@@ -52,7 +52,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
-    fill_value: DropoutFillValue
+    fill: DropoutFillValue
     mask_fill_value: ColorType | None
     # replay mode params
     deterministic: bool = False
@@ -280,7 +280,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
-            params["fill_value"] = self.fill_value
+            params["fill_value"] = self.fill
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
 

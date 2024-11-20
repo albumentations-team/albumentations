@@ -2009,7 +2009,7 @@ class Pad(DualTransform):
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.padding = padding
-        self.fill_value = fill_value  # type: ignore[assignment]
+        self.fill = fill_value  # type: ignore[assignment]
         self.mask_fill_value = mask_fill_value
         self.border_mode = border_mode
 
@@ -2029,7 +2029,7 @@ class Pad(DualTransform):
             pad_left,
             pad_right,
             border_mode=self.border_mode,
-            value=self.fill_value,
+            value=self.fill,
         )
 
     def apply_to_mask(

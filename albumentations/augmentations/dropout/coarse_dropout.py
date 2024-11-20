@@ -31,8 +31,7 @@ class CoarseDropout(BaseDropout):
         hole_width_range (tuple[Real, Real]): Range (min, max) for the width
             of dropout regions. If int, specifies absolute pixel values. If float,
             interpreted as a fraction of the image width. Default: (8, 8)
-        fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
-            "inpaint_ns"]):
+        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value for the dropped pixels. Can be:
             - int or float: all channels are filled with this value
             - tuple: tuple of values for each channel
@@ -70,7 +69,7 @@ class CoarseDropout(BaseDropout):
         ...     num_holes_range=(3, 6),
         ...     hole_height_range=(10, 20),
         ...     hole_width_range=(10, 20),
-        ...     fill_value="random_uniform",
+        ...     fill="random_uniform",
         ...     p=1.0
         ... )
         >>> # Example with inpainting
@@ -78,7 +77,7 @@ class CoarseDropout(BaseDropout):
         ...     num_holes_range=(3, 6),
         ...     hole_height_range=(10, 20),
         ...     hole_width_range=(10, 20),
-        ...     fill_value="inpaint_ns",
+        ...     fill="inpaint_ns",
         ...     p=1.0
         ... )
         >>> transformed = aug_random(image=image, mask=mask)
@@ -159,15 +158,17 @@ class CoarseDropout(BaseDropout):
         min_holes: int | None = None,
         min_height: ScalarType | None = None,
         min_width: ScalarType | None = None,
-        fill_value: DropoutFillValue = 0,
+        fill_value: DropoutFillValue | None = None,
         mask_fill_value: ColorType | None = None,
         num_holes_range: tuple[int, int] = (1, 1),
         hole_height_range: tuple[ScalarType, ScalarType] = (8, 8),
         hole_width_range: tuple[ScalarType, ScalarType] = (8, 8),
-        always_apply: bool | None = None,
+        fill: DropoutFillValue = 0,
+        fill_mask: ColorType | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
-        super().__init__(fill_value=fill_value, mask_fill_value=mask_fill_value, p=p, always_apply=always_apply)
+        super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.num_holes_range = num_holes_range
         self.hole_height_range = hole_height_range
         self.hole_width_range = hole_width_range
@@ -239,8 +240,8 @@ class Erasing(BaseDropout):
         ratio (tuple[float, float]): Range for the aspect ratio (width/height) of the erased region.
             The actual ratio will be randomly sampled from (ratio[0], ratio[1]).
             Default: (0.3, 3.3)
-        fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
-            "inpaint_ns"]): Value used to fill the erased regions. Can be:
+        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+            Value used to fill the erased regions. Can be:
             - int or float: fills all channels with this value
             - tuple: fills each channel with corresponding value
             - "random": fills each pixel with random values
@@ -248,7 +249,7 @@ class Erasing(BaseDropout):
             - "inpaint_telea": uses OpenCV Telea inpainting method
             - "inpaint_ns": uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        mask_fill_value (ColorType | None): Value used to fill erased regions in the mask.
+        mask_fill (ColorType | None): Value used to fill erased regions in the mask.
             If None, mask regions are not modified. Default: None
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -295,17 +296,13 @@ class Erasing(BaseDropout):
         self,
         scale: tuple[float, float] = (0.02, 0.33),
         ratio: tuple[float, float] = (0.3, 3.3),
-        fill_value: DropoutFillValue = 0,
-        mask_fill_value: ColorType | None = None,
+        fill: DropoutFillValue = 0,
+        fill_mask: ColorType | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
-        always_apply: bool = False,
     ):
-        super().__init__(
-            fill_value=fill_value,
-            mask_fill_value=mask_fill_value,
-            p=p,
-            always_apply=always_apply,
-        )
+        super().__init__(fill=fill, fill_mask=fill_mask, p=p)
+
         self.scale = scale
         self.ratio = ratio
 
@@ -377,4 +374,4 @@ class Erasing(BaseDropout):
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("scale", "ratio", "fill_value", "mask_fill_value")
+        return "scale", "ratio", "fill", "fill_mask"

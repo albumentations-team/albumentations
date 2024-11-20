@@ -1183,8 +1183,8 @@ def test_image_compression_invalid_input(params):
         ({"hole_height_range": (0.1, 0.1)}, {"hole_height_range": (0.1, 0.1)}),
         ({"hole_width_range": (0.1, 0.1)}, {"hole_width_range": (0.1, 0.1)}),
         # Random fill value
-        ({"fill_value": "random"}, {"fill_value": "random"}),
-        ({"fill_value": (255, 255, 255)}, {"fill_value": (255, 255, 255)}),
+        ({"fill": "random"}, {"fill": "random"}),
+        ({"fill": (255, 255, 255)}, {"fill": (255, 255, 255)}),
         # Deprecated values handling
         ({"min_holes": 1, "max_holes": 5}, {"num_holes_range": (1, 5)}),
         ({"min_height": 2, "max_height": 6}, {"hole_height_range": (2, 6)}),
