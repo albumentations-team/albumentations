@@ -103,26 +103,26 @@ class BaseCropAndPad(BaseCrop):
 
     class InitSchema(BaseTransformInitSchema):
         pad_if_needed: bool
-        pad_mode: BorderModeType
-        pad_cval: ColorType
-        pad_cval_mask: ColorType
+        border_mode: BorderModeType
+        fill: ColorType
+        fill_mask: ColorType
         pad_position: PositionType
 
     def __init__(
         self,
         pad_if_needed: bool,
-        pad_mode: int,
-        pad_cval: ColorType,
-        pad_cval_mask: ColorType,
+        border_mode: int,
+        fill: ColorType,
+        fill_mask: ColorType,
         pad_position: PositionType,
         p: float,
         always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.pad_if_needed = pad_if_needed
-        self.pad_mode = pad_mode
-        self.pad_cval = pad_cval
-        self.pad_cval_mask = pad_cval_mask
+        self.border_mode = border_mode
+        self.fill = fill
+        self.fill_mask = fill_mask
         self.pad_position = pad_position
 
     def _get_pad_params(self, image_shape: tuple[int, int], target_shape: tuple[int, int]) -> dict[str, Any] | None:
@@ -171,8 +171,8 @@ class BaseCropAndPad(BaseCrop):
                 pad_params["pad_bottom"],
                 pad_params["pad_left"],
                 pad_params["pad_right"],
-                border_mode=self.pad_mode,
-                value=self.pad_cval,
+                border_mode=self.border_mode,
+                value=self.fill,
             )
         return super().apply(img, crop_coords, **params)
 
@@ -196,7 +196,7 @@ class BaseCropAndPad(BaseCrop):
                 pad_params["pad_bottom"],
                 pad_params["pad_left"],
                 pad_params["pad_right"],
-                self.pad_mode,
+                self.border_mode,
                 image_shape=image_shape,
             )
 
@@ -235,7 +235,7 @@ class BaseCropAndPad(BaseCrop):
                 pad_params["pad_bottom"],
                 pad_params["pad_left"],
                 pad_params["pad_right"],
-                self.pad_mode,
+                self.border_mode,
                 image_shape=image_shape,
             )
 
@@ -252,10 +252,10 @@ class RandomCrop(BaseCropAndPad):
         height: height of the crop.
         width: width of the crop.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
-        pad_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        pad_cval (number | tuple[number, number] | list[number]): Padding value for images if border_mode is
+        border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
+        fill (number | tuple[number, number] | list[number]): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
-        pad_cval_mask (number | tuple[number, number] | list[number]): Padding value for masks if border_mode is
+        fill_mask (number | tuple[number, number] | list[number]): Padding value for masks if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (str): Position of padding ('center', 'top_left', 'top_right', 'bottom_left',
             'bottom_right', 'random'). Default: 'center'.
@@ -275,27 +275,48 @@ class RandomCrop(BaseCropAndPad):
     class InitSchema(BaseCropAndPad.InitSchema):
         height: Annotated[int, Field(ge=1)]
         width: Annotated[int, Field(ge=1)]
+        border_mode: BorderModeType
+        fill: ColorType
+        fill_mask: ColorType
+        pad_mode: BorderModeType | None
+        pad_cval: ColorType | None
+        pad_cval_mask: ColorType | None
+
+        @model_validator(mode="after")
+        def validate_dimensions(self) -> Self:
+            if self.pad_mode is not None:
+                warn("pad_mode is deprecated, use border_mode instead", stacklevel=2)
+                self.border_mode = self.pad_mode
+            if self.pad_cval is not None:
+                warn("pad_cval is deprecated, use fill instead", stacklevel=2)
+                self.fill = self.pad_cval
+            if self.pad_cval_mask is not None:
+                warn("pad_cval_mask is deprecated, use fill_mask instead", stacklevel=2)
+                self.fill_mask = self.pad_cval_mask
+            return self
 
     def __init__(
         self,
         height: int,
         width: int,
         pad_if_needed: bool = False,
-        pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: float | tuple[float, float] | list[float] = 0.0,
-        pad_cval_mask: float | tuple[float, float] | list[float] = 0.0,
+        pad_mode: int | None = None,
+        pad_cval: ColorType | None = None,
+        pad_cval_mask: ColorType | None = None,
         pad_position: PositionType = "center",
+        border_mode: int = cv2.BORDER_CONSTANT,
+        fill: ColorType = 0.0,
+        fill_mask: ColorType = 0.0,
         p: float = 1.0,
         always_apply: bool | None = None,
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
-            pad_mode=pad_mode,
-            pad_cval=pad_cval,
-            pad_cval_mask=pad_cval_mask,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
             pad_position=pad_position,
             p=p,
-            always_apply=always_apply,
         )
         self.height = height
         self.width = width
@@ -348,9 +369,9 @@ class RandomCrop(BaseCropAndPad):
             "height",
             "width",
             "pad_if_needed",
-            "pad_mode",
-            "pad_cval",
-            "pad_cval_mask",
+            "border_mode",
+            "fill",
+            "fill_mask",
             "pad_position",
         )
 
@@ -404,9 +425,9 @@ class CenterCrop(BaseCropAndPad):
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
-            pad_mode=pad_mode,
-            pad_cval=pad_cval,
-            pad_cval_mask=pad_cval_mask,
+            border_mode=pad_mode,
+            fill=pad_cval,
+            fill_mask=pad_cval_mask,
             pad_position=pad_position,
             p=p,
             always_apply=always_apply,
@@ -532,9 +553,9 @@ class Crop(BaseCropAndPad):
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
-            pad_mode=pad_mode,
-            pad_cval=pad_cval,
-            pad_cval_mask=pad_cval_mask,
+            border_mode=pad_mode,
+            fill=pad_cval,
+            fill_mask=pad_cval_mask,
             pad_position=pad_position,
             p=p,
             always_apply=always_apply,
