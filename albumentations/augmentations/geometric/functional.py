@@ -2265,7 +2265,7 @@ def center(image_shape: tuple[int, int]) -> tuple[float, float]:
         image_shape (tuple[int, int]): The shape of the image.
 
     Returns:
-        tuple[float, float]: The center coordinates.
+        tuple[float, float]: center_x, center_y
     """
     height, width = image_shape[:2]
     return width / 2 - 0.5, height / 2 - 0.5
@@ -2278,7 +2278,7 @@ def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
         image_shape (tuple[int, int]): The shape of the image.
 
     Returns:
-        tuple[float, float]: The center coordinates.
+        tuple[float, float]: center_x, center_y
     """
     height, width = image_shape[:2]
     return width / 2, height / 2
@@ -3128,3 +3128,75 @@ def get_fisheye_distortion_maps(
     map_y = cy + r_dist * np.sin(theta)
 
     return map_x, map_y
+
+
+def get_projection_matrix(
+    image_shape: tuple[int, int],
+    x_angle: float,
+    y_angle: float,
+    z_angle: float,
+    focal_length: float,
+    center_xy: tuple[float, float],
+) -> np.ndarray:
+    """Get projection matrix for perspective transform.
+
+    Args:
+        image_shape: Height and width of the image
+        x_angle: Rotation angle around X axis in radians
+        y_angle: Rotation angle around Y axis in radians
+        z_angle: Rotation angle around Z axis in radians
+        focal_length: Focal length of the virtual camera
+        center_xy: Center point (x,y) of the transform
+
+    Returns:
+        3x3 projection matrix
+    """
+    height, width = image_shape
+    center_x, center_y = center_xy
+
+    # Create translation matrices
+    to_origin = np.array([[1.0, 0.0, -center_x], [0.0, 1.0, -center_y], [0.0, 0.0, 1.0]], dtype=np.float64)
+
+    from_origin = np.array([[1.0, 0.0, center_x], [0.0, 1.0, center_y], [0.0, 0.0, 1.0]], dtype=np.float64)
+
+    # Create focal length matrix
+    focal = np.array([[focal_length, 0.0, 0.0], [0.0, focal_length, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
+
+    # Get rotation matrix
+    rotation = get_rotation_matrix_3d(x_angle, y_angle, z_angle)
+
+    # Compose final matrix: from_origin @ rotation @ focal @ to_origin
+    matrix = from_origin @ rotation @ focal @ to_origin
+
+    # Return inverse matrix for warpPerspective
+    return np.linalg.inv(matrix).astype(np.float32)
+
+
+def get_rotation_matrix_3d(x_angle: float, y_angle: float, z_angle: float) -> np.ndarray:
+    """Get 3D rotation matrix.
+
+    Args:
+        x_angle: Rotation angle around X axis in radians
+        y_angle: Rotation angle around Y axis in radians
+        z_angle: Rotation angle around Z axis in radians
+
+    Returns:
+        3x3 rotation matrix
+    """
+    # Create rotation matrices
+    cos_x, sin_x = np.cos(x_angle), np.sin(x_angle)
+    cos_y, sin_y = np.cos(y_angle), np.sin(y_angle)
+    cos_z, sin_z = np.cos(z_angle), np.sin(z_angle)
+
+    # X rotation
+    rx = np.array([[1.0, 0.0, 0.0], [0.0, cos_x, -sin_x], [0.0, sin_x, cos_x]], dtype=np.float64)
+
+    # Y rotation
+    ry = np.array([[cos_y, 0.0, sin_y], [0.0, 1.0, 0.0], [-sin_y, 0.0, cos_y]], dtype=np.float64)
+
+    # Z rotation
+    rz = np.array([[cos_z, -sin_z, 0.0], [sin_z, cos_z, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)
+
+    # Combine rotations: Y * X * Z
+    # This order matches the expected test results
+    return rx @ ry @ rz

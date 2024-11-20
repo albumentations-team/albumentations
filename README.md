@@ -308,6 +308,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [RandomVerticalFlip](https://explore.albumentations.ai/transform/RandomVerticalFlip)             | ✓     | ✓    | ✓      | ✓         |
 | [Resize](https://explore.albumentations.ai/transform/Resize)                                     | ✓     | ✓    | ✓      | ✓         |
 | [Rotate](https://explore.albumentations.ai/transform/Rotate)                                     | ✓     | ✓    | ✓      | ✓         |
+| [RotateAndProject](https://explore.albumentations.ai/transform/RotateAndProject)                 | ✓     | ✓    | ✓      | ✓         |
 | [SafeRotate](https://explore.albumentations.ai/transform/SafeRotate)                             | ✓     | ✓    | ✓      | ✓         |
 | [ShiftScaleRotate](https://explore.albumentations.ai/transform/ShiftScaleRotate)                 | ✓     | ✓    | ✓      | ✓         |
 | [SmallestMaxSize](https://explore.albumentations.ai/transform/SmallestMaxSize)                   | ✓     | ✓    | ✓      | ✓         |
