@@ -2735,7 +2735,7 @@ class RandomGamma(ImageOnlyTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.gamma_limit = cast(tuple[float, float], gamma_limit)
 
     def apply(self, img: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
@@ -3241,8 +3241,8 @@ class Lambda(NoOp):
     Args:
         image: Image transformation function.
         mask: Mask transformation function.
-        keypoint: Keypoint transformation function.
-        bbox: BBox transformation function.
+        keypoints: Keypoints transformation function.
+        bboxes: BBoxes transformation function.
         p: probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -3465,7 +3465,6 @@ class FancyPCA(ImageOnlyTransform):
             random noise for each principal component. If a single float is provided, it will be used for
             all channels. If a tuple of two floats (min, max) is provided, the standard deviation will be
             uniformly sampled from this range for each run. Default: 0.1.
-        always_apply (bool): If True, the transform will always be applied. Default: False.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -4554,10 +4553,7 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: NonNegativeFloatRangeType = (2, 2)
         cutout_threshold: ZeroOneRangeType = (0.68, 0.68)
         intensity: ZeroOneRangeType = (0.6, 0.6)
-        mode: SpatterMode | Sequence[SpatterMode] = Field(
-            default="rain",
-            description="Type of corruption ('rain', 'mud').",
-        )
+        mode: SpatterMode | Sequence[SpatterMode]
         color: Sequence[int] | dict[str, Sequence[int]] | None = None
 
         @field_validator("mode")
@@ -4847,7 +4843,7 @@ class Morphological(DualTransform):
             - If an integer is provided, a square kernel of that size will be used.
             - If a tuple or list is provided, it should contain two integers representing the minimum
                 and maximum sizes for the dilation kernel.
-        operation (str, optional): The morphological operation to apply. Options are 'dilation' or 'erosion'.
+        operation (Literal["erosion", "dilation"]): The morphological operation to apply.
             Default is 'dilation'.
         p (float, optional): The probability of applying this transformation. Default is 0.5.
 
@@ -5825,7 +5821,7 @@ class PlasmaShadow(ImageOnlyTransform):
     darkening effects that can simulate shadows, shading, or lighting variations.
 
     Args:
-        shadow_intensity ((float, float)): Range for shadow intensity.
+        shadow_intensity_range (tuple[float, float]): Range for shadow intensity.
             Values between 0 and 1:
             - 0 means no shadow (original image)
             - 1 means maximum darkening (black)
@@ -5914,20 +5910,20 @@ class PlasmaShadow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        shadow_intensity: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
+        shadow_intensity_range: Annotated[tuple[float, float], AfterValidator(check_01)]
         plasma_size: int = Field(default=256, gt=0)
         roughness: float = Field(default=3.0, gt=0)
 
     def __init__(
         self,
-        shadow_intensity: tuple[float, float] = (0.3, 0.7),
+        shadow_intensity_range: tuple[float, float] = (0.3, 0.7),
         plasma_size: int = 256,
         roughness: float = 3.0,
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.shadow_intensity = shadow_intensity
+        self.shadow_intensity_range = shadow_intensity_range
         self.plasma_size = plasma_size
         self.roughness = roughness
 
@@ -5935,7 +5931,7 @@ class PlasmaShadow(ImageOnlyTransform):
         image = data["image"] if "image" in data else data["images"][0]
 
         # Sample shadow intensity
-        intensity = self.py_random.uniform(*self.shadow_intensity)
+        intensity = self.py_random.uniform(*self.shadow_intensity_range)
 
         # Generate plasma pattern
         plasma = fmain.generate_plasma_pattern(
@@ -5960,7 +5956,7 @@ class PlasmaShadow(ImageOnlyTransform):
         return fmain.apply_plasma_shadow(img, intensity, plasma_pattern)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "shadow_intensity", "plasma_size", "roughness"
+        return "shadow_intensity_range", "plasma_size", "roughness"
 
 
 class Illumination(ImageOnlyTransform):
@@ -5979,7 +5975,7 @@ class Illumination(ImageOnlyTransform):
     - Augment training data with different lighting conditions
 
     Args:
-        mode (str): Type of illumination pattern:
+        mode (Literal["linear", "corner", "gaussian"]): Type of illumination pattern:
             - 'linear': Creates a smooth gradient across the image,
                        simulating directional lighting like sunlight
                        through a window

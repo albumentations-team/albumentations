@@ -66,7 +66,7 @@ class TimeReverse(HorizontalFlip):
             UserWarning,
             stacklevel=2,
         )
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
 
 class TimeMasking(XYMasking):
@@ -134,9 +134,8 @@ class TimeMasking(XYMasking):
         )
         super().__init__(
             p=p,
-            always_apply=always_apply,
-            fill_value=0,
-            mask_fill_value=None,
+            fill=0,
+            fill_mask=0,
             mask_x_length=(0, time_mask_param),
             num_masks_x=1,
             num_masks_y=0,
@@ -212,9 +211,8 @@ class FrequencyMasking(XYMasking):
         )
         super().__init__(
             p=p,
-            always_apply=always_apply,
-            fill_value=0,
-            mask_fill_value=None,
+            fill=0,
+            fill_mask=0,
             mask_y_length=(0, freq_mask_param),
             num_masks_x=0,
             num_masks_y=1,

@@ -494,7 +494,7 @@ class Affine(DualTransform):
     All such transformations can create "new" pixels in the image without a defined content, e.g.
     if the image is translated to the left, pixels are created on the right.
     A method has to be defined to deal with these pixel values.
-    The parameters `cval` and `mode` of this class deal with this.
+    The parameters `fill` and `fill_mask` of this class deal with this.
 
     Some transformations involve interpolations between several pixels
     of the input image to generate output pixel values. The parameters `interpolation` and
