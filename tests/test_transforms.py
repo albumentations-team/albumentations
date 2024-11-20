@@ -1929,8 +1929,8 @@ def test_return_nonzero(augmentation_cls, params):
     "transform",
     [
         A.PadIfNeeded(min_height=6, min_width=6, value=128, border_mode=cv2.BORDER_CONSTANT, p=1),
-        A.CropAndPad(px=2, pad_mode=cv2.BORDER_CONSTANT, pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
-        A.CropAndPad(percent=(0, 0.3, 0, 0), pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.CropAndPad(px=2, border_mode=cv2.BORDER_CONSTANT, fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.CropAndPad(percent=(0, 0.3, 0, 0), fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
         A.Affine(translate_px={"x": -1, "y": -1}, cval=128, p=1, interpolation=cv2.INTER_NEAREST),
         A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=128),
     ],

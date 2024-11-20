@@ -252,9 +252,9 @@ class RandomCrop(BaseCropAndPad):
         width: width of the crop.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (number | tuple[number, number] | list[number]): Padding value for images if border_mode is
+        fill (ColorType): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
-        fill_mask (number | tuple[number, number] | list[number]): Padding value for masks if border_mode is
+        fill_mask (ColorType): Padding value for masks if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
@@ -277,20 +277,17 @@ class RandomCrop(BaseCropAndPad):
         border_mode: BorderModeType
         fill: ColorType
         fill_mask: ColorType
-        pad_mode: BorderModeType | None
-        pad_cval: ColorType | None
-        pad_cval_mask: ColorType | None
+        pad_mode: BorderModeType | None = Field(deprecated="pad_mode is deprecated, use border_mode instead ")
+        pad_cval: ColorType | None = Field(deprecated="pad_cval is deprecated, use fill instead")
+        pad_cval_mask: ColorType | None = Field(deprecated="pad_cval_mask is deprecated, use fill_mask instead")
 
         @model_validator(mode="after")
         def validate_dimensions(self) -> Self:
             if self.pad_mode is not None:
-                warn("pad_mode is deprecated, use border_mode instead", stacklevel=2)
                 self.border_mode = self.pad_mode
             if self.pad_cval is not None:
-                warn("pad_cval is deprecated, use fill instead", stacklevel=2)
                 self.fill = self.pad_cval
             if self.pad_cval_mask is not None:
-                warn("pad_cval_mask is deprecated, use fill_mask instead", stacklevel=2)
                 self.fill_mask = self.pad_cval_mask
             return self
 
@@ -386,9 +383,9 @@ class CenterCrop(BaseCropAndPad):
         width (int): The width of the crop. Must be greater than 0.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (number | tuple[number, number] | list[number]): Padding value for images if border_mode is
+        fill (ColorType): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
-        fill_mask (number | tuple[number, number] | list[number]): Padding value for masks if border_mode is
+        fill_mask (ColorType): Padding value for masks if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
@@ -412,20 +409,17 @@ class CenterCrop(BaseCropAndPad):
         border_mode: BorderModeType
         fill: ColorType
         fill_mask: ColorType
-        pad_mode: BorderModeType | None
-        pad_cval: ColorType | None
-        pad_cval_mask: ColorType | None
+        pad_mode: BorderModeType | None = Field(deprecated="pad_mode is deprecated, use border_mode instead")
+        pad_cval: ColorType | None = Field(deprecated="pad_cval is deprecated, use fill instead")
+        pad_cval_mask: ColorType | None = Field(deprecated="pad_cval_mask is deprecated, use fill_mask instead")
 
         @model_validator(mode="after")
         def validate_dimensions(self) -> Self:
             if self.pad_mode is not None:
-                warn("pad_mode is deprecated, use border_mode instead", stacklevel=2)
                 self.border_mode = self.pad_mode
             if self.pad_cval is not None:
-                warn("pad_cval is deprecated, use fill instead", stacklevel=2)
                 self.fill = self.pad_cval
             if self.pad_cval_mask is not None:
-                warn("pad_cval_mask is deprecated, use fill_mask instead", stacklevel=2)
                 self.fill_mask = self.pad_cval_mask
             return self
 
@@ -520,9 +514,8 @@ class Crop(BaseCropAndPad):
         y_max (int): Maximum y-coordinate of the crop region (bottom edge). Must be > y_min. Default: 1024.
         pad_if_needed (bool): Whether to pad if crop coordinates exceed image dimensions. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (number | tuple[number] | list[number]): Padding value if border_mode is cv2.BORDER_CONSTANT.
-            Default: 0.
-        fill_mask (number | tuple[number] | list[number]): Padding value for masks. Default: 0.
+        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT. Default: 0.
+        fill_mask (ColorType): Padding value for masks. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
         p (float): Probability of applying the transform. Default: 1.0.
@@ -548,9 +541,9 @@ class Crop(BaseCropAndPad):
         border_mode: BorderModeType
         fill: ColorType
         fill_mask: ColorType
-        pad_mode: BorderModeType | None
-        pad_cval: ColorType | None
-        pad_cval_mask: ColorType | None
+        pad_mode: BorderModeType | None = Field(deprecated="pad_mode is deprecated, use border_mode instead")
+        pad_cval: ColorType | None = Field(deprecated="pad_cval is deprecated, use fill instead")
+        pad_cval_mask: ColorType | None = Field(deprecated="pad_cval_mask is deprecated, use fill_mask instead")
 
         @model_validator(mode="after")
         def validate_coordinates(self) -> Self:
@@ -562,13 +555,10 @@ class Crop(BaseCropAndPad):
                 raise ValueError(msg)
 
             if self.pad_mode is not None:
-                warn("pad_mode is deprecated, use border_mode instead", stacklevel=2)
                 self.border_mode = self.pad_mode
             if self.pad_cval is not None:
-                warn("pad_cval is deprecated, use fill instead", stacklevel=2)
                 self.fill = self.pad_cval
             if self.pad_cval_mask is not None:
-                warn("pad_cval_mask is deprecated, use fill_mask instead", stacklevel=2)
                 self.fill_mask = self.pad_cval_mask
 
             return self
@@ -1536,14 +1526,11 @@ class CropAndPad(DualTransform):
         border_mode (int):
             OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
 
-        fill (number, tuple of number, or list of number):
+        fill (ColorType):
             The constant value to use for padding if border_mode is cv2.BORDER_CONSTANT.
-            - If number: use this value for all channels.
-            - If tuple of 2 numbers: use uniform random value between these numbers.
-            - If list of numbers: use random choice from this list.
             Default: 0.
 
-        fill_mask (number, tuple of number, or list of number):
+        fill_mask (ColorType):
             Same as fill but used for mask padding. Default: 0.
 
         keep_size (bool):
@@ -1582,7 +1569,7 @@ class CropAndPad(DualTransform):
     Example:
         >>> import albumentations as A
         >>> transform = A.Compose([
-        ...     A.CropAndPad(px=(-10, 20, 30, -40), pad_mode=cv2.BORDER_REFLECT, p=1.0),
+        ...     A.CropAndPad(px=(-10, 20, 30, -40), border_mode=cv2.BORDER_REFLECT, fill=128, p=1.0),
         ... ])
         >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
         >>> transformed_image = transformed['image']
@@ -1596,13 +1583,16 @@ class CropAndPad(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         px: PxType | None
         percent: PercentType | None
-        pad_mode: BorderModeType
-        pad_cval: float | tuple[float, float] | list[float]
-        pad_cval_mask: float | tuple[float, float] | list[float]
+        pad_mode: BorderModeType | None = Field(deprecated="pad_mode is deprecated, use border_mode instead")
+        pad_cval: ColorType | None = Field(deprecated="pad_cval is deprecated, use fill instead")
+        pad_cval_mask: ColorType | None = Field(deprecated="pad_cval_mask is deprecated, use fill_mask instead")
         keep_size: bool
         sample_independently: bool
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
+        fill: ColorType
+        fill_mask: ColorType
+        border_mode: BorderModeType
 
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
@@ -1955,7 +1945,7 @@ class RandomCropFromBorders(BaseCrop):
         always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.crop_left = crop_left
         self.crop_right = crop_right
         self.crop_top = crop_top

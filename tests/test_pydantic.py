@@ -395,7 +395,7 @@ def test_wrong_argument() -> None:
     """Test that pas Transform will get warning"""
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        transform = A.Crop(wrong_param=10)
+        transform = A.Blur(wrong_param=10)
         assert not hasattr(transform, "wrong_param")
         assert len(w) == 1
         assert issubclass(w[0].category, UserWarning)
