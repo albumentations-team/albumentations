@@ -100,6 +100,13 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.Resize: {"height": 113, "width": 113},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.CropAndPad: {"px": 10},
+            A.RotateAndProject: {
+                "x_angle_range": (0, 0),
+                "y_angle_range": (0, 0),
+                "z_angle_range": (0, 0),
+                "focal_range": (1, 1),
+                "mask_interpolation": cv2.INTER_NEAREST,
+            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -2081,6 +2088,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.RandomVerticalFlip,
             A.RandomAffine,
             A.RandomErasing,
+            A.RotateAndProject
         },
     ),
 )

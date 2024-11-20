@@ -413,4 +413,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Illumination, {}],
     [A.ThinPlateSpline, {}],
     [A.AutoContrast, {}],
+    [A.RotateAndProject, {}],
 ]

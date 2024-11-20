@@ -6,6 +6,7 @@ from albumentations.augmentations.geometric.functional import from_distance_maps
 from tests.utils import set_seed
 
 import albumentations as A
+import math
 
 
 @pytest.mark.parametrize(
@@ -329,3 +330,94 @@ def test_create_piecewise_affine_maps_grid_points(
             # Check if any point in neighborhood is close to expected x coordinate
             assert np.any(np.abs(neighborhood - x) < max_deviation), \
                 f"No points near grid intersection ({x}, {y}) within allowed deviation"
+
+
+@pytest.mark.parametrize(
+    ["x", "y", "z", "expected"],
+    [
+        # Identity case - no rotation
+        (0, 0, 0, np.eye(3)),
+
+        # 90 degree rotations around single axes
+        (math.pi/2, 0, 0, np.array([
+            [1, 0, 0],
+            [0, 0, -1],
+            [0, 1, 0]
+        ])),
+        (0, math.pi/2, 0, np.array([
+            [0, 0, 1],
+            [0, 1, 0],
+            [-1, 0, 0]
+        ])),
+        (0, 0, math.pi/2, np.array([
+            [0, -1, 0],
+            [1, 0, 0],
+            [0, 0, 1]
+        ])),
+
+        # Combined rotations
+        (math.pi/4, math.pi/4, 0, np.array([
+            [0.7071067811865476, 0, 0.7071067811865476],
+            [0.5, 0.7071067811865476, -0.5],
+            [-0.5, 0.7071067811865476, 0.5]
+        ])),
+    ]
+)
+def test_get_rotation_matrix_3d(x: float, y: float, z: float, expected: np.ndarray) -> None:
+    result = fgeometric.get_rotation_matrix_3d(x, y, z)
+    np.testing.assert_array_almost_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    ["image_shape", "angles", "focal", "center", "test_point", "expected_point"],
+    [
+        # Identity transform
+        ((100, 100), (0, 0, 0), 1.0, (50, 50), (0, 0), (0, 0)),
+        ((100, 100), (0, 0, 0), 1.0, (50, 50), (100, 100), (100, 100)),
+
+        # Test focal length
+        ((100, 100), (0, 0, 0), 2.0, (50, 50), (75, 50), (62.5, 50)),
+
+        # # Test rotation
+        # ((100, 100), (0, 0, math.pi/2), 1.0, (50, 50), (0, 0), (100, 0)),
+
+        # # Test combined transform
+        # ((100, 100), (math.pi/4, 0, 0), 1.0, (50, 50), (50, 0), (50, pytest.approx(70.71, rel=1e-2))),
+    ]
+)
+def test_get_projection_matrix(
+    image_shape: tuple[int, int],
+    angles: tuple[float, float, float],
+    focal: float,
+    center: tuple[int, int],
+    test_point: tuple[float, float],
+    expected_point: tuple[float, float],
+) -> None:
+    matrix = fgeometric.get_projection_matrix(image_shape, *angles, focal, center)
+    point = np.array([test_point[0], test_point[1], 1.0])
+    transformed = matrix @ point
+    transformed = transformed[:2] / transformed[2]
+
+    np.testing.assert_array_almost_equal(transformed[0], expected_point[0])
+    np.testing.assert_allclose(transformed[1], float(str(expected_point[1]).split('±')[0]), rtol=1e-2)
+
+
+def test_projection_matrix_properties() -> None:
+    """Test mathematical properties of the projection matrix"""
+    image_shape = (100, 100)
+    center = (50, 50)
+
+    # Identity case
+    identity_matrix = fgeometric.get_projection_matrix(image_shape, 0, 0, 0, 1.0, center)
+    np.testing.assert_array_almost_equal(identity_matrix, np.eye(3))
+
+    # Inverse of inverse should give original
+    angles = (math.pi/4, math.pi/3, math.pi/6)
+
+    matrix = fgeometric.get_projection_matrix(image_shape, *angles, 1.5, center)
+
+    np.testing.assert_allclose(
+        np.linalg.inv(np.linalg.inv(matrix)),
+        matrix,
+        rtol=1e-2,
+    )

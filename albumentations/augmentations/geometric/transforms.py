@@ -419,7 +419,7 @@ class Perspective(DualTransform):
             matrix,
             max_width,
             max_height,
-            self.pad_val,
+            self.mask_pad_val,
             self.pad_mode,
             self.keep_size,
             self.mask_interpolation,
@@ -428,7 +428,7 @@ class Perspective(DualTransform):
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
-        matrix: np.ndarray,
+        matrix_bbox: np.ndarray,
         max_height: int,
         max_width: int,
         **params: Any,
@@ -436,7 +436,7 @@ class Perspective(DualTransform):
         return fgeometric.perspective_bboxes(
             bboxes,
             params["shape"],
-            matrix,
+            matrix_bbox,
             max_width,
             max_height,
             self.keep_size,
@@ -472,7 +472,7 @@ class Perspective(DualTransform):
         if self.fit_output:
             matrix, max_width, max_height = fgeometric.expand_transform(matrix, image_shape)
 
-        return {"matrix": matrix, "max_height": max_height, "max_width": max_width}
+        return {"matrix": matrix, "max_height": max_height, "max_width": max_width, "matrix_bbox": matrix}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
