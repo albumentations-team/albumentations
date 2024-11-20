@@ -390,9 +390,9 @@ def test_scale_with_warp_affine(img, expected):
         img=img,
         matrix=transform,
         interpolation=cv2.INTER_NEAREST,
-        cval=0,
+        fill=0,
         output_shape=expected_shape,
-        mode=cv2.BORDER_CONSTANT,
+        border_mode=cv2.BORDER_CONSTANT,
     )
 
     assert scaled_img.shape == expected_shape, f"Expected shape {expected_shape}, got {scaled_img.shape}"
@@ -451,9 +451,9 @@ def test_rotate_with_warp_affine(img, expected):
         img=img,
         matrix=transform,  # Use the top 2 rows of the 3x3 matrix
         interpolation=cv2.INTER_LINEAR,
-        cval=0,
+        fill=0,
         output_shape=img.shape[:2],
-        mode=cv2.BORDER_CONSTANT,
+        border_mode=cv2.BORDER_CONSTANT,
     )
 
     np.testing.assert_array_equal(scaled_img, expected)
@@ -533,9 +533,9 @@ def test_translate_with_warp_affine(img, expected, translate):
         img=img,
         matrix=transform,  # Use the top 2 rows of the 3x3 matrix
         interpolation=cv2.INTER_LINEAR,
-        cval=0,
+        fill=0,
         output_shape=img.shape[:2],
-        mode=cv2.BORDER_CONSTANT,
+        border_mode=cv2.BORDER_CONSTANT,
     )
 
     np.testing.assert_array_equal(scaled_img, expected)

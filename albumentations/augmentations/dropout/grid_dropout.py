@@ -152,7 +152,7 @@ class GridDropout(BaseDropout):
         shift_x: int | None = None,
         shift_y: int | None = None,
         random_offset: bool = True,
-        fill_value: DropoutFillValue | None = 0,
+        fill_value: DropoutFillValue | None = None,
         mask_fill_value: ColorType | None = None,
         unit_size_range: tuple[int, int] | None = None,
         holes_number_xy: tuple[int, int] | None = None,

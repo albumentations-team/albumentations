@@ -114,8 +114,6 @@ class TimeMasking(XYMasking):
         - Original implementation: https://pytorch.org/audio/stable/transforms.html#timemask
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-
     class InitSchema(BaseTransformInitSchema):
         time_mask_param: int = Field(gt=0)
 
@@ -133,12 +131,12 @@ class TimeMasking(XYMasking):
             stacklevel=2,
         )
         super().__init__(
-            p=p,
-            fill=0,
-            fill_mask=0,
-            mask_x_length=(0, time_mask_param),
             num_masks_x=1,
             num_masks_y=0,
+            mask_x_length=(0, time_mask_param),
+            fill=0,
+            fill_mask=0,
+            p=p,
         )
         self.time_mask_param = time_mask_param
 
@@ -190,8 +188,6 @@ class FrequencyMasking(XYMasking):
         - SpecAugment paper: https://arxiv.org/abs/1904.08779
         - Original implementation: https://pytorch.org/audio/stable/transforms.html#freqmask
     """
-
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
         freq_mask_param: int = Field(gt=0)

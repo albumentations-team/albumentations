@@ -64,7 +64,7 @@ class XYMasking(BaseDropout):
         mask_x_length: NonNegativeIntRangeType
         mask_y_length: NonNegativeIntRangeType
 
-        fill_value: DropoutFillValue = Field(deprecated="Deprecated use fill instead")
+        fill_value: DropoutFillValue | None = Field(deprecated="Deprecated use fill instead")
         mask_fill_value: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
 
         fill: DropoutFillValue

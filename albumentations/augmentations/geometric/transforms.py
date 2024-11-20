@@ -337,7 +337,7 @@ class Perspective(DualTransform):
         keep_size: bool
         pad_mode: BorderModeType | None = Field(deprecated="Deprecated use border_mode instead")
         pad_val: ColorType | None = Field(deprecated="Deprecated use fill instead")
-        mask_pad_val: ColorType | None = Field(deprecated="Deprecated use mask_fill instead")
+        mask_pad_val: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
         fit_output: bool
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
@@ -474,7 +474,7 @@ class Perspective(DualTransform):
             "keep_size",
             "border_mode",
             "fill",
-            "mask_fill",
+            "fill_mask",
             "fit_output",
             "interpolation",
             "mask_interpolation",
@@ -554,7 +554,7 @@ class Affine(DualTransform):
             (E.g. translating by 1px to the right will create a new 1px-wide column of pixels
             on the left of the image).
             The value is only used when `mode=constant`. The expected value range is ``[0, 255]`` for ``uint8`` images.
-        mask_fill (ColorType): Same as fill but only for masks.
+        fill_mask (ColorType): Same as fill but only for masks.
         border_mode (int): OpenCV border flag.
         fit_output (bool): If True, the image plane size and position will be adjusted to tightly capture
             the whole image after affine transformation (`translate_percent` and `translate_px` are ignored).
@@ -898,7 +898,7 @@ class ShiftScaleRotate(Affine):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         fill (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_fill (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        fill_mask (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         shift_limit_x ((float, float) or float): shift factor range for width. If it is set then this value
             instead of shift_limit will be used for shifting width.  If shift_limit_x is a single float value,
             the range will be (-shift_limit_x, shift_limit_x). Absolute values for lower and upper bounds should lie in
@@ -1380,7 +1380,7 @@ class OpticalDistortion(BaseDistortion):
             If shift_limit is a single float value, the range will be (-shift_limit, shift_limit).
             Default: (-0.05, 0.05)
 
-        method (Literal['camera', 'fisheye']): Distortion model to use:
+        mode (Literal['camera', 'fisheye']): Distortion model to use:
             - 'camera': Original camera matrix model
             - 'fisheye': Fisheye lens model
             Default: 'camera'
@@ -1427,7 +1427,7 @@ class OpticalDistortion(BaseDistortion):
         mode: Literal["camera", "fisheye"]
         value: ColorType | None = Field(deprecated="Deprecated. Does not have any effect.")
         mask_value: ColorType | None = Field(deprecated="Deprecated. Does not have any effect.")
-        border_mode: int = Field(deprecated="Deprecated. Does not have any effect.")
+        border_mode: int | None = Field(deprecated="Deprecated. Does not have any effect.")
 
     def __init__(
         self,
@@ -1438,7 +1438,7 @@ class OpticalDistortion(BaseDistortion):
         value: ColorType | None = None,
         mask_value: ColorType | None = None,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        method: Literal["camera", "fisheye"] = "camera",
+        mode: Literal["camera", "fisheye"] = "camera",
         p: float = 0.5,
         always_apply: bool | None = None,
     ):
@@ -1449,7 +1449,7 @@ class OpticalDistortion(BaseDistortion):
         )
         self.shift_limit = cast(tuple[float, float], shift_limit)
         self.distort_limit = cast(tuple[float, float], distort_limit)
-        self.method = method
+        self.mode = mode
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image_shape = params["shape"][:2]
@@ -1465,7 +1465,7 @@ class OpticalDistortion(BaseDistortion):
         cy = height * 0.5 + dy
 
         # Get distortion maps based on mode
-        if self.method == "camera":
+        if self.mode == "camera":
             map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(image_shape, cx, cy, k)
         else:  # fisheye
             map_x, map_y = fgeometric.get_fisheye_distortion_maps(image_shape, cx, cy, k)
@@ -1473,7 +1473,7 @@ class OpticalDistortion(BaseDistortion):
         return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("distort_limit", "shift_limit", "method", *super().get_transform_init_args_names())
+        return ("distort_limit", "shift_limit", "mode", *super().get_transform_init_args_names())
 
 
 class GridDistortion(BaseDistortion):
@@ -2127,8 +2127,8 @@ class PadIfNeeded(Pad):
                 msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
                 raise ValueError(msg)
 
-            if self.border_mode == cv2.BORDER_CONSTANT and self.value is None:
-                msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'value' must be provided."
+            if self.border_mode == cv2.BORDER_CONSTANT and self.fill is None:
+                msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'fill' must be provided."
                 raise ValueError(msg)
 
             if self.mask_value is not None:
