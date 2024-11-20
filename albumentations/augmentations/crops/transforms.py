@@ -1777,8 +1777,8 @@ class CropAndPad(DualTransform):
         return {
             "crop_params": crop_params or None,
             "pad_params": pad_params or None,
-            "fill": None if pad_params is None else self._get_pad_value(self.fill),
-            "fill_mask": None if pad_params is None else self._get_pad_value(self.fill_mask),
+            "fill": None if pad_params is None else self._get_pad_value(cast(ColorType, self.fill)),
+            "fill_mask": None if pad_params is None else self._get_pad_value(cast(ColorType, self.fill_mask)),
             "result_shape": (result_rows, result_cols),
         }
 
@@ -1828,20 +1828,20 @@ class CropAndPad(DualTransform):
 
     def _get_pad_value(
         self,
-        pad_value: ColorType,
+        fill: ColorType,
     ) -> int | float:
-        if isinstance(pad_value, (list, tuple)):
-            if len(pad_value) == PAIR:
-                a, b = pad_value
+        if isinstance(fill, (list, tuple)):
+            if len(fill) == PAIR:
+                a, b = fill
                 if isinstance(a, int) and isinstance(b, int):
                     return self.py_random.randint(a, b)
                 return self.py_random.uniform(a, b)
-            return self.py_random.choice(pad_value)
+            return self.py_random.choice(fill)
 
-        if isinstance(pad_value, Real):
-            return pad_value
+        if isinstance(fill, Real):
+            return fill
 
-        msg = "pad_value should be a number or list, or tuple of two numbers."
+        msg = "fill should be a number or list, or tuple of two numbers."
         raise ValueError(msg)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
