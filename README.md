@@ -201,7 +201,6 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [FancyPCA](https://explore.albumentations.ai/transform/FancyPCA)
 - [FromFloat](https://explore.albumentations.ai/transform/FromFloat)
 - [GaussianBlur](https://explore.albumentations.ai/transform/GaussianBlur)
-- [GaussianNoise](https://explore.albumentations.ai/transform/GaussianNoise)
 - [GlassBlur](https://explore.albumentations.ai/transform/GlassBlur)
 - [HistogramMatching](https://explore.albumentations.ai/transform/HistogramMatching)
 - [HueSaturationValue](https://explore.albumentations.ai/transform/HueSaturationValue)
@@ -219,28 +218,13 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [PlasmaShadow](https://explore.albumentations.ai/transform/PlasmaShadow)
 - [Posterize](https://explore.albumentations.ai/transform/Posterize)
 - [RGBShift](https://explore.albumentations.ai/transform/RGBShift)
-- [RandomBrightness](https://explore.albumentations.ai/transform/RandomBrightness)
 - [RandomBrightnessContrast](https://explore.albumentations.ai/transform/RandomBrightnessContrast)
-- [RandomChannelDropout](https://explore.albumentations.ai/transform/RandomChannelDropout)
-- [RandomClahe](https://explore.albumentations.ai/transform/RandomClahe)
-- [RandomContrast](https://explore.albumentations.ai/transform/RandomContrast)
-- [RandomEqualize](https://explore.albumentations.ai/transform/RandomEqualize)
 - [RandomFog](https://explore.albumentations.ai/transform/RandomFog)
 - [RandomGamma](https://explore.albumentations.ai/transform/RandomGamma)
-- [RandomGaussianBlur](https://explore.albumentations.ai/transform/RandomGaussianBlur)
 - [RandomGravel](https://explore.albumentations.ai/transform/RandomGravel)
-- [RandomGrayscale](https://explore.albumentations.ai/transform/RandomGrayscale)
-- [RandomHue](https://explore.albumentations.ai/transform/RandomHue)
-- [RandomInvert](https://explore.albumentations.ai/transform/RandomInvert)
-- [RandomJPEG](https://explore.albumentations.ai/transform/RandomJPEG)
-- [RandomMedianBlur](https://explore.albumentations.ai/transform/RandomMedianBlur)
-- [RandomPlanckianJitter](https://explore.albumentations.ai/transform/RandomPlanckianJitter)
-- [RandomPosterize](https://explore.albumentations.ai/transform/RandomPosterize)
 - [RandomRain](https://explore.albumentations.ai/transform/RandomRain)
-- [RandomSaturation](https://explore.albumentations.ai/transform/RandomSaturation)
 - [RandomShadow](https://explore.albumentations.ai/transform/RandomShadow)
 - [RandomSnow](https://explore.albumentations.ai/transform/RandomSnow)
-- [RandomSolarize](https://explore.albumentations.ai/transform/RandomSolarize)
 - [RandomSunFlare](https://explore.albumentations.ai/transform/RandomSunFlare)
 - [RandomToneCurve](https://explore.albumentations.ai/transform/RandomToneCurve)
 - [RingingOvershoot](https://explore.albumentations.ai/transform/RingingOvershoot)
@@ -292,20 +276,14 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Perspective](https://explore.albumentations.ai/transform/Perspective)                           | ✓     | ✓    | ✓      | ✓         |
 | [PiecewiseAffine](https://explore.albumentations.ai/transform/PiecewiseAffine)                   | ✓     | ✓    | ✓      | ✓         |
 | [PixelDropout](https://explore.albumentations.ai/transform/PixelDropout)                         | ✓     | ✓    | ✓      | ✓         |
-| [RandomAffine](https://explore.albumentations.ai/transform/RandomAffine)                         | ✓     | ✓    | ✓      | ✓         |
 | [RandomCrop](https://explore.albumentations.ai/transform/RandomCrop)                             | ✓     | ✓    | ✓      | ✓         |
 | [RandomCropFromBorders](https://explore.albumentations.ai/transform/RandomCropFromBorders)       | ✓     | ✓    | ✓      | ✓         |
-| [RandomErasing](https://explore.albumentations.ai/transform/RandomErasing)                       | ✓     | ✓    | ✓      | ✓         |
 | [RandomGridShuffle](https://explore.albumentations.ai/transform/RandomGridShuffle)               | ✓     | ✓    | ✓      | ✓         |
-| [RandomHorizontalFlip](https://explore.albumentations.ai/transform/RandomHorizontalFlip)         | ✓     | ✓    | ✓      | ✓         |
-| [RandomPerspective](https://explore.albumentations.ai/transform/RandomPerspective)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomResizedCrop](https://explore.albumentations.ai/transform/RandomResizedCrop)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomRotate90](https://explore.albumentations.ai/transform/RandomRotate90)                     | ✓     | ✓    | ✓      | ✓         |
-| [RandomRotation](https://explore.albumentations.ai/transform/RandomRotation)                     | ✓     | ✓    | ✓      | ✓         |
 | [RandomScale](https://explore.albumentations.ai/transform/RandomScale)                           | ✓     | ✓    | ✓      | ✓         |
 | [RandomSizedBBoxSafeCrop](https://explore.albumentations.ai/transform/RandomSizedBBoxSafeCrop)   | ✓     | ✓    | ✓      | ✓         |
 | [RandomSizedCrop](https://explore.albumentations.ai/transform/RandomSizedCrop)                   | ✓     | ✓    | ✓      | ✓         |
-| [RandomVerticalFlip](https://explore.albumentations.ai/transform/RandomVerticalFlip)             | ✓     | ✓    | ✓      | ✓         |
 | [Resize](https://explore.albumentations.ai/transform/Resize)                                     | ✓     | ✓    | ✓      | ✓         |
 | [Rotate](https://explore.albumentations.ai/transform/Rotate)                                     | ✓     | ✓    | ✓      | ✓         |
 | [RotateAndProject](https://explore.albumentations.ai/transform/RotateAndProject)                 | ✓     | ✓    | ✓      | ✓         |

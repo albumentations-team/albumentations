@@ -20,6 +20,5 @@ from .mixing.transforms import *
 from .spectrogram.transform import *
 from .text.functional import *
 from .text.transforms import *
-from .tk.transform import *
 from .transforms import *
 from .utils import *

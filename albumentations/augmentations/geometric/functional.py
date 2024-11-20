@@ -533,8 +533,8 @@ def warp_affine(
     image: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    cval: ColorType,
-    mode: int,
+    fill: ColorType,
+    border_mode: int,
     output_shape: tuple[int, int],
 ) -> np.ndarray:
     if is_identity_matrix(matrix):
@@ -550,8 +550,8 @@ def warp_affine(
         matrix=cv2_matrix,
         dsize=(width, height),
         flags=interpolation,
-        border_mode=mode,
-        border_value=cval,
+        border_mode=border_mode,
+        border_value=fill,
     )
     return warp_fn(image)
 
@@ -563,7 +563,7 @@ def keypoints_affine(
     matrix: np.ndarray,
     image_shape: tuple[int, int],
     scale: XYFloat,
-    mode: int,
+    border_mode: int,
 ) -> np.ndarray:
     """Apply an affine transformation to keypoints.
 
@@ -577,8 +577,8 @@ def keypoints_affine(
         image_shape (tuple[int, int]): Shape of the image (height, width).
         scale (dict[str, float]): Dictionary containing scale factors for x and y directions.
                                   Expected keys are 'x' and 'y'.
-        mode (int): Border mode for handling keypoints near image edges.
-                    Use cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT, etc.
+        border_mode (int): Border mode for handling keypoints near image edges.
+                            Use cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT, etc.
 
     Returns:
         np.ndarray: Transformed keypoints array with the same shape as input.
@@ -601,7 +601,7 @@ def keypoints_affine(
     if is_identity_matrix(matrix):
         return keypoints
 
-    if mode in REFLECT_BORDER_MODES:
+    if border_mode in REFLECT_BORDER_MODES:
         # Step 1: Compute affine transform padding
         pad_left, pad_right, pad_top, pad_bottom = calculate_affine_transform_padding(matrix, image_shape)
         grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)

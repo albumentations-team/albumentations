@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from numbers import Real
 from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
+from pydantic import Field
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
@@ -26,9 +26,9 @@ class MaskDropout(DualTransform):
     Args:
         max_objects (int | tuple[int, int]): Maximum number of objects to dropout. If a single int is provided,
             it's treated as the upper bound. If a tuple of two ints is provided, it's treated as a range [min, max].
-        image_fill_value (float | str | Literal["inpaint"]): Value to fill the dropped out regions in the image.
+        fill (float | str | Literal["inpaint"]): Value to fill the dropped out regions in the image.
             If set to 'inpaint', it applies inpainting to the dropped out regions (works only for 3-channel images).
-        mask_fill_value (float | int): Value to fill the dropped out regions in the mask.
+        fill_mask (float | int): Value to fill the dropped out regions in the mask.
         min_area (float): Minimum area (in pixels) of a bounding box that must remain visible after dropout to be kept.
             Only applicable if bounding box augmentation is enabled. Default: 0.0
         min_visibility (float): Minimum visibility ratio (visible area / total area) of a bounding box after dropout
@@ -74,21 +74,26 @@ class MaskDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_objects: OnePlusIntRangeType
 
-        image_fill_value: float | Literal["inpaint"]
-        mask_fill_value: Real
+        image_fill_value: float | Literal["inpaint"] | None = Field(deprecated="Deprecated use fill instead")
+        mask_fill_value: float | None = Field(deprecated="Deprecated use fill_mask instead")
+
+        fill: float | Literal["inpaint"]
+        fill_mask: float
 
     def __init__(
         self,
         max_objects: ScaleIntType = (1, 1),
-        image_fill_value: float | Literal["inpaint"] = 0,
-        mask_fill_value: float = 0,
-        always_apply: bool | None = None,
+        image_fill_value: float | Literal["inpaint"] | None = None,
+        mask_fill_value: float | None = None,
+        fill: float | Literal["inpaint"] = 0,
+        fill_mask: float = 0,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.max_objects = cast(tuple[int, int], max_objects)
-        self.image_fill_value = image_fill_value
-        self.mask_fill_value = mask_fill_value
+        self.fill = fill  # type: ignore[assignment]
+        self.fill_mask = fill_mask
 
     @property
     def targets_as_params(self) -> list[str]:
@@ -119,14 +124,14 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return img
 
-        if self.image_fill_value == "inpaint":
+        if self.fill == "inpaint":
             dropout_mask = dropout_mask.astype(np.uint8)
             _, _, width, height = cv2.boundingRect(dropout_mask)
             radius = min(3, max(width, height) // 2)
             return cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
 
         img = img.copy()
-        img[dropout_mask] = self.image_fill_value
+        img[dropout_mask] = self.fill
 
         return img
 
@@ -135,7 +140,7 @@ class MaskDropout(DualTransform):
             return mask
 
         mask = mask.copy()
-        mask[dropout_mask] = self.mask_fill_value
+        mask[dropout_mask] = self.fill_mask
         return mask
 
     def apply_to_bboxes(self, bboxes: np.ndarray, dropout_mask: np.ndarray | None, **params: Any) -> np.ndarray:
@@ -172,4 +177,4 @@ class MaskDropout(DualTransform):
         return fdropout.mask_dropout_keypoints(keypoints, dropout_mask)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "max_objects", "image_fill_value", "mask_fill_value"
+        return "max_objects", "fill", "fill_mask"

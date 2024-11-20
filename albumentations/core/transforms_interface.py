@@ -52,8 +52,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
-    fill_value: DropoutFillValue
-    mask_fill_value: ColorType | None
+    fill: DropoutFillValue
+    fill_mask: ColorType | None
     # replay mode params
     deterministic: bool = False
     save_key = "replay"
@@ -279,10 +279,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
-        if hasattr(self, "fill_value"):
-            params["fill_value"] = self.fill_value
-        if hasattr(self, "mask_fill_value"):
-            params["mask_fill_value"] = self.mask_fill_value
+        if hasattr(self, "fill"):
+            params["fill"] = self.fill
+        if hasattr(self, "fill_mask"):
+            params["fill_mask"] = self.fill_mask
 
         # here we expects `image` or `images` in kwargs. it's checked at Compose._check_args
         shape = kwargs["image"].shape if "image" in kwargs else kwargs["images"][0].shape

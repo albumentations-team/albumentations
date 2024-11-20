@@ -34,7 +34,7 @@
                     1,
                     1
                 ],
-                "fill_value": 0
+                "fill": 0
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.ChannelShuffle",
@@ -232,9 +232,7 @@
                     0.05
                 ],
                 "interpolation": 1,
-                "border_mode": 4,
-                "value": null,
-                "mask_value": null
+                "mode": "camera"
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.PadIfNeeded",
@@ -243,8 +241,8 @@
                 "min_height": 1024,
                 "min_width": 1024,
                 "border_mode": 4,
-                "value": null,
-                "mask_value": null
+                "fill": 0,
+                "fill_mask": 0
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.Posterize",

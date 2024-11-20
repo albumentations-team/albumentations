@@ -32,8 +32,7 @@ class GridDropout(BaseDropout):
             Default: None. If provided, overrides unit_size_range.
         random_offset (bool): Whether to offset the grid randomly between 0 and (grid unit size - hole size).
             If True, entered shift_xy is ignored and set randomly. Default: True.
-        fill_value (int | float | tuple[int | float,...] | Literal["random", "random_uniform", "inpaint_telea",
-            "inpaint_ns"]):
+        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value for the dropped pixels. Can be:
             - int or float: all channels are filled with this value
             - tuple: tuple of values for each channel
@@ -42,7 +41,7 @@ class GridDropout(BaseDropout):
             - 'inpaint_telea': uses OpenCV Telea inpainting method
             - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        mask_fill_value (int | float | tuple[int | float,...] | None): Value for the dropped pixels in mask.
+        fill_mask (ColorType | None): Value for the dropped pixels in mask.
             If None, the mask is not modified. Default: None.
         shift_xy (tuple[int, int]): Offsets of the grid start in x and y directions from (0,0) coordinate.
             Only used when random_offset is False. Default: (0, 0).
@@ -77,14 +76,14 @@ class GridDropout(BaseDropout):
         >>> aug_random = A.GridDropout(
         ...     ratio=0.3,
         ...     unit_size_range=(10, 20),
-        ...     fill_value="random_uniform",
+        ...     fill="random_uniform",
         ...     p=1.0
         ... )
         >>> # Example with inpainting
         >>> aug_inpaint = A.GridDropout(
         ...     ratio=0.3,
         ...     unit_size_range=(10, 20),
-        ...     fill_value="inpaint_ns",
+        ...     fill="inpaint_ns",
         ...     p=1.0
         ... )
         >>> transformed = aug_random(image=image, mask=mask)
@@ -108,8 +107,9 @@ class GridDropout(BaseDropout):
         shift_y: int | None = Field(ge=0)
 
         random_offset: bool
-        fill_value: DropoutFillValue
-        mask_fill_value: ColorType | None
+        fill_value: DropoutFillValue | None = Field(deprecated="Deprecated use fill instead")
+        mask_fill_value: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
+
         unit_size_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
         shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)]
 
@@ -152,15 +152,17 @@ class GridDropout(BaseDropout):
         shift_x: int | None = None,
         shift_y: int | None = None,
         random_offset: bool = True,
-        fill_value: DropoutFillValue = 0,
+        fill_value: DropoutFillValue | None = None,
         mask_fill_value: ColorType | None = None,
         unit_size_range: tuple[int, int] | None = None,
         holes_number_xy: tuple[int, int] | None = None,
         shift_xy: tuple[int, int] = (0, 0),
-        always_apply: bool | None = None,
+        fill: DropoutFillValue = 0,
+        fill_mask: ColorType | None = None,
         p: float = 0.5,
+        always_apply: bool | None = None,
     ):
-        super().__init__(fill_value=fill_value, mask_fill_value=mask_fill_value, p=p, always_apply=always_apply)
+        super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.ratio = ratio
         self.unit_size_range = unit_size_range
         self.holes_number_xy = holes_number_xy

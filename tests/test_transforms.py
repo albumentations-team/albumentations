@@ -32,7 +32,7 @@ def test_transpose_both_image_and_mask():
 def test_rotate_crop_border():
     image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
     border_value = 13
-    aug = A.Rotate(limit=(45, 45), p=1, value=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
+    aug = A.Rotate(limit=(45, 45), p=1, fill=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
     aug_img = aug(image=image)["image"]
     expected_size = int(np.round(100 / np.sqrt(2)))
     assert aug_img.shape[0] == expected_size
@@ -57,8 +57,8 @@ def test_rotate_crop_border():
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.D4: {},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -166,8 +166,8 @@ def __test_multiprocessing_support_proc(args):
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
@@ -903,7 +903,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
                 rotate_limit=rotate,
                 p=1,
                 border_mode=cv2.BORDER_CONSTANT,
-                value=0,
+                fill=0,
             )
         ),
     ],
@@ -934,7 +934,7 @@ def test_rotate_equal(img, aug_cls, angle):
     a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params, seed=42)
 
     b = A.Compose(
-        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1)],
+        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, fill=0, p=1)],
         keypoint_params=keypoint_params,
         seed=42,
     )
@@ -1183,8 +1183,8 @@ def test_image_compression_invalid_input(params):
         ({"hole_height_range": (0.1, 0.1)}, {"hole_height_range": (0.1, 0.1)}),
         ({"hole_width_range": (0.1, 0.1)}, {"hole_width_range": (0.1, 0.1)}),
         # Random fill value
-        ({"fill_value": "random"}, {"fill_value": "random"}),
-        ({"fill_value": (255, 255, 255)}, {"fill_value": (255, 255, 255)}),
+        ({"fill": "random"}, {"fill": "random"}),
+        ({"fill": (255, 255, 255)}, {"fill": (255, 255, 255)}),
         # Deprecated values handling
         ({"min_holes": 1, "max_holes": 5}, {"num_holes_range": (1, 5)}),
         ({"min_height": 2, "max_height": 6}, {"hole_height_range": (2, 6)}),
@@ -1232,8 +1232,8 @@ def test_coarse_dropout_invalid_input(params):
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.Superpixels: {
                 "p_replace": (1, 1),
@@ -1256,14 +1256,8 @@ def test_coarse_dropout_invalid_input(params):
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
             },
-            A.RandomAffine: {"degrees": 10},
             A.Affine: {"rotate": 10},
             A.Pad: {"padding": 10},
-            A.RandomRotation: {"degrees": 10},
-            A.RandomHue: {"hue": (-0.2, 0.2)},
-            A.RandomContrast: {"contrast": (0.8, 1.2)},
-            A.RandomBrightness: {"brightness": (0.8, 1.2)},
-            A.RandomSaturation: {"saturation": (0.8, 1.2)},
             A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
         },
         except_augmentations={
@@ -1318,8 +1312,8 @@ def test_change_image(augmentation_cls, params):
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.Superpixels: {
                 "p_replace": (1, 1),
@@ -1330,13 +1324,7 @@ def test_change_image(augmentation_cls, params):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.RGBShift: {"r_shift_limit": (10, 10), "g_shift_limit": (10, 10), "b_shift_limit": (10, 10)},
             A.TimeMasking: {"time_mask_param": 10},
-            A.RandomAffine: {"degrees": 10},
             A.Affine: {"rotate": 10},
-            A.RandomRotation: {"degrees": 10},
-            A.RandomHue: {"hue": (-0.2, 0.2)},
-            A.RandomContrast: {"contrast": (0.8, 1.2)},
-            A.RandomBrightness: {"brightness": (0.8, 1.2)},
-            A.RandomSaturation: {"saturation": (0.8, 1.2)},
             A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
         },
         except_augmentations={
@@ -1367,14 +1355,12 @@ def test_change_image(augmentation_cls, params):
             A.ChannelShuffle,
             A.ChromaticAberration,
             A.PlanckianJitter,
-            A.RandomPlanckianJitter,
             A.OverlayElements,
             A.FromFloat,
             A.TextImage,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.Pad,
-            A.RandomChannelDropout,
         },
     ),
 )
@@ -1456,15 +1442,15 @@ def test_downscale_invalid_input(params):
         ),
         ({"position": "top_left"}, {"position": "top_left"}),
         # Value handling when border_mode is BORDER_CONSTANT
-        ({"border_mode": cv2.BORDER_CONSTANT, "value": 255}, {"border_mode": cv2.BORDER_CONSTANT, "value": 255}),
+        ({"border_mode": cv2.BORDER_CONSTANT, "fill": 255}, {"border_mode": cv2.BORDER_CONSTANT, "fill": 255}),
         (
-            {"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0]},
-            {"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0]},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0]},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0]},
         ),
         # Mask value handling
         (
-            {"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0], "mask_value": 128},
-            {"border_mode": cv2.BORDER_CONSTANT, "mask_value": 128, "value": [0, 0, 0]},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0], "fill_mask": 128},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0], "fill_mask": 128},
         ),
     ],
 )
@@ -1557,8 +1543,8 @@ def test_random_snow_invalid_input(params):
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.PixelDistributionAdaptation: {
@@ -1866,8 +1852,8 @@ def test_random_sun_flare_invalid_input(params):
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
@@ -1884,7 +1870,6 @@ def test_random_sun_flare_invalid_input(params):
                 "read_fn": lambda x: x,
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.RandomHue: {"hue": (-0.2, 0.2)},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1928,11 +1913,11 @@ def test_return_nonzero(augmentation_cls, params):
 @pytest.mark.parametrize(
     "transform",
     [
-        A.PadIfNeeded(min_height=6, min_width=6, value=128, border_mode=cv2.BORDER_CONSTANT, p=1),
-        A.CropAndPad(px=2, pad_mode=cv2.BORDER_CONSTANT, pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
-        A.CropAndPad(percent=(0, 0.3, 0, 0), pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
-        A.Affine(translate_px={"x": -1, "y": -1}, cval=128, p=1, interpolation=cv2.INTER_NEAREST),
-        A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.PadIfNeeded(min_height=6, min_width=6, fill=128, border_mode=cv2.BORDER_CONSTANT, p=1),
+        A.CropAndPad(px=2, border_mode=cv2.BORDER_CONSTANT, fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.CropAndPad(percent=(0, 0.3, 0, 0), fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.Affine(translate_px={"x": -1, "y": -1}, fill=128, p=1, interpolation=cv2.INTER_NEAREST),
+        A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, fill=128),
     ],
 )
 @pytest.mark.parametrize("num_channels", [1, 3, 5])
@@ -1977,8 +1962,8 @@ def test_padding_color(transform, num_channels):
                 "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
-                "fill_value": 0,
+                "fill_mask": 1,
+                "fill": 0,
             },
             A.D4: {},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
@@ -2035,7 +2020,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
     keypoints = np.array([[10, 10]])
 
     transform = A.Compose(
-        [A.MaskDropout(p=1, max_objects=1, image_fill_value=0, mask_fill_value=1)],
+        [A.MaskDropout(p=1, max_objects=1, fill_mask=0, fill=1)],
         keypoint_params=A.KeypointParams(format="xy", remove_invisible=remove_invisible),
     )
 
@@ -2084,10 +2069,6 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.Perspective,
             A.RandomGridShuffle,
             A.TimeReverse,
-            A.RandomHorizontalFlip,
-            A.RandomVerticalFlip,
-            A.RandomAffine,
-            A.RandomErasing,
             A.RotateAndProject
         },
     ),
