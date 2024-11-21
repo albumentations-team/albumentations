@@ -1348,6 +1348,11 @@ def copy_make_border_with_value_extension(
     border_mode: int,
     value: ColorType,
 ) -> np.ndarray:
+    # For 0-channel images, return empty array of correct padded size
+    if img.size == 0:
+        height, width = img.shape[:2]
+        return np.zeros((height + top + bottom, width + left + right, 0), dtype=img.dtype)
+
     num_channels = get_num_channels(img)
     extended_value = extend_value(value, num_channels)
 

@@ -7,6 +7,7 @@ from tests.utils import set_seed
 
 import albumentations as A
 import math
+import cv2
 
 
 @pytest.mark.parametrize(
@@ -421,3 +422,24 @@ def test_projection_matrix_properties() -> None:
         matrix,
         rtol=1e-2,
     )
+
+def test_copy_make_border_with_value_extension_zero_channels():
+    """Test that border extension works correctly with 0-channel images."""
+    # Create a 0-channel image
+    img = np.zeros((10, 10, 0), dtype=np.uint8)
+
+    # Test with different padding values
+    result = fgeometric.copy_make_border_with_value_extension(
+        img=img,
+        top=2,
+        bottom=3,
+        left=4,
+        right=5,
+        border_mode=cv2.BORDER_CONSTANT,
+        value=0,
+    )
+
+    # Check result shape
+    assert result.shape == (15, 19, 0)  # 10+2+3, 10+4+5, 0
+    assert result.dtype == np.uint8
+    assert result.size == 0
