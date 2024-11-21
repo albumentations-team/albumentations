@@ -90,7 +90,12 @@ class Blur(ImageOnlyTransform):
         return fblur.blur(img, kernel)
 
     def get_params(self) -> dict[str, Any]:
-        return {"kernel": self.random_generator.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
+        kernel = fblur.sample_odd_from_range(
+            self.py_random,
+            self.blur_limit[0],
+            self.blur_limit[1],
+        )
+        return {"kernel": kernel}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("blur_limit",)
@@ -237,9 +242,11 @@ class MotionBlur(Blur):
         return fmain.convolve(img, kernel=kernel)
 
     def get_params(self) -> dict[str, Any]:
-        ksize = self.py_random.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))
-        if ksize <= TWO:
-            raise ValueError(f"ksize must be > 2. Got: {ksize}")
+        ksize = fblur.sample_odd_from_range(
+            self.py_random,
+            self.blur_limit[0],
+            self.blur_limit[1],
+        )
 
         angle = self.py_random.uniform(*self.angle_range)
         direction = self.py_random.uniform(*self.direction_range)
@@ -411,9 +418,11 @@ class GaussianBlur(ImageOnlyTransform):
         return fblur.gaussian_blur(img, ksize, sigma=sigma)
 
     def get_params(self) -> dict[str, float]:
-        ksize = self.py_random.randrange(self.blur_limit[0], self.blur_limit[1] + 1)
-        if ksize != 0 and ksize % 2 != 1:
-            ksize = (ksize + 1) % (self.blur_limit[1] + 1)
+        ksize = fblur.sample_odd_from_range(
+            self.py_random,
+            self.blur_limit[0],
+            self.blur_limit[1],
+        )
 
         return {"ksize": ksize, "sigma": self.py_random.uniform(*self.sigma_limit)}
 
@@ -667,7 +676,7 @@ class AdvancedBlur(ImageOnlyTransform):
         return fmain.convolve(img, kernel=kernel)
 
     def get_params(self) -> dict[str, np.ndarray]:
-        ksize = self.py_random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
+        ksize = fblur.sample_odd_from_range(self.py_random, self.blur_limit[0], self.blur_limit[1])
         sigma_x = self.py_random.uniform(*self.sigma_x_limit)
         sigma_y = self.py_random.uniform(*self.sigma_y_limit)
         angle = np.deg2rad(self.py_random.uniform(*self.rotate_limit))

@@ -9,7 +9,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore import clipped, float32_io, maybe_process_in_chunks, preserve_channel_dim
+from albucore import clipped, float32_io, maybe_process_in_chunks, preserve_channel_dim, uint8_io
 from pydantic import ValidationInfo
 
 from albumentations.augmentations.functional import convolve
@@ -26,10 +26,8 @@ def blur(img: np.ndarray, ksize: int) -> np.ndarray:
 
 
 @preserve_channel_dim
+@uint8_io
 def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
-    if img.dtype == np.float32 and ksize not in {3, 5}:
-        raise ValueError(f"Invalid ksize value {ksize}. For a float32 image the only valid ksize values are 3 and 5")
-
     blur_fn = maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
     return blur_fn(img)
 
@@ -224,3 +222,38 @@ def create_motion_kernel(
         kernel[center, center] = 1
 
     return kernel
+
+
+def sample_odd_from_range(random_state: Random, low: int, high: int) -> int:
+    """Sample an odd number from the range [low, high] (inclusive).
+
+    Args:
+        random_state: instance of random.Random
+        low: lower bound (will be converted to nearest valid odd number)
+        high: upper bound (will be converted to nearest valid odd number)
+
+    Returns:
+        Randomly sampled odd number from the range
+
+    Note:
+        - Input values will be converted to nearest valid odd numbers:
+          * Values less than 3 will become 3
+          * Even values will be rounded up to next odd number
+        - After normalization, high must be >= low
+    """
+    # Normalize low value
+    low = max(3, low + (low % 2 == 0))
+    # Normalize high value
+    high = max(3, high + (high % 2 == 0))
+
+    # Ensure high >= low after normalization
+    high = max(high, low)
+
+    if low == high:
+        return low
+
+    # Calculate number of possible odd values
+    num_odd_values = (high - low) // 2 + 1
+    # Generate random index and convert to corresponding odd number
+    rand_idx = random_state.randint(0, num_odd_values - 1)
+    return low + (2 * rand_idx)
