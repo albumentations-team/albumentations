@@ -5193,26 +5193,26 @@ class UniformParams(NoiseParamsBase):
 
 class GaussianParams(NoiseParamsBase):
     noise_type: Literal["gaussian"] = "gaussian"
-    mean_range: tuple[float, float] = Field(default=(0.0, 0.0), description="Range for mean value", ge=-1, le=1)
-    std_range: tuple[float, float] = Field(default=(0.1, 0.1), description="Range for standard deviation", ge=0, le=1)
+    mean_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=-1, max_val=1))]
+    std_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=0, max_val=1))]
 
 
 class LaplaceParams(NoiseParamsBase):
     noise_type: Literal["laplace"] = "laplace"
-    mean_range: tuple[float, float] = Field(default=(0.0, 0.0), description="Range for location parameter", ge=-1, le=1)
-    scale_range: tuple[float, float] = Field(default=(0.1, 0.1), description="Range for scale parameter", ge=0, le=1)
+    mean_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=-1, max_val=1))]
+    scale_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=0, max_val=1))]
 
 
 class BetaParams(NoiseParamsBase):
     noise_type: Literal["beta"] = "beta"
-    alpha_range: tuple[float, float] = Field(default=(2.0, 2.0), description="Range for alpha parameter", gt=0)
-    beta_range: tuple[float, float] = Field(default=(2.0, 2.0), description="Range for beta parameter", gt=0)
-    scale_range: tuple[float, float] = Field(default=(1.0, 1.0), description="Range for scale parameter", ge=0, le=1)
+    alpha_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=0))]
+    beta_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=0))]
+    scale_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=0, max_val=1))]
 
 
 class PoissonParams(NoiseParamsBase):
     noise_type: Literal["poisson"] = "poisson"
-    lambda_range: tuple[float, float] = Field(default=(1.0, 1.0), description="Range for lambda parameter", gt=0)
+    lambda_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(min_val=0))]
 
 
 NoiseParams = Annotated[
