@@ -225,7 +225,7 @@ class MotionBlur(Blur):
         blur_limit: ScaleIntType = 7,
         allow_shifted: bool = True,
         angle_range: tuple[float, float] = (0, 360),
-        direction_range: tuple[float, float] = (-1.0, 1.0),
+        direction_range: tuple[float, float] = (-0.5, 0.5),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
