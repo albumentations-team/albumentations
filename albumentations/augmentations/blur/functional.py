@@ -196,7 +196,9 @@ def create_motion_kernel(
 
     # Apply direction bias
     if direction != 0:
-        t = t * (1 + direction)
+        t = t * (1 + abs(direction))
+        if direction < 0:
+            t = t * -1
 
     # Generate line coordinates
     x = center + dx * t
