@@ -189,7 +189,7 @@ class HubMixin:
         # download the file from the Hub
         try:
             config_file = hf_hub_download(
-                repo_id=directory_or_repo_id,
+                repo_id=str(directory_or_repo_id),
                 filename=filename,
                 revision=revision,
                 cache_dir=cache_dir,
