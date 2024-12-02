@@ -10,9 +10,9 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.types import Targets
 
 __all__ = [
-    "TimeReverse",
-    "TimeMasking",
     "FrequencyMasking",
+    "TimeMasking",
+    "TimeReverse",
 ]
 
 

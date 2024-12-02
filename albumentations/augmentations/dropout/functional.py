@@ -18,13 +18,13 @@ from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType, DropoutFillValue, InpaintMethod
 
 __all__ = [
-    "cutout",
-    "channel_dropout",
-    "filter_keypoints_in_holes",
-    "generate_random_fill",
-    "filter_bboxes_by_holes",
     "calculate_grid_dimensions",
+    "channel_dropout",
+    "cutout",
+    "filter_bboxes_by_holes",
+    "filter_keypoints_in_holes",
     "generate_grid_holes",
+    "generate_random_fill",
 ]
 
 

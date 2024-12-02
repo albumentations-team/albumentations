@@ -19,7 +19,7 @@ except ImportError:
 
 from albumentations import __version__
 
-__all__ = ["to_dict", "from_dict", "save", "load"]
+__all__ = ["from_dict", "load", "save", "to_dict"]
 
 
 SERIALIZABLE_REGISTRY: dict[str, SerializableMeta] = {}

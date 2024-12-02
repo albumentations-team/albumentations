@@ -154,7 +154,7 @@ class XYMasking(BaseDropout):
         max_length: tuple[int, int] | None,
         axis: str,
     ) -> list[tuple[int, int, int, int]]:
-        if max_length is None or max_length == 0 or isinstance(num_masks, (int, float)) and num_masks == 0:
+        if max_length is None or max_length == 0 or (isinstance(num_masks, (int, float)) and num_masks == 0):
             return []
 
         masks = []

@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
+    add,
     add_array,
     add_constant,
     add_weighted,
@@ -49,9 +50,9 @@ from albumentations.core.types import (
 
 __all__ = [
     "add_fog",
+    "add_gravel",
     "add_rain",
     "add_shadow",
-    "add_gravel",
     "add_snow_bleach",
     "add_snow_texture",
     "add_sun_flare_overlay",
@@ -61,10 +62,13 @@ __all__ = [
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
     "channel_shuffle",
+    "chromatic_aberration",
     "clahe",
     "convolve",
+    "dilate",
     "downscale",
     "equalize",
+    "erode",
     "fancy_pca",
     "gamma_transform",
     "image_compression",
@@ -79,9 +83,6 @@ __all__ = [
     "superpixels",
     "to_gray",
     "unsharp_mask",
-    "chromatic_aberration",
-    "erode",
-    "dilate",
 ]
 
 
@@ -1828,7 +1829,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody
 
 @clipped
 def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
-    return add_array(img, noise, inplace=False)
+    return add(img, noise, inplace=False)
 
 
 def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iterations: int = 10) -> np.ndarray:
@@ -1983,7 +1984,7 @@ def get_safe_brightness_contrast_params(
 
 
 def generate_noise(
-    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta"],
     spatial_mode: Literal["constant", "per_pixel", "shared"],
     shape: tuple[int, ...],
     params: dict[str, Any] | None,
@@ -2019,7 +2020,7 @@ def generate_noise(
 
 
 def generate_constant_noise(
-    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta"],
     shape: tuple[int, ...],
     params: dict[str, Any],
     max_value: float,
@@ -2031,7 +2032,7 @@ def generate_constant_noise(
 
 
 def generate_per_pixel_noise(
-    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta"],
     shape: tuple[int, ...],
     params: dict[str, Any],
     max_value: float,
@@ -2042,7 +2043,7 @@ def generate_per_pixel_noise(
 
 
 def sample_noise(
-    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta"],
     size: tuple[int, ...],
     params: dict[str, Any],
     max_value: float,
@@ -2057,21 +2058,40 @@ def sample_noise(
         return sample_laplace(size, params, random_generator) * max_value
     if noise_type == "beta":
         return sample_beta(size, params, random_generator) * max_value
-    if noise_type == "poisson":
-        return sample_poisson(size, params, random_generator, max_value)
 
     raise ValueError(f"Unknown noise type: {noise_type}")
 
 
-def sample_uniform(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
-    """Sample from uniform distribution."""
+def sample_uniform(
+    size: tuple[int, ...],
+    params: dict[str, Any],
+    random_generator: np.random.Generator,
+) -> np.ndarray | float:
+    """Sample from uniform distribution.
+
+    Args:
+        size: Output shape. If length is 1, generates constant noise per channel.
+        params: Must contain 'ranges' key with list of (min, max) tuples.
+            If only one range is provided, it will be used for all channels.
+        random_generator: NumPy random generator instance
+
+    Returns:
+        Noise array of specified size. For single-channel constant mode,
+        returns scalar instead of array with shape (1,).
+    """
     if len(size) == 1:  # constant mode
-        if len(params["ranges"]) < size[0]:
-            raise ValueError(f"Not enough ranges provided. Expected {size[0]}, got {len(params['ranges'])}")
-        return np.array([random_generator.uniform(low, high) for low, high in params["ranges"][: size[0]]])
+        ranges = params["ranges"]
+        num_channels = size[0]
+
+        if len(ranges) == 1:
+            ranges = ranges * num_channels
+        elif len(ranges) < num_channels:
+            raise ValueError(f"Not enough ranges provided. Expected {num_channels}, got {len(ranges)}")
+
+        return np.array([random_generator.uniform(low, high) for low, high in ranges[:num_channels]])
 
     # use first range for spatial noise
-    low, high = params["ranges"][0]  # use first range for spatial noise
+    low, high = params["ranges"][0]
     return random_generator.uniform(low, high, size=size)
 
 
@@ -2108,35 +2128,8 @@ def sample_beta(size: tuple[int, ...], params: dict[str, Any], random_generator:
     return (2 * samples - 1) * scale
 
 
-def sample_poisson(
-    size: tuple[int, ...],
-    params: dict[str, Any],
-    random_generator: np.random.Generator,
-    max_value: float,
-) -> np.ndarray:
-    """Sample from Poisson distribution.
-
-    For uint8 images (max_value=255), lambda is scaled accordingly as Poisson noise
-    is intensity-dependent.
-    """
-    lam = random_generator.uniform(*params["lambda_range"])
-
-    # Scale lambda based on max_value as Poisson noise is intensity-dependent
-    scaled_lam = lam * max_value
-
-    # Generate Poisson samples
-    samples = random_generator.poisson(lam=scaled_lam, size=size)
-
-    # Center around 0 and normalize by standard deviation
-    # For Poisson, variance = lambda
-    noise = (samples - scaled_lam) / np.sqrt(scaled_lam)
-
-    # Scale to match max_value range
-    return np.clip(noise * max_value, -max_value, max_value)
-
-
 def generate_shared_noise(
-    noise_type: Literal["uniform", "gaussian", "laplace", "beta", "poisson"],
+    noise_type: Literal["uniform", "gaussian", "laplace", "beta"],
     shape: tuple[int, ...],
     params: dict[str, Any],
     max_value: float,

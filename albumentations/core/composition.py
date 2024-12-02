@@ -25,16 +25,16 @@ from .utils import DataProcessor, format_args, get_shape
 
 __all__ = [
     "BaseCompose",
+    "BboxParams",
     "Compose",
-    "SomeOf",
+    "KeypointParams",
     "OneOf",
     "OneOrOther",
-    "BboxParams",
-    "KeypointParams",
-    "ReplayCompose",
-    "Sequential",
-    "SelectiveChannelTransform",
     "RandomOrder",
+    "ReplayCompose",
+    "SelectiveChannelTransform",
+    "Sequential",
+    "SomeOf",
 ]
 
 NUM_ONEOF_TRANSFORMS = 2

@@ -21,8 +21,8 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema, Ba
 from albumentations.core.types import ScaleFloatType
 
 __all__ = [
-    "HistogramMatching",
     "FDA",
+    "HistogramMatching",
     "PixelDistributionAdaptation",
     "TemplateTransform",
 ]

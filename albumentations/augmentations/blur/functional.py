@@ -16,7 +16,7 @@ from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
 from albumentations.core.types import EIGHT, ScaleIntType
 
-__all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur", "defocus", "central_zoom", "zoom_blur"]
+__all__ = ["blur", "central_zoom", "defocus", "gaussian_blur", "glass_blur", "median_blur", "zoom_blur"]
 
 
 @preserve_channel_dim

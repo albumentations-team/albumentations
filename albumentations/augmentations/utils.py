@@ -20,11 +20,11 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "read_bgr_image",
-    "read_rgb_image",
-    "read_grayscale",
     "angle_2pi_range",
     "non_rgb_error",
+    "read_bgr_image",
+    "read_grayscale",
+    "read_rgb_image",
 ]
 
 P = ParamSpec("P")

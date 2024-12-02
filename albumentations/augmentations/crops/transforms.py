@@ -38,17 +38,17 @@ from albumentations.core.types import (
 from . import functional as fcrops
 
 __all__ = [
-    "RandomCrop",
+    "BBoxSafeRandomCrop",
     "CenterCrop",
     "Crop",
-    "CropNonEmptyMaskIfExists",
-    "RandomSizedCrop",
-    "RandomResizedCrop",
-    "RandomCropNearBBox",
-    "RandomSizedBBoxSafeCrop",
     "CropAndPad",
+    "CropNonEmptyMaskIfExists",
+    "RandomCrop",
     "RandomCropFromBorders",
-    "BBoxSafeRandomCrop",
+    "RandomCropNearBBox",
+    "RandomResizedCrop",
+    "RandomSizedBBoxSafeCrop",
+    "RandomSizedCrop",
 ]
 
 
