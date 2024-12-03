@@ -70,6 +70,7 @@ from albumentations.core.transforms_interface import (
     NoOp,
 )
 from albumentations.core.types import (
+    EIGHT,
     MAX_RAIN_ANGLE,
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
@@ -2148,6 +2149,8 @@ class Posterize(ImageOnlyTransform):
             num_bits: Any,
         ) -> tuple[int, int] | list[tuple[int, int]]:
             if isinstance(num_bits, int):
+                if num_bits < 1 or num_bits > EIGHT:
+                    raise ValueError("num_bits must be in the range [1, 8]")
                 return (num_bits, num_bits)
             if isinstance(num_bits, Sequence) and len(num_bits) > PAIR:
                 return [to_tuple(i, i) for i in num_bits]
