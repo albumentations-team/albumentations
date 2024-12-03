@@ -22,7 +22,7 @@ from albumentations.core.utils import to_tuple
 
 from . import functional as fblur
 
-__all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur", "MedianBlur", "Defocus", "ZoomBlur"]
+__all__ = ["AdvancedBlur", "Blur", "Defocus", "GaussianBlur", "GlassBlur", "MedianBlur", "MotionBlur", "ZoomBlur"]
 
 
 HALF = 0.5

@@ -128,8 +128,7 @@ format.skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 lint.select = [ "ALL" ]
 lint.ignore = [
-  "ANN101",
-  "ANN102",
+  "ANN001",
   "ANN204",
   "ANN401",
   "ARG001",
@@ -156,9 +155,9 @@ lint.ignore = [
   "PLR0913",
   "PTH123",
   "S311",
-  "TCH001",
-  "TCH002",
-  "TCH003",
+  "TC001",
+  "TC002",
+  "TC003",
   "TRY003",
 ]
 

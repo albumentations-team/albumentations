@@ -20,7 +20,7 @@ from albumentations.core.types import (
 
 from . import functional as fgeometric
 
-__all__ = ["Rotate", "RandomRotate90", "SafeRotate", "RotateAndProject"]
+__all__ = ["RandomRotate90", "Rotate", "RotateAndProject", "SafeRotate"]
 
 SMALL_NUMBER = 1e-10
 

@@ -14,9 +14,9 @@ from albumentations.augmentations.utils import PCA
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
 
 __all__ = [
-    "fourier_domain_adaptation",
-    "apply_histogram",
     "adapt_pixel_distribution",
+    "apply_histogram",
+    "fourier_domain_adaptation",
 ]
 
 

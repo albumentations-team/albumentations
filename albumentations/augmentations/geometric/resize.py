@@ -14,7 +14,7 @@ from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
 
-__all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
+__all__ = ["LongestMaxSize", "RandomScale", "Resize", "SmallestMaxSize"]
 
 
 class RandomScale(DualTransform):

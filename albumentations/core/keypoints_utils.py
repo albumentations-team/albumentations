@@ -11,13 +11,13 @@ from albumentations.core.types import NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS, P
 from .utils import DataProcessor, Params
 
 __all__ = [
+    "KeypointParams",
+    "KeypointsProcessor",
     "angle_to_2pi_range",
     "check_keypoints",
     "convert_keypoints_from_albumentations",
     "convert_keypoints_to_albumentations",
     "filter_keypoints",
-    "KeypointsProcessor",
-    "KeypointParams",
 ]
 
 keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
