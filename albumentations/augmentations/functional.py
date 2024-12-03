@@ -172,7 +172,7 @@ def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndar
 
     Args:
         img: image to posterize.
-        bits: number of high bits. Must be in range [0, 8]
+        bits: number of high bits. Must be in range [1, 8]
 
     Returns:
         Image with reduced color channels.

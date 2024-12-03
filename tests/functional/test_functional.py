@@ -18,7 +18,6 @@ from albumentations.core.types import d4_group_elements
 from tests.conftest import (
     IMAGES,
     RECTANGULAR_IMAGES,
-    RECTANGULAR_UINT8_IMAGE,
     SQUARE_UINT8_IMAGE,
     UINT8_IMAGES,
 )
