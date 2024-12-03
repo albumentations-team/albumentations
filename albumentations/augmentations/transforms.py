@@ -2079,8 +2079,8 @@ class Posterize(ImageOnlyTransform):
     Args:
         num_bits (int | tuple[int, int] | list[int] | list[tuple[int, int]]):
             Defines the number of bits to keep for each color channel. Can be specified in several ways:
-            - Single int: Same number of bits for all channels. Range: [0, 8].
-            - tuple of two ints: (min_bits, max_bits) to randomly choose from. Range for each: [0, 8].
+            - Single int: Same number of bits for all channels. Range: [1, 8].
+            - tuple of two ints: (min_bits, max_bits) to randomly choose from. Range for each: [1, 8].
             - list of three ints: Specific number of bits for each channel [r_bits, g_bits, b_bits].
             - list of three tuples: Ranges for each channel [(r_min, r_max), (g_min, g_max), (b_min, b_max)].
             Default: 4
@@ -2139,10 +2139,7 @@ class Posterize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        num_bits: Annotated[
-            int | tuple[int, int] | list[tuple[int, int]],
-            Field(default=4, description="Number of high bits"),
-        ]
+        num_bits: int | tuple[int, int] | list[tuple[int, int]]
 
         @field_validator("num_bits")
         @classmethod
@@ -2151,10 +2148,10 @@ class Posterize(ImageOnlyTransform):
             num_bits: Any,
         ) -> tuple[int, int] | list[tuple[int, int]]:
             if isinstance(num_bits, int):
-                return to_tuple(num_bits, num_bits)
-            if isinstance(num_bits, Sequence):
-                return [to_tuple(i, 0) for i in num_bits]
-            return cast(tuple[int, int], to_tuple(num_bits, 0))
+                return (num_bits, num_bits)
+            if isinstance(num_bits, Sequence) and len(num_bits) > PAIR:
+                return [to_tuple(i, i) for i in num_bits]
+            return cast(tuple[int, int], to_tuple(num_bits, num_bits))
 
     def __init__(
         self,
@@ -2163,21 +2160,16 @@ class Posterize(ImageOnlyTransform):
         always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.num_bits = cast(Union[tuple[int, ...], list[tuple[int, ...]]], num_bits)
+        self.num_bits = cast(Union[tuple[int, int], list[tuple[int, int]]], num_bits)
 
     def apply(self, img: np.ndarray, num_bits: int, **params: Any) -> np.ndarray:
         return fmain.posterize(img, num_bits)
 
     def get_params(self) -> dict[str, Any]:
         if isinstance(self.num_bits, list):
-            num_bits = [self.py_random.randint(int(i[0]), int(i[1])) for i in self.num_bits]
+            num_bits = [self.py_random.randint(*i) for i in self.num_bits]
             return {"num_bits": num_bits}
-        return {
-            "num_bits": self.py_random.randint(
-                int(self.num_bits[0]),
-                int(self.num_bits[1]),
-            ),
-        }
+        return {"num_bits": self.py_random.randint(*self.num_bits)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("num_bits",)

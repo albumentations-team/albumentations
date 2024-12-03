@@ -88,7 +88,12 @@ __all__ = [
 
 @uint8_io
 @preserve_channel_dim
-def shift_hsv(img: np.ndarray, hue_shift: float, sat_shift: float, val_shift: float) -> np.ndarray:
+def shift_hsv(
+    img: np.ndarray,
+    hue_shift: float,
+    sat_shift: float,
+    val_shift: float,
+) -> np.ndarray:
     if hue_shift == 0 and sat_shift == 0 and val_shift == 0:
         return img
 
@@ -162,7 +167,7 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
 
 @uint8_io
 @clipped
-def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndarray:
+def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
     Args:
@@ -176,8 +181,6 @@ def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.n
     bits_array = np.uint8(bits)
 
     if not bits_array.shape or len(bits_array) == 1:
-        if bits_array == 0:
-            return np.zeros_like(img)
         if bits_array == EIGHT:
             return img
 
@@ -189,9 +192,7 @@ def posterize(img: np.ndarray, bits: Literal[0, 1, 2, 3, 4, 5, 6, 7, 8]) -> np.n
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits_array):
-        if channel_bits == 0:
-            result_img[..., i] = np.zeros_like(img[..., i])
-        elif channel_bits == EIGHT:
+        if channel_bits == EIGHT:
             result_img[..., i] = img[..., i].copy()
         else:
             lut = np.arange(0, 256, dtype=np.uint8)
@@ -251,10 +252,16 @@ def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     return sz_lut(img, lut, inplace=True)
 
 
-def _check_preconditions(img: np.ndarray, mask: np.ndarray | None, by_channels: bool) -> None:
+def _check_preconditions(
+    img: np.ndarray,
+    mask: np.ndarray | None,
+    by_channels: bool,
+) -> None:
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
-            raise ValueError(f"Wrong mask shape. Image shape: {img.shape}. Mask shape: {mask.shape}")
+            raise ValueError(
+                f"Wrong mask shape. Image shape: {img.shape}. Mask shape: {mask.shape}",
+            )
         if not by_channels and not is_grayscale_image(mask):
             msg = f"When by_channels=False only 1-channel mask supports. Mask shape: {mask.shape}"
             raise ValueError(msg)
@@ -356,7 +363,11 @@ def move_tone_curve(
     """
     t = np.linspace(0.0, 1.0, 256)
 
-    def evaluate_bez(t: np.ndarray, low_y: float | np.ndarray, high_y: float | np.ndarray) -> np.ndarray:
+    def evaluate_bez(
+        t: np.ndarray,
+        low_y: float | np.ndarray,
+        high_y: float | np.ndarray,
+    ) -> np.ndarray:
         one_minus_t = 1 - t
         return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
 
@@ -366,7 +377,11 @@ def move_tone_curve(
         lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8, inplace=False)
         return sz_lut(img, lut, inplace=False)
     if isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
-        luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8, inplace=False)
+        luts = clip(
+            np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T),
+            np.uint8,
+            inplace=False,
+        )
         return cv2.merge(
             [sz_lut(img[:, :, i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
         )
@@ -377,13 +392,20 @@ def move_tone_curve(
 
 
 @clipped
-def linear_transformation_rgb(img: np.ndarray, transformation_matrix: np.ndarray) -> np.ndarray:
+def linear_transformation_rgb(
+    img: np.ndarray,
+    transformation_matrix: np.ndarray,
+) -> np.ndarray:
     return cv2.transform(img, transformation_matrix)
 
 
 @uint8_io
 @preserve_channel_dim
-def clahe(img: np.ndarray, clip_limit: float, tile_grid_size: tuple[int, int]) -> np.ndarray:
+def clahe(
+    img: np.ndarray,
+    clip_limit: float,
+    tile_grid_size: tuple[int, int],
+) -> np.ndarray:
     """Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
 
     This function enhances the contrast of the input image using CLAHE. For color images,
@@ -436,7 +458,11 @@ def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 
 @uint8_io
 @preserve_channel_dim
-def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"]) -> np.ndarray:
+def image_compression(
+    img: np.ndarray,
+    quality: int,
+    image_type: Literal[".jpg", ".webp"],
+) -> np.ndarray:
     """Apply compression to image.
 
     Args:
@@ -493,7 +519,11 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
 
 
 @uint8_io
-def add_snow_bleach(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
+def add_snow_bleach(
+    img: np.ndarray,
+    snow_point: float,
+    brightness_coeff: float,
+) -> np.ndarray:
     """Adds a simple snow effect to the image by bleaching out pixels.
 
     This function simulates a basic snow effect by increasing the brightness of pixels
@@ -644,7 +674,11 @@ def add_snow_texture(
     img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
 
     # Increase brightness
-    img_hsv[:, :, 2] = np.clip(img_hsv[:, :, 2] * (1 + brightness_coeff * snow_point), 0, max_value)
+    img_hsv[:, :, 2] = np.clip(
+        img_hsv[:, :, 2] * (1 + brightness_coeff * snow_point),
+        0,
+        max_value,
+    )
 
     # Generate snow texture
     snow_texture = cv2.GaussianBlur(snow_texture, (0, 0), sigmaX=1, sigmaY=1)
@@ -658,7 +692,9 @@ def add_snow_texture(
     snow_texture *= depth_effect
 
     # Apply snow texture
-    snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_point).astype(np.float32)
+    snow_layer = (np.dstack([snow_texture] * 3) * max_value * snow_point).astype(
+        np.float32,
+    )
 
     # Blend snow with original image
     img_with_snow = cv2.add(img_hsv, snow_layer)
@@ -666,7 +702,13 @@ def add_snow_texture(
     # Add a slight blue tint to simulate cool snow color
     blue_tint = np.full_like(img_with_snow, (0.6, 0.75, 1))  # Slight blue in HSV
 
-    img_with_snow = cv2.addWeighted(img_with_snow, 0.85, blue_tint, 0.15 * snow_point, 0)
+    img_with_snow = cv2.addWeighted(
+        img_with_snow,
+        0.85,
+        blue_tint,
+        0.15 * snow_point,
+        0,
+    )
 
     # Convert back to RGB
     img_with_snow = cv2.cvtColor(img_with_snow.astype(np.uint8), cv2.COLOR_HSV2RGB)
@@ -989,8 +1031,18 @@ def add_sun_flare_physics_based(
 
     # Add chromatic aberration
     channels = list(cv2.split(flare_layer))
-    channels[0] = cv2.GaussianBlur(channels[0], (0, 0), sigmaX=3, sigmaY=3)  # Blue channel
-    channels[2] = cv2.GaussianBlur(channels[2], (0, 0), sigmaX=5, sigmaY=5)  # Red channel
+    channels[0] = cv2.GaussianBlur(
+        channels[0],
+        (0, 0),
+        sigmaX=3,
+        sigmaY=3,
+    )  # Blue channel
+    channels[2] = cv2.GaussianBlur(
+        channels[2],
+        (0, 0),
+        sigmaX=5,
+        sigmaY=5,
+    )  # Red channel
     flare_layer = cv2.merge(channels)
 
     # Blend the flare with the original image using screen blending
@@ -999,7 +1051,11 @@ def add_sun_flare_physics_based(
 
 @uint8_io
 @preserve_channel_dim
-def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np.ndarray) -> np.ndarray:
+def add_shadow(
+    img: np.ndarray,
+    vertices_list: list[np.ndarray],
+    intensities: np.ndarray,
+) -> np.ndarray:
     """Add shadows to the image by reducing the intensity of the pixel values in specified regions.
 
     Args:
@@ -1102,11 +1158,21 @@ def iso_noise(
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_generator.poisson(stddev[1] * intensity, size=hls.shape[:2])
-    color_noise = random_generator.normal(0, color_shift * intensity, size=hls.shape[:2])
+    luminance_noise = random_generator.poisson(
+        stddev[1] * intensity,
+        size=hls.shape[:2],
+    )
+    color_noise = random_generator.normal(
+        0,
+        color_shift * intensity,
+        size=hls.shape[:2],
+    )
 
     hls[..., 0] += color_noise
-    hls[..., 1] = add_array(hls[..., 1], luminance_noise * intensity * (1.0 - hls[..., 1]))
+    hls[..., 1] = add_array(
+        hls[..., 1],
+        luminance_noise * intensity * (1.0 - hls[..., 1]),
+    )
 
     noised_hls = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)
     return np.clip(noised_hls, 0, 1, out=noised_hls)  # Ensure output is in [0, 1] range
@@ -1302,7 +1368,14 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
 def to_gray(
     img: np.ndarray,
     num_output_channels: int,
-    method: Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"],
+    method: Literal[
+        "weighted_average",
+        "from_lab",
+        "desaturation",
+        "average",
+        "max",
+        "pca",
+    ],
 ) -> np.ndarray:
     if method == "weighted_average":
         result = to_gray_weighted_average(img)
@@ -1322,7 +1395,10 @@ def to_gray(
     return grayscale_to_multichannel(result, num_output_channels)
 
 
-def grayscale_to_multichannel(grayscale_image: np.ndarray, num_output_channels: int = 3) -> np.ndarray:
+def grayscale_to_multichannel(
+    grayscale_image: np.ndarray,
+    num_output_channels: int = 3,
+) -> np.ndarray:
     """Convert a grayscale image to a multi-channel image.
 
     This function takes a 2D grayscale image or a 3D image with a single channel
@@ -1363,7 +1439,13 @@ def downscale(
     if need_cast:
         img = to_float(img)
 
-    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
+    downscaled = cv2.resize(
+        img,
+        None,
+        fx=scale,
+        fy=scale,
+        interpolation=down_interpolation,
+    )
     upscaled = cv2.resize(downscaled, (width, height), interpolation=up_interpolation)
 
     return from_float(upscaled, target_dtype=np.uint8) if need_cast else upscaled
@@ -1434,7 +1516,10 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
         eig_vecs = eig_vecs[:, sort_perm]
 
         # Create noise vector
-        noise = np.dot(np.dot(eig_vecs, np.diag(alpha_vector * eig_vals)), img_centered.T).T
+        noise = np.dot(
+            np.dot(eig_vecs, np.diag(alpha_vector * eig_vals)),
+            img_centered.T,
+        ).T
 
     # Add noise to the image
     img_pca = img_reshaped + noise
@@ -1473,7 +1558,11 @@ def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
 
 @clipped
 @preserve_channel_dim
-def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float = 0) -> np.ndarray:
+def adjust_saturation_torchvision(
+    img: np.ndarray,
+    factor: float,
+    gamma: float = 0,
+) -> np.ndarray:
     if factor == 1 or is_grayscale_image(img):
         return img
 
@@ -1581,7 +1670,11 @@ def unsharp_mask(
     alpha: float = 0.2,
     threshold: int = 10,
 ) -> np.ndarray:
-    blur_fn = maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+    blur_fn = maybe_process_in_chunks(
+        cv2.GaussianBlur,
+        ksize=(ksize, ksize),
+        sigmaX=sigma,
+    )
 
     if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and get_num_channels(image) == 1:
         image = np.squeeze(image, axis=-1)
@@ -1599,11 +1692,19 @@ def unsharp_mask(
 
     soft_mask = blur_fn(mask)
 
-    return add_array(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask), inplace=True)
+    return add_array(
+        multiply(sharp, soft_mask),
+        multiply(image, 1 - soft_mask),
+        inplace=True,
+    )
 
 
 @preserve_channel_dim
-def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: float | Sequence[float]) -> np.ndarray:
+def pixel_dropout(
+    image: np.ndarray,
+    drop_mask: np.ndarray,
+    drop_value: float | Sequence[float],
+) -> np.ndarray:
     if isinstance(drop_value, (int, float)) and drop_value == 0:
         drop_values = np.zeros_like(image)
     else:
@@ -1660,8 +1761,14 @@ def chromatic_aberration(
     camera_mat[1, 2] = height / 2.0
 
     # Build distortion coefficients
-    distortion_coeffs_red = np.array([primary_distortion_red, secondary_distortion_red, 0, 0], dtype=np.float32)
-    distortion_coeffs_blue = np.array([primary_distortion_blue, secondary_distortion_blue, 0, 0], dtype=np.float32)
+    distortion_coeffs_red = np.array(
+        [primary_distortion_red, secondary_distortion_red, 0, 0],
+        dtype=np.float32,
+    )
+    distortion_coeffs_blue = np.array(
+        [primary_distortion_blue, secondary_distortion_blue, 0, 0],
+        dtype=np.float32,
+    )
 
     # Distort the red and blue channels
     red_distorted = _distort_channel(
@@ -1719,7 +1826,11 @@ def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return cv2.dilate(img, kernel, iterations=1)
 
 
-def morphology(img: np.ndarray, kernel: np.ndarray, operation: Literal["dilation", "erosion"]) -> np.ndarray:
+def morphology(
+    img: np.ndarray,
+    kernel: np.ndarray,
+    operation: Literal["dilation", "erosion"],
+) -> np.ndarray:
     if operation == "dilation":
         return dilate(img, kernel)
     if operation == "erosion":
@@ -1799,7 +1910,11 @@ PLANCKIAN_COEFFS: dict[str, dict[int, list[float]]] = {
 
 
 @clipped
-def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody", "cied"]) -> np.ndarray:
+def planckian_jitter(
+    img: np.ndarray,
+    temperature: int,
+    mode: Literal["blackbody", "cied"],
+) -> np.ndarray:
     img = img.copy()
     # Get the min and max temperatures for the given mode
     min_temp = min(PLANCKIAN_COEFFS[mode].keys())
@@ -1810,8 +1925,14 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody
 
     # Linearly interpolate between 2 closest temperatures
     step = 500
-    t_left = max((temperature // step) * step, min_temp)  # Ensure t_left doesn't go below min_temp
-    t_right = min((temperature // step + 1) * step, max_temp)  # Ensure t_right doesn't exceed max_temp
+    t_left = max(
+        (temperature // step) * step,
+        min_temp,
+    )  # Ensure t_left doesn't go below min_temp
+    t_right = min(
+        (temperature // step + 1) * step,
+        max_temp,
+    )  # Ensure t_right doesn't exceed max_temp
 
     # Handle the case where temperature is at or near min_temp or max_temp
     if t_left == t_right:
@@ -1819,10 +1940,20 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody
     else:
         w_right = (temperature - t_left) / (t_right - t_left)
         w_left = 1 - w_right
-        coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
+        coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(
+            PLANCKIAN_COEFFS[mode][t_right],
+        )
 
-    img[:, :, 0] = multiply_by_constant(img[:, :, 0], coeffs[0] / coeffs[1], inplace=True)
-    img[:, :, 2] = multiply_by_constant(img[:, :, 2], coeffs[2] / coeffs[1], inplace=True)
+    img[:, :, 0] = multiply_by_constant(
+        img[:, :, 0],
+        coeffs[0] / coeffs[1],
+        inplace=True,
+    )
+    img[:, :, 2] = multiply_by_constant(
+        img[:, :, 2],
+        coeffs[2] / coeffs[1],
+        inplace=True,
+    )
 
     return img
 
@@ -1832,7 +1963,12 @@ def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
     return add(img, noise, inplace=False)
 
 
-def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iterations: int = 10) -> np.ndarray:
+def slic(
+    image: np.ndarray,
+    n_segments: int,
+    compactness: float = 10.0,
+    max_iterations: int = 10,
+) -> np.ndarray:
     """Simple Linear Iterative Clustering (SLIC) superpixel segmentation using OpenCV and NumPy.
 
     Args:
@@ -1857,7 +1993,9 @@ def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iter
     grid_step = int((num_pixels / n_segments) ** 0.5)
     x_range = np.arange(grid_step // 2, width, grid_step)
     y_range = np.arange(grid_step // 2, height, grid_step)
-    centers = np.array([(x, y) for y in y_range for x in x_range if x < width and y < height])
+    centers = np.array(
+        [(x, y) for y in y_range for x in x_range if x < width and y < height],
+    )
 
     # Initialize labels and distances
     labels = -1 * np.ones((height, width), dtype=np.int32)
@@ -1896,7 +2034,11 @@ def slic(image: np.ndarray, n_segments: int, compactness: float = 10.0, max_iter
 
 @preserve_channel_dim
 @float32_io
-def shot_noise(img: np.ndarray, scale: float, random_generator: np.random.Generator) -> np.ndarray:
+def shot_noise(
+    img: np.ndarray,
+    scale: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
     """Apply shot noise to the image by simulating photon counting in linear light space.
 
     This function simulates photon shot noise, which occurs due to the quantum nature of light.
@@ -1944,7 +2086,11 @@ def shot_noise(img: np.ndarray, scale: float, random_generator: np.random.Genera
     scaled_img = (img_linear + scale * 1e-6) / scale
 
     # Generate Poisson noise
-    noisy_img = multiply_by_constant(random_generator.poisson(scaled_img).astype(np.float32), scale, inplace=True)
+    noisy_img = multiply_by_constant(
+        random_generator.poisson(scaled_img).astype(np.float32),
+        scale,
+        inplace=True,
+    )
 
     # Scale back and apply gamma correction
     return power(np.clip(noisy_img, 0, 1, out=noisy_img), 1 / 2.2)
@@ -1996,12 +2142,30 @@ def generate_noise(
         return np.zeros(shape, dtype=np.float32)
     """Generate noise with optional approximation for speed."""
     if spatial_mode == "constant":
-        return generate_constant_noise(noise_type, shape, params, max_value, random_generator)
+        return generate_constant_noise(
+            noise_type,
+            shape,
+            params,
+            max_value,
+            random_generator,
+        )
 
     if approximation == 1.0:
         if spatial_mode == "shared":
-            return generate_shared_noise(noise_type, shape, params, max_value, random_generator)
-        return generate_per_pixel_noise(noise_type, shape, params, max_value, random_generator)
+            return generate_shared_noise(
+                noise_type,
+                shape,
+                params,
+                max_value,
+                random_generator,
+            )
+        return generate_per_pixel_noise(
+            noise_type,
+            shape,
+            params,
+            max_value,
+            random_generator,
+        )
 
     # Calculate reduced size for noise generation
     height, width = shape[:2]
@@ -2011,9 +2175,21 @@ def generate_noise(
 
     # Generate noise at reduced resolution
     if spatial_mode == "shared":
-        noise = generate_shared_noise(noise_type, reduced_shape, params, max_value, random_generator)
+        noise = generate_shared_noise(
+            noise_type,
+            reduced_shape,
+            params,
+            max_value,
+            random_generator,
+        )
     else:  # per_pixel
-        noise = generate_per_pixel_noise(noise_type, reduced_shape, params, max_value, random_generator)
+        noise = generate_per_pixel_noise(
+            noise_type,
+            reduced_shape,
+            params,
+            max_value,
+            random_generator,
+        )
 
     # Resize noise to original size using existing resize function
     return fgeometric.resize(noise, (height, width), interpolation=cv2.INTER_LINEAR)
@@ -2028,7 +2204,13 @@ def generate_constant_noise(
 ) -> np.ndarray:
     """Generate one value per channel."""
     num_channels = shape[-1] if len(shape) > MONO_CHANNEL_DIMENSIONS else 1
-    return sample_noise(noise_type, (num_channels,), params, max_value, random_generator)
+    return sample_noise(
+        noise_type,
+        (num_channels,),
+        params,
+        max_value,
+        random_generator,
+    )
 
 
 def generate_per_pixel_noise(
@@ -2086,23 +2268,35 @@ def sample_uniform(
         if len(ranges) == 1:
             ranges = ranges * num_channels
         elif len(ranges) < num_channels:
-            raise ValueError(f"Not enough ranges provided. Expected {num_channels}, got {len(ranges)}")
+            raise ValueError(
+                f"Not enough ranges provided. Expected {num_channels}, got {len(ranges)}",
+            )
 
-        return np.array([random_generator.uniform(low, high) for low, high in ranges[:num_channels]])
+        return np.array(
+            [random_generator.uniform(low, high) for low, high in ranges[:num_channels]],
+        )
 
     # use first range for spatial noise
     low, high = params["ranges"][0]
     return random_generator.uniform(low, high, size=size)
 
 
-def sample_gaussian(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+def sample_gaussian(
+    size: tuple[int, ...],
+    params: dict[str, Any],
+    random_generator: np.random.Generator,
+) -> np.ndarray:
     """Sample from Gaussian distribution."""
     mean = random_generator.uniform(*params["mean_range"])
     std = random_generator.uniform(*params["std_range"])
     return random_generator.normal(mean, std, size=size)
 
 
-def sample_laplace(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+def sample_laplace(
+    size: tuple[int, ...],
+    params: dict[str, Any],
+    random_generator: np.random.Generator,
+) -> np.ndarray:
     """Sample from Laplace distribution.
 
     The Laplace distribution is also known as the double exponential distribution.
@@ -2113,7 +2307,11 @@ def sample_laplace(size: tuple[int, ...], params: dict[str, Any], random_generat
     return random_generator.laplace(loc=loc, scale=scale, size=size)
 
 
-def sample_beta(size: tuple[int, ...], params: dict[str, Any], random_generator: np.random.Generator) -> np.ndarray:
+def sample_beta(
+    size: tuple[int, ...],
+    params: dict[str, Any],
+    random_generator: np.random.Generator,
+) -> np.ndarray:
     """Sample from Beta distribution.
 
     The Beta distribution is bounded by [0, 1] and then scaled and shifted to [-scale, scale].
@@ -2150,7 +2348,13 @@ def generate_shared_noise(
     """
     # Generate noise for (H, W)
     height, width = shape[:2]
-    noise_map = sample_noise(noise_type, (height, width), params, max_value, random_generator)
+    noise_map = sample_noise(
+        noise_type,
+        (height, width),
+        params,
+        max_value,
+        random_generator,
+    )
 
     # If input is multichannel, broadcast noise to all channels
     if len(shape) > MONO_CHANNEL_DIMENSIONS:
@@ -2159,9 +2363,19 @@ def generate_shared_noise(
 
 
 @preserve_channel_dim
-def sharpen_gaussian(img: np.ndarray, alpha: float, kernel_size: int, sigma: float) -> np.ndarray:
+def sharpen_gaussian(
+    img: np.ndarray,
+    alpha: float,
+    kernel_size: int,
+    sigma: float,
+) -> np.ndarray:
     """Sharpen image using Gaussian blur."""
-    blurred = cv2.GaussianBlur(img, ksize=(kernel_size, kernel_size), sigmaX=sigma, sigmaY=sigma)
+    blurred = cv2.GaussianBlur(
+        img,
+        ksize=(kernel_size, kernel_size),
+        sigmaX=sigma,
+        sigmaY=sigma,
+    )
     return add_weighted(blurred, 1 - alpha, img, alpha)
 
 
@@ -2192,12 +2406,20 @@ def get_grid_size(size: int, target_shape: tuple[int, int]) -> int:
     return 2 ** int(np.ceil(np.log2(max(size, *target_shape))))
 
 
-def random_offset(current_size: int, total_size: int, roughness: float, random_generator: np.random.Generator) -> float:
+def random_offset(
+    current_size: int,
+    total_size: int,
+    roughness: float,
+    random_generator: np.random.Generator,
+) -> float:
     """Calculate random offset based on current grid size."""
     return (random_generator.random() - 0.5) * (current_size / total_size) ** (roughness / 2)
 
 
-def initialize_grid(grid_size: int, random_generator: np.random.Generator) -> np.ndarray:
+def initialize_grid(
+    grid_size: int,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
     """Initialize grid with random corners."""
     pattern = np.zeros((grid_size + 1, grid_size + 1), dtype=np.float32)
     for corner in [(0, 0), (0, -1), (-1, 0), (-1, -1)]:
@@ -2221,7 +2443,12 @@ def square_step(
         pattern[y + step, x],  # bottom-left
         pattern[y + step, x + step],  # bottom-right
     ]
-    return sum(corners) / 4.0 + random_offset(step, grid_size, roughness, random_generator)
+    return sum(corners) / 4.0 + random_offset(
+        step,
+        grid_size,
+        roughness,
+        random_generator,
+    )
 
 
 def diamond_step(
@@ -2244,7 +2471,12 @@ def diamond_step(
     if x + half <= grid_size:
         points.append(pattern[y, x + half])
 
-    return sum(points) / len(points) + random_offset(half * 2, grid_size, roughness, random_generator)
+    return sum(points) / len(points) + random_offset(
+        half * 2,
+        grid_size,
+        roughness,
+        random_generator,
+    )
 
 
 def generate_plasma_pattern(
@@ -2296,7 +2528,15 @@ def generate_plasma_pattern(
         # Diamond step
         for y in range(0, grid_size + 1, half_step):
             for x in range((y + half_step) % step_size, grid_size + 1, step_size):
-                pattern[y, x] = diamond_step(pattern, y, x, half_step, grid_size, roughness, random_generator)
+                pattern[y, x] = diamond_step(
+                    pattern,
+                    y,
+                    x,
+                    half_step,
+                    grid_size,
+                    roughness,
+                    random_generator,
+                )
 
         step_size = half_step
 
@@ -2479,7 +2719,9 @@ def apply_gaussian_illumination(
     center_x = width * center[0]
     center_y = height * center[1]
     sigma_pixels = max(height, width) * sigma
-    gaussian = np.exp(-((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2))
+    gaussian = np.exp(
+        -((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2),
+    )
 
     return apply_illumination_pattern(result, gaussian, intensity)
 
