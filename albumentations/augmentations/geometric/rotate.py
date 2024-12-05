@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 import math
-from typing import Annotated, Any, cast
+from typing import Any, cast
 
 import cv2
 import numpy as np
-from pydantic import AfterValidator, Field, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Literal, Self
 
 from albumentations.augmentations.crops import functional as fcrops
-from albumentations.augmentations.geometric.transforms import Affine, Perspective
-from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType, nondecreasing
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.augmentations.geometric.transforms import Affine
+from albumentations.core.pydantic import (
+    BorderModeType,
+    InterpolationType,
+    SymmetricRangeType,
+)
+from albumentations.core.transforms_interface import (
+    BaseTransformInitSchema,
+    DualTransform,
+)
 from albumentations.core.types import (
     ColorType,
     ScaleFloatType,
@@ -20,7 +27,7 @@ from albumentations.core.types import (
 
 from . import functional as fgeometric
 
-__all__ = ["RandomRotate90", "Rotate", "RotateAndProject", "SafeRotate"]
+__all__ = ["RandomRotate90", "Rotate", "SafeRotate"]
 
 SMALL_NUMBER = 1e-10
 
@@ -48,10 +55,20 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": self.py_random.randint(0, 3)}
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        factor: int,
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.bboxes_rot90(bboxes, factor)
 
-    def apply_to_keypoints(self, keypoints: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        factor: int,
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
@@ -139,8 +156,14 @@ class Rotate(DualTransform):
         fill: ColorType
         fill_mask: ColorType
 
-        value: ColorType | None = Field(default=None, deprecated="Deprecated use fill instead")
-        mask_value: ColorType | None = Field(default=None, deprecated="Deprecated use fill_mask instead")
+        value: ColorType | None = Field(
+            default=None,
+            deprecated="Deprecated use fill instead",
+        )
+        mask_value: ColorType | None = Field(
+            default=None,
+            deprecated="Deprecated use fill_mask instead",
+        )
 
         @model_validator(mode="after")
         def validate_value(self) -> Self:
@@ -239,7 +262,11 @@ class Rotate(DualTransform):
             image_shape,
         )
         if self.crop_border:
-            return fcrops.crop_bboxes_by_coords(bboxes_out, (x_min, y_min, x_max, y_max), image_shape)
+            return fcrops.crop_bboxes_by_coords(
+                bboxes_out,
+                (x_min, y_min, x_max, y_max),
+                image_shape,
+            )
         return bboxes_out
 
     def apply_to_keypoints(
@@ -260,11 +287,18 @@ class Rotate(DualTransform):
             border_mode=self.border_mode,
         )
         if self.crop_border:
-            return fcrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
+            return fcrops.crop_keypoints_by_coords(
+                keypoints_out,
+                (x_min, y_min, x_max, y_max),
+            )
         return keypoints_out
 
     @staticmethod
-    def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> dict[str, int]:
+    def _rotated_rect_with_max_area(
+        height: int,
+        width: int,
+        angle: float,
+    ) -> dict[str, int]:
         """Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
@@ -287,7 +321,10 @@ class Rotate(DualTransform):
         else:
             # fully constrained case: crop touches all 4 sides
             cos_2a = cos_a * cos_a - sin_a * sin_a
-            wr, hr = (width * cos_a - height * sin_a) / cos_2a, (height * cos_a - width * sin_a) / cos_2a
+            wr, hr = (
+                (width * cos_a - height * sin_a) / cos_2a,
+                (height * cos_a - width * sin_a) / cos_2a,
+            )
 
         return {
             "x_min": max(0, int(width / 2 - wr / 2)),
@@ -296,7 +333,11 @@ class Rotate(DualTransform):
             "y_max": min(height, int(height / 2 + hr / 2)),
         }
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         angle = self.py_random.uniform(*self.limit)
 
         if self.crop_border:
@@ -313,8 +354,20 @@ class Rotate(DualTransform):
         scale: fgeometric.XYFloat = {"x": 1, "y": 1}
         rotate = angle
 
-        matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, center)
-        bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_center)
+        matrix = fgeometric.create_affine_transformation_matrix(
+            translate,
+            shear,
+            scale,
+            rotate,
+            center,
+        )
+        bbox_matrix = fgeometric.create_affine_transformation_matrix(
+            translate,
+            shear,
+            scale,
+            rotate,
+            bbox_center,
+        )
         out_params["matrix"] = matrix
         out_params["bbox_matrix"] = bbox_matrix
 
@@ -480,7 +533,11 @@ class SafeRotate(Affine):
 
         return matrix, {"x": scale_x, "y": scale_y}
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
         angle = self.py_random.uniform(*self.limit)
 
@@ -489,8 +546,16 @@ class SafeRotate(Affine):
         bbox_center = fgeometric.center_bbox(image_shape)
 
         # Create matrices for image and bbox
-        matrix, scale = self._create_safe_rotate_matrix(angle, image_center, image_shape)
-        bbox_matrix, _ = self._create_safe_rotate_matrix(angle, bbox_center, image_shape)
+        matrix, scale = self._create_safe_rotate_matrix(
+            angle,
+            image_center,
+            image_shape,
+        )
+        bbox_matrix, _ = self._create_safe_rotate_matrix(
+            angle,
+            bbox_center,
+            image_shape,
+        )
 
         return {
             "rotate": angle,
@@ -499,175 +564,3 @@ class SafeRotate(Affine):
             "bbox_matrix": bbox_matrix,
             "output_shape": image_shape,
         }
-
-
-class RotateAndProject(Perspective):
-    """Applies 3D rotation to an image and projects it back to 2D plane using perspective projection.
-
-    This transform simulates viewing a 2D image from different 3D viewpoints by:
-    1. Rotating the image around three axes (X, Y, Z) in 3D space
-    2. Applying perspective projection to map the rotated image back to 2D
-    3. Handling different center calculations for images/keypoints and bounding boxes
-
-    The transform preserves aspect ratios and handles all target types (images, masks,
-    keypoints, and bounding boxes) consistently.
-
-    Args:
-        x_angle_range (tuple[float, float]): Range for rotation around x-axis in degrees.
-            Positive angles rotate the top edge away from viewer.
-            Default: (-15, 15)
-        y_angle_range (tuple[float, float]): Range for rotation around y-axis in degrees.
-            Positive angles rotate the right edge away from viewer.
-            Default: (-15, 15)
-        z_angle_range (tuple[float, float]): Range for rotation around z-axis in degrees.
-            Positive angles rotate clockwise in image plane.
-            Default: (-15, 15)
-        focal_range (tuple[float, float]): Range for focal length of perspective projection.
-            Controls the strength of perspective effect:
-            - Values < 1.0: Strong perspective (wide-angle lens effect)
-            - Value = 1.0: Normal perspective
-            - Values > 1.0: Weak perspective (telephoto lens effect)
-            Default: (0.5, 1.5)
-        border_mode (OpenCV flag): Padding mode for borders after rotation.
-            Should be one of:
-            - cv2.BORDER_CONSTANT: pads with constant value
-            - cv2.BORDER_REFLECT: reflects border pixels
-            - cv2.BORDER_REFLECT_101: reflects border pixels without duplicating edge pixels
-            - cv2.BORDER_REPLICATE: replicates border pixels
-            Default: cv2.BORDER_CONSTANT
-        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
-            Default: 0
-        fill_mask (ColorType): Padding value for masks if border_mode is cv2.BORDER_CONSTANT.
-            Default: 0
-        interpolation (OpenCV flag): Interpolation method for image transformation.
-            Should be one of:
-            - cv2.INTER_NEAREST: nearest-neighbor interpolation
-            - cv2.INTER_LINEAR: bilinear interpolation
-            - cv2.INTER_CUBIC: bicubic interpolation
-            Default: cv2.INTER_LINEAR
-        mask_interpolation (OpenCV flag): Interpolation method for mask transformation.
-            Default: cv2.INTER_NEAREST
-        p (float): Probability of applying the transform.
-            Default: 0.5
-
-    Targets:
-        image, mask, keypoints, bboxes
-
-    Image types:
-        uint8, float32
-
-    Note:
-        - The transform maintains original image size
-        - Uses different center calculations for images/keypoints (width-1)/2 vs bboxes width/2
-        - Handles all coordinate transformations in homogeneous coordinates
-        - Applies proper perspective transformation to bounding boxes by transforming corners
-
-    Example:
-        >>> import albumentations as A
-        >>> transform = A.RotateAndProject(
-        ...     x_angle_range=(-30, 30),
-        ...     y_angle_range=(-30, 30),
-        ...     z_angle_range=(-15, 15),
-        ...     focal_range=(0.7, 1.3),
-        ...     p=1.0
-        ... )
-        >>> result = transform(image=image, bboxes=bboxes, keypoints=keypoints)
-    """
-
-    class InitSchema(BaseTransformInitSchema):
-        x_angle_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
-        y_angle_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
-        z_angle_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
-        focal_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
-        mask_interpolation: InterpolationType
-        interpolation: InterpolationType
-        border_mode: int
-        fill: ColorType
-        fill_mask: ColorType
-
-    def __init__(
-        self,
-        x_angle_range: tuple[float, float] = (-15, 15),
-        y_angle_range: tuple[float, float] = (-15, 15),
-        z_angle_range: tuple[float, float] = (-15, 15),
-        focal_range: tuple[float, float] = (0.5, 1.5),
-        border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
-        p: float = 0.5,
-        always_apply: bool | None = None,
-    ):
-        super().__init__(
-            scale=(0, 0),  # Unused but required by parent
-            keep_size=True,
-            border_mode=border_mode,
-            fill=fill,
-            fill_mask=fill_mask,
-            interpolation=interpolation,
-            mask_interpolation=mask_interpolation,
-            p=p,
-        )
-        self.x_angle_range = x_angle_range
-        self.y_angle_range = y_angle_range
-        self.z_angle_range = z_angle_range
-        self.focal_range = focal_range
-        self.fill = fill
-        self.fill_mask = fill_mask
-        self.interpolation = interpolation
-        self.mask_interpolation = mask_interpolation
-
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        image_shape = params["shape"][:2]
-
-        height, width = image_shape
-        # Sample parameters
-        x_angle = np.deg2rad(self.py_random.uniform(*self.x_angle_range))
-        y_angle = np.deg2rad(self.py_random.uniform(*self.y_angle_range))
-        z_angle = np.deg2rad(self.py_random.uniform(*self.z_angle_range))
-        focal_length = self.py_random.uniform(*self.focal_range)
-
-        # Get projection matrix
-        matrix = fgeometric.get_projection_matrix(
-            image_shape,
-            x_angle,
-            y_angle,
-            z_angle,
-            focal_length,
-            fgeometric.center(image_shape),
-        )
-
-        matrix_bbox = fgeometric.get_projection_matrix(
-            image_shape,
-            x_angle,
-            y_angle,
-            z_angle,
-            focal_length,
-            fgeometric.center_bbox(image_shape),
-        )
-
-        return {"matrix": matrix, "max_height": height, "max_width": width, "matrix_bbox": matrix_bbox}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "x_angle_range",
-            "y_angle_range",
-            "z_angle_range",
-            "focal_range",
-            "border_mode",
-            "fill",
-            "fill_mask",
-            "interpolation",
-            "mask_interpolation",
-        )
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        matrix_bbox: np.ndarray,
-        max_height: int,
-        max_width: int,
-        **params: Any,
-    ) -> np.ndarray:
-        return fgeometric.perspective_bboxes(bboxes, params["shape"], matrix_bbox, max_width, max_height, True)

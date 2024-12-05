@@ -15,7 +15,13 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.transforms_interface import BasicTransform
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE, RECTANGULAR_UINT8_IMAGE
+from tests.conftest import (
+    IMAGES,
+    SQUARE_FLOAT_IMAGE,
+    SQUARE_MULTI_UINT8_IMAGE,
+    SQUARE_UINT8_IMAGE,
+    RECTANGULAR_UINT8_IMAGE,
+)
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -32,7 +38,13 @@ def test_transpose_both_image_and_mask():
 def test_rotate_crop_border():
     image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
     border_value = 13
-    aug = A.Rotate(limit=(45, 45), p=1, fill=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
+    aug = A.Rotate(
+        limit=(45, 45),
+        p=1,
+        fill=border_value,
+        border_mode=cv2.BORDER_CONSTANT,
+        crop_border=True,
+    )
     aug_img = aug(image=image)["image"]
     expected_size = int(np.round(100 / np.sqrt(2)))
     assert aug_img.shape[0] == expected_size
@@ -51,7 +63,11 @@ def test_rotate_crop_border():
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
-            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.PixelDropout: {
+                "dropout_prob": 0.5,
+                "mask_drop_value": 10,
+                "drop_value": 20,
+            },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
                 "num_masks_y": (1, 3),
@@ -100,13 +116,6 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.Resize: {"height": 113, "width": 113},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.CropAndPad: {"px": 10},
-            A.RotateAndProject: {
-                "x_angle_range": (0, 0),
-                "y_angle_range": (0, 0),
-                "z_angle_range": (0, 0),
-                "focal_range": (1, 1),
-                "mask_interpolation": cv2.INTER_NEAREST,
-            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -159,7 +168,9 @@ def __test_multiprocessing_support_proc(args):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": np.random.randint(
+                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
+                ),
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -187,10 +198,14 @@ def __test_multiprocessing_support_proc(args):
 )
 def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
-    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+    image = (
+        SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+    )
     aug = augmentation_cls(p=1, **params)
 
-    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
+    mp_pool.map(
+        __test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10)
+    )
 
 
 def test_force_apply():
@@ -200,18 +215,32 @@ def test_force_apply():
             A.OneOrOther(
                 A.Compose(
                     [
-                        A.RandomSizedCrop(min_max_height=(256, 1025), height=512, width=512, p=1),
+                        A.RandomSizedCrop(
+                            min_max_height=(256, 1025), height=512, width=512, p=1
+                        ),
                         A.OneOf(
                             [
-                                A.RandomSizedCrop(min_max_height=(256, 512), height=384, width=384, p=0.5),
-                                A.RandomSizedCrop(min_max_height=(256, 512), height=512, width=512, p=0.5),
+                                A.RandomSizedCrop(
+                                    min_max_height=(256, 512),
+                                    height=384,
+                                    width=384,
+                                    p=0.5,
+                                ),
+                                A.RandomSizedCrop(
+                                    min_max_height=(256, 512),
+                                    height=512,
+                                    width=512,
+                                    p=0.5,
+                                ),
                             ],
                         ),
                     ],
                 ),
                 A.Compose(
                     [
-                        A.RandomSizedCrop(min_max_height=(256, 1025), height=256, width=256, p=1),
+                        A.RandomSizedCrop(
+                            min_max_height=(256, 1025), height=256, width=256, p=1
+                        ),
                         A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1),
                     ],
                 ),
@@ -253,9 +282,15 @@ def test_force_apply():
     ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
-    aug = A.Compose([augmentation_cls(p=1, **params)], additional_targets={"image2": "image"})
+    aug = A.Compose(
+        [augmentation_cls(p=1, **params)], additional_targets={"image2": "image"}
+    )
     for _ in range(10):
-        image1 = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+        image1 = (
+            SQUARE_FLOAT_IMAGE
+            if augmentation_cls == A.FromFloat
+            else SQUARE_UINT8_IMAGE
+        )
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
@@ -265,7 +300,11 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)])
     aug.add_targets(additional_targets={"image2": "image"})
     for _ in range(10):
-        image1 = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+        image1 = (
+            SQUARE_FLOAT_IMAGE
+            if augmentation_cls == A.FromFloat
+            else SQUARE_UINT8_IMAGE
+        )
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
@@ -322,8 +361,12 @@ def test_lambda_transform():
 
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    np.testing.assert_array_almost_equal(output["bboxes"], fgeometric.bboxes_vflip(np.array(bboxes)))
-    np.testing.assert_array_almost_equal(output["keypoints"], fgeometric.keypoints_vflip(np.array(keypoints), height))
+    np.testing.assert_array_almost_equal(
+        output["bboxes"], fgeometric.bboxes_vflip(np.array(bboxes))
+    )
+    np.testing.assert_array_almost_equal(
+        output["keypoints"], fgeometric.keypoints_vflip(np.array(keypoints), height)
+    )
 
 
 def test_channel_droput():
@@ -376,13 +419,17 @@ def test_crop_non_empty_mask():
                 np.testing.assert_array_equal(augment, crop)
 
     # test general case
-    mask_1 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_1 as `masks` (which uses bitwise or)
+    mask_1 = np.zeros(
+        [10, 10], dtype=np.uint8
+    )  # uint8 required for passing mask_1 as `masks` (which uses bitwise or)
     mask_1[0, 0] = 1
     crop_1 = np.array([[1]])
     aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
 
     # test empty mask
-    mask_2 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_2 as `masks` (which uses bitwise or)
+    mask_2 = np.zeros(
+        [10, 10], dtype=np.uint8
+    )  # uint8 required for passing mask_2 as `masks` (which uses bitwise or)
     crop_2 = np.array([[0]])
     aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
 
@@ -418,7 +465,9 @@ def test_crop_non_empty_mask():
     _test_crops([mask_2, mask_1], [crop_2, crop_1], aug_1, n=1)
 
 
-@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
+@pytest.mark.parametrize(
+    "interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC]
+)
 def test_downscale(interpolation):
     img_float = SQUARE_FLOAT_IMAGE
     img_uint = (img_float * 255).astype("uint8")
@@ -427,7 +476,12 @@ def test_downscale(interpolation):
 
     for img in (img_float, img_uint):
         transformed = aug(image=img)["image"]
-        func_applied = F.downscale(img, scale=0.5, down_interpolation=interpolation, up_interpolation=interpolation)
+        func_applied = F.downscale(
+            img,
+            scale=0.5,
+            down_interpolation=interpolation,
+            up_interpolation=interpolation,
+        )
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
@@ -450,11 +504,15 @@ def test_longest_max_size_keypoints():
 
     aug = A.LongestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_almost_equal(result["keypoints"], [(18, 10, 0, 0)], decimal=5)
+    np.testing.assert_array_almost_equal(
+        result["keypoints"], [(18, 10, 0, 0)], decimal=5
+    )
 
     aug = A.LongestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_almost_equal(result["keypoints"], [(0.9, 0.5, 0, 0)], decimal=5)
+    np.testing.assert_array_almost_equal(
+        result["keypoints"], [(0.9, 0.5, 0, 0)], decimal=5
+    )
 
     aug = A.LongestMaxSize(max_size=50, p=1)
     result = aug(image=img, keypoints=keypoints)
@@ -586,7 +644,9 @@ def test_mask_dropout():
 )
 def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
     img = np.zeros([100, 100, 3], dtype=np.uint8)
-    aug = A.Compose([A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)], seed=42)
+    aug = A.Compose(
+        [A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)], seed=42
+    )
 
     res = aug(image=img)["image"]
     assert np.allclose(res, F.unsharp_mask(img, result_blur, result_sigma))
@@ -645,7 +705,9 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
     )
 
     res1 = transform(image=img)["image"]
-    res2 = (transform(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+    res2 = (transform(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(
+        np.uint8
+    )
 
     _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
 
@@ -665,7 +727,10 @@ def test_perspective_keep_size():
         x2 = np.random.randint(x1 + 1, width)
         y2 = np.random.randint(y1 + 1, height)
         bboxes.append([x1, y1, x2, y2])
-    keypoints = [(np.random.randint(0, width), np.random.randint(0, height), np.random.random()) for _ in range(10)]
+    keypoints = [
+        (np.random.randint(0, width), np.random.randint(0, height), np.random.random())
+        for _ in range(10)
+    ]
 
     transform_1 = A.Compose(
         [A.Perspective(keep_size=True, p=1)],
@@ -674,8 +739,9 @@ def test_perspective_keep_size():
         seed=42,
     )
 
-
-    res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+    res_1 = transform_1(
+        image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes)
+    )
 
     transform_2 = A.Compose(
         [A.Perspective(keep_size=False, p=1), A.Resize(height, width, p=1)],
@@ -684,7 +750,9 @@ def test_perspective_keep_size():
         seed=42,
     )
 
-    res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+    res_2 = transform_2(
+        image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes)
+    )
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"], atol=0.2)
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
@@ -699,7 +767,10 @@ def test_longest_max_size_list():
     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(10, 2), (5, 1)]
-    assert tuple(result["keypoints"][0].tolist()) in [(0.9, 0.5, 0, 0), (1.8, 1.0, 0, 0)]
+    assert tuple(result["keypoints"][0].tolist()) in [
+        (0.9, 0.5, 0, 0),
+        (1.8, 1.0, 0, 0),
+    ]
 
 
 def test_smallest_max_size_list():
@@ -709,13 +780,28 @@ def test_smallest_max_size_list():
     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
-    assert tuple(result["keypoints"][0].tolist()) in [(45.0, 25.0, 0, 0), (90.0, 50.0, 0, 0)]
+    assert tuple(result["keypoints"][0].tolist()) in [
+        (45.0, 25.0, 0, 0),
+        (90.0, 50.0, 0, 0),
+    ]
 
 
 @pytest.mark.parametrize(
-    ["img_weight", "template_weight", "template_transform", "image_size", "template_size"],
     [
-        (0.5, 0.5, A.RandomSizedCrop((50, 200), size=(513, 450), p=1.0), (513, 450), (224, 224)),
+        "img_weight",
+        "template_weight",
+        "template_transform",
+        "image_size",
+        "template_size",
+    ],
+    [
+        (
+            0.5,
+            0.5,
+            A.RandomSizedCrop((50, 200), size=(513, 450), p=1.0),
+            (513, 450),
+            (224, 224),
+        ),
         (0.3, 0.5, A.RandomResizedCrop(size=(513, 450), p=1.0), (513, 450), (224, 224)),
         (1.0, 0.5, A.CenterCrop(500, 450, p=1.0), (500, 450, 3), (512, 512, 3)),
         (0.5, 0.8, A.Resize(513, 450, p=1.0), (513, 450), (512, 512)),
@@ -726,13 +812,21 @@ def test_smallest_max_size_list():
         (
             0.5,
             0.5,
-            A.Compose([A.Blur(p=1.0), A.RandomSizedCrop((50, 200), size=(512, 512), p=1.0), A.HorizontalFlip(p=1.0)]),
+            A.Compose(
+                [
+                    A.Blur(p=1.0),
+                    A.RandomSizedCrop((50, 200), size=(512, 512), p=1.0),
+                    A.HorizontalFlip(p=1.0),
+                ]
+            ),
             (512, 512),
             (512, 512),
         ),
     ],
 )
-def test_template_transform(img_weight, template_weight, template_transform, image_size, template_size):
+def test_template_transform(
+    img_weight, template_weight, template_transform, image_size, template_size
+):
     img = np.random.randint(0, 256, image_size, np.uint8)
     template = np.random.randint(0, 256, template_size, np.uint8)
 
@@ -830,16 +924,55 @@ def test_affine_incorrect_scale_range(params):
             },
             {
                 "bboxes": [
-                    [15.264852523803711, 0.0, 20.678197860717773, 4.27599573135376, 0.0],
-                    [194.73916625976562, 25.38059425354004, 200.0, 29.73569107055664, 0.0],
-                    [179.32180786132812, 95.72400665283203, 184.7351531982422, 100.0, 0.0],
-                    [0.009779278188943863, 70.2643051147461, 5.260837078094482, 73.87895202636719, 0.0],
+                    [
+                        15.264852523803711,
+                        0.0,
+                        20.678197860717773,
+                        4.27599573135376,
+                        0.0,
+                    ],
+                    [
+                        194.73916625976562,
+                        25.38059425354004,
+                        200.0,
+                        29.73569107055664,
+                        0.0,
+                    ],
+                    [
+                        179.32180786132812,
+                        95.72400665283203,
+                        184.7351531982422,
+                        100.0,
+                        0.0,
+                    ],
+                    [
+                        0.009779278188943863,
+                        70.2643051147461,
+                        5.260837078094482,
+                        73.87895202636719,
+                        0.0,
+                    ],
                 ],
                 "keypoints": [
                     [16.455339431762695, 0.35640794038772583, 351.9260559082031, 0.0],
-                    [199.61117553710938, 26.338354110717773, 1.9260603189468384, 9.345794677734375],
-                    [183.54466247558594, 99.64359283447266, 11.92605972290039, 18.69158935546875],
-                    [0.3888263702392578, 73.6616439819336, 21.92605972290039, 28.037382125854492],
+                    [
+                        199.61117553710938,
+                        26.338354110717773,
+                        1.9260603189468384,
+                        9.345794677734375,
+                    ],
+                    [
+                        183.54466247558594,
+                        99.64359283447266,
+                        11.92605972290039,
+                        18.69158935546875,
+                    ],
+                    [
+                        0.3888263702392578,
+                        73.6616439819336,
+                        21.92605972290039,
+                        28.037382125854492,
+                    ],
                 ],
             },
         ],
@@ -862,15 +995,48 @@ def test_affine_incorrect_scale_range(params):
             {
                 "bboxes": [
                     [0.0, 25.38059425354004, 5.260837078094482, 29.73569107055664, 0.0],
-                    [179.32180786132812, 0.0, 184.7351531982422, 4.275995254516602, 0.0],
-                    [194.73916625976562, 70.2643051147461, 200.0, 74.6194076538086, 0.0],
-                    [15.264852523803711, 95.72400665283203, 20.515911102294922, 99.3386459350586, 0.0],
+                    [
+                        179.32180786132812,
+                        0.0,
+                        184.7351531982422,
+                        4.275995254516602,
+                        0.0,
+                    ],
+                    [
+                        194.73916625976562,
+                        70.2643051147461,
+                        200.0,
+                        74.6194076538086,
+                        0.0,
+                    ],
+                    [
+                        15.264852523803711,
+                        95.72400665283203,
+                        20.515911102294922,
+                        99.3386459350586,
+                        0.0,
+                    ],
                 ],
                 "keypoints": [
                     [0.3888259530067444, 26.338354110717773, 8.073939323425293, 0.0],
-                    [183.54466247558594, 0.35640716552734375, 18.073938369750977, 9.345794677734375],
-                    [199.61117553710938, 73.6616439819336, 28.073936462402344, 18.69158935546875],
-                    [16.455339431762695, 99.64359283447266, 38.073936462402344, 28.037382125854492],
+                    [
+                        183.54466247558594,
+                        0.35640716552734375,
+                        18.073938369750977,
+                        9.345794677734375,
+                    ],
+                    [
+                        199.61117553710938,
+                        73.6616439819336,
+                        28.073936462402344,
+                        18.69158935546875,
+                    ],
+                    [
+                        16.455339431762695,
+                        99.64359283447266,
+                        38.073936462402344,
+                        28.037382125854492,
+                    ],
                 ],
             },
         ],
@@ -920,7 +1086,14 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 @pytest.mark.parametrize("angle", [15])
 def test_rotate_equal(img, aug_cls, angle):
     height, width = img.shape[:2]
-    kp = [[random.randint(0, width - 1), random.randint(0, height - 1), random.randint(0, 360)] for _ in range(50)]
+    kp = [
+        [
+            random.randint(0, width - 1),
+            random.randint(0, height - 1),
+            random.randint(0, 360),
+        ]
+        for _ in range(50)
+    ]
     kp += [
         [round(width * 0.2), int(height * 0.3), 90],
         [int(width * 0.2), int(height * 0.3), 90],
@@ -931,7 +1104,9 @@ def test_rotate_equal(img, aug_cls, angle):
     ]
     keypoint_params = A.KeypointParams("xya", remove_invisible=False)
 
-    a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params, seed=42)
+    a = A.Compose(
+        [aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params, seed=42
+    )
 
     b = A.Compose(
         [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, fill=0, p=1)],
@@ -1001,14 +1176,18 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
 def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
     # NOTE: below will fail when height, width is no longer expected as first two positional arguments
     transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
-    transform_albu_new = A.RandomResizedCrop(size=(height, width), scale=scale, ratio=ratio, p=1)
+    transform_albu_new = A.RandomResizedCrop(
+        size=(height, width), scale=scale, ratio=ratio, p=1
+    )
 
     image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
     transformed_image_albu = transform_albu(image=image)["image"]
     transformed_image_albu_new = transform_albu_new(image=image)["image"]
 
     # PyTorch equivalent operation
-    transform_pt = torch_transforms.RandomResizedCrop(size=(height, width), scale=scale, ratio=ratio)
+    transform_pt = torch_transforms.RandomResizedCrop(
+        size=(height, width), scale=scale, ratio=ratio
+    )
     image_pil = torch_transforms.functional.to_pil_image(image)
     transformed_image_pt = transform_pt(image_pil)
 
@@ -1018,7 +1197,9 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
 
     # NOTE: below will fail when height, width is no longer expected as second and third positional arguments
     transform_albu = A.RandomSizedCrop((128, 224), height, width, p=1.0)
-    transform_albu_new = A.RandomSizedCrop(min_max_height=(128, 224), size=(height, width), p=1.0)
+    transform_albu_new = A.RandomSizedCrop(
+        min_max_height=(128, 224), size=(height, width), p=1.0
+    )
     transformed_image_albu = transform_albu(image=image)["image"]
     transformed_image_albu_new = transform_albu_new(image=image)["image"]
     assert transformed_image_albu.shape == transformed_image_pt_np.shape
@@ -1026,7 +1207,9 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
 
     # NOTE: below will fail when height, width is no longer expected as first two positional arguments
     transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
-    transform_albu_height_is_size = A.RandomResizedCrop(size=height, width=width, scale=scale, ratio=ratio, p=1)
+    transform_albu_height_is_size = A.RandomResizedCrop(
+        size=height, width=width, scale=scale, ratio=ratio, p=1
+    )
 
     image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
     transformed_image_albu = transform_albu(image=image)["image"]
@@ -1072,11 +1255,15 @@ def test_deprecation_warnings_random_shadow(
                 p=1,
             )
             for warning in w:
-                print(f"Warning captured: {warning.category.__name__}, Message: '{warning.message}'")
+                print(
+                    f"Warning captured: {warning.category.__name__}, Message: '{warning.message}'"
+                )
 
                 if warning.category is DeprecationWarning:
                     print(f"Deprecation Warning: {warning.message}")
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), "No DeprecationWarning found"
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            ), "No DeprecationWarning found"
         else:
             assert not w, "Unexpected warnings raised"
 
@@ -1105,8 +1292,12 @@ def test_grid_shuffle(image, grid):
     assert not np.array_equal(res["image"], image)
     assert not np.array_equal(res["mask"], mask)
 
-    np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.04)
-    np.testing.assert_allclose(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03)
+    np.testing.assert_allclose(
+        res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.04
+    )
+    np.testing.assert_allclose(
+        res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03
+    )
 
 
 @pytest.mark.parametrize("image", IMAGES)
@@ -1121,7 +1312,9 @@ def test_grid_shuffle(image, grid):
         (0.3, 0.3, 0.3, 0.3),
     ],
 )
-def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_right, crop_top, crop_bottom):
+def test_random_crop_from_borders(
+    image, bboxes, keypoints, crop_left, crop_right, crop_top, crop_bottom
+):
     aug = A.Compose(
         [
             A.RandomCropFromBorders(
@@ -1177,7 +1370,14 @@ def test_image_compression_invalid_input(params):
     "params, expected",
     [
         # Default values
-        ({}, {"num_holes_range": (1, 1), "hole_height_range": (8, 8), "hole_width_range": (8, 8)}),
+        (
+            {},
+            {
+                "num_holes_range": (1, 1),
+                "hole_height_range": (8, 8),
+                "hole_width_range": (8, 8),
+            },
+        ),
         # Boundary values
         ({"num_holes_range": (2, 3)}, {"num_holes_range": (2, 3)}),
         ({"hole_height_range": (0.1, 0.1)}, {"hole_height_range": (0.1, 0.1)}),
@@ -1209,7 +1409,7 @@ def test_coarse_dropout_functionality(params, expected):
 )
 def test_coarse_dropout_invalid_input(params):
     with pytest.raises(Exception):
-        _ =  A.CoarseDropout(**params, p=1)
+        _ = A.CoarseDropout(**params, p=1)
 
 
 @pytest.mark.parametrize(
@@ -1258,7 +1458,11 @@ def test_coarse_dropout_invalid_input(params):
             },
             A.Affine: {"rotate": 10},
             A.Pad: {"padding": 10},
-            A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
+            A.AdditiveNoise: {
+                "noise_type": "uniform",
+                "spatial_mode": "constant",
+                "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1322,10 +1526,18 @@ def test_change_image(augmentation_cls, params):
             },
             A.FancyPCA: {"alpha": 1},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.RGBShift: {"r_shift_limit": (10, 10), "g_shift_limit": (10, 10), "b_shift_limit": (10, 10)},
+            A.RGBShift: {
+                "r_shift_limit": (10, 10),
+                "g_shift_limit": (10, 10),
+                "b_shift_limit": (10, 10),
+            },
             A.TimeMasking: {"time_mask_param": 10},
             A.Affine: {"rotate": 10},
-            A.AdditiveNoise: {"noise_type": "uniform", "spatial_mode": "constant", "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}},
+            A.AdditiveNoise: {
+                "noise_type": "uniform",
+                "spatial_mode": "constant",
+                "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
+            },
         },
         except_augmentations={
             A.Crop,
@@ -1364,12 +1576,18 @@ def test_change_image(augmentation_cls, params):
         },
     ),
 )
-def test_selective_channel(augmentation_cls: BasicTransform, params: dict[str, Any]) -> None:
+def test_selective_channel(
+    augmentation_cls: BasicTransform, params: dict[str, Any]
+) -> None:
     image = SQUARE_MULTI_UINT8_IMAGE
     channels = [3, 2, 4]
 
     aug = A.Compose(
-        [A.SelectiveChannelTransform(transforms=[augmentation_cls(**params, p=1)], channels=channels, p=1)],
+        [
+            A.SelectiveChannelTransform(
+                transforms=[augmentation_cls(**params, p=1)], channels=channels, p=1
+            )
+        ],
         seed=0,
     )
 
@@ -1379,9 +1597,13 @@ def test_selective_channel(augmentation_cls: BasicTransform, params: dict[str, A
 
     for channel in range(image.shape[-1]):
         if channel in channels:
-            assert not np.array_equal(image[..., channel], transformed_image[..., channel])
+            assert not np.array_equal(
+                image[..., channel], transformed_image[..., channel]
+            )
         else:
-            np.testing.assert_array_equal(image[..., channel], transformed_image[..., channel])
+            np.testing.assert_array_equal(
+                image[..., channel], transformed_image[..., channel]
+            )
 
 
 @pytest.mark.parametrize(
@@ -1392,20 +1614,38 @@ def test_selective_channel(augmentation_cls: BasicTransform, params: dict[str, A
             {},
             {
                 "scale_range": (0.25, 0.25),
-                "interpolation_pair": {"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_NEAREST},
+                "interpolation_pair": {
+                    "downscale": cv2.INTER_NEAREST,
+                    "upscale": cv2.INTER_NEAREST,
+                },
             },
         ),
         # Boundary values
         ({"scale_range": (0.1, 0.9)}, {"scale_range": (0.1, 0.9)}),
         (
-            {"interpolation_pair": {"downscale": cv2.INTER_LINEAR, "upscale": cv2.INTER_CUBIC}},
-            {"interpolation_pair": {"downscale": cv2.INTER_LINEAR, "upscale": cv2.INTER_CUBIC}},
+            {
+                "interpolation_pair": {
+                    "downscale": cv2.INTER_LINEAR,
+                    "upscale": cv2.INTER_CUBIC,
+                }
+            },
+            {
+                "interpolation_pair": {
+                    "downscale": cv2.INTER_LINEAR,
+                    "upscale": cv2.INTER_CUBIC,
+                }
+            },
         ),
         # Deprecated values handling
         ({"scale_min": 0.1, "scale_max": 0.9}, {"scale_range": (0.1, 0.9)}),
         (
             {"interpolation": cv2.INTER_AREA},
-            {"interpolation_pair": {"downscale": cv2.INTER_AREA, "upscale": cv2.INTER_AREA}},
+            {
+                "interpolation_pair": {
+                    "downscale": cv2.INTER_AREA,
+                    "upscale": cv2.INTER_AREA,
+                }
+            },
         ),
     ],
 )
@@ -1421,7 +1661,9 @@ def test_downscale_functionality(params, expected):
     [
         ({"scale_range": (0.9, 0.1)}),  # Invalid range, max < min
         ({"scale_range": (1.1, 1.2)}),  # Values outside valid scale range (0, 1)
-        ({"interpolation_pair": {"downscale": 9999, "upscale": 9999}}),  # Invalid interpolation method
+        (
+            {"interpolation_pair": {"downscale": 9999, "upscale": 9999}}
+        ),  # Invalid interpolation method
     ],
 )
 def test_downscale_invalid_input(params):
@@ -1433,16 +1675,37 @@ def test_downscale_invalid_input(params):
     "params, expected",
     [
         # Default values
-        ({}, {"min_height": 1024, "min_width": 1024, "position": "center", "border_mode": cv2.BORDER_REFLECT_101}),
+        (
+            {},
+            {
+                "min_height": 1024,
+                "min_width": 1024,
+                "position": "center",
+                "border_mode": cv2.BORDER_REFLECT_101,
+            },
+        ),
         # Boundary values
         ({"min_height": 800, "min_width": 800}, {"min_height": 800, "min_width": 800}),
         (
-            {"pad_height_divisor": 10, "min_height": None, "pad_width_divisor": 10, "min_width": None},
-            {"pad_height_divisor": 10, "min_height": None, "pad_width_divisor": 10, "min_width": None},
+            {
+                "pad_height_divisor": 10,
+                "min_height": None,
+                "pad_width_divisor": 10,
+                "min_width": None,
+            },
+            {
+                "pad_height_divisor": 10,
+                "min_height": None,
+                "pad_width_divisor": 10,
+                "min_width": None,
+            },
         ),
         ({"position": "top_left"}, {"position": "top_left"}),
         # Value handling when border_mode is BORDER_CONSTANT
-        ({"border_mode": cv2.BORDER_CONSTANT, "fill": 255}, {"border_mode": cv2.BORDER_CONSTANT, "fill": 255}),
+        (
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": 255},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": 255},
+        ),
         (
             {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0]},
             {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0]},
@@ -1536,7 +1799,9 @@ def test_random_snow_invalid_input(params):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": np.random.randint(
+                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
+                ),
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -1586,7 +1851,9 @@ def test_dual_transforms_methods(augmentation_cls, params):
                 _ = aug(image=image, **kwarg)
             except Exception as e:
                 if isinstance(e, NotImplementedError):
-                    raise NotImplementedError(f"{target} error at: {augmentation_cls},  {e}")
+                    raise NotImplementedError(
+                        f"{target} error at: {augmentation_cls},  {e}"
+                    )
                 raise e
 
 
@@ -1608,7 +1875,12 @@ def test_dual_transforms_methods(augmentation_cls, params):
         (0.1, 0.2),
         (0.1, 0.2, 0.3, 0.4),
         ((-0.1, -0.2), (-0.2, -0.3), (0.3, 0.4), (0.4, 0.5)),
-        ([0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4]),
+        (
+            [0.1, 0.2, 0.3, 0.4],
+            [0.1, 0.2, 0.3, 0.4],
+            [0.1, 0.2, 0.3, 0.4],
+            [0.1, 0.2, 0.3, 0.4],
+        ),
         None,
     ],
 )
@@ -1675,13 +1947,27 @@ def test_crop_and_pad(px, percent, pad_cval, keep_size, sample_independently, im
     [
         (0.1, (12, 12, 3)),  # Padding 10% of image size on each side
         (-0.1, (8, 8, 3)),  # Cropping 10% of image size from each side
-        ((0.1, 0.2, 0.3, 0.4), (14, 16, 3)),  # Padding: top=10%, right=20%, bottom=30%, left=40%
-        ((-0.1, -0.2, -0.3, -0.4), (6, 4, 3)),  # Cropping: top=10%, right=20%, bottom=30%, left=40%
+        (
+            (0.1, 0.2, 0.3, 0.4),
+            (14, 16, 3),
+        ),  # Padding: top=10%, right=20%, bottom=30%, left=40%
+        (
+            (-0.1, -0.2, -0.3, -0.4),
+            (6, 4, 3),
+        ),  # Cropping: top=10%, right=20%, bottom=30%, left=40%
     ],
 )
 def test_crop_and_pad_percent(percent, expected_shape):
     transform = A.Compose(
-        [A.CropAndPad(px=None, percent=percent, pad_mode=cv2.BORDER_CONSTANT, pad_cval=0, keep_size=False)],
+        [
+            A.CropAndPad(
+                px=None,
+                percent=percent,
+                pad_mode=cv2.BORDER_CONSTANT,
+                pad_cval=0,
+                keep_size=False,
+            )
+        ],
     )
 
     image = np.ones((10, 10, 3), dtype=np.uint8)
@@ -1704,7 +1990,15 @@ def test_crop_and_pad_percent(percent, expected_shape):
 )
 def test_crop_and_pad_px_pixel_values(px, expected_shape):
     transform = A.Compose(
-        [A.CropAndPad(px=px, percent=None, pad_mode=cv2.BORDER_CONSTANT, pad_cval=0, keep_size=False)],
+        [
+            A.CropAndPad(
+                px=px,
+                percent=None,
+                pad_mode=cv2.BORDER_CONSTANT,
+                pad_cval=0,
+                keep_size=False,
+            )
+        ],
     )
 
     image = np.ones((10, 10, 3), dtype=np.uint8) * 255
@@ -1727,7 +2021,11 @@ def test_crop_and_pad_px_pixel_values(px, expected_shape):
             assert np.all(central_region == 255)
         elif all(p <= 0 for p in px):  # Cropping
             crop_top, crop_right, crop_bottom, crop_left = [-p for p in px]
-            cropped_region = image[crop_top : image.shape[0] - crop_bottom, crop_left : image.shape[1] - crop_right, :]
+            cropped_region = image[
+                crop_top : image.shape[0] - crop_bottom,
+                crop_left : image.shape[1] - crop_right,
+                :,
+            ]
             assert np.all(transformed_image == cropped_region)
 
 
@@ -1752,7 +2050,9 @@ def test_random_fog_initialization(params, expected):
 @pytest.mark.parametrize(
     "params",
     [
-        ({"fog_coef_range": (1.2, 1.5)}),  # Invalid fog coefficient range -> upper bound
+        (
+            {"fog_coef_range": (1.2, 1.5)}
+        ),  # Invalid fog coefficient range -> upper bound
         ({"fog_coef_range": (0.9, 0.7)}),  # Invalid range  -> decreasing
     ],
 )
@@ -1772,7 +2072,12 @@ def test_gauss_noise(mean, image):
         data={"image": image},
     )
 
-    assert np.abs(mean - apply_params["noise_map"].mean() / MAX_VALUES_BY_DTYPE[image.dtype]) < 0.5
+    assert (
+        np.abs(
+            mean - apply_params["noise_map"].mean() / MAX_VALUES_BY_DTYPE[image.dtype]
+        )
+        < 0.5
+    )
     result = A.Compose([aug], seed=42)(image=image)
 
     assert not (result["image"] >= image).all()
@@ -1797,7 +2102,10 @@ def test_gauss_noise(mean, image):
         ({"angle_range": (0.3, 0.7)}, {"angle_range": (0.3, 0.7)}),
         ({"angle_lower": 0.3, "angle_upper": 0.7}, {"angle_range": (0.3, 0.7)}),
         ({"num_flare_circles_range": (4, 8)}, {"num_flare_circles_range": (4, 8)}),
-        ({"num_flare_circles_lower": 4, "num_flare_circles_upper": 8}, {"num_flare_circles_range": (4, 8)}),
+        (
+            {"num_flare_circles_lower": 4, "num_flare_circles_upper": 8},
+            {"num_flare_circles_range": (4, 8)},
+        ),
         ({"src_radius": 500}, {"src_radius": 500}),
         ({"src_color": (200, 200, 200)}, {"src_color": (200, 200, 200)}),
         ({"angle_lower": 0.2}, {"angle_range": (0.2, 1)}),
@@ -1815,22 +2123,39 @@ def test_random_sun_flare_initialization(params, expected):
 @pytest.mark.parametrize(
     "params",
     [
-        ({"flare_roi": (1.2, 0.2, 0.8, 0.9)}),  # Invalid flare_roi -> x_min out of bounds
-        ({"flare_roi": (0.2, -0.1, 0.8, 0.9)}),  # Invalid flare_roi -> y_min out of bounds
-        ({"flare_roi": (0.2, 0.3, 1.2, 0.9)}),  # Invalid flare_roi -> x_max out of bounds
-        ({"flare_roi": (0.2, 0.3, 0.8, 1.1)}),  # Invalid flare_roi -> y_max out of bounds
+        (
+            {"flare_roi": (1.2, 0.2, 0.8, 0.9)}
+        ),  # Invalid flare_roi -> x_min out of bounds
+        (
+            {"flare_roi": (0.2, -0.1, 0.8, 0.9)}
+        ),  # Invalid flare_roi -> y_min out of bounds
+        (
+            {"flare_roi": (0.2, 0.3, 1.2, 0.9)}
+        ),  # Invalid flare_roi -> x_max out of bounds
+        (
+            {"flare_roi": (0.2, 0.3, 0.8, 1.1)}
+        ),  # Invalid flare_roi -> y_max out of bounds
         ({"flare_roi": (0.8, 0.2, 0.4, 0.9)}),  # Invalid flare_roi -> x_min > x_max
         ({"flare_roi": (0.2, 0.9, 0.8, 0.3)}),  # Invalid flare_roi -> y_min > y_max
-        ({"angle_range": (1.2, 0.5)}),  # Invalid angle range -> angle_upper out of bounds
-        ({"angle_range": (0.5, 1.2)}),  # Invalid angle range -> angle_upper out of bounds
+        (
+            {"angle_range": (1.2, 0.5)}
+        ),  # Invalid angle range -> angle_upper out of bounds
+        (
+            {"angle_range": (0.5, 1.2)}
+        ),  # Invalid angle range -> angle_upper out of bounds
         ({"angle_range": (0.7, 0.5)}),  # Invalid angle range -> non-decreasing
-        ({"num_flare_circles_range": (12, 8)}),  # Invalid num_flare_circles_range -> non-decreasing
-        ({"num_flare_circles_range": (-1, 6)}),  # Invalid num_flare_circles_range -> lower bound negative
+        (
+            {"num_flare_circles_range": (12, 8)}
+        ),  # Invalid num_flare_circles_range -> non-decreasing
+        (
+            {"num_flare_circles_range": (-1, 6)}
+        ),  # Invalid num_flare_circles_range -> lower bound negative
     ],
 )
 def test_random_sun_flare_invalid_input(params):
     with pytest.raises(ValueError):
         A.RandomSunFlare(**params)
+
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
@@ -1845,7 +2170,9 @@ def test_random_sun_flare_invalid_input(params):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": np.random.randint(
+                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
+                ),
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -1884,7 +2211,9 @@ def test_random_sun_flare_invalid_input(params):
 )
 def test_return_nonzero(augmentation_cls, params):
     """Mistakes in clipping may lead to zero image, testing for that"""
-    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+    image = (
+        SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+    )
 
     aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
@@ -1913,11 +2242,32 @@ def test_return_nonzero(augmentation_cls, params):
 @pytest.mark.parametrize(
     "transform",
     [
-        A.PadIfNeeded(min_height=6, min_width=6, fill=128, border_mode=cv2.BORDER_CONSTANT, p=1),
-        A.CropAndPad(px=2, border_mode=cv2.BORDER_CONSTANT, fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
-        A.CropAndPad(percent=(0, 0.3, 0, 0), fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
-        A.Affine(translate_px={"x": -1, "y": -1}, fill=128, p=1, interpolation=cv2.INTER_NEAREST),
-        A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, fill=128),
+        A.PadIfNeeded(
+            min_height=6, min_width=6, fill=128, border_mode=cv2.BORDER_CONSTANT, p=1
+        ),
+        A.CropAndPad(
+            px=2,
+            border_mode=cv2.BORDER_CONSTANT,
+            fill=128,
+            p=1,
+            interpolation=cv2.INTER_NEAREST_EXACT,
+        ),
+        A.CropAndPad(
+            percent=(0, 0.3, 0, 0), fill=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT
+        ),
+        A.Affine(
+            translate_px={"x": -1, "y": -1},
+            fill=128,
+            p=1,
+            interpolation=cv2.INTER_NEAREST,
+        ),
+        A.Rotate(
+            p=1,
+            limit=(45, 45),
+            interpolation=cv2.INTER_NEAREST,
+            border_mode=cv2.BORDER_CONSTANT,
+            fill=128,
+        ),
     ],
 )
 @pytest.mark.parametrize("num_channels", [1, 3, 5])
@@ -1956,7 +2306,11 @@ def test_padding_color(transform, num_channels):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
-            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.PixelDropout: {
+                "dropout_prob": 0.5,
+                "mask_drop_value": 10,
+                "drop_value": 20,
+            },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
                 "num_masks_y": (1, 3),
@@ -2011,7 +2365,10 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     "remove_invisible, expected_keypoints",
-    [(True, np.array([], dtype=np.float32).reshape(0, 2)), (False, np.array([[10, 10]]))],
+    [
+        (True, np.array([], dtype=np.float32).reshape(0, 2)),
+        (False, np.array([[10, 10]])),
+    ],
 )
 def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
     image = SQUARE_UINT8_IMAGE
@@ -2021,12 +2378,13 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
 
     transform = A.Compose(
         [A.MaskDropout(p=1, max_objects=1, fill_mask=0, fill=1)],
-        keypoint_params=A.KeypointParams(format="xy", remove_invisible=remove_invisible),
+        keypoint_params=A.KeypointParams(
+            format="xy", remove_invisible=remove_invisible
+        ),
     )
 
     transformed = transform(image=image, mask=mask, keypoints=keypoints)
     np.testing.assert_array_equal(transformed["keypoints"], expected_keypoints)
-
 
 
 @pytest.mark.parametrize(
@@ -2037,11 +2395,22 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.CenterCrop: {"height": 90, "width": 95},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 90, "width": 95},
-            A.RandomResizedCrop: {"height": 90, "width": 100, "scale": (0.08, 1), "ratio": (0.75, 1.33), "interpolation":cv2.INTER_NEAREST},
+            A.RandomResizedCrop: {
+                "height": 90,
+                "width": 100,
+                "scale": (0.08, 1),
+                "ratio": (0.75, 1.33),
+                "interpolation": cv2.INTER_NEAREST,
+            },
             A.RandomSizedCrop: {"min_max_height": (90, 100), "height": 90, "width": 90},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 90, "width": 90},
-            A.PadIfNeeded: {"min_height": 256, "min_width": 256, "value": 0, "border_mode": cv2.BORDER_CONSTANT},
+            A.PadIfNeeded: {
+                "min_height": 256,
+                "min_width": 256,
+                "value": 0,
+                "border_mode": cv2.BORDER_CONSTANT,
+            },
         },
         except_augmentations={
             A.XYMasking,
@@ -2069,7 +2438,6 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.Perspective,
             A.RandomGridShuffle,
             A.TimeReverse,
-            A.RotateAndProject
         },
     ),
 )
@@ -2084,11 +2452,22 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
     bboxes = np.array([[x_min, y_min, x_max, y_max]])
     keypoints = np.array([[x_min, y_min], [x_max, y_max]])
 
-    transform = A.Compose([aug], bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]), keypoint_params=A.KeypointParams(format="xy", remove_invisible=False), seed=42)
+    transform = A.Compose(
+        [aug],
+        bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]),
+        keypoint_params=A.KeypointParams(format="xy", remove_invisible=False),
+        seed=42,
+    )
 
     transformed = transform(image=image, bboxes=bboxes, keypoints=keypoints, labels=[1])
 
-    x_min_transformed, y_min_transformed, x_max_transformed, y_max_transformed = transformed["bboxes"][0]
+    x_min_transformed, y_min_transformed, x_max_transformed, y_max_transformed = (
+        transformed["bboxes"][0]
+    )
 
-    np.testing.assert_allclose(transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1)
-    np.testing.assert_allclose(transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1.5)
+    np.testing.assert_allclose(
+        transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1
+    )
+    np.testing.assert_allclose(
+        transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1.5
+    )
