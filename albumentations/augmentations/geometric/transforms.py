@@ -8,11 +8,21 @@ from warnings import warn
 import cv2
 import numpy as np
 from albucore import hflip, vflip
-from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import Self
 
 from albumentations.augmentations.utils import check_range
-from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
+from albumentations.core.bbox_utils import (
+    BboxProcessor,
+    denormalize_bboxes,
+    normalize_bboxes,
+)
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
@@ -21,7 +31,10 @@ from albumentations.core.pydantic import (
     check_01,
     check_1plus,
 )
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.transforms_interface import (
+    BaseTransformInitSchema,
+    DualTransform,
+)
 from albumentations.core.types import (
     BIG_INTEGER,
     ColorType,
@@ -121,16 +134,53 @@ class BaseDistortion(DualTransform):
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
 
-    def apply(self, img: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.remap(img, map_x, map_y, self.interpolation, cv2.BORDER_CONSTANT, 0)
+    def apply(
+        self,
+        img: np.ndarray,
+        map_x: np.ndarray,
+        map_y: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.remap(
+            img,
+            map_x,
+            map_y,
+            self.interpolation,
+            cv2.BORDER_CONSTANT,
+            0,
+        )
 
-    def apply_to_mask(self, mask: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.remap(mask, map_x, map_y, self.mask_interpolation, cv2.BORDER_CONSTANT, 0)
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        map_x: np.ndarray,
+        map_y: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fgeometric.remap(
+            mask,
+            map_x,
+            map_y,
+            self.mask_interpolation,
+            cv2.BORDER_CONSTANT,
+            0,
+        )
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, map_x: np.ndarray, map_y: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        map_x: np.ndarray,
+        map_y: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        bboxes_returned = fgeometric.remap_bboxes(bboxes_denorm, map_x, map_y, image_shape)
+        bboxes_returned = fgeometric.remap_bboxes(
+            bboxes_denorm,
+            map_x,
+            map_y,
+            image_shape,
+        )
         return normalize_bboxes(bboxes_returned, image_shape)
 
     def apply_to_keypoints(
@@ -242,7 +292,11 @@ class ElasticTransform(BaseDistortion):
         self.same_dxdy = same_dxdy
         self.noise_distribution = noise_distribution
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         height, width = params["shape"][:2]
         kernel_size = (0, 0) if self.approximate else (17, 17)
 
@@ -335,9 +389,13 @@ class Perspective(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType
         keep_size: bool
-        pad_mode: BorderModeType | None = Field(deprecated="Deprecated use border_mode instead")
+        pad_mode: BorderModeType | None = Field(
+            deprecated="Deprecated use border_mode instead",
+        )
         pad_val: ColorType | None = Field(deprecated="Deprecated use fill instead")
-        mask_pad_val: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
+        mask_pad_val: ColorType | None = Field(
+            deprecated="Deprecated use fill_mask instead",
+        )
         fit_output: bool
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
@@ -453,20 +511,39 @@ class Perspective(DualTransform):
             self.keep_size,
         )
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
 
         scale = self.py_random.uniform(*self.scale)
 
-        points = fgeometric.generate_perspective_points(image_shape, scale, self.random_generator)
+        points = fgeometric.generate_perspective_points(
+            image_shape,
+            scale,
+            self.random_generator,
+        )
         points = fgeometric.order_points(points)
 
-        matrix, max_width, max_height = fgeometric.compute_perspective_params(points, image_shape)
+        matrix, max_width, max_height = fgeometric.compute_perspective_params(
+            points,
+            image_shape,
+        )
 
         if self.fit_output:
-            matrix, max_width, max_height = fgeometric.expand_transform(matrix, image_shape)
+            matrix, max_width, max_height = fgeometric.expand_transform(
+                matrix,
+                image_shape,
+            )
 
-        return {"matrix": matrix, "max_height": max_height, "max_width": max_width, "matrix_bbox": matrix}
+        return {
+            "matrix": matrix,
+            "max_height": max_height,
+            "max_width": max_width,
+            "matrix_bbox": matrix,
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -598,9 +675,18 @@ class Affine(DualTransform):
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
 
-        cval: ColorType | None = Field(default=None, deprecated="Deprecated use fill instead")
-        cval_mask: ColorType | None = Field(default=None, deprecated="Deprecated use fill_mask instead")
-        mode: BorderModeType | None = Field(default=None, deprecated="Deprecated use border_mode instead")
+        cval: ColorType | None = Field(
+            default=None,
+            deprecated="Deprecated use fill instead",
+        )
+        cval_mask: ColorType | None = Field(
+            default=None,
+            deprecated="Deprecated use fill_mask instead",
+        )
+        mode: BorderModeType | None = Field(
+            default=None,
+            deprecated="Deprecated use border_mode instead",
+        )
 
         fill: ColorType
         fill_mask: ColorType
@@ -618,7 +704,10 @@ class Affine(DualTransform):
             value: ScaleFloatType | fgeometric.XYFloatScale,
             info: ValidationInfo,
         ) -> fgeometric.XYFloatDict:
-            return cast(fgeometric.XYFloatDict, cls._handle_dict_arg(value, info.field_name))
+            return cast(
+                fgeometric.XYFloatDict,
+                cls._handle_dict_arg(value, info.field_name),
+            )
 
         @field_validator("rotate")
         @classmethod
@@ -645,7 +734,11 @@ class Affine(DualTransform):
                 )  # type: ignore[assignment]
 
             if self.translate_px is not None:
-                self.translate_px = self._handle_dict_arg(self.translate_px, "translate_px", default=0)  # type: ignore[assignment]
+                self.translate_px = self._handle_dict_arg(
+                    self.translate_px,
+                    "translate_px",
+                    default=0,
+                )  # type: ignore[assignment]
 
             return self
 
@@ -715,7 +808,9 @@ class Affine(DualTransform):
         self.balanced_scale = balanced_scale
 
         if self.keep_ratio and self.scale["x"] != self.scale["y"]:
-            raise ValueError(f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}")
+            raise ValueError(
+                f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}",
+            )
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -790,7 +885,13 @@ class Affine(DualTransform):
         scale: fgeometric.XYFloat,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.keypoints_affine(keypoints, matrix, params["shape"], scale, self.border_mode)
+        return fgeometric.keypoints_affine(
+            keypoints,
+            matrix,
+            params["shape"],
+            scale,
+            self.border_mode,
+        )
 
     @staticmethod
     def get_scale(
@@ -809,7 +910,9 @@ class Affine(DualTransform):
                     upper_interval = (1.0, value[1]) if value[1] > 1 else None
 
                     if lower_interval is not None and upper_interval is not None:
-                        selected_interval = random_state.choice([lower_interval, upper_interval])
+                        selected_interval = random_state.choice(
+                            [lower_interval, upper_interval],
+                        )
                     elif lower_interval is not None:
                         selected_interval = lower_interval
                     elif upper_interval is not None:
@@ -831,23 +934,50 @@ class Affine(DualTransform):
 
         return cast(fgeometric.XYFloat, result_scale)
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
 
         translate = self._get_translate_params(image_shape)
         shear = self._get_shear_params()
-        scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale, self.py_random)
+        scale = self.get_scale(
+            self.scale,
+            self.keep_ratio,
+            self.balanced_scale,
+            self.py_random,
+        )
         rotate = self.py_random.uniform(*self.rotate)
 
         image_shift = fgeometric.center(image_shape)
         bbox_shift = fgeometric.center_bbox(image_shape)
 
-        matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, image_shift)
-        bbox_matrix = fgeometric.create_affine_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
+        matrix = fgeometric.create_affine_transformation_matrix(
+            translate,
+            shear,
+            scale,
+            rotate,
+            image_shift,
+        )
+        bbox_matrix = fgeometric.create_affine_transformation_matrix(
+            translate,
+            shear,
+            scale,
+            rotate,
+            bbox_shift,
+        )
 
         if self.fit_output:
-            matrix, output_shape = fgeometric.compute_affine_warp_output_shape(matrix, image_shape)
-            bbox_matrix, _ = fgeometric.compute_affine_warp_output_shape(bbox_matrix, image_shape)
+            matrix, output_shape = fgeometric.compute_affine_warp_output_shape(
+                matrix,
+                image_shape,
+            )
+            bbox_matrix, _ = fgeometric.compute_affine_warp_output_shape(
+                bbox_matrix,
+                image_shape,
+            )
         else:
             output_shape = image_shape
 
@@ -868,7 +998,10 @@ class Affine(DualTransform):
             }
         if self.translate_percent is not None:
             translate = {key: self.py_random.uniform(*value) for key, value in self.translate_percent.items()}
-            return cast(fgeometric.XYInt, {"x": int(translate["x"] * width), "y": int(translate["y"] * height)})
+            return cast(
+                fgeometric.XYInt,
+                {"x": int(translate["x"] * width), "y": int(translate["y"] * height)},
+            )
         return cast(fgeometric.XYInt, {"x": 0, "y": 0})
 
     def _get_shear_params(self) -> fgeometric.XYFloat:
@@ -931,8 +1064,14 @@ class ShiftScaleRotate(Affine):
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
 
-        value: ColorType | None = Field(default=None, deprecated="Deprecated. Use fill instead.")
-        mask_value: ColorType | None = Field(default=None, deprecated="Deprecated. Use fill_mask instead.")
+        value: ColorType | None = Field(
+            default=None,
+            deprecated="Deprecated. Use fill instead.",
+        )
+        mask_value: ColorType | None = Field(
+            default=None,
+            deprecated="Deprecated. Use fill_mask instead.",
+        )
 
         fill: ColorType = 0
         fill_mask: ColorType = 0
@@ -945,16 +1084,24 @@ class ShiftScaleRotate(Affine):
         @model_validator(mode="after")
         def check_shift_limit(self) -> Self:
             bounds = -1, 1
-            self.shift_limit_x = to_tuple(self.shift_limit_x if self.shift_limit_x is not None else self.shift_limit)
+            self.shift_limit_x = to_tuple(
+                self.shift_limit_x if self.shift_limit_x is not None else self.shift_limit,
+            )
             check_range(self.shift_limit_x, *bounds, "shift_limit_x")
-            self.shift_limit_y = to_tuple(self.shift_limit_y if self.shift_limit_y is not None else self.shift_limit)
+            self.shift_limit_y = to_tuple(
+                self.shift_limit_y if self.shift_limit_y is not None else self.shift_limit,
+            )
             check_range(self.shift_limit_y, *bounds, "shift_limit_y")
 
             return self
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, value: ScaleFloatType, info: ValidationInfo) -> ScaleFloatType:
+        def check_scale_limit(
+            cls,
+            value: ScaleFloatType,
+            info: ValidationInfo,
+        ) -> ScaleFloatType:
             bounds = 0, float("inf")
             result = to_tuple(value, bias=1.0)
             check_range(result, *bounds, str(info.field_name))
@@ -1088,18 +1235,26 @@ class PiecewiseAffine(BaseDistortion):
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
         cval: int | None = Field(deprecated="Deprecated. Does not have any effect.")
-        cval_mask: int | None = Field(deprecated="Deprecated. Does not have any effect.")
+        cval_mask: int | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
 
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] | None = Field(
             deprecated="Deprecated. Does not have any effects.",
         )
 
         absolute_scale: bool
-        keypoints_threshold: float = Field(deprecated="This parameter is not used anymore")
+        keypoints_threshold: float = Field(
+            deprecated="This parameter is not used anymore",
+        )
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
-        def process_range(cls, value: ScaleFloatType, info: ValidationInfo) -> tuple[float, float]:
+        def process_range(
+            cls,
+            value: ScaleFloatType,
+            info: ValidationInfo,
+        ) -> tuple[float, float]:
             bounds = 2, BIG_INTEGER
             result = to_tuple(value, value)
             check_range(result, *bounds, info.field_name)
@@ -1148,7 +1303,11 @@ class PiecewiseAffine(BaseDistortion):
             "absolute_scale",
         )
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
 
         nb_rows = np.clip(self.py_random.randint(*self.nb_rows), 2, None)
@@ -1425,9 +1584,15 @@ class OpticalDistortion(BaseDistortion):
         distort_limit: SymmetricRangeType
         shift_limit: SymmetricRangeType
         mode: Literal["camera", "fisheye"]
-        value: ColorType | None = Field(deprecated="Deprecated. Does not have any effect.")
-        mask_value: ColorType | None = Field(deprecated="Deprecated. Does not have any effect.")
-        border_mode: int | None = Field(deprecated="Deprecated. Does not have any effect.")
+        value: ColorType | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
+        mask_value: ColorType | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
+        border_mode: int | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
 
     def __init__(
         self,
@@ -1451,7 +1616,11 @@ class OpticalDistortion(BaseDistortion):
         self.distort_limit = cast(tuple[float, float], distort_limit)
         self.mode = mode
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
         height, width = image_shape
 
@@ -1466,14 +1635,29 @@ class OpticalDistortion(BaseDistortion):
 
         # Get distortion maps based on mode
         if self.mode == "camera":
-            map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(image_shape, cx, cy, k)
+            map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(
+                image_shape,
+                cx,
+                cy,
+                k,
+            )
         else:  # fisheye
-            map_x, map_y = fgeometric.get_fisheye_distortion_maps(image_shape, cx, cy, k)
+            map_x, map_y = fgeometric.get_fisheye_distortion_maps(
+                image_shape,
+                cx,
+                cy,
+                k,
+            )
 
         return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("distort_limit", "shift_limit", "mode", *super().get_transform_init_args_names())
+        return (
+            "distort_limit",
+            "shift_limit",
+            "mode",
+            *super().get_transform_init_args_names(),
+        )
 
 
 class GridDistortion(BaseDistortion):
@@ -1530,13 +1714,21 @@ class GridDistortion(BaseDistortion):
         num_steps: Annotated[int, Field(ge=1)]
         distort_limit: SymmetricRangeType
         normalized: bool
-        value: ColorType | None = Field(deprecated="Deprecated. Does not have any effect.")
-        mask_value: ColorType | None = Field(deprecated="Deprecated. Does not have any effect.")
+        value: ColorType | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
+        mask_value: ColorType | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
         border_mode: int = Field(deprecated="Deprecated. Does not have any effect.")
 
         @field_validator("distort_limit")
         @classmethod
-        def check_limits(cls, v: tuple[float, float], info: ValidationInfo) -> tuple[float, float]:
+        def check_limits(
+            cls,
+            v: tuple[float, float],
+            info: ValidationInfo,
+        ) -> tuple[float, float]:
             bounds = -1, 1
             result = to_tuple(v)
             check_range(result, *bounds, info.field_name)
@@ -1564,7 +1756,11 @@ class GridDistortion(BaseDistortion):
         self.distort_limit = cast(tuple[float, float], distort_limit)
         self.normalized = normalized
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
         steps_x = [1 + self.py_random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
         steps_y = [1 + self.py_random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
@@ -1576,14 +1772,27 @@ class GridDistortion(BaseDistortion):
                 steps_x,
                 steps_y,
             )
-            steps_x, steps_y = normalized_params["steps_x"], normalized_params["steps_y"]
+            steps_x, steps_y = (
+                normalized_params["steps_x"],
+                normalized_params["steps_y"],
+            )
 
-        map_x, map_y = fgeometric.generate_grid(image_shape, steps_x, steps_y, self.num_steps)
+        map_x, map_y = fgeometric.generate_grid(
+            image_shape,
+            steps_x,
+            steps_y,
+            self.num_steps,
+        )
 
         return {"map_x": map_x, "map_y": map_y}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (*super().get_transform_init_args_names(), "num_steps", "distort_limit", "normalized")
+        return (
+            *super().get_transform_init_args_names(),
+            "num_steps",
+            "distort_limit",
+            "normalized",
+        )
 
 
 class D4(DualTransform):
@@ -1646,10 +1855,20 @@ class D4(DualTransform):
     ):
         super().__init__(p=p, always_apply=always_apply)
 
-    def apply(self, img: np.ndarray, group_element: D4Type, **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        group_element: D4Type,
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.d4(img, group_element)
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, group_element: D4Type, **params: Any) -> np.ndarray:
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        group_element: D4Type,
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.bboxes_d4(bboxes, group_element)
 
     def apply_to_keypoints(
@@ -1738,26 +1957,51 @@ class GridElasticDeform(DualTransform):
         image_shape = params["shape"][:2]
 
         # Replace calculate_grid_dimensions with split_uniform_grid
-        tiles = fgeometric.split_uniform_grid(image_shape, self.num_grid_xy, self.random_generator)
+        tiles = fgeometric.split_uniform_grid(
+            image_shape,
+            self.num_grid_xy,
+            self.random_generator,
+        )
 
         # Convert tiles to the format expected by generate_distorted_grid_polygons
         dimensions = np.array(
             [
-                [tile[1], tile[0], tile[3], tile[2]]  # Reorder to [x_min, y_min, x_max, y_max]
+                [
+                    tile[1],
+                    tile[0],
+                    tile[3],
+                    tile[2],
+                ]  # Reorder to [x_min, y_min, x_max, y_max]
                 for tile in tiles
             ],
-        ).reshape(self.num_grid_xy[::-1] + (4,))  # Reshape to (grid_height, grid_width, 4)
+        ).reshape(
+            self.num_grid_xy[::-1] + (4,),
+        )  # Reshape to (grid_height, grid_width, 4)
 
-        polygons = fgeometric.generate_distorted_grid_polygons(dimensions, self.magnitude, self.random_generator)
+        polygons = fgeometric.generate_distorted_grid_polygons(
+            dimensions,
+            self.magnitude,
+            self.random_generator,
+        )
 
         generated_mesh = self.generate_mesh(polygons, dimensions)
 
         return {"generated_mesh": generated_mesh}
 
-    def apply(self, img: np.ndarray, generated_mesh: np.ndarray, **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        generated_mesh: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.distort_image(img, generated_mesh, self.interpolation)
 
-    def apply_to_mask(self, mask: np.ndarray, generated_mesh: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        generated_mesh: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.distort_image(mask, generated_mesh, self.mask_interpolation)
 
     def apply_to_bboxes(
@@ -1782,7 +2026,11 @@ class GridElasticDeform(DualTransform):
         generated_mesh: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.distort_image_keypoints(keypoints, generated_mesh, params["shape"][:2])
+        return fgeometric.distort_image_keypoints(
+            keypoints,
+            generated_mesh,
+            params["shape"][:2],
+        )
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_grid_xy", "magnitude", "interpolation", "mask_interpolation"
@@ -1854,14 +2102,31 @@ class RandomGridShuffle(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
-    def __init__(self, grid: tuple[int, int] = (3, 3), p: float = 0.5, always_apply: bool | None = None):
+    def __init__(
+        self,
+        grid: tuple[int, int] = (3, 3),
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
         super().__init__(p=p, always_apply=always_apply)
         self.grid = grid
 
-    def apply(self, img: np.ndarray, tiles: np.ndarray, mapping: list[int], **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        tiles: np.ndarray,
+        mapping: list[int],
+        **params: Any,
+    ) -> np.ndarray:
         return fgeometric.swap_tiles_on_image(img, tiles, mapping)
 
-    def apply_to_bboxes(self, bboxes: np.ndarray, tiles: np.ndarray, mapping: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        tiles: np.ndarray,
+        mapping: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
         processor = cast(BboxProcessor, self.get_processor("bboxes"))
@@ -1886,7 +2151,11 @@ class RandomGridShuffle(DualTransform):
     ) -> np.ndarray:
         return fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, np.ndarray]:
         image_shape = params["shape"][:2]
 
         original_tiles = fgeometric.split_uniform_grid(
@@ -1895,7 +2164,10 @@ class RandomGridShuffle(DualTransform):
             self.random_generator,
         )
         shape_groups = fgeometric.create_shape_groups(original_tiles)
-        mapping = fgeometric.shuffle_tiles_within_shape_groups(shape_groups, self.random_generator)
+        mapping = fgeometric.shuffle_tiles_within_shape_groups(
+            shape_groups,
+            self.random_generator,
+        )
 
         return {"tiles": original_tiles, "mapping": mapping}
 
@@ -2010,7 +2282,10 @@ class Pad(DualTransform):
         )
 
         rows, cols = params["shape"][:2]
-        return normalize_bboxes(result, (rows + pad_top + pad_bottom, cols + pad_left + pad_right))
+        return normalize_bboxes(
+            result,
+            (rows + pad_top + pad_bottom, cols + pad_left + pad_right),
+        )
 
     def apply_to_keypoints(
         self,
@@ -2031,7 +2306,11 @@ class Pad(DualTransform):
             image_shape=params["shape"][:2],
         )
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         if isinstance(self.padding, Real):
             pad_top = pad_bottom = pad_left = pad_right = self.padding
         elif isinstance(self.padding, (tuple, list)):
@@ -2041,11 +2320,20 @@ class Pad(DualTransform):
             elif len(self.padding) == NUM_PADS_ALL_SIDES:
                 pad_left, pad_top, pad_right, pad_bottom = self.padding  # type: ignore[misc]
             else:
-                raise TypeError("Padding must be a single number, a pair of numbers, or a quadruple of numbers")
+                raise TypeError(
+                    "Padding must be a single number, a pair of numbers, or a quadruple of numbers",
+                )
         else:
-            raise TypeError("Padding must be a single number, a pair of numbers, or a quadruple of numbers")
+            raise TypeError(
+                "Padding must be a single number, a pair of numbers, or a quadruple of numbers",
+            )
 
-        return {"pad_top": pad_top, "pad_bottom": pad_bottom, "pad_left": pad_left, "pad_right": pad_right}
+        return {
+            "pad_top": pad_top,
+            "pad_bottom": pad_bottom,
+            "pad_left": pad_left,
+            "pad_right": pad_right,
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -2113,7 +2401,9 @@ class PadIfNeeded(Pad):
         position: PositionType
         border_mode: BorderModeType
         value: ColorType | None = Field(deprecated="Deprecated. Use 'fill' instead.")
-        mask_value: ColorType | None = Field(deprecated="Deprecated. Use 'fill_mask' instead.")
+        mask_value: ColorType | None = Field(
+            deprecated="Deprecated. Use 'fill_mask' instead.",
+        )
 
         fill: ColorType
         fill_mask: ColorType
@@ -2171,7 +2461,11 @@ class PadIfNeeded(Pad):
         self.fill = fill
         self.fill_mask = fill_mask
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.get_padding_params(
             image_shape=params["shape"][:2],
             min_height=self.min_height,
@@ -2314,7 +2608,11 @@ class ThinPlateSpline(BaseDistortion):
         self.scale_range = scale_range
         self.num_control_points = num_control_points
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
         # Create regular grid of control points
@@ -2324,8 +2622,12 @@ class ThinPlateSpline(BaseDistortion):
         src_points = np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)
 
         # Add random displacement to destination points
-        scale = self.py_random.uniform(*self.scale_range)
-        dst_points = src_points + self.random_generator.normal(0, scale, src_points.shape)
+        scale = self.py_random.uniform(*self.scale_range) / 10
+        dst_points = src_points + self.random_generator.normal(
+            0,
+            scale,
+            src_points.shape,
+        )
 
         # Compute TPS weights
         weights, affine = fgeometric.compute_tps_weights(src_points, dst_points)
@@ -2335,7 +2637,12 @@ class ThinPlateSpline(BaseDistortion):
         points = np.stack([x.flatten(), y.flatten()], axis=1).astype(np.float32)
 
         # Transform points
-        transformed = fgeometric.tps_transform(points / [width, height], src_points, weights, affine)
+        transformed = fgeometric.tps_transform(
+            points / [width, height],
+            src_points,
+            weights,
+            affine,
+        )
         transformed *= [width, height]
 
         return {
@@ -2344,4 +2651,8 @@ class ThinPlateSpline(BaseDistortion):
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("scale_range", "num_control_points", *super().get_transform_init_args_names())
+        return (
+            "scale_range",
+            "num_control_points",
+            *super().get_transform_init_args_names(),
+        )
