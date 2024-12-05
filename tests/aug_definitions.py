@@ -133,8 +133,7 @@ AUGMENTATION_CLS_PARAMS = [
         A.OpticalDistortion,
         {
             "distort_limit": 0.2,
-            "shift_limit": 0.2,
-            "interpolation": cv2.INTER_CUBIC,
+            "interpolation": cv2.INTER_AREA,
         },
     ],
     [
