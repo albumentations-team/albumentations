@@ -3356,18 +3356,15 @@ def tps_transform(
 
 def get_camera_matrix_distortion_maps(
     image_shape: tuple[int, int],
-    cx: float,
-    cy: float,
     k: float,
+    center_xy: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate distortion maps using camera matrix model.
 
     Args:
         image_shape: Image shape
-        cx: x-coordinate of distortion center
-        cy: y-coordinate of distortion center
         k: Distortion coefficient
-
+        center_xy: Center of distortion
     Returns:
         tuple of:
         - map_x: Horizontal displacement map
@@ -3375,7 +3372,7 @@ def get_camera_matrix_distortion_maps(
     """
     height, width = image_shape[:2]
     camera_matrix = np.array(
-        [[width, 0, cx], [0, height, cy], [0, 0, 1]],
+        [[width, 0, center_xy[0]], [0, height, center_xy[1]], [0, 0, 1]],
         dtype=np.float32,
     )
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
@@ -3391,38 +3388,43 @@ def get_camera_matrix_distortion_maps(
 
 def get_fisheye_distortion_maps(
     image_shape: tuple[int, int],
-    cx: float,
-    cy: float,
     k: float,
+    center_xy: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate distortion maps using fisheye model.
 
     Args:
         image_shape: Image shape
-        cx: x-coordinate of distortion center
-        cy: y-coordinate of distortion center
         k: Distortion coefficient
-
+        center_xy: Center of distortion
     Returns:
         tuple of:
         - map_x: Horizontal displacement map
         - map_y: Vertical displacement map
     """
     height, width = image_shape[:2]
+
+    center_x, center_y = center_xy
+
     # Create coordinate grid
     y, x = np.mgrid[:height, :width].astype(np.float32)
-    x = x - cx
-    y = y - cy
+
+    x = x - center_x
+    y = y - center_y
 
     # Calculate polar coordinates
     r = np.sqrt(x * x + y * y)
     theta = np.arctan2(y, x)
 
-    # Apply fisheye distortion
-    r_dist = r * (1 + k * r * r)
+    # Normalize radius by the maximum possible radius to keep distortion in check
+    max_radius = math.sqrt(max(center_x, width - center_x) ** 2 + max(center_y, height - center_y) ** 2)
+    r_norm = r / max_radius
+
+    # Apply fisheye distortion to normalized radius
+    r_dist = r * (1 + k * r_norm * r_norm)
 
     # Convert back to cartesian coordinates
-    map_x = cx + r_dist * np.cos(theta)
-    map_y = cy + r_dist * np.sin(theta)
+    map_x = r_dist * np.cos(theta) + center_x
+    map_y = r_dist * np.sin(theta) + center_y
 
     return map_x, map_y

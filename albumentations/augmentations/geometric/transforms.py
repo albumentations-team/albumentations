@@ -1532,13 +1532,6 @@ class OpticalDistortion(BaseDistortion):
             For fisheye model: recommended range (-0.3, 0.3)
             Default: (-0.05, 0.05)
 
-        shift_limit (float | tuple[float, float]): Range of relative shifts for the image center.
-            Values are multiplied by image dimensions to get absolute shift in pixels:
-            - dx = shift_x * image_width
-            - dy = shift_y * image_height
-            If shift_limit is a single float value, the range will be (-shift_limit, shift_limit).
-            Default: (-0.05, 0.05)
-
         mode (Literal['camera', 'fisheye']): Distortion model to use:
             - 'camera': Original camera matrix model
             - 'fisheye': Fisheye lens model
@@ -1571,7 +1564,7 @@ class OpticalDistortion(BaseDistortion):
     Example:
         >>> import albumentations as A
         >>> transform = A.Compose([
-        ...     A.OpticalDistortion(distort_limit=0.1, shift_limit=0.1, p=1.0),
+        ...     A.OpticalDistortion(distort_limit=0.1, p=1.0),
         ... ])
         >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
         >>> transformed_image = transformed['image']
@@ -1582,8 +1575,10 @@ class OpticalDistortion(BaseDistortion):
 
     class InitSchema(BaseDistortion.InitSchema):
         distort_limit: SymmetricRangeType
-        shift_limit: SymmetricRangeType
         mode: Literal["camera", "fisheye"]
+        shift_limit: SymmetricRangeType | None = Field(
+            deprecated="Deprecated. Does not have any effect.",
+        )
         value: ColorType | None = Field(
             deprecated="Deprecated. Does not have any effect.",
         )
@@ -1597,7 +1592,7 @@ class OpticalDistortion(BaseDistortion):
     def __init__(
         self,
         distort_limit: ScaleFloatType = (-0.05, 0.05),
-        shift_limit: ScaleFloatType = (-0.05, 0.05),
+        shift_limit: ScaleFloatType | None = None,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int | None = None,
         value: ColorType | None = None,
@@ -1612,7 +1607,6 @@ class OpticalDistortion(BaseDistortion):
             mask_interpolation=mask_interpolation,
             p=p,
         )
-        self.shift_limit = cast(tuple[float, float], shift_limit)
         self.distort_limit = cast(tuple[float, float], distort_limit)
         self.mode = mode
 
@@ -1628,25 +1622,20 @@ class OpticalDistortion(BaseDistortion):
         k = self.py_random.uniform(*self.distort_limit)
 
         # Calculate center shift
-        dx = round(self.py_random.uniform(*self.shift_limit) * width)
-        dy = round(self.py_random.uniform(*self.shift_limit) * height)
-        cx = width * 0.5 + dx
-        cy = height * 0.5 + dy
+        center_xy = fgeometric.center(image_shape)
 
         # Get distortion maps based on mode
         if self.mode == "camera":
             map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(
                 image_shape,
-                cx,
-                cy,
                 k,
+                center_xy,
             )
         else:  # fisheye
             map_x, map_y = fgeometric.get_fisheye_distortion_maps(
                 image_shape,
-                cx,
-                cy,
                 k,
+                center_xy,
             )
 
         return {"map_x": map_x, "map_y": map_y}
@@ -1654,7 +1643,6 @@ class OpticalDistortion(BaseDistortion):
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "distort_limit",
-            "shift_limit",
             "mode",
             *super().get_transform_init_args_names(),
         )

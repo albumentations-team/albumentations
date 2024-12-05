@@ -233,10 +233,6 @@
                     -0.05,
                     0.05
                 ],
-                "shift_limit": [
-                    -0.05,
-                    0.05
-                ],
                 "interpolation": 1,
                 "mode": "camera"
             },
