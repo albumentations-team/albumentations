@@ -1622,17 +1622,20 @@ class OpticalDistortion(BaseDistortion):
         k = self.py_random.uniform(*self.distort_limit)
 
         # Calculate center shift
+        center_xy = fgeometric.center(image_shape)
 
         # Get distortion maps based on mode
         if self.mode == "camera":
             map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(
                 image_shape,
                 k,
+                center_xy,
             )
         else:  # fisheye
             map_x, map_y = fgeometric.get_fisheye_distortion_maps(
                 image_shape,
                 k,
+                center_xy,
             )
 
         return {"map_x": map_x, "map_y": map_y}
