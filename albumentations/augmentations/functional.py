@@ -2362,6 +2362,7 @@ def generate_shared_noise(
     return noise_map
 
 
+@clipped
 @preserve_channel_dim
 def sharpen_gaussian(
     img: np.ndarray,
@@ -2376,7 +2377,9 @@ def sharpen_gaussian(
         sigmaX=sigma,
         sigmaY=sigma,
     )
-    return add_weighted(blurred, 1 - alpha, img, alpha)
+    # Unsharp mask formula: original + alpha * (original - blurred)
+    # This is equivalent to: original * (1 + alpha) - alpha * blurred
+    return img + alpha * (img - blurred)
 
 
 def apply_salt_and_pepper(
