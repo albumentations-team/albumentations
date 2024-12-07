@@ -70,11 +70,11 @@ from albumentations.core.transforms_interface import (
     NoOp,
 )
 from albumentations.core.types import (
-    EIGHT,
     MAX_RAIN_ANGLE,
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
     PAIR,
+    SEVEN,
     ChromaticAberrationMode,
     ColorType,
     ImageMode,
@@ -2080,8 +2080,8 @@ class Posterize(ImageOnlyTransform):
     Args:
         num_bits (int | tuple[int, int] | list[int] | list[tuple[int, int]]):
             Defines the number of bits to keep for each color channel. Can be specified in several ways:
-            - Single int: Same number of bits for all channels. Range: [1, 8].
-            - tuple of two ints: (min_bits, max_bits) to randomly choose from. Range for each: [1, 8].
+            - Single int: Same number of bits for all channels. Range: [1, 7].
+            - tuple of two ints: (min_bits, max_bits) to randomly choose from. Range for each: [1, 7].
             - list of three ints: Specific number of bits for each channel [r_bits, g_bits, b_bits].
             - list of three tuples: Ranges for each channel [(r_min, r_max), (g_min, g_max), (b_min, b_max)].
             Default: 4
@@ -2099,8 +2099,6 @@ class Posterize(ImageOnlyTransform):
 
     Note:
         - The effect becomes more pronounced as the number of bits is reduced.
-        - Using 0 bits for a channel will reduce it to a single color (usually black).
-        - Using 8 bits leaves the channel unchanged.
         - This transform can create interesting artistic effects or be used for image compression simulation.
         - Posterization is particularly useful for:
           * Creating stylized or retro-looking images
@@ -2149,8 +2147,8 @@ class Posterize(ImageOnlyTransform):
             num_bits: Any,
         ) -> tuple[int, int] | list[tuple[int, int]]:
             if isinstance(num_bits, int):
-                if num_bits < 1 or num_bits > EIGHT:
-                    raise ValueError("num_bits must be in the range [1, 8]")
+                if num_bits < 1 or num_bits > SEVEN:
+                    raise ValueError("num_bits must be in the range [1, 7]")
                 return (num_bits, num_bits)
             if isinstance(num_bits, Sequence) and len(num_bits) > PAIR:
                 return [to_tuple(i, i) for i in num_bits]
@@ -2165,7 +2163,12 @@ class Posterize(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
         self.num_bits = cast(Union[tuple[int, int], list[tuple[int, int]]], num_bits)
 
-    def apply(self, img: np.ndarray, num_bits: int, **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        num_bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]],
+        **params: Any,
+    ) -> np.ndarray:
         return fmain.posterize(img, num_bits)
 
     def get_params(self) -> dict[str, Any]:

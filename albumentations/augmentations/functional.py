@@ -39,7 +39,6 @@ from albumentations.augmentations.utils import (
 )
 from albumentations.core.bbox_utils import bboxes_from_masks, masks_from_bboxes
 from albumentations.core.types import (
-    EIGHT,
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
@@ -167,23 +166,44 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
 
 @uint8_io
 @clipped
-def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndarray:
-    """Reduce the number of bits for each color channel.
+def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]]) -> np.ndarray:
+    """Reduce the number of bits for each color channel by keeping only the highest N bits.
+
+    This transform performs bit-depth reduction by masking out lower bits, effectively
+    reducing the number of possible values per channel. This creates a posterization
+    effect where similar colors are merged together.
 
     Args:
-        img: image to posterize.
-        bits: number of high bits. Must be in range [1, 8]
+        img: Input image. Can be single or multi-channel.
+        bits: Number of high bits to keep. Must be in range [1, 7].
+            Can be either:
+            - A single value to apply the same bit reduction to all channels
+            - A list of values to apply different bit reduction per channel.
+              Length of list must match number of channels in image.
 
     Returns:
-        Image with reduced color channels.
+        np.ndarray: Image with reduced bit depth. Has same shape and dtype as input.
 
+    Note:
+        - The transform keeps the N highest bits and sets all other bits to 0
+        - For example, if bits=3:
+            - Original value: 11010110 (214)
+            - Keep 3 bits:   11000000 (192)
+        - The number of unique colors per channel will be 2^bits
+        - Higher bits values = more colors = more subtle effect
+        - Lower bits values = fewer colors = more dramatic posterization
+
+    Examples:
+        >>> import numpy as np
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> # Same posterization for all channels
+        >>> result = posterize(image, bits=3)
+        >>> # Different posterization per channel
+        >>> result = posterize(image, bits=[3, 4, 5])  # RGB channels
     """
     bits_array = np.uint8(bits)
 
     if not bits_array.shape or len(bits_array) == 1:
-        if bits_array == EIGHT:
-            return img
-
         lut = np.arange(0, 256, dtype=np.uint8)
         mask = ~np.uint8(2 ** (8 - bits_array) - 1)
         lut &= mask
@@ -192,14 +212,11 @@ def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7, 8]) -> np.ndar
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits_array):
-        if channel_bits == EIGHT:
-            result_img[..., i] = img[..., i].copy()
-        else:
-            lut = np.arange(0, 256, dtype=np.uint8)
-            mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
-            lut &= mask
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+        lut &= mask
 
-            result_img[..., i] = sz_lut(img[..., i], lut, inplace=True)
+        result_img[..., i] = sz_lut(img[..., i], lut, inplace=True)
 
     return result_img
 
