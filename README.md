@@ -199,6 +199,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [FDA](https://explore.albumentations.ai/transform/FDA)
 - [FancyPCA](https://explore.albumentations.ai/transform/FancyPCA)
 - [FromFloat](https://explore.albumentations.ai/transform/FromFloat)
+- [GaussNoise](https://explore.albumentations.ai/transform/GaussNoise)
 - [GaussianBlur](https://explore.albumentations.ai/transform/GaussianBlur)
 - [GlassBlur](https://explore.albumentations.ai/transform/GlassBlur)
 - [HistogramMatching](https://explore.albumentations.ai/transform/HistogramMatching)
@@ -277,6 +278,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [PixelDropout](https://explore.albumentations.ai/transform/PixelDropout)                         | ✓     | ✓    | ✓      | ✓         |
 | [RandomCrop](https://explore.albumentations.ai/transform/RandomCrop)                             | ✓     | ✓    | ✓      | ✓         |
 | [RandomCropFromBorders](https://explore.albumentations.ai/transform/RandomCropFromBorders)       | ✓     | ✓    | ✓      | ✓         |
+| [RandomCropNearBBox](https://explore.albumentations.ai/transform/RandomCropNearBBox)             | ✓     | ✓    | ✓      | ✓         |
 | [RandomGridShuffle](https://explore.albumentations.ai/transform/RandomGridShuffle)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomResizedCrop](https://explore.albumentations.ai/transform/RandomResizedCrop)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomRotate90](https://explore.albumentations.ai/transform/RandomRotate90)                     | ✓     | ✓    | ✓      | ✓         |

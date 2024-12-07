@@ -38,16 +38,24 @@ def make_separator(width: int, align_center: bool) -> str:
         return ":" + "-" * (width - 2) + ":"
     return "-" * width
 
-import warnings
 
 def is_deprecated(cls) -> bool:
     """
-    Check if a given class is deprecated.
+    Check if a given class is deprecated by looking for deprecation notices at the start of the docstring,
+    not in the Args section.
     """
-    for warning in cls.__doc__.split('\n'):  # Assuming deprecation warnings are in the docstring
-        if "deprecated" in warning.lower():
-            return True  # The class itself is marked as deprecated
-    return False
+    if not cls.__doc__:
+        return False
+
+    # Split docstring into sections and look only at the first section (before Args:)
+    main_desc = cls.__doc__.split('Args:')[0]
+
+    # Check if there's a deprecation notice in the main description
+    return any(
+        "deprecated" in line.lower()
+        for line in main_desc.split('\n')
+        if line.strip()
+    )
 
 
 def get_image_only_transforms_info():
