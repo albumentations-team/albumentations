@@ -4005,7 +4005,7 @@ class Sharpen(ImageOnlyTransform):
             Only used in 'kernel' method. Larger values create higher contrast.
             Values should be greater than 0. Default: (0.5, 1.0).
 
-        method (str): Sharpening algorithm to use:
+        method (Literal['kernel', 'gaussian']): Sharpening algorithm to use:
             - 'kernel': Traditional kernel-based sharpening using Laplacian operator
             - 'gaussian': Interpolation between Gaussian blurred and original image
             Default: 'kernel'
