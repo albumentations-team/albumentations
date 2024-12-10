@@ -944,7 +944,7 @@ def add_sun_flare_overlay(
     # meaning the higher the alpha with larger area, the brighter the bright spot will be
     # for list of alphas in range [0.05, 0.2], the max_alpha should below 1
     max_alpha = weighted_brightness / total_radius_length * 5
-    alpha = np.linspace(0.0, min(max_alpha, 1), num=num_times)
+    alpha = np.linspace(0.0, min(max_alpha, 1.0), num=num_times)
 
     rad = np.linspace(1, src_radius, num=num_times)
 
