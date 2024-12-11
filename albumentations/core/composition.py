@@ -504,8 +504,27 @@ class Compose(BaseCompose, HubMixin):
 
     @staticmethod
     def _check_multi_data(data_name: str, data: Any) -> tuple[int, int]:
+        """Check multi-image data format and return shape.
+
+        Args:
+            data_name: Name of the data field being checked
+            data: Input data in one of these formats:
+                - List-like of numpy arrays
+                - Numpy array of shape (N, H, W, C) or (N, H, W)
+
+        Returns:
+            tuple: (height, width) of the first image
+
+        Raises:
+            TypeError: If data format is invalid
+        """
+        if isinstance(data, np.ndarray):
+            if data.ndim not in [3, 4]:  # (N,H,W) or (N,H,W,C)
+                raise TypeError(f"{data_name} as numpy array must be 3D or 4D")
+            return data.shape[1:3]  # Return (H,W)
+
         if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
-            raise TypeError(f"{data_name} must be list of numpy arrays")
+            raise TypeError(f"{data_name} must be either a numpy array or a list of numpy arrays")
         return data[0].shape[:2]
 
     @staticmethod

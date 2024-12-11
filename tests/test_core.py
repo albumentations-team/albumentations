@@ -1114,11 +1114,19 @@ def test_transform_always_apply_warning() -> None:
         },
     ),
 )
-def test_images_as_target(augmentation_cls, params):
+@pytest.mark.parametrize("as_array", [True, False])
+def test_images_as_target(augmentation_cls, params, as_array):
     image = RECTANGULAR_FLOAT_IMAGE if augmentation_cls == A.FromFloat else RECTANGULAR_UINT8_IMAGE
     image2 = image.copy()
 
-    data = {"images": [image, image2]}
+    if as_array:
+        # Stack images into a single array
+        images = np.stack([image, image2])
+        data = {"images": images}
+    else:
+        # Original list format
+        data = {"images": [image, image2]}
+
     if augmentation_cls == A.MaskDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
@@ -1128,9 +1136,18 @@ def test_images_as_target(augmentation_cls, params):
         [augmentation_cls(p=1, **params)],
     )
 
-    transformed2 = aug(**data)
+    transformed = aug(**data)
 
-    np.testing.assert_array_equal(transformed2["images"][0], transformed2["images"][1])
+    # Check output format matches input format
+    if as_array:
+        assert isinstance(transformed["images"], np.ndarray)
+        assert transformed["images"].ndim == 4  # (N, H, W, C) or ndim == 3 for grayscale
+        assert transformed["images"].flags["C_CONTIGUOUS"]  # Ensure memory is contiguous
+    else:
+        assert isinstance(transformed["images"], list)
+
+    # Check both images were transformed identically
+    np.testing.assert_array_equal(transformed["images"][0], transformed["images"][1])
 
 
 @pytest.mark.parametrize(
