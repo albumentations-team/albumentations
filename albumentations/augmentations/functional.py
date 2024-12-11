@@ -925,15 +925,14 @@ def add_sun_flare_overlay(
     overlay = img.copy()
     output = img.copy()
 
-    weighted_brightness = 0.
-    total_radius_length = 0.
+    weighted_brightness = 0.0
+    total_radius_length = 0.0
 
     for alpha, (x, y), rad3, (r_color, g_color, b_color) in circles:
         weighted_brightness += alpha * rad3
         total_radius_length += rad3
         cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
         output = add_weighted(overlay, alpha, output, 1 - alpha)
-
 
     point = [int(x) for x in flare_center]
 
