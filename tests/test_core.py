@@ -1115,8 +1115,10 @@ def test_transform_always_apply_warning() -> None:
     ),
 )
 @pytest.mark.parametrize("as_array", [True, False])
-def test_images_as_target(augmentation_cls, params, as_array):
-    image = RECTANGULAR_FLOAT_IMAGE if augmentation_cls == A.FromFloat else RECTANGULAR_UINT8_IMAGE
+@pytest.mark.parametrize("shape", [(101, 99, 3), (101, 99)])
+def test_images_as_target(augmentation_cls, params, as_array, shape):
+    image = np.random.uniform(0, 255, shape).astype(np.float32) if augmentation_cls == A.FromFloat else np.random.randint(0, 255, shape, dtype=np.uint8)
+
     image2 = image.copy()
 
     if as_array:
@@ -1143,8 +1145,16 @@ def test_images_as_target(augmentation_cls, params, as_array):
         assert isinstance(transformed["images"], np.ndarray)
         assert transformed["images"].ndim == 4  # (N, H, W, C) or ndim == 3 for grayscale
         assert transformed["images"].flags["C_CONTIGUOUS"]  # Ensure memory is contiguous
+
+        # Verify exact shape matches expected dimensions
+        N, H, W, C = transformed["images"].shape
+        assert N == 2  # Two images as input
+        assert H == image.shape[0]  # Height matches input
+        assert W == image.shape[1]  # Width matches input
+        assert C == image.shape[2]  # Channels match input
     else:
         assert isinstance(transformed["images"], list)
+
 
     # Check both images were transformed identically
     np.testing.assert_array_equal(transformed["images"][0], transformed["images"][1])

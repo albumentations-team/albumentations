@@ -3146,6 +3146,7 @@ class ToSepia(ImageOnlyTransform):
     This transform converts a color image to a sepia tone, giving it a warm, brownish tint
     that is reminiscent of old photographs. The sepia effect is achieved by applying a
     specific color transformation matrix to the RGB channels of the input image.
+    For grayscale images, the transform is a no-op and returns the original image.
 
     Args:
         p (float): Probability of applying the transform. Default: 0.5.
@@ -3157,10 +3158,12 @@ class ToSepia(ImageOnlyTransform):
         uint8, float32
 
     Number of channels:
-        3
+        1,3
 
     Note:
-        - This transform only works with RGB images (3 channels).
+        - The sepia effect only works with RGB images (3 channels). For grayscale images,
+          the original image is returned unchanged since the sepia transformation would
+          have no visible effect when R=G=B.
         - The sepia effect is created using a fixed color transformation matrix:
           [[0.393, 0.769, 0.189],
            [0.349, 0.686, 0.168],
@@ -3168,27 +3171,30 @@ class ToSepia(ImageOnlyTransform):
         - The output image will have the same data type as the input image.
         - For float32 images, ensure the input values are in the range [0, 1].
 
-    Raises:
-        TypeError: If the input image is not a 3-channel RGB image.
-
     Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>>
-        # Apply sepia effect to a uint8 image
+        # Apply sepia effect to a uint8 RGB image
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> transform = A.ToSepia(p=1.0)
         >>> sepia_image = transform(image=image)['image']
         >>> assert sepia_image.shape == image.shape
         >>> assert sepia_image.dtype == np.uint8
         >>>
-        # Apply sepia effect to a float32 image
+        # Apply sepia effect to a float32 RGB image
         >>> image = np.random.rand(100, 100, 3).astype(np.float32)
         >>> transform = A.ToSepia(p=1.0)
         >>> sepia_image = transform(image=image)['image']
         >>> assert sepia_image.shape == image.shape
         >>> assert sepia_image.dtype == np.float32
         >>> assert 0 <= sepia_image.min() <= sepia_image.max() <= 1.0
+        >>>
+        # No effect on grayscale images
+        >>> gray_image = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+        >>> transform = A.ToSepia(p=1.0)
+        >>> result = transform(image=gray_image)['image']
+        >>> assert np.array_equal(result, gray_image)
 
     Mathematical Formulation:
         Given an input pixel [R, G, B], the sepia tone is calculated as:
@@ -3196,7 +3202,10 @@ class ToSepia(ImageOnlyTransform):
         G_sepia = 0.349*R + 0.686*G + 0.168*B
         B_sepia = 0.272*R + 0.534*G + 0.131*B
 
-        The output values are then clipped to the valid range for the image's data type.
+        For grayscale images where R=G=B, this transformation would result in a simple
+        scaling of the original value, so we skip it.
+
+        The output values are clipped to the valid range for the image's data type.
 
     See Also:
         ToGray: For converting images to grayscale instead of sepia.
@@ -3209,7 +3218,12 @@ class ToSepia(ImageOnlyTransform):
         )
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        non_rgb_error(img)
+        if is_grayscale_image(img):
+            return img
+
+        if not is_rgb_image(img):
+            msg = "ToSepia transformation expects 1 or 3-channel images."
+            raise TypeError(msg)
         return fmain.linear_transformation_rgb(img, self.sepia_transformation_matrix)
 
     def get_transform_init_args_names(self) -> tuple[()]:
