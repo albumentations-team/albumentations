@@ -1118,7 +1118,9 @@ def test_transform_always_apply_warning() -> None:
 @pytest.mark.parametrize("shape", [(101, 99, 3), (101, 99)])
 def test_images_as_target(augmentation_cls, params, as_array, shape):
     if len(shape) == 2:
-        if augmentation_cls == A.ChannelDropout:
+        if augmentation_cls in {A.ChannelDropout, A.Spatter, A.ISONoise,
+                                A.RandomGravel, A.ChromaticAberration, A.PlanckianJitter, A.PixelDistributionAdaptation,
+                                A.MaskDropout, A.ChannelShuffle, A.ToRGB}:
             pytest.skip("ChannelDropout is not applicable to grayscale images")
 
 
@@ -1152,19 +1154,21 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
     # Check output format matches input format
     if as_array:
         assert isinstance(transformed["images"], np.ndarray)
+
         assert transformed["images"].ndim == len(shape) + 1, f"Expected {len(shape) + 1} dimensions, got {transformed['images'].ndim}"
 
         assert transformed["images"].flags["C_CONTIGUOUS"]  # Ensure memory is contiguous
 
         # Verify exact shape matches expected dimensions
-        N, H, W, C = transformed["images"].shape
+        N, H, W = transformed["images"].shape[:3]
         assert N == 2  # Two images as input
-        assert C == image.shape[2]  # Channels match input
+        if len(shape) == 3:
+            assert transformed["images"].shape[-1] == image.shape[2]  # Channels match input
 
         if augmentation_cls not in [A.RandomCrop, A.RandomResizedCrop, A.Resize, A.RandomSizedCrop, A.RandomSizedBBoxSafeCrop,
                                     A.BBoxSafeRandomCrop, A.Transpose, A.RandomCropNearBBox, A.CenterCrop, A.Crop, A.CropAndPad,
                                     A.LongestMaxSize, A.RandomScale, A.PadIfNeeded, A.SmallestMaxSize, A.RandomCropFromBorders,
-                                    A.RandomRotate90]:
+                                    A.RandomRotate90, A.D4]:
             assert H == image.shape[0]  # Height matches input
             assert W == image.shape[1]  # Width matches input
     else:
