@@ -226,8 +226,24 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> list[np.ndarray]:
-        """Apply transform on images."""
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray | list[np.ndarray]:
+        """Apply transform on images.
+
+        Args:
+            images: Input images in one of these formats:
+                - List-like of images
+                - Numpy array of shape (num_images, height, width, channels)
+                - Numpy array of shape (num_images, height, width) for grayscale
+            **params: Additional parameters specific to the transform
+
+        Returns:
+            Transformed images in the same format as input
+        """
+        if isinstance(images, np.ndarray) and images.ndim in [3, 4]:
+            # Handle batched numpy array input
+            transformed = np.stack([self.apply(image, **params) for image in images])
+            return np.require(transformed, requirements=["C_CONTIGUOUS"])
+        # Handle list-like input
         return [self.apply(image, **params) for image in images]
 
     def get_params(self) -> dict[str, Any]:
@@ -377,7 +393,7 @@ class DualTransform(BasicTransform):
         apply_to_masks(masks: np.ndarray | Sequence[np.ndarray], **params: Any) -> np.ndarray | list[np.ndarray]:
             Apply the transform to multiple masks.
 
-            masks: Either a 3D array of shape (num_masks, H, W) or (H, W, num_masks),
+            masks: Either a 3D array of shape (num_masks, H, W),
                     or a sequence of 2D/3D arrays each of shape (H, W) or (H, W, C).
             **params: Additional parameters specific to the transform.
             Returns Transformed masks in the same format as input.
