@@ -9,8 +9,6 @@ from typing import Any, Union, cast
 import cv2
 import numpy as np
 
-from albumentations.core.types import NUM_MULTI_CHANNEL_DIMENSIONS
-
 from .bbox_utils import BboxParams, BboxProcessor
 from .hub_mixin import HubMixin
 from .keypoints_utils import KeypointParams, KeypointsProcessor
@@ -379,6 +377,7 @@ class Compose(BaseCompose, HubMixin):
 
         self.save_applied_params = save_applied_params
         self._images_was_list = False
+        self._masks_was_list = False
 
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
@@ -429,30 +428,63 @@ class Compose(BaseCompose, HubMixin):
         return self.postprocess(data)
 
     def preprocess(self, data: Any) -> None:
-        if self.strict:
-            for data_name in data:
-                if (
-                    data_name not in self._available_keys
-                    and data_name not in MASK_KEYS
-                    and data_name not in IMAGE_KEYS
-                    and data_name != "applied_transforms"
-                ):
-                    msg = f"Key {data_name} is not in available keys."
-                    raise ValueError(msg)
+        """Preprocess input data before applying transforms."""
+        self._validate_data(data)
+        self._preprocess_processors(data)
+        self._preprocess_arrays(data)
+
+    def _validate_data(self, data: dict[str, Any]) -> None:
+        """Validate input data keys and arguments."""
+        if not self.strict:
+            return
+
+        for data_name in data:
+            if not self._is_valid_key(data_name):
+                raise ValueError(f"Key {data_name} is not in available keys.")
+
         if self.is_check_args:
             self._check_args(**data)
-        if self.main_compose:
-            for p in self.processors.values():
-                p.ensure_data_valid(data)
-            for p in self.processors.values():
-                p.preprocess(data)
 
-        if "images" in data:
-            if isinstance(data["images"], (list, tuple)):
-                self._images_was_list = True
-                data["images"] = np.stack(data["images"])
-            else:
-                self._images_was_list = False
+    def _is_valid_key(self, key: str) -> bool:
+        """Check if the key is valid for processing."""
+        return key in self._available_keys or key in MASK_KEYS or key in IMAGE_KEYS or key == "applied_transforms"
+
+    def _preprocess_processors(self, data: dict[str, Any]) -> None:
+        """Run preprocessors if this is the main compose."""
+        if not self.main_compose:
+            return
+
+        for processor in self.processors.values():
+            processor.ensure_data_valid(data)
+        for processor in self.processors.values():
+            processor.preprocess(data)
+
+    def _preprocess_arrays(self, data: dict[str, Any]) -> None:
+        """Convert lists to numpy arrays for images and masks."""
+        self._preprocess_images(data)
+        self._preprocess_masks(data)
+
+    def _preprocess_images(self, data: dict[str, Any]) -> None:
+        """Convert image lists to numpy arrays."""
+        if "images" not in data:
+            return
+
+        if isinstance(data["images"], (list, tuple)):
+            self._images_was_list = True
+            data["images"] = np.stack(data["images"])
+        else:
+            self._images_was_list = False
+
+    def _preprocess_masks(self, data: dict[str, Any]) -> None:
+        """Convert mask lists to numpy arrays."""
+        if "masks" not in data:
+            return
+
+        if isinstance(data["masks"], (list, tuple)):
+            self._masks_was_list = True
+            data["masks"] = np.stack(data["masks"])
+        else:
+            self._masks_was_list = False
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.main_compose:
@@ -462,6 +494,9 @@ class Compose(BaseCompose, HubMixin):
             # Convert back to list if original input was a list
             if "images" in data and self._images_was_list:
                 data["images"] = list(data["images"])
+
+            if "masks" in data and self._masks_was_list:
+                data["masks"] = list(data["masks"])
 
         return data
 
@@ -502,14 +537,31 @@ class Compose(BaseCompose, HubMixin):
 
     @staticmethod
     def _check_masks_data(data_name: str, data: Any) -> tuple[int, int]:
+        """Check masks data format and return shape.
+
+        Args:
+            data_name: Name of the data field being checked
+            data: Input data in one of these formats:
+                - List of numpy arrays, each of shape (H, W) or (H, W, C)
+                - Numpy array of shape (N, H, W) or (N, H, W, C)
+
+        Returns:
+            tuple: (height, width) of the first mask
+
+        Raises:
+            TypeError: If data format is invalid
+        """
         if isinstance(data, np.ndarray):
-            if data.ndim not in [3, 4]:
-                raise TypeError(f"{data_name} must be a 3D or 4D numpy array")
-            return data.shape[1:3] if data.ndim == NUM_MULTI_CHANNEL_DIMENSIONS else data.shape[:2]
-        if isinstance(data, Sequence):
+            if data.ndim not in [3, 4]:  # (N,H,W) or (N,H,W,C)
+                raise TypeError(f"{data_name} as numpy array must be 3D or 4D")
+            return data.shape[1:3]  # Return (H,W)
+
+        if isinstance(data, (list, tuple)):
+            if not data:
+                raise ValueError(f"{data_name} cannot be empty")
             if not all(isinstance(m, np.ndarray) for m in data):
                 raise TypeError(f"All elements in {data_name} must be numpy arrays")
-            if any(m.ndim not in [2, 3] for m in data):
+            if not all(m.ndim in [2, 3] for m in data):
                 raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
             return data[0].shape[:2]
 

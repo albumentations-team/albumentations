@@ -167,8 +167,8 @@ def test_pad_position_equivalence(
         crop_cls(
             **crop_params,
             pad_if_needed=True,
-            pad_mode=pad_mode,
-            pad_cval=0,
+            border_mode=pad_mode,
+            fill=0,
             pad_position=pad_position,
         )
     ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"))
@@ -179,7 +179,7 @@ def test_pad_position_equivalence(
             min_height=crop_params["height"],
             min_width=crop_params["width"],
             border_mode=pad_mode,
-            value=0,
+            fill=0,
             position=pad_position,
         ),
         crop_cls(

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
 import numpy as np
 from pydantic import AfterValidator, model_validator
@@ -9,13 +9,13 @@ from typing_extensions import Self
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.transforms3d import functional as f3d
 from albumentations.core.pydantic import check_range_bounds_3d
-from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.transforms_interface import Transform3D
 from albumentations.core.types import ColorType
 
 __all__ = ["PadIfNeeded3D"]
 
 
-class PadIfNeeded3D(DualTransform):
+class PadIfNeeded3D(Transform3D):
     """Pads the sides of a 3D volume if its dimensions are less than specified minimum dimensions.
     If the pad_divisor_zyx is specified, the function additionally ensures that the volume
     dimensions are divisible by these values.
@@ -67,7 +67,7 @@ class PadIfNeeded3D(DualTransform):
         >>> padded_mask = transformed['mask']
     """
 
-    class InitSchema(DualTransform.InitSchema):
+    class InitSchema(Transform3D.InitSchema):
         min_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(0, None))]
         pad_divisor_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(1, None))]
         position: Literal["center", "random"]
@@ -103,7 +103,7 @@ class PadIfNeeded3D(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        depth, height, width = params["shape"][:3]
+        depth, height, width = data["images"].shape[:3]
         sizes = (depth, height, width)
 
         paddings = [
@@ -134,7 +134,7 @@ class PadIfNeeded3D(DualTransform):
         return f3d.pad_3d_with_params(
             img=images,
             padding=padding,  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
-            value=self.fill,
+            value=cast(ColorType, self.fill),
         )
 
     def apply_to_masks(
@@ -148,7 +148,7 @@ class PadIfNeeded3D(DualTransform):
         return f3d.pad_3d_with_params(
             img=masks,
             padding=padding,  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
-            value=self.fill_mask,
+            value=cast(ColorType, self.fill_mask),
         )
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:

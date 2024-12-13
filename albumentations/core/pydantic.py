@@ -181,7 +181,7 @@ def check_range_bounds_3d(
     max_val: Number | None = None,
     min_inclusive: bool = True,
     max_inclusive: bool = True,
-) -> Callable[[tuple[Number, Number, Number]], tuple[Number, Number, Number]]:
+) -> Callable[[tuple[Number, Number, Number] | None], tuple[Number, Number, Number] | None]:
     """Validates that all three values in a tuple are within specified bounds.
 
     Args:
@@ -192,12 +192,16 @@ def check_range_bounds_3d(
 
     Returns:
         Validator function that checks if all values in tuple are within bounds.
+        Returns None if input is None.
 
     Raises:
         ValueError: If any value in tuple is outside the allowed range
     """
 
-    def validator(value: tuple[Number, Number, Number]) -> tuple[Number, Number, Number]:
+    def validator(value: tuple[Number, Number, Number] | None) -> tuple[Number, Number, Number] | None:
+        if value is None:
+            return None
+
         min_op = (lambda x, y: x >= y) if min_inclusive else (lambda x, y: x > y)
         max_op = (lambda x, y: x <= y) if max_inclusive else (lambda x, y: x < y)
 

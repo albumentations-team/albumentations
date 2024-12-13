@@ -192,7 +192,7 @@ AUGMENTATION_CLS_PARAMS = [
         {
             "scale": 0.5,
             "keep_size": False,
-            "pad_mode": cv2.BORDER_REFLECT_101,
+            "border_mode": cv2.BORDER_REFLECT_101,
             "fill": 10,
             "fill_mask": 100,
             "fit_output": True,
@@ -404,4 +404,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Illumination, {}],
     [A.ThinPlateSpline, {}],
     [A.AutoContrast, {}],
+    [A.PadIfNeeded3D, {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20}],
 ]
