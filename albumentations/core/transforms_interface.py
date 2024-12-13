@@ -226,7 +226,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray | list[np.ndarray]:
+    def apply_to_images(self, images: list[np.ndarray] | np.ndarray, **params: Any) -> list[np.ndarray] | np.ndarray:
         """Apply transform on images.
 
         Args:
