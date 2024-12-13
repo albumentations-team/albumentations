@@ -276,13 +276,18 @@ def test_to_tensor_v2_images_masks():
     transformed = transform(
         image=image,
         mask=mask,
-        masks=[mask] * 2,
-        images=[image] * 2
+        masks=np.stack([mask] * 2),  # Now passing stacked numpy array
+        images=np.stack([image] * 2)  # Stacked numpy array
     )
 
-    # Check all outputs are torch.Tensor
-    for key in ['image', 'mask']:
-        assert isinstance(transformed[key], torch.Tensor)
+    # Check outputs are torch.Tensor
+    assert isinstance(transformed["image"], torch.Tensor)
+    assert isinstance(transformed["mask"], torch.Tensor)
+    assert isinstance(transformed["masks"], torch.Tensor)
+    assert isinstance(transformed["images"], torch.Tensor)  # Now checking single tensor
 
-    for key in ['masks', 'images']:
-        assert all(isinstance(t, torch.Tensor) for t in transformed[key])
+    # Check shapes
+    assert transformed["image"].shape == (3, 100, 100)  # (C, H, W)
+    assert transformed["mask"].shape == (100, 100)  # (H, W)
+    assert transformed["masks"].shape == (2, 100, 100)  # (N, H, W)
+    assert transformed["images"].shape == (2, 3, 100, 100)  # (N, C, H, W)

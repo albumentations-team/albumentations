@@ -21,4 +21,5 @@ from .spectrogram.transform import *
 from .text.functional import *
 from .text.transforms import *
 from .transforms import *
+from .transforms3d.transforms import *
 from .utils import *

@@ -2888,7 +2888,7 @@ def bboxes_piecewise_affine(
     return bboxes
 
 
-def _get_dimension_padding(
+def get_dimension_padding(
     current_size: int,
     min_size: int | None,
     divisor: int | None,
@@ -2940,12 +2940,12 @@ def get_padding_params(
     """
     rows, cols = image_shape[:2]
 
-    h_pad_top, h_pad_bottom = _get_dimension_padding(
+    h_pad_top, h_pad_bottom = get_dimension_padding(
         rows,
         min_height,
         pad_height_divisor,
     )
-    w_pad_left, w_pad_right = _get_dimension_padding(cols, min_width, pad_width_divisor)
+    w_pad_left, w_pad_right = get_dimension_padding(cols, min_width, pad_width_divisor)
 
     return h_pad_top, h_pad_bottom, w_pad_left, w_pad_right
 

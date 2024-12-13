@@ -23,6 +23,7 @@ from tests.conftest import (
 from .utils import (
     OpenMock,
     check_all_augs_exists,
+    get_2d_transforms,
     get_image_only_transforms,
     get_transforms,
 )
@@ -129,6 +130,7 @@ def test_augmentations_serialization_with_custom_parameters(
     mask = image[:, :, 0].copy()
     aug = augmentation_cls(p=p, **params)
     aug.set_random_seed(seed)
+    transforms3d = {A.PadIfNeeded3D}
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -144,11 +146,19 @@ def test_augmentations_serialization_with_custom_parameters(
         data["cropping_bbox"] = [10, 20, 40, 50]
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = []
+    elif augmentation_cls in transforms3d:
+        data["images"] = np.array([image] * 10)
+        data["masks"] = np.array([mask] * 10)
 
     aug_data = aug(**data)
     deserialized_aug_data = deserialized_aug(**data)
-    np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
-    np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+
+    if augmentation_cls not in transforms3d:
+        np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
+        np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+    else:
+        np.testing.assert_array_equal(aug_data["images"], deserialized_aug_data["images"])
+        np.testing.assert_array_equal(aug_data["masks"], deserialized_aug_data["masks"])
 
 
 @pytest.mark.parametrize("image", UINT8_IMAGES)
@@ -167,6 +177,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
     image,
     data_format,
 ):
+    transforms3d = {A.PadIfNeeded3D}
     mask = image[:, :, 0].copy()
     with patch("builtins.open", OpenMock()):
         aug = augmentation_cls(p=p, **params)
@@ -188,16 +199,24 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             data["cropping_bbox"] = [10, 20, 40, 50]
         elif augmentation_cls == A.TextImage:
             data["textimage_metadata"] = []
+        elif augmentation_cls in transforms3d:
+            data["images"] = np.array([image] * 10)
+            data["masks"] = np.array([mask] * 10)
 
         aug_data = aug(**data)
         deserialized_aug_data = deserialized_aug(**data)
-        np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
-        np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+
+        if augmentation_cls not in transforms3d:
+            np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
+            np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+        else:
+            np.testing.assert_array_equal(aug_data["images"], deserialized_aug_data["images"])
+            np.testing.assert_array_equal(aug_data["masks"], deserialized_aug_data["masks"])
 
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -229,6 +248,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
             A.TextImage,
+            A.PadIfNeeded3D,
         },
     ),
 )
@@ -263,7 +283,7 @@ def test_augmentations_for_bboxes_serialization(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -355,13 +375,15 @@ def test_augmentations_serialization_with_call_params(
 ):
     aug = augmentation_cls(p=p, **params)
     aug.set_random_seed(seed)
-    annotations = {"image": image, **call_params}
+    data = {"image": image, **call_params}
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     deserialized_aug.set_random_seed(seed)
-    aug_data = aug(**annotations)
-    deserialized_aug_data = deserialized_aug(**annotations)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+
+    aug_data = aug(**data)
+    deserialized_aug_data = deserialized_aug(**data)
+
+    np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
 @pytest.mark.parametrize("image", FLOAT32_IMAGES)
@@ -817,6 +839,7 @@ def test_template_transform_serialization(
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.PadIfNeeded3D: {"min_zyx": (512, 512, 512)},
         },
         except_augmentations={
             A.FDA,

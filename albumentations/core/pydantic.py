@@ -174,3 +174,46 @@ def check_range_bounds(
         return value
 
     return validator
+
+
+def check_range_bounds_3d(
+    min_val: Number,
+    max_val: Number | None = None,
+    min_inclusive: bool = True,
+    max_inclusive: bool = True,
+) -> Callable[[tuple[Number, Number, Number] | None], tuple[Number, Number, Number] | None]:
+    """Validates that all three values in a tuple are within specified bounds.
+
+    Args:
+        min_val: Minimum allowed value
+        max_val: Maximum allowed value. If None, only lower bound is checked.
+        min_inclusive: If True, min_val is inclusive (>=). If False, exclusive (>).
+        max_inclusive: If True, max_val is inclusive (<=). If False, exclusive (<).
+
+    Returns:
+        Validator function that checks if all values in tuple are within bounds.
+        Returns None if input is None.
+
+    Raises:
+        ValueError: If any value in tuple is outside the allowed range
+    """
+
+    def validator(value: tuple[Number, Number, Number] | None) -> tuple[Number, Number, Number] | None:
+        if value is None:
+            return None
+
+        min_op = (lambda x, y: x >= y) if min_inclusive else (lambda x, y: x > y)
+        max_op = (lambda x, y: x <= y) if max_inclusive else (lambda x, y: x < y)
+
+        if max_val is None:
+            if not all(min_op(x, min_val) for x in value):
+                op_symbol = ">=" if min_inclusive else ">"
+                raise ValueError(f"All values in {value} must be {op_symbol} {min_val}")
+        else:
+            min_symbol = ">=" if min_inclusive else ">"
+            max_symbol = "<=" if max_inclusive else "<"
+            if not all(min_op(x, min_val) and max_op(x, max_val) for x in value):
+                raise ValueError(f"All values in {value} must be {min_symbol} {min_val} and {max_symbol} {max_val}")
+        return value
+
+    return validator

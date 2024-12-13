@@ -1025,12 +1025,13 @@ def test_bounding_box_vflip(bbox, expected_bbox) -> None:
 @pytest.mark.parametrize(
     "get_transform",
     [
-        lambda sign: A.Affine(translate_px=sign * 2, mode=cv2.BORDER_CONSTANT, cval=255),
+        lambda sign: A.Affine(translate_px=sign * 2, mode=cv2.BORDER_CONSTANT, fill=255),
         lambda sign: A.ShiftScaleRotate(
             shift_limit=(sign * 0.02, sign * 0.02),
             scale_limit=0,
             rotate_limit=0,
             border_mode=cv2.BORDER_CONSTANT,
+            fill=255,
         ),
     ],
 )

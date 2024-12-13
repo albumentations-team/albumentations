@@ -40,7 +40,7 @@ class CoarseDropout(BaseDropout):
             - 'inpaint_telea': uses OpenCV Telea inpainting method
             - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        mask_fill_value (ColorType | None): Fill value for dropout regions in the mask.
+        fill_mask (ColorType | None): Fill value for dropout regions in the mask.
             If None, mask regions corresponding to image dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Default: 0.5
 

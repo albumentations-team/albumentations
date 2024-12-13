@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Sequence
 from copy import deepcopy
 from typing import Any, Callable
 from warnings import warn
@@ -17,14 +16,13 @@ from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
 from .types import (
-    NUM_MULTI_CHANNEL_DIMENSIONS,
     ColorType,
     DropoutFillValue,
     Targets,
 )
 from .utils import ensure_contiguous_output, format_args
 
-__all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
+__all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "Transform3D"]
 
 
 class Interpolation:
@@ -226,25 +224,22 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray | list[np.ndarray]:
+    def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform on images.
 
         Args:
-            images: Input images in one of these formats:
-                - List-like of images
-                - Numpy array of shape (num_images, height, width, channels)
-                - Numpy array of shape (num_images, height, width) for grayscale
+            images: Input images as numpy array of shape:
+                - (num_images, height, width, channels)
+                - (num_images, height, width) for grayscale
+            *args: Additional positional arguments
             **params: Additional parameters specific to the transform
 
         Returns:
-            Transformed images in the same format as input
+            Transformed images as numpy array in the same format as input
         """
-        if isinstance(images, np.ndarray) and images.ndim in [3, 4]:
-            # Handle batched numpy array input
-            transformed = np.stack([self.apply(image, **params) for image in images])
-            return np.require(transformed, requirements=["C_CONTIGUOUS"])
-        # Handle list-like input
-        return [self.apply(image, **params) for image in images]
+        # Handle batched numpy array input
+        transformed = np.stack([self.apply(image, **params) for image in images])
+        return np.require(transformed, requirements=["C_CONTIGUOUS"])
 
     def get_params(self) -> dict[str, Any]:
         """Returns parameters independent of input."""
@@ -414,6 +409,9 @@ class DualTransform(BasicTransform):
 
             Returns Transformed bounding boxes array of shape (N, 4+).
 
+        apply_to_images(images: np.ndarray, **params: Any) -> np.ndarray:
+            Apply the transform to multiple images.
+
     Note:
         - All `apply_*` methods should maintain the input shape and format of the data.
         - The `apply_to_mask` and `apply_to_masks` methods handle both single arrays and sequences of arrays.
@@ -465,20 +463,12 @@ class DualTransform(BasicTransform):
         raise NotImplementedError(f"BBoxes not implemented for {self.__class__.__name__}")
 
     def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        return self.apply(mask, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
+        return self.apply(mask, *args, **params)
 
-    def apply_to_masks(self, masks: np.ndarray | Sequence[np.ndarray], **params: Any) -> list[np.ndarray] | np.ndarray:
-        if isinstance(masks, np.ndarray):
-            if masks.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-                # Transpose from (num_channels, height, width) to (height, width, num_channels)
-                masks = np.transpose(masks, (1, 2, 0))
-                masks = np.require(masks, requirements=["C_CONTIGUOUS"])
-                transformed_masks = self.apply_to_mask(masks, **params)
-                # Transpose back to (num_channels, height, width)
-                return np.require(np.transpose(transformed_masks, (2, 0, 1)), requirements=["C_CONTIGUOUS"])
-
-            return self.apply_to_mask(masks, **params)
-        return [self.apply_to_mask(mask, **params) for mask in masks]
+    def apply_to_masks(self, masks: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        """Apply transform to masks by applying to each slice separately."""
+        transformed_slices = [self.apply_to_mask(mask_slice, *args, **params) for mask_slice in masks]
+        return np.stack(transformed_slices)
 
 
 class ImageOnlyTransform(BasicTransform):
@@ -514,3 +504,48 @@ class NoOp(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
+
+
+class Transform3D(DualTransform):
+    """Base class for all 3D transforms.
+
+    Transform3D inherits from DualTransform because 3D transforms can be applied to both
+    images (volumes) and masks, similar to how 2D DualTransforms work with images and masks.
+
+    Targets:
+        images: 3D numpy array of shape (D, H, W) or (D, H, W, C)
+        masks: 3D numpy array of shape (D, H, W) or sequence of such arrays
+    """
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        raise NotImplementedError("Use 'images' target instead")
+
+    def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
+        raise NotImplementedError("Use 'masks' target instead")
+
+    def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        """Apply transform to 3D volume."""
+        raise NotImplementedError
+
+    def apply_to_masks(
+        self,
+        masks: np.ndarray,
+        *args: Any,
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply transform to 3D mask or sequence of 3D masks."""
+        raise NotImplementedError
+
+    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        raise NotImplementedError("3D bounding boxes not implemented")
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        raise NotImplementedError("3D keypoints not implemented")
+
+    @property
+    def targets(self) -> dict[str, Callable[..., Any]]:
+        """Define valid targets for 3D transforms."""
+        return {
+            "images": self.apply_to_images,
+            "masks": self.apply_to_masks,
+        }

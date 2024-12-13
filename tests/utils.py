@@ -90,13 +90,28 @@ def get_filtered_transforms(
     base_classes,
     custom_arguments=None,
     except_augmentations=None,
+    exclude_base_classes=None,
 ):
     custom_arguments = custom_arguments or {}
     except_augmentations = except_augmentations or set()
+    exclude_base_classes = exclude_base_classes or ()
 
     result = []
     for cls in get_all_valid_transforms():
-        if not issubclass(cls, base_classes) or any(cls == i for i in base_classes) or cls in except_augmentations:
+        # Skip if class is in except_augmentations
+        if cls in except_augmentations:
+            continue
+
+        # Skip if class is one of the base classes
+        if any(cls == i for i in base_classes):
+            continue
+
+        # Skip if class inherits from any excluded base classes
+        if exclude_base_classes and issubclass(cls, exclude_base_classes):
+            continue
+
+        # Check if class inherits from any of the required base classes
+        if not issubclass(cls, base_classes):
             continue
 
         result.append((cls, custom_arguments.get(cls, {})))
@@ -114,19 +129,36 @@ def get_dual_transforms(
     custom_arguments: dict[type[albumentations.DualTransform], dict] | None = None,
     except_augmentations: set[type[albumentations.DualTransform]] | None = None,
 ) -> list[tuple[type, dict]]:
-    return get_filtered_transforms((albumentations.DualTransform,), custom_arguments, except_augmentations)
-
+    """Get all 2D dual transforms, excluding 3D transforms."""
+    return get_filtered_transforms(
+        base_classes=(albumentations.DualTransform,),
+        custom_arguments=custom_arguments,
+        except_augmentations=except_augmentations,
+        exclude_base_classes=(albumentations.Transform3D,)
+    )
 
 def get_transforms(
     custom_arguments: dict[type[albumentations.BasicTransform], dict] | None = None,
     except_augmentations: set[type[albumentations.BasicTransform]] | None = None,
 ) -> list[tuple[type, dict]]:
+    """Get all transforms (2D and 3D)."""
     return get_filtered_transforms(
-        (albumentations.ImageOnlyTransform, albumentations.DualTransform),
-        custom_arguments,
-        except_augmentations,
+        base_classes=(albumentations.ImageOnlyTransform, albumentations.DualTransform, albumentations.Transform3D),
+        custom_arguments=custom_arguments,
+        except_augmentations=except_augmentations,
     )
 
+def get_2d_transforms(
+    custom_arguments: dict[type[albumentations.BasicTransform], dict] | None = None,
+    except_augmentations: set[type[albumentations.BasicTransform]] | None = None,
+) -> list[tuple[type, dict]]:
+    """Get all 2D transforms (both ImageOnly and Dual transforms), excluding 3D transforms."""
+    return get_filtered_transforms(
+        base_classes=(albumentations.ImageOnlyTransform, albumentations.DualTransform),
+        custom_arguments=custom_arguments,
+        except_augmentations=except_augmentations,
+        exclude_base_classes=(albumentations.Transform3D,)  # Exclude Transform3D and its children
+    )
 
 def check_all_augs_exists(
     augmentations: list[list],
@@ -145,3 +177,15 @@ def check_all_augs_exists(
         raise ValueError(f"These augmentations do not exist in augmentations and except_augmentations: {not_existed}")
 
     return augmentations
+
+
+def get_3d_transforms(
+    custom_arguments: dict[type[albumentations.Transform3D], dict] | None = None,
+    except_augmentations: set[type[albumentations.Transform3D]] | None = None,
+) -> list[tuple[type, dict]]:
+    """Get all 3D transforms."""
+    return get_filtered_transforms(
+        base_classes=(albumentations.Transform3D,),
+        custom_arguments=custom_arguments,
+        except_augmentations=except_augmentations,
+    )
