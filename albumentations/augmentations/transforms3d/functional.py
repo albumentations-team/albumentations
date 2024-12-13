@@ -3,7 +3,7 @@ from typing import Literal
 
 import numpy as np
 
-from albumentations.core.types import ColorType
+from albumentations.core.types import NUM_VOLUME_DIMENSIONS, ColorType
 
 
 def adjust_padding_by_position3d(
@@ -75,7 +75,7 @@ def pad_3d_with_params(
     ]
 
     # Add channel padding if 4D array
-    if img.ndim == 4:
+    if img.ndim == NUM_VOLUME_DIMENSIONS:
         pad_width.append((0, 0))  # no padding for channels
 
     return np.pad(
