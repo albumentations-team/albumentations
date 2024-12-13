@@ -185,7 +185,7 @@ class Normalize(ImageOnlyTransform):
         - For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
         - For other normalization types, these parameters are ignored.
         - For inception normalization, use mean values of (0.5, 0.5, 0.5).
-        - For YOLO normalization, use mean values of (0.5, 0.5, 0.5) and std values of (0, 0, 0).
+        - For YOLO normalization, use mean values of (0, 0, 0) and std values of (1, 1, 1).
         - This transform is often used as a final step in image preprocessing pipelines to
           prepare images for neural network input.
 
