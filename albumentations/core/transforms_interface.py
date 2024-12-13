@@ -226,25 +226,21 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
-    def apply_to_images(self, images: list[np.ndarray] | np.ndarray, **params: Any) -> list[np.ndarray] | np.ndarray:
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
         """Apply transform on images.
 
         Args:
-            images: Input images in one of these formats:
-                - List-like of images
-                - Numpy array of shape (num_images, height, width, channels)
-                - Numpy array of shape (num_images, height, width) for grayscale
+            images: Input images as numpy array of shape:
+                - (num_images, height, width, channels)
+                - (num_images, height, width) for grayscale
             **params: Additional parameters specific to the transform
 
         Returns:
-            Transformed images in the same format as input
+            Transformed images as numpy array in the same format as input
         """
-        if isinstance(images, np.ndarray) and images.ndim in [3, 4]:
-            # Handle batched numpy array input
-            transformed = np.stack([self.apply(image, **params) for image in images])
-            return np.require(transformed, requirements=["C_CONTIGUOUS"])
-        # Handle list-like input
-        return [self.apply(image, **params) for image in images]
+        # Handle batched numpy array input
+        transformed = np.stack([self.apply(image, **params) for image in images])
+        return np.require(transformed, requirements=["C_CONTIGUOUS"])
 
     def get_params(self) -> dict[str, Any]:
         """Returns parameters independent of input."""
@@ -413,6 +409,9 @@ class DualTransform(BasicTransform):
             **params: Additional parameters specific to the transform.
 
             Returns Transformed bounding boxes array of shape (N, 4+).
+
+        apply_to_images(images: np.ndarray, **params: Any) -> np.ndarray:
+            Apply the transform to multiple images.
 
     Note:
         - All `apply_*` methods should maintain the input shape and format of the data.

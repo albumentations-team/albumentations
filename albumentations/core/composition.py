@@ -378,6 +378,7 @@ class Compose(BaseCompose, HubMixin):
         self._set_processors_for_transforms(self.transforms)
 
         self.save_applied_params = save_applied_params
+        self._images_was_list = False
 
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
@@ -446,10 +447,22 @@ class Compose(BaseCompose, HubMixin):
             for p in self.processors.values():
                 p.preprocess(data)
 
+        if "images" in data:
+            if isinstance(data["images"], (list, tuple)):
+                self._images_was_list = True
+                data["images"] = np.stack(data["images"])
+            else:
+                self._images_was_list = False
+
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.main_compose:
             for p in self.processors.values():
                 p.postprocess(data)
+
+            # Convert back to list if original input was a list
+            if "images" in data and self._images_was_list:
+                data["images"] = list(data["images"])
+
         return data
 
     def to_dict_private(self) -> dict[str, Any]:

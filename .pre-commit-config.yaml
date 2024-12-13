@@ -40,7 +40,7 @@ repos:
     - id: check-docstrings
       name: Check Docstrings for '---' sequences
       entry: python tools/check_docstrings.py
-      language: system
+      language: python
       types: [python]
   - repo: local
     hooks:
