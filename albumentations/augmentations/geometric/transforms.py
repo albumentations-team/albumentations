@@ -675,18 +675,9 @@ class Affine(DualTransform):
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
 
-        cval: ColorType | None = Field(
-            default=None,
-            deprecated="Deprecated use fill instead",
-        )
-        cval_mask: ColorType | None = Field(
-            default=None,
-            deprecated="Deprecated use fill_mask instead",
-        )
-        mode: BorderModeType | None = Field(
-            default=None,
-            deprecated="Deprecated use border_mode instead",
-        )
+        cval: ColorType | None
+        cval_mask: ColorType | None
+        mode: BorderModeType | None
 
         fill: ColorType
         fill_mask: ColorType
@@ -762,10 +753,13 @@ class Affine(DualTransform):
         def validate_fill_types(self) -> Self:
             if self.cval is not None:
                 self.fill = self.cval
+                warn("cval is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
             if self.cval_mask is not None:
                 self.fill_mask = self.cval_mask
+                warn("cval_mask is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
             if self.mode is not None:
                 self.border_mode = self.mode
+                warn("mode is deprecated, use border_mode instead", DeprecationWarning, stacklevel=2)
             return self
 
     def __init__(
@@ -2388,10 +2382,8 @@ class PadIfNeeded(Pad):
         pad_width_divisor: int | None = Field(ge=1)
         position: PositionType
         border_mode: BorderModeType
-        value: ColorType | None = Field(deprecated="Deprecated. Use 'fill' instead.")
-        mask_value: ColorType | None = Field(
-            deprecated="Deprecated. Use 'fill_mask' instead.",
-        )
+        value: ColorType | None
+        mask_value: ColorType | None
 
         fill: ColorType
         fill_mask: ColorType
@@ -2410,9 +2402,11 @@ class PadIfNeeded(Pad):
                 raise ValueError(msg)
 
             if self.mask_value is not None:
+                warn("mask_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
                 self.fill_mask = self.mask_value
 
             if self.value is not None:
+                warn("value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
                 self.fill = self.value
 
             return self

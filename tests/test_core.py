@@ -1118,6 +1118,7 @@ def test_transform_always_apply_warning() -> None:
             A.OverlayElements,
             A.TextImage,
             A.PadIfNeeded3D,
+            A.Pad3D,
         },
     ),
 )
@@ -1228,6 +1229,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
+            A.Pad3D: {"padding": 10},
         },
     ),
 )
@@ -1239,7 +1241,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
     assert not image.flags["C_CONTIGUOUS"]
     assert not mask.flags["C_CONTIGUOUS"]
 
-    transforms3d = {A.PadIfNeeded3D}
+    transforms3d = {A.PadIfNeeded3D, A.Pad3D}
 
     if augmentation_cls == A.RandomCropNearBBox:
         # requires "cropping_bbox" arg
@@ -1345,6 +1347,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
                 "transform_type": "standard",
             },
             A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
+            A.Pad3D: {"padding": 10},
         },
         except_augmentations={
             A.FDA,
@@ -1372,7 +1375,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
 def test_masks_as_target(augmentation_cls, params, masks):
     image = SQUARE_UINT8_IMAGE
 
-    transforms3d = {A.PadIfNeeded3D}
+    transforms3d = {A.PadIfNeeded3D, A.Pad3D}
 
     data = {
         "image": image,
