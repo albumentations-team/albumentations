@@ -10,7 +10,7 @@ from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.transforms3d import functional as f3d
 from albumentations.core.pydantic import check_range_bounds_3d
 from albumentations.core.transforms_interface import Transform3D
-from albumentations.core.types import ColorType
+from albumentations.core.types import ColorType, Targets
 
 __all__ = ["PadIfNeeded3D"]
 
@@ -34,7 +34,7 @@ class PadIfNeeded3D(Transform3D):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        image, mask
+        images, masks
 
     Image types:
         uint8, float32
@@ -62,10 +62,12 @@ class PadIfNeeded3D(Transform3D):
         ...         fill=0,
         ...     ),
         ... ])
-        >>> transformed = transform(image=volume, mask=mask)
-        >>> padded_volume = transformed['image']
-        >>> padded_mask = transformed['mask']
+        >>> transformed = transform(image=volume, masks=masks)
+        >>> padded_volume = transformed['images']
+        >>> padded_masks = transformed['masks']
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(Transform3D.InitSchema):
         min_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(0, None))]

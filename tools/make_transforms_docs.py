@@ -13,6 +13,7 @@ IGNORED_CLASSES = {
     "BasicTransform",
     "DualTransform",
     "ImageOnlyTransform",
+    "Transform3D",
 }
 
 
@@ -62,24 +63,46 @@ def get_image_only_transforms_info():
     image_only_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
-        if inspect.isclass(cls) and issubclass(cls, albumentations.ImageOnlyTransform) and name not in IGNORED_CLASSES:
+        if (inspect.isclass(cls) and
+            issubclass(cls, albumentations.ImageOnlyTransform) and
+            not issubclass(cls, albumentations.Transform3D) and  # Exclude 3D transforms
+            name not in IGNORED_CLASSES):
             if not is_deprecated(cls):
                 image_only_info[name] = {
                     "docs_link": make_augmentation_docs_link(cls)
                 }
     return image_only_info
 
+
 def get_dual_transforms_info():
     dual_transforms_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
-        if inspect.isclass(cls) and issubclass(cls, albumentations.DualTransform) and name not in IGNORED_CLASSES:
+        if (inspect.isclass(cls) and
+            issubclass(cls, albumentations.DualTransform) and
+            not issubclass(cls, albumentations.Transform3D) and  # Exclude 3D transforms
+            name not in IGNORED_CLASSES):
             if not is_deprecated(cls):
                 dual_transforms_info[name] = {
                     "targets": cls._targets,
                     "docs_link": make_augmentation_docs_link(cls)
                 }
     return dual_transforms_info
+
+
+def get_3d_transforms_info():
+    transforms_3d_info = {}
+    members = inspect.getmembers(albumentations)
+    for name, cls in members:
+        if (inspect.isclass(cls) and
+            issubclass(cls, albumentations.Transform3D) and  # Check for Transform3D parent
+            name not in IGNORED_CLASSES):
+            if not is_deprecated(cls):
+                transforms_3d_info[name] = {
+                    "targets": cls._targets,
+                    "docs_link": make_augmentation_docs_link(cls)
+                }
+    return transforms_3d_info
 
 
 def make_transforms_targets_table(transforms_info, header):
@@ -116,13 +139,14 @@ def make_transforms_targets_links(transforms_info):
     )
 
 
-def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> None:
+def check_docs(filepath, image_only_transforms_links, dual_transforms_table, transforms_3d_table) -> None:
     with open(filepath, encoding="utf8") as f:
         text = f.read()
 
     outdated_docs = set()
     image_only_lines_not_in_text = []
     dual_lines_not_in_text = []
+    transforms_3d_lines_not_in_text = []
 
     for line in image_only_transforms_links.split("\n"):
         if line not in text:
@@ -134,6 +158,11 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
             dual_lines_not_in_text.append(line)
             outdated_docs.update(["Spatial-level"])
 
+    for line in transforms_3d_table.split("\n"):
+        if line not in text:
+            transforms_3d_lines_not_in_text.append(line)
+            outdated_docs.update(["3D"])
+
     if outdated_docs:
         msg = (
             "Docs for the following transform types are outdated: {outdated_docs_headers}. "
@@ -142,16 +171,18 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
             "# Pixel-level transforms lines not in file:\n"
             "{image_only_lines}\n"
             "# Spatial-level transforms lines not in file:\n"
-            "{dual_lines}\n".format(
+            "{dual_lines}\n"
+            "# 3D transforms lines not in file:\n"
+            "{transforms_3d_lines}\n".format(
                 outdated_docs_headers=", ".join(outdated_docs),
                 py_file=Path(os.path.realpath(__file__)).name,
                 filename=os.path.basename(filepath),
                 image_only_lines="\n".join(image_only_lines_not_in_text),
                 dual_lines="\n".join(dual_lines_not_in_text),
+                transforms_3d_lines="\n".join(transforms_3d_lines_not_in_text),
             )
         )
         raise ValueError(msg)
-
 
 
 def main() -> None:
@@ -162,11 +193,14 @@ def main() -> None:
 
     image_only_transforms = get_image_only_transforms_info()
     dual_transforms = get_dual_transforms_info()
+    transforms_3d = get_3d_transforms_info()
 
     image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
-
     dual_transforms_table = make_transforms_targets_table(
         dual_transforms, header=["Transform"] + [target.value for target in Targets]
+    )
+    transforms_3d_table = make_transforms_targets_table(
+        transforms_3d, header=["Transform"] + [target.value for target in [Targets.IMAGE, Targets.MASK]]
     )
 
     if command == "make":
@@ -177,9 +211,17 @@ def main() -> None:
         print("===== COPY THIS TABLE TO README.MD BELOW ### Spatial-level transforms =====")
         print(dual_transforms_table)
         print("===== END OF COPY =====")
-
+        print()
+        print("===== COPY THIS TABLE TO README.MD BELOW ### 3D transforms =====")
+        print(transforms_3d_table)
+        print("===== END OF COPY =====")
     else:
-        check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
+        check_docs(
+            args.filepath,
+            image_only_transforms_links,
+            dual_transforms_table,
+            transforms_3d_table
+        )
 
 
 if __name__ == "__main__":

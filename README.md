@@ -297,6 +297,14 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [VerticalFlip](https://explore.albumentations.ai/transform/VerticalFlip)                         | ✓     | ✓    | ✓      | ✓         |
 | [XYMasking](https://explore.albumentations.ai/transform/XYMasking)                               | ✓     | ✓    | ✓      | ✓         |
 
+### 3D transforms
+
+3D transforms operate on volumetric data and can modify both the input volume and associated 3D mask
+
+| Transform                                                                  | Image | Mask |
+| -------------------------------------------------------------------------- | :---: | :--: |
+| [PadIfNeeded3D](https://explore.albumentations.ai/transform/PadIfNeeded3D) | ✓     | ✓    |
+
 ## A few more examples of **augmentations**
 
 ### Semantic segmentation on the Inria dataset
