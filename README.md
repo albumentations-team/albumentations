@@ -303,6 +303,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 | Transform                                                                  | Image | Mask |
 | -------------------------------------------------------------------------- | :---: | :--: |
+| [Pad3D](https://explore.albumentations.ai/transform/Pad3D)                 | ✓     | ✓    |
 | [PadIfNeeded3D](https://explore.albumentations.ai/transform/PadIfNeeded3D) | ✓     | ✓    |
 
 ## A few more examples of **augmentations**
