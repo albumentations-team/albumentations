@@ -211,3 +211,27 @@ def test_pad_position_equivalence(
         result2["keypoints"],
         err_msg=f"Keypoints don't match for position {pad_position}"
     )
+
+def test_base_crop_and_pad_fill():
+    # tests whether BaseCropAndPad usues correct values for constant borders
+    c = A.CenterCrop(4, 4, pad_if_needed=True, fill=100, fill_mask=200)
+    c1 = A.CenterCrop(4, 4, pad_if_needed=True, fill=201)
+
+    im = np.zeros((2, 6, 3)).astype(np.float32)
+    msk = np.zeros((2, 6)).astype(np.uint8)
+
+    out = c(image=im, mask=msk)
+    out1 = c1(image=im, mask=msk)
+
+    expected_img = np.ones((4, 4, 3)).astype(np.float32)
+    expected_img[1:3, ...] = 0
+
+    expected_msk = np.ones((4, 4)).astype(np.uint8)
+    expected_msk[1:3, ...] = 0
+
+    assert np.all(out["image"] == expected_img * 100)
+    assert np.all(out["mask"] == expected_msk * 200)
+
+
+    assert np.all(out1["image"] == expected_img * 201)
+    assert np.all(out1["mask"] == expected_msk * 0)  # 0 is the default for fill_mask

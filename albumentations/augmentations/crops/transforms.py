@@ -175,6 +175,26 @@ class BaseCropAndPad(BaseCrop):
             )
         return super().apply(img, crop_coords, **params)
 
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        crop_coords: Any,
+        **params: Any,
+    ) -> np.ndarray:
+        pad_params = params.get("pad_params")
+        if pad_params is not None:
+            mask = fgeometric.pad_with_params(
+                mask,
+                pad_params["pad_top"],
+                pad_params["pad_bottom"],
+                pad_params["pad_left"],
+                pad_params["pad_right"],
+                border_mode=self.border_mode,
+                value=self.fill_mask,
+            )
+        # Note' that super().apply would apply the padding twice as it is looped to this.apply
+        return BaseCrop.apply(self, mask, crop_coords=crop_coords, **params)
+
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
