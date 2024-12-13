@@ -299,7 +299,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 ### 3D transforms
 
-3D transforms operate on volumetric data and can modify both the input volume and associated 3D mask
+3D transforms operate on volumetric data and can modify both the input volume and associated 3D mask.
 
 | Transform                                                                  | Image | Mask |
 | -------------------------------------------------------------------------- | :---: | :--: |

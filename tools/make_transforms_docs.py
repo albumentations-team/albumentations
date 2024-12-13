@@ -65,12 +65,11 @@ def get_image_only_transforms_info():
     for name, cls in members:
         if (inspect.isclass(cls) and
             issubclass(cls, albumentations.ImageOnlyTransform) and
-            not issubclass(cls, albumentations.Transform3D) and  # Exclude 3D transforms
-            name not in IGNORED_CLASSES):
-            if not is_deprecated(cls):
-                image_only_info[name] = {
-                    "docs_link": make_augmentation_docs_link(cls)
-                }
+            not issubclass(cls, albumentations.Transform3D) and
+            name not in IGNORED_CLASSES) and not is_deprecated(cls):
+            image_only_info[name] = {
+                "docs_link": make_augmentation_docs_link(cls)
+            }
     return image_only_info
 
 
@@ -95,13 +94,12 @@ def get_3d_transforms_info():
     members = inspect.getmembers(albumentations)
     for name, cls in members:
         if (inspect.isclass(cls) and
-            issubclass(cls, albumentations.Transform3D) and  # Check for Transform3D parent
-            name not in IGNORED_CLASSES):
-            if not is_deprecated(cls):
-                transforms_3d_info[name] = {
-                    "targets": cls._targets,
-                    "docs_link": make_augmentation_docs_link(cls)
-                }
+            issubclass(cls, albumentations.Transform3D) and
+            name not in IGNORED_CLASSES) and not is_deprecated(cls):
+            transforms_3d_info[name] = {
+                "targets": cls._targets,
+                "docs_link": make_augmentation_docs_link(cls)
+            }
     return transforms_3d_info
 
 

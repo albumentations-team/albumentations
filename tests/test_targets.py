@@ -31,20 +31,18 @@ def get_targets_from_methods(cls):
 
 def extract_targets_from_docstring(cls):
     # Access the class's docstring
-    docstring = cls.__doc__
-    if not docstring:
+    if not (docstring := cls.__doc__):
         return []  # Return an empty list if there's no docstring
 
     # Regular expression to match the 'Targets:' section in the docstring
     targets_pattern = r"Targets:\s*([^\n]+)"
 
-    # Search for the pattern in the docstring
-    matches = re.search(targets_pattern, docstring)
-    if matches:
+    # Search for the pattern in the docstring and extract targets if found
+    if matches := re.search(targets_pattern, docstring):
         # Extract the targets string and split it by commas or spaces
-        targets_str = matches.group(1)
-        targets = re.split(r"[,\s]+", targets_str)  # Split by comma or whitespace
+        targets = re.split(r"[,\s]+", matches[1])  # Using subscript notation instead of group()
         return [target.strip() for target in targets if target.strip()]  # Remove any extra whitespace
+
     return []  # Return an empty list if the 'Targets:' section isn't found
 
 
