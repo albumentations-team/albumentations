@@ -1921,8 +1921,7 @@ def test_dual_transforms_methods(augmentation_cls, params):
 )
 @pytest.mark.parametrize("image", IMAGES)
 def test_crop_and_pad(px, percent, fill, keep_size, sample_independently, image):
-    fill = 255 if isinstance(fill, list) else fill
-    fill_mask = 128 if isinstance(fill_mask, list) else fill_mask
+    fill_mask = 255 if isinstance(fill, list) else fill
 
     interpolation = cv2.INTER_LINEAR
     border_mode = cv2.BORDER_CONSTANT

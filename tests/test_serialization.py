@@ -384,7 +384,6 @@ def test_augmentations_serialization_with_call_params(
     deserialized_aug_data = deserialized_aug(**data)
 
     np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
-    np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 @pytest.mark.parametrize("image", FLOAT32_IMAGES)

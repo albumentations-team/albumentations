@@ -15,7 +15,7 @@ from tests.conftest import (
     SQUARE_UINT8_IMAGE,
 )
 
-from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
+from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
 
 @pytest.mark.parametrize(
@@ -192,7 +192,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.HistogramMatching: {
                 "reference_images": [SQUARE_UINT8_IMAGE],
@@ -253,13 +253,13 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     else:
         aug(image=image, mask=mask)
 
-    assert np.array_equal(image, image_copy)
-    assert np.array_equal(mask, mask_copy)
+    np.testing.assert_array_equal(image, image_copy)
+    np.testing.assert_array_equal(mask, mask_copy)
 
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.HistogramMatching: {
                 "reference_images": [SQUARE_FLOAT_IMAGE],
@@ -326,12 +326,12 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
 
     aug(**data)
 
-    assert np.array_equal(image, float_image_copy)
+    np.testing.assert_array_equal(image, float_image_copy)
 
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.HistogramMatching: {
                 "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
@@ -420,7 +420,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.HistogramMatching: {
                 "reference_images": [SQUARE_UINT8_IMAGE],
@@ -544,7 +544,7 @@ def test_mask_fill_value(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.HistogramMatching: {
                 "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
@@ -632,7 +632,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.HistogramMatching: {
                 "reference_images": [SQUARE_MULTI_FLOAT_IMAGE],
@@ -721,7 +721,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -806,7 +806,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -1047,7 +1047,7 @@ def test_pad_if_needed_position(params, image_shape):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -1092,8 +1092,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     image_uint8 = RECTANGULAR_UINT8_IMAGE
     image_float32 = to_float(image_uint8)
 
-    transform = A.Compose([augmentation_cls(p=1, **params)])
-
+    transform = A.Compose([augmentation_cls(p=1, **params)], seed=42)
 
     data = {"image": image_uint8}
     if augmentation_cls == A.MaskDropout:
@@ -1101,11 +1100,8 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
         mask[:20, :20] = 1
         data["mask"] = mask
 
-    set_seed(42)
-    transform.set_random_seed(42)
     transformed_uint8 = transform(**data)["image"]
 
-    set_seed(42)
     data["image"] = image_float32
 
     transform.set_random_seed(42)
