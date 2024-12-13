@@ -157,7 +157,7 @@ def __test_multiprocessing_support_proc(args):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -193,7 +193,6 @@ def __test_multiprocessing_support_proc(args):
             A.OverlayElements,
             A.TextImage,
             A.MaskDropout,
-            A.PadIfNeeded3D,
         },
     ),
 )
@@ -1415,7 +1414,7 @@ def test_coarse_dropout_invalid_input(params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -1464,7 +1463,6 @@ def test_coarse_dropout_invalid_input(params):
                 "spatial_mode": "constant",
                 "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
             },
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1480,8 +1478,6 @@ def test_coarse_dropout_invalid_input(params):
 def test_change_image(augmentation_cls, params):
     """Checks whether resulting image is different from the original one."""
     aug = A.Compose([augmentation_cls(p=1, **params)], seed=0)
-
-    transforms3d = {A.PadIfNeeded3D}
 
     image = SQUARE_UINT8_IMAGE
     original_image = image.copy()
@@ -1506,18 +1502,11 @@ def test_change_image(augmentation_cls, params):
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
-    elif augmentation_cls == A.PadIfNeeded3D:
-        data["images"] = np.array([image] * 10)
-        data["masks"] = np.array([image[:, :, 0]] * 10)
 
     transformed = aug(**data)
 
-    if augmentation_cls not in transforms3d:
-        np.testing.assert_array_equal(image, original_image)
-        assert not np.array_equal(transformed["image"], image)
-    else:
-        assert not np.array_equal(transformed["images"], data["images"])
-        assert not np.array_equal(transformed["masks"], data["masks"])
+    np.testing.assert_array_equal(image, original_image)
+    assert not np.array_equal(transformed["image"], image)
 
 
 @pytest.mark.parametrize(
@@ -2212,6 +2201,7 @@ def test_random_sun_flare_invalid_input(params):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
+            A.Pad3D: {"padding": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,

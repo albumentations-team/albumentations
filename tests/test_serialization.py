@@ -840,6 +840,7 @@ def test_template_transform_serialization(
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PadIfNeeded3D: {"min_zyx": (512, 512, 512)},
+            A.Pad3D: {"padding": 10, "fill": 0, "fill_mask": 0},
         },
         except_augmentations={
             A.FDA,

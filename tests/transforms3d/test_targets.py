@@ -60,22 +60,20 @@ def get_targets_from_methods(cls):
 
     return targets
 
-
 TRASNFORM_3d_DUAL_TARGETS = {
     A.PadIfNeeded3D: (Targets.IMAGE, Targets.MASK),
 }
-
 
 str2target = {
     "images": Targets.IMAGE,
     "masks": Targets.MASK,
 }
 
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_3d_transforms(custom_arguments={
         A.PadIfNeeded3D: {"min_zyx": (4, 250, 230), "position": "center", "fill": 0, "fill_mask": 0},
+        A.Pad3D: {"padding": 10},
     })
 )
 def test_dual(augmentation_cls, params):

@@ -12,10 +12,123 @@ from albumentations.core.pydantic import check_range_bounds_3d
 from albumentations.core.transforms_interface import Transform3D
 from albumentations.core.types import ColorType, Targets
 
-__all__ = ["PadIfNeeded3D"]
+__all__ = ["Pad3D", "PadIfNeeded3D"]
+
+NUM_DIMENSIONS = 3
 
 
-class PadIfNeeded3D(Transform3D):
+class BasePad3D(Transform3D):
+    """Base class for 3D padding transforms."""
+
+    _targets = (Targets.IMAGE, Targets.MASK)
+
+    class InitSchema(Transform3D.InitSchema):
+        fill: ColorType
+        fill_mask: ColorType
+
+    def __init__(
+        self,
+        fill: ColorType = 0,
+        fill_mask: ColorType = 0,
+        p: float = 1.0,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.fill = fill
+        self.fill_mask = fill_mask
+
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        padding: tuple[int, int, int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        if padding == (0, 0, 0, 0, 0, 0):
+            return images
+        return f3d.pad_3d_with_params(
+            img=images,
+            padding=padding,
+            value=cast(ColorType, self.fill),
+        )
+
+    def apply_to_masks(
+        self,
+        masks: np.ndarray,
+        padding: tuple[int, int, int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        if padding == (0, 0, 0, 0, 0, 0):
+            return masks
+        return f3d.pad_3d_with_params(
+            img=masks,
+            padding=padding,
+            value=cast(ColorType, self.fill_mask),
+        )
+
+
+class Pad3D(BasePad3D):
+    """Pad the sides of a 3D volume by specified number of voxels.
+
+    Args:
+        padding (int, tuple[int, int, int] or tuple[int, int, int, int, int, int]): Padding values. Can be:
+            * int - pad all sides by this value
+            * tuple[int, int, int] - symmetric padding (pad_z, pad_y, pad_x) where:
+                - pad_z: padding for depth/z-axis (front/back)
+                - pad_y: padding for height/y-axis (top/bottom)
+                - pad_x: padding for width/x-axis (left/right)
+            * tuple[int, int, int, int, int, int] - explicit padding per side in order:
+                (front, top, left, back, bottom, right) where:
+                - front/back: padding along z-axis (depth)
+                - top/bottom: padding along y-axis (height)
+                - left/right: padding along x-axis (width)
+        fill (ColorType): Padding value for image
+        fill_mask (ColorType): Padding value for mask
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        images, masks
+
+    Image types:
+        uint8, float32
+
+    Note:
+        Input volume should be a numpy array with dimensions ordered as (z, y, x) or (depth, height, width),
+        with optional channel dimension as the last axis.
+    """
+
+    class InitSchema(BasePad3D.InitSchema):
+        padding: int | tuple[int, int, int] | tuple[int, int, int, int, int, int]
+
+    def __init__(
+        self,
+        padding: int | tuple[int, int, int] | tuple[int, int, int, int, int, int],
+        fill: ColorType = 0,
+        fill_mask: ColorType = 0,
+        p: float = 1.0,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(fill=fill, fill_mask=fill_mask, p=p)
+        self.padding = padding
+        self.fill = fill
+        self.fill_mask = fill_mask
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(self.padding, int):
+            pad_d = pad_h = pad_w = self.padding
+            padding = (pad_d, pad_d, pad_h, pad_h, pad_w, pad_w)
+        elif len(self.padding) == NUM_DIMENSIONS:
+            pad_d, pad_h, pad_w = self.padding  # type: ignore[misc]
+            padding = (pad_d, pad_d, pad_h, pad_h, pad_w, pad_w)
+        else:
+            padding = self.padding  # type: ignore[assignment]
+
+        return {"padding": padding}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ("padding", "fill", "fill_mask")
+
+
+class PadIfNeeded3D(BasePad3D):
     """Pads the sides of a 3D volume if its dimensions are less than specified minimum dimensions.
     If the pad_divisor_zyx is specified, the function additionally ensures that the volume
     dimensions are divisible by these values.
@@ -40,41 +153,14 @@ class PadIfNeeded3D(Transform3D):
         uint8, float32
 
     Note:
-        - Either min_zyx or pad_divisor_zyx must be set, but not both for each dimension.
-        - The transform will maintain consistency across all targets (image and mask).
-        - Input volumes can be either 3D arrays (depth, height, width) or
-          4D arrays (depth, height, width, channels).
-        - Padding is always applied using constant values specified by fill/fill_mask.
-
-    Example:
-        >>> import albumentations as A
-        >>> transform = A.Compose([
-        ...     A.PadIfNeeded3D(
-        ...         min_zyx=(64, 128, 128),  # Minimum size for each dimension
-        ...         fill=0,  # Fill value for images
-        ...         fill_mask=0,  # Fill value for masks
-        ...     ),
-        ... ])
-        >>> # For divisible dimensions
-        >>> transform = A.Compose([
-        ...     A.PadIfNeeded3D(
-        ...         pad_divisor_zyx=(16, 16, 16),  # Make dimensions divisible by 16
-        ...         fill=0,
-        ...     ),
-        ... ])
-        >>> transformed = transform(image=volume, masks=masks)
-        >>> padded_volume = transformed['images']
-        >>> padded_masks = transformed['masks']
+        Input volume should be a numpy array with dimensions ordered as (z, y, x) or (depth, height, width),
+        with optional channel dimension as the last axis.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK)
-
-    class InitSchema(Transform3D.InitSchema):
+    class InitSchema(BasePad3D.InitSchema):
         min_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(0, None))]
         pad_divisor_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(1, None))]
         position: Literal["center", "random"]
-        fill: ColorType
-        fill_mask: ColorType
 
         @model_validator(mode="after")
         def validate_params(self) -> Self:
@@ -93,12 +179,10 @@ class PadIfNeeded3D(Transform3D):
         p: float = 1.0,
         always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.min_zyx = min_zyx
         self.pad_divisor_zyx = pad_divisor_zyx
         self.position = position
-        self.fill = fill
-        self.fill_mask = fill_mask
 
     def get_params_dependent_on_data(
         self,
@@ -123,35 +207,7 @@ class PadIfNeeded3D(Transform3D):
             py_random=self.py_random,
         )
 
-        return {"padding": padding}  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
-
-    def apply_to_images(
-        self,
-        images: np.ndarray,
-        padding: tuple[int, int, int, int, int, int],
-        **params: Any,
-    ) -> np.ndarray:
-        if padding == (0, 0, 0, 0, 0, 0):
-            return images
-        return f3d.pad_3d_with_params(
-            img=images,
-            padding=padding,  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
-            value=cast(ColorType, self.fill),
-        )
-
-    def apply_to_masks(
-        self,
-        masks: np.ndarray,
-        padding: tuple[int, int, int, int, int, int],
-        **params: Any,
-    ) -> np.ndarray:
-        if padding == (0, 0, 0, 0, 0, 0):
-            return masks
-        return f3d.pad_3d_with_params(
-            img=masks,
-            padding=padding,  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
-            value=cast(ColorType, self.fill_mask),
-        )
+        return {"padding": padding}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
