@@ -3,8 +3,8 @@ import numpy as np
 import albumentations as A
 import cv2
 
-from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE
-from tests.utils import get_3d_transforms
+from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.utils import get_2d_transforms, get_3d_transforms
 
 @pytest.mark.parametrize(
     ["volume_shape", "min_zyx", "pad_divisor_zyx", "expected_shape"],
@@ -107,6 +107,8 @@ def test_pad_if_needed_3d_fill_values():
         custom_arguments={
             A.PadIfNeeded3D: {"min_zyx": (4, 250, 230), "position": "center", "fill": 0, "fill_mask": 0},
             A.Pad3D: {"padding": 10},
+            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
         },
         except_augmentations={
         },
@@ -271,6 +273,8 @@ def test_pad3d_2d_equivalence(pad3d_padding, pad2d_padding):
         custom_arguments={
             A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
             A.Pad3D: {"padding": 10},
+            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
         },
         except_augmentations={
         },
@@ -292,3 +296,257 @@ def test_change_image(augmentation_cls, params):
 
     assert not np.array_equal(transformed["images"], original_images)
     assert not np.array_equal(transformed["masks"], original_masks)
+
+
+@pytest.mark.parametrize(
+    ["transform", "input_shape", "expected_shape"],
+    [
+        # CenterCrop3D tests
+        (
+            A.CenterCrop3D(size=(4, 60, 60), pad_if_needed=False, fill=0, fill_mask=0),
+            (10, 100, 100),
+            (4, 60, 60),
+        ),
+        # RandomCrop3D tests
+        (
+            A.RandomCrop3D(size=(4, 60, 60), pad_if_needed=False, fill=0, fill_mask=0),
+            (10, 100, 100),
+            (4, 60, 60),
+        ),
+    ],
+    ids=[
+        "center_crop_3d",
+        "random_crop_3d",
+    ]
+)
+def test_crop_3d_shapes(transform, input_shape, expected_shape):
+    volume = np.random.randint(0, 256, input_shape, dtype=np.uint8)
+    transformed = transform(images=volume)
+    assert transformed["images"].shape == expected_shape
+
+
+@pytest.mark.parametrize(
+    "transform_cls",
+    [
+        A.CenterCrop3D,
+        A.RandomCrop3D,
+    ],
+    ids=[
+        "center_crop",
+        "random_crop",
+    ]
+)
+@pytest.mark.parametrize(
+    ["input_shape", "target_shape", "description"],
+    [
+        # Padding needed in all dimensions
+        (
+            (10, 100, 100),
+            (16, 128, 128),
+            "pad_all_dims",
+        ),
+        # Padding needed only in depth
+        (
+            (5, 100, 100),
+            (10, 50, 50),
+            "pad_depth_only",
+        ),
+        # Padding needed only in height
+        (
+            (10, 40, 100),
+            (8, 64, 50),
+            "pad_height_only",
+        ),
+        # Padding needed only in width
+        (
+            (10, 100, 40),
+            (8, 50, 64),
+            "pad_width_only",
+        ),
+        # Padding needed in height and width
+        (
+            (10, 40, 40),
+            (8, 64, 64),
+            "pad_height_width",
+        ),
+        # No padding needed (smaller crop)
+        (
+            (10, 100, 100),
+            (8, 64, 64),
+            "no_padding_needed",
+        ),
+    ],
+    ids=lambda x: x[2] if isinstance(x, tuple) else x,
+)
+def test_crop_3d_padding(transform_cls, input_shape, target_shape, description):
+    volume = np.random.randint(0, 256, input_shape, dtype=np.uint8)
+
+    transform = A.Compose([transform_cls(p=1, size=target_shape, pad_if_needed=True, fill=0, fill_mask=0)], seed=0)
+
+    transformed = transform(images=volume)
+    assert transformed["images"].shape == target_shape
+
+
+@pytest.mark.parametrize(
+    ["transform_cls", "size", "fill", "fill_mask"],
+    [
+        (A.CenterCrop3D, (4, 60, 60), 0, 1),
+        (A.CenterCrop3D, (4, 60, 60), 1, 0),
+        (A.RandomCrop3D, (4, 60, 60), 0, 1),
+        (A.RandomCrop3D, (4, 60, 60), 1, 0),
+    ],
+    ids=[
+        "center_crop_fill_0_mask_1",
+        "center_crop_fill_1_mask_0",
+        "random_crop_fill_0_mask_1",
+        "random_crop_fill_1_mask_0",
+    ]
+)
+def test_crop_3d_fill_values(transform_cls, size, fill, fill_mask):
+    volume = np.ones((3, 50, 50), dtype=np.uint8)
+    mask = np.zeros((3, 50, 50), dtype=np.uint8)
+
+    transform = A.Compose([transform_cls(p=1, size=size, pad_if_needed=True, fill=fill, fill_mask=fill_mask)], seed=0)
+
+    transformed = transform(images=volume, masks=mask)
+    padded_volume = transformed["images"]
+    padded_mask = transformed["masks"]
+
+    # Verify shapes
+    assert padded_volume.shape == size
+    assert padded_mask.shape == size
+
+    # Find padded regions by comparing with fill values
+    is_padding_volume = padded_volume == fill
+    is_padding_mask = padded_mask == fill_mask
+
+    # Check that some padding exists in each dimension that needs it
+    if size[0] > volume.shape[0]:
+        assert np.any(is_padding_volume[:, 0, 0])  # depth padding exists
+        assert np.any(is_padding_mask[:, 0, 0])
+
+    if size[1] > volume.shape[1]:
+        assert np.any(is_padding_volume[0, :, 0])  # height padding exists
+        assert np.any(is_padding_mask[0, :, 0])
+
+    if size[2] > volume.shape[2]:
+        assert np.any(is_padding_volume[0, 0, :])  # width padding exists
+        assert np.any(is_padding_mask[0, 0, :])
+
+    # Check that padding values are consistent
+    assert np.all(padded_volume[is_padding_volume] == fill)
+    assert np.all(padded_mask[is_padding_mask] == fill_mask)
+
+
+def test_random_crop_3d_reproducibility():
+    """Test that RandomCrop3D produces same results with same random seed"""
+    volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)
+
+    transform = A.RandomCrop3D(size=(4, 60, 60))
+
+    # First run
+    transform.set_random_seed(42)
+    result1 = transform(images=volume)["images"]
+
+    # Second run
+    transform.set_random_seed(42)
+    result2 = transform(images=volume)["images"]
+
+    np.testing.assert_array_equal(result1, result2)
+
+
+@pytest.mark.parametrize(
+    "volume_shape",
+    [
+        (10, 100, 100),      # 3D
+        (10, 100, 100, 1),   # 4D single channel
+        (10, 100, 100, 3),   # 4D multi-channel
+    ],
+    ids=[
+        "3d_volume",
+        "4d_single_channel",
+        "4d_multi_channel",
+    ]
+)
+def test_crop_3d_different_shapes(volume_shape):
+    volume = np.random.randint(0, 256, volume_shape, dtype=np.uint8)
+
+    for transform_cls in [A.CenterCrop3D, A.RandomCrop3D]:
+        transform = transform_cls(size=(4, 60, 60))
+        transformed = transform(images=volume)
+
+        expected_shape = (4, 60, 60)
+        if len(volume_shape) == 4:
+            expected_shape += (volume_shape[3],)
+
+        assert transformed["images"].shape == expected_shape
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_3d_transforms(
+        custom_arguments={
+            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
+            A.Pad3D: {"padding": 10},
+            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+        },
+        except_augmentations={
+        },
+    ),
+)
+@pytest.mark.parametrize(
+    "masks",
+    [
+        np.stack([np.random.randint(0, 2, (100, 100), dtype=np.uint8)] * 4),
+        np.stack([np.random.randint(0, 2, (100, 100, 3), dtype=np.uint8)] * 4),
+    ],
+)
+def test_masks_as_target(augmentation_cls, params, masks):
+    num_images = masks.shape[0]
+
+    image = SQUARE_UINT8_IMAGE
+
+    data = {
+        "images": np.stack([image] * num_images),
+        "masks": masks,
+    }
+
+    aug = A.Compose(
+        [augmentation_cls(p=1, **params)],
+        seed=42,
+    )
+
+    transformed = aug(**data)
+
+    np.testing.assert_array_equal(transformed["masks"][0], transformed["masks"][1])
+
+    assert transformed["masks"][0].dtype == masks[0].dtype
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_3d_transforms(
+        custom_arguments={
+            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
+            A.Pad3D: {"padding": 10},
+            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+        },
+        except_augmentations={
+        },
+    ),
+)
+def test_return_nonzero(augmentation_cls, params):
+    """Mistakes in clipping may lead to zero image, testing for that"""
+    images = np.ones((3, 100, 100), dtype=np.uint8)
+
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
+
+    data = {
+        "images": images,
+    }
+
+    result = aug(**data)
+
+    assert np.max(result["images"]) > 0

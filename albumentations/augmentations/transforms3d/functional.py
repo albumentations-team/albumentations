@@ -84,3 +84,21 @@ def pad_3d_with_params(
         mode="constant",
         constant_values=value,
     )
+
+
+def crop(
+    img: np.ndarray,
+    crop_coords: tuple[int, int, int, int, int, int],
+) -> np.ndarray:
+    """Crop 3D volume using coordinates.
+
+    Args:
+        img: Input volume with shape (z, y, x) or (z, y, x, channels)
+        crop_coords: Tuple of (z_min, z_max, y_min, y_max, x_min, x_max) coordinates for cropping
+
+    Returns:
+        Cropped volume with same number of dimensions as input
+    """
+    z_min, z_max, y_min, y_max, x_min, x_max = crop_coords
+
+    return img[z_min:z_max, y_min:y_max, x_min:x_max]

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Annotated, Any
+from warnings import warn
 
 import numpy as np
 from albucore import get_num_channels
-from pydantic import AfterValidator, Field, model_validator
+from pydantic import AfterValidator, model_validator
 from typing_extensions import Self
 
 from albumentations.core.pydantic import check_1plus
@@ -75,13 +76,18 @@ class ChannelDropout(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         channel_drop_range: Annotated[tuple[int, int], AfterValidator(check_1plus)]
-        fill_value: float | None = Field(deprecated="fill_value is deprecated, use fill instead")
+        fill_value: float | None
         fill: float
 
         @model_validator(mode="after")
         def validate_fill(self) -> Self:
             if self.fill_value is not None:
                 self.fill = self.fill_value
+                warn(
+                    "`fill_value` deprecated. Use `fill` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             return self
 
     def __init__(

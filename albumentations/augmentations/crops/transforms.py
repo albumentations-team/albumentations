@@ -173,7 +173,7 @@ class BaseCropAndPad(BaseCrop):
                 border_mode=self.border_mode,
                 value=self.fill,
             )
-        return super().apply(img, crop_coords, **params)
+        return BaseCrop.apply(self, img, crop_coords, **params)
 
     def apply_to_mask(
         self,
@@ -228,10 +228,10 @@ class BaseCropAndPad(BaseCrop):
 
             params["shape"] = padded_shape
 
-            return super().apply_to_bboxes(bboxes_np, crop_coords, **params)
+            return BaseCrop.apply_to_bboxes(self, bboxes_np, crop_coords, **params)
 
         # If no padding, use original function behavior
-        return super().apply_to_bboxes(bboxes, crop_coords, **params)
+        return BaseCrop.apply_to_bboxes(self, bboxes, crop_coords, **params)
 
     def apply_to_keypoints(
         self,
@@ -261,7 +261,7 @@ class BaseCropAndPad(BaseCrop):
             # Update image shape for subsequent crop operation
             params = {**params, "shape": (padded_height, padded_width)}
 
-        return super().apply_to_keypoints(keypoints, crop_coords, **params)
+        return BaseCrop.apply_to_keypoints(self, keypoints, crop_coords, **params)
 
 
 class RandomCrop(BaseCropAndPad):
