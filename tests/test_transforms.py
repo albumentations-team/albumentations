@@ -2162,7 +2162,7 @@ def test_random_sun_flare_invalid_input(params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -2202,6 +2202,8 @@ def test_random_sun_flare_invalid_input(params):
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
             A.Pad3D: {"padding": 10},
+            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -2238,9 +2240,6 @@ def test_return_nonzero(augmentation_cls, params):
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
-    elif augmentation_cls == A.PadIfNeeded3D:
-        data["images"] = np.ones((10, 100, 100), dtype=np.uint8)
-        data["masks"] = np.ones((10, 100, 100), dtype=np.uint8)
 
     result = aug(**data)
 

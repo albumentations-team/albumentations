@@ -2021,10 +2021,7 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: ScaleFloatType | None = Field(
-            default=None,
-            deprecated="threshold parameter is deprecated. Use threshold_range instead.",
-        )
+        threshold: ScaleFloatType | None
         threshold_range: Annotated[
             tuple[float, float],
             AfterValidator(check_01),
@@ -2037,10 +2034,11 @@ class Solarize(ImageOnlyTransform):
             threshold_range: tuple[float, float],
         ) -> tuple[float, float]:
             """Convert legacy threshold or use threshold_range, normalizing to [0,1] range."""
-            if threshold is None:
-                return threshold_range
-            value = to_tuple(threshold, threshold)
-            return (value[0] / 255, value[1] / 255) if value[1] > 1 else value
+            if threshold is not None:
+                warn("`threshold` deprecated. Use `threshold_range` instead.", DeprecationWarning, stacklevel=2)
+                value = to_tuple(threshold, threshold)
+                return (value[0] / 255, value[1] / 255) if value[1] > 1 else value
+            return threshold_range
 
         @model_validator(mode="after")
         def process_threshold(self) -> Self:
@@ -2530,9 +2528,7 @@ class GaussNoise(ImageOnlyTransform):
         var_limit: ScaleFloatType | None = Field(
             deprecated="var_limit parameter is deprecated. Use std_range instead.",
         )
-        mean: float | None = Field(
-            deprecated="mean parameter is deprecated. Use mean_range instead.",
-        )
+        mean: float | None
         std_range: Annotated[
             tuple[float, float],
             AfterValidator(check_01),
@@ -2559,10 +2555,9 @@ class GaussNoise(ImageOnlyTransform):
                         math.sqrt(self.var_limit[0]),
                         math.sqrt(self.var_limit[1]),
                     )
-            if self.mean is not None:
-                self.mean_range = (0.0, 0.0)
 
             if self.mean is not None:
+                warn("`mean` deprecated. Use `mean_range` instead.", DeprecationWarning, stacklevel=2)
                 if self.mean >= 1:
                     # Convert legacy uint8 mean to normalized range
                     self.mean_range = (self.mean / 255, self.mean / 255)

@@ -24,13 +24,11 @@ from albumentations.core.transforms_interface import DualTransform, ImageOnlyTra
 from albumentations.core.utils import to_tuple
 from tests.conftest import (
     IMAGES,
-    RECTANGULAR_FLOAT_IMAGE,
-    RECTANGULAR_UINT8_IMAGE,
     SQUARE_FLOAT_IMAGE,
     SQUARE_UINT8_IMAGE,
 )
 
-from .utils import get_dual_transforms, get_filtered_transforms, get_image_only_transforms, get_transforms, set_seed
+from .utils import get_2d_transforms, get_dual_transforms, get_filtered_transforms, get_image_only_transforms, get_transforms, set_seed
 
 
 def test_one_or_other():
@@ -1119,6 +1117,8 @@ def test_transform_always_apply_warning() -> None:
             A.TextImage,
             A.PadIfNeeded3D,
             A.Pad3D,
+            A.CenterCrop3D,
+            A.RandomCrop3D,
         },
     ),
 )
@@ -1230,6 +1230,8 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
             A.Pad3D: {"padding": 10},
+            A.CenterCrop3D: {"size": (2, 30, 30)},
+            A.RandomCrop3D: {"size": (2, 30, 30)},
         },
     ),
 )
@@ -1241,7 +1243,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
     assert not image.flags["C_CONTIGUOUS"]
     assert not mask.flags["C_CONTIGUOUS"]
 
-    transforms3d = {A.PadIfNeeded3D, A.Pad3D}
+    transforms3d = {A.PadIfNeeded3D, A.Pad3D, A.CenterCrop3D, A.RandomCrop3D}
 
     if augmentation_cls == A.RandomCropNearBBox:
         # requires "cropping_bbox" arg
@@ -1315,7 +1317,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -1346,8 +1348,6 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
-            A.Pad3D: {"padding": 10},
         },
         except_augmentations={
             A.FDA,
@@ -1367,29 +1367,22 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
 @pytest.mark.parametrize(
     "masks",
     [
-        [np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 2,
-        [np.random.randint(0, 2, [100, 100, 3], dtype=np.uint8)] * 2,
-        np.stack([np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 2),
+        [np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 3,
+        [np.random.randint(0, 2, [100, 100, 3], dtype=np.uint8)] * 3,
+        np.stack([np.random.randint(0, 2, [100, 100], dtype=np.uint8)] * 3),
     ],
 )
 def test_masks_as_target(augmentation_cls, params, masks):
     image = SQUARE_UINT8_IMAGE
-
-    transforms3d = {A.PadIfNeeded3D, A.Pad3D}
 
     data = {
         "image": image,
         "masks": masks,
     }
 
-    if augmentation_cls in transforms3d:
-        data = {
-            "images": np.stack([image] * 2),
-            "masks": masks,
-        }
-
     aug = A.Compose(
         [augmentation_cls(p=1, **params)],
+        seed=42,
     )
 
     transformed = aug(**data)

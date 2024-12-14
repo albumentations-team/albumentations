@@ -406,4 +406,6 @@ AUGMENTATION_CLS_PARAMS = [
     [A.AutoContrast, {}],
     [A.PadIfNeeded3D, {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20}],
     [A.Pad3D, {"padding": 10}],
+    [A.CenterCrop3D, {"size": (2, 30, 30)}],
+    [A.RandomCrop3D, {"size": (2, 30, 30)}],
 ]
