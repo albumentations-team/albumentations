@@ -381,12 +381,7 @@ def test_crop_3d_shapes(transform, input_shape, expected_shape):
 def test_crop_3d_padding(transform_cls, input_shape, target_shape, description):
     volume = np.random.randint(0, 256, input_shape, dtype=np.uint8)
 
-    transform = transform_cls(
-        size=target_shape,
-        pad_if_needed=True,
-        fill=0,
-        fill_mask=0,
-    )
+    transform = A.Compose([transform_cls(p=1, size=target_shape, pad_if_needed=True, fill=0, fill_mask=0)], seed=0)
 
     transformed = transform(images=volume)
     assert transformed["images"].shape == target_shape
@@ -411,12 +406,7 @@ def test_crop_3d_fill_values(transform_cls, size, fill, fill_mask):
     volume = np.ones((3, 50, 50), dtype=np.uint8)
     mask = np.zeros((3, 50, 50), dtype=np.uint8)
 
-    transform = transform_cls(
-        size=size,
-        pad_if_needed=True,
-        fill=fill,
-        fill_mask=fill_mask,
-    )
+    transform = A.Compose([transform_cls(p=1, size=size, pad_if_needed=True, fill=fill, fill_mask=fill_mask)], seed=0)
 
     transformed = transform(images=volume, masks=mask)
     padded_volume = transformed["images"]

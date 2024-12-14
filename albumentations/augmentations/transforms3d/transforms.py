@@ -258,6 +258,21 @@ class BaseCropAndPad3D(Transform3D):
         self.fill_mask = fill_mask
         self.pad_position = pad_position
 
+    def _random_pad(self, pad: int) -> tuple[int, int]:
+        """Helper function to calculate random padding for one dimension."""
+        if pad > 0:
+            pad_start = self.py_random.randint(0, pad)
+            pad_end = pad - pad_start
+        else:
+            pad_start = pad_end = 0
+        return pad_start, pad_end
+
+    def _center_pad(self, pad: int) -> tuple[int, int]:
+        """Helper function to calculate center padding for one dimension."""
+        pad_start = pad // 2
+        pad_end = pad - pad_start
+        return pad_start, pad_end
+
     def _get_pad_params(
         self,
         image_shape: tuple[int, int, int],
@@ -280,20 +295,14 @@ class BaseCropAndPad3D(Transform3D):
 
         # For center padding, split equally
         if self.pad_position == "center":
-            z_front = z_pad // 2
-            z_back = z_pad - z_front
-            h_top = h_pad // 2
-            h_bottom = h_pad - h_top
-            w_left = w_pad // 2
-            w_right = w_pad - w_left
+            z_front, z_back = self._center_pad(z_pad)
+            h_top, h_bottom = self._center_pad(h_pad)
+            w_left, w_right = self._center_pad(w_pad)
         # For random padding, randomly distribute the padding
         else:  # random
-            z_front = self.py_random.randint(0, z_pad + 1) if z_pad > 0 else 0
-            z_back = z_pad - z_front
-            h_top = self.py_random.randint(0, h_pad + 1) if h_pad > 0 else 0
-            h_bottom = h_pad - h_top
-            w_left = self.py_random.randint(0, w_pad + 1) if w_pad > 0 else 0
-            w_right = w_pad - w_left
+            z_front, z_back = self._random_pad(z_pad)
+            h_top, h_bottom = self._random_pad(h_pad)
+            w_left, w_right = self._random_pad(w_pad)
 
         return {
             "pad_front": z_front,
