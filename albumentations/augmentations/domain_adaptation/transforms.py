@@ -216,8 +216,9 @@ class FDA(ImageOnlyTransform):
         return fourier_domain_adaptation(img, target_image, beta)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        height, width = params["shape"][:2]
         target_img = self.read_fn(self.py_random.choice(self.reference_images))
-        target_img = cv2.resize(target_img, dsize=(params["cols"], params["rows"]))
+        target_img = cv2.resize(target_img, dsize=(width, height))
 
         return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
 

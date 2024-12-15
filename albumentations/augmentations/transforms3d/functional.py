@@ -47,14 +47,14 @@ def adjust_padding_by_position3d(
 
 
 def pad_3d_with_params(
-    img: np.ndarray,
+    volume: np.ndarray,
     padding: tuple[int, int, int, int, int, int],  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
     value: ColorType,
 ) -> np.ndarray:
     """Pad 3D image with given parameters.
 
     Args:
-        img: Input image with shape (depth, height, width) or (depth, height, width, channels)
+        volume: Input volume with shape (depth, height, width) or (depth, height, width, channels)
         padding: Padding values (d_front, d_back, h_top, h_bottom, w_left, w_right)
         value: Padding value
 
@@ -65,7 +65,7 @@ def pad_3d_with_params(
 
     # Skip if no padding is needed
     if d_front == d_back == h_top == h_bottom == w_left == w_right == 0:
-        return img
+        return volume
 
     # Handle both 3D and 4D arrays
     pad_width = [
@@ -75,11 +75,11 @@ def pad_3d_with_params(
     ]
 
     # Add channel padding if 4D array
-    if img.ndim == NUM_VOLUME_DIMENSIONS:
+    if volume.ndim == NUM_VOLUME_DIMENSIONS:
         pad_width.append((0, 0))  # no padding for channels
 
     return np.pad(
-        img,
+        volume,
         pad_width=pad_width,
         mode="constant",
         constant_values=value,
@@ -87,13 +87,13 @@ def pad_3d_with_params(
 
 
 def crop(
-    img: np.ndarray,
+    volume: np.ndarray,
     crop_coords: tuple[int, int, int, int, int, int],
 ) -> np.ndarray:
     """Crop 3D volume using coordinates.
 
     Args:
-        img: Input volume with shape (z, y, x) or (z, y, x, channels)
+        volume: Input volume with shape (z, y, x) or (z, y, x, channels)
         crop_coords: Tuple of (z_min, z_max, y_min, y_max, x_min, x_max) coordinates for cropping
 
     Returns:
@@ -101,4 +101,4 @@ def crop(
     """
     z_min, z_max, y_min, y_max, x_min, x_max = crop_coords
 
-    return img[z_min:z_max, y_min:y_max, x_min:x_max]
+    return volume[z_min:z_max, y_min:y_max, x_min:x_max]

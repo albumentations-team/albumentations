@@ -81,7 +81,7 @@ def test_crop_near_bbox(image, bboxes, keypoints):
 
     aug(image=image, bboxes=bboxes, target_bbox=[0, 5, 10, 20], keypoints=keypoints)
 
-    target_keys = {"image", "images", "bboxes", "labels", "mask", "masks", "keypoints", bbox_key}
+    target_keys = {"image", "images", "bboxes", "labels", "mask", "masks", "keypoints", "volume", "volumes", "mask3d", "masks3d", bbox_key}
 
     assert aug._available_keys == target_keys
 

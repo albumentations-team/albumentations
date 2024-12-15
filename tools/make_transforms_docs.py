@@ -96,18 +96,27 @@ def get_3d_transforms_info():
         if (inspect.isclass(cls) and
             issubclass(cls, albumentations.Transform3D) and
             name not in IGNORED_CLASSES) and not is_deprecated(cls):
+
+            # Get targets from class or parent class if not defined
+            if hasattr(cls, '_targets'):
+                targets = cls._targets
+            else:
+                # Get from Transform3D base class
+                targets = albumentations.Transform3D._targets
+
             transforms_3d_info[name] = {
-                "targets": cls._targets,
+                "targets": targets if isinstance(targets, tuple) else (targets,),
                 "docs_link": make_augmentation_docs_link(cls)
             }
     return transforms_3d_info
 
 
-def make_transforms_targets_table(transforms_info, header):
+def make_transforms_targets_table(transforms_info, header, targets_to_check=None):
     rows = [header]
     for transform, info in sorted(transforms_info.items(), key=lambda kv: kv[0]):
         transform_targets = []
-        for target in Targets:
+        targets_iter = targets_to_check or Targets
+        for target in targets_iter:
             mark = "✓" if target in info["targets"] else ""
             transform_targets.append(mark)
         row = [info["docs_link"] or transform, *transform_targets]
@@ -197,8 +206,11 @@ def main() -> None:
     dual_transforms_table = make_transforms_targets_table(
         dual_transforms, header=["Transform"] + [target.value for target in Targets]
     )
+
     transforms_3d_table = make_transforms_targets_table(
-        transforms_3d, header=["Transform"] + [target.value for target in [Targets.IMAGE, Targets.MASK]]
+        transforms_3d,
+        header=["Transform"] + [target.value for target in [Targets.VOLUME, Targets.MASK3D]],
+        targets_to_check=[Targets.VOLUME, Targets.MASK3D]
     )
 
     if command == "make":

@@ -143,8 +143,6 @@ def test_image_only_transform(image):
             mocked_apply.assert_called_once_with(
                 image,
                 interpolation=cv2.INTER_LINEAR,
-                cols=width,
-                rows=height,
                 shape=image.shape,
             )
             np.testing.assert_array_equal(data["mask"], mask)
@@ -168,11 +166,7 @@ def test_dual_transform(image):
                 args, kwargs = call_args
 
                 # Check kwargs contain correct keys and values
-                assert "cols" in kwargs
-                assert "rows" in kwargs
                 assert "shape" in kwargs
-                assert kwargs["cols"] == image.shape[1]
-                assert kwargs["rows"] == image.shape[0]
                 assert kwargs["shape"] == image.shape
 
                 # Check input array is either image or mask
@@ -186,15 +180,11 @@ def test_additional_targets(image):
     image_call = call(
         image,
         interpolation=cv2.INTER_LINEAR,
-        cols=image.shape[1],
-        rows=image.shape[0],
         shape=image.shape,
     )
     image2_call = call(
         mask,
         interpolation=cv2.INTER_LINEAR,
-        cols=mask.shape[1],
-        rows=mask.shape[0],
         shape=mask.shape,
     )
     with mock.patch.object(DualTransform, "apply") as mocked_apply:
@@ -1186,7 +1176,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             # only image
             A.HistogramMatching: {
@@ -1228,10 +1218,6 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
-            A.Pad3D: {"padding": 10},
-            A.CenterCrop3D: {"size": (2, 30, 30)},
-            A.RandomCrop3D: {"size": (2, 30, 30)},
         },
     ),
 )
@@ -1242,8 +1228,6 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
     # check preconditions
     assert not image.flags["C_CONTIGUOUS"]
     assert not mask.flags["C_CONTIGUOUS"]
-
-    transforms3d = {A.PadIfNeeded3D, A.Pad3D, A.CenterCrop3D, A.RandomCrop3D}
 
     if augmentation_cls == A.RandomCropNearBBox:
         # requires "cropping_bbox" arg
@@ -1278,12 +1262,6 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             "mask": mask,
             "overlay_metadata": [],
         }
-    elif augmentation_cls in transforms3d:
-        aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
-        data = {
-            "images": np.stack([image] * 2),
-            "masks": np.stack([mask] * 2),
-        }
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:
@@ -1301,18 +1279,13 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
         }
     transformed = aug(**data)
 
-    if augmentation_cls in transforms3d:
-        assert transformed["masks"].flags["C_CONTIGUOUS"], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS masks"
-        assert transformed["images"].flags["C_CONTIGUOUS"], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS images"
+    assert transformed["image"].flags["C_CONTIGUOUS"], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS image"
 
-    else:
-        assert transformed["image"].flags["C_CONTIGUOUS"], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS image"
-
-        # Check if the augmentation is not an ImageOnlyTransform and mask is in the output
-        if not issubclass(augmentation_cls, ImageOnlyTransform) and "mask" in transformed:
-            assert transformed["mask"].flags[
-                "C_CONTIGUOUS"
-            ], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS mask"
+    # Check if the augmentation is not an ImageOnlyTransform and mask is in the output
+    if not issubclass(augmentation_cls, ImageOnlyTransform) and "mask" in transformed:
+        assert transformed["mask"].flags[
+            "C_CONTIGUOUS"
+        ], f"{augmentation_cls.__name__} did not return a C_CONTIGUOUS mask"
 
 
 @pytest.mark.parametrize(
@@ -1467,15 +1440,15 @@ def test_mask_interpolation_someof(interpolation, compose):
 @pytest.mark.parametrize(
     ["transform", "expected_param_keys"],
     [
-        (A.HorizontalFlip(p=1), {"cols", "rows", "shape"}),
-        (A.VerticalFlip(p=1), {"cols", "rows", "shape"}),
+        (A.HorizontalFlip(p=1), {"shape"}),
+        (A.VerticalFlip(p=1), {"shape"}),
         (
             A.RandomBrightnessContrast(p=1),
-            {"cols", "rows", "shape", "alpha", "beta"}
+            {"shape", "alpha", "beta"}
         ),
         (
             A.Rotate(p=1),
-            {'shape', 'cols', 'rows', 'x_min', 'x_max', 'y_min', 'y_max', 'matrix', 'bbox_matrix', 'interpolation', "fill", "fill_mask"}
+            {'shape', 'x_min', 'x_max', 'y_min', 'y_max', 'matrix', 'bbox_matrix', 'interpolation', "fill", "fill_mask"}
         ),
     ],
 )

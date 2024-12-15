@@ -181,7 +181,7 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 
 ### Pixel-level transforms
 
-Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms:
+Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. For volumetric data (volumes and 3D masks), these transforms are applied independently to each slice along the Z-axis (depth dimension), maintaining consistency across the volume. The list of pixel-level transforms:
 
 - [AdditiveNoise](https://explore.albumentations.ai/transform/AdditiveNoise)
 - [AdvancedBlur](https://explore.albumentations.ai/transform/AdvancedBlur)
@@ -245,68 +245,76 @@ Pixel-level transforms will change just an input image and will leave any additi
 
 ### Spatial-level transforms
 
-Spatial-level transforms will simultaneously change both an input image as well as additional targets such as masks, bounding boxes, and keypoints. The following table shows which additional targets are supported by each transform.
+Spatial-level transforms will simultaneously change both an input image as well as additional targets such as masks, bounding boxes, and keypoints. For volumetric data (volumes and 3D masks), these transforms are applied independently to each slice along the Z-axis (depth dimension), maintaining consistency across the volume. The following table shows which additional targets are supported by each transform:
 
-| Transform                                                                                        | Image | Mask | BBoxes | Keypoints |
-| ------------------------------------------------------------------------------------------------ | :---: | :--: | :----: | :-------: |
-| [Affine](https://explore.albumentations.ai/transform/Affine)                                     | ✓     | ✓    | ✓      | ✓         |
-| [BBoxSafeRandomCrop](https://explore.albumentations.ai/transform/BBoxSafeRandomCrop)             | ✓     | ✓    | ✓      | ✓         |
-| [CenterCrop](https://explore.albumentations.ai/transform/CenterCrop)                             | ✓     | ✓    | ✓      | ✓         |
-| [CoarseDropout](https://explore.albumentations.ai/transform/CoarseDropout)                       | ✓     | ✓    | ✓      | ✓         |
-| [Crop](https://explore.albumentations.ai/transform/Crop)                                         | ✓     | ✓    | ✓      | ✓         |
-| [CropAndPad](https://explore.albumentations.ai/transform/CropAndPad)                             | ✓     | ✓    | ✓      | ✓         |
-| [CropNonEmptyMaskIfExists](https://explore.albumentations.ai/transform/CropNonEmptyMaskIfExists) | ✓     | ✓    | ✓      | ✓         |
-| [D4](https://explore.albumentations.ai/transform/D4)                                             | ✓     | ✓    | ✓      | ✓         |
-| [ElasticTransform](https://explore.albumentations.ai/transform/ElasticTransform)                 | ✓     | ✓    | ✓      | ✓         |
-| [Erasing](https://explore.albumentations.ai/transform/Erasing)                                   | ✓     | ✓    | ✓      | ✓         |
-| [FrequencyMasking](https://explore.albumentations.ai/transform/FrequencyMasking)                 | ✓     | ✓    | ✓      | ✓         |
-| [GridDistortion](https://explore.albumentations.ai/transform/GridDistortion)                     | ✓     | ✓    | ✓      | ✓         |
-| [GridDropout](https://explore.albumentations.ai/transform/GridDropout)                           | ✓     | ✓    | ✓      | ✓         |
-| [GridElasticDeform](https://explore.albumentations.ai/transform/GridElasticDeform)               | ✓     | ✓    | ✓      | ✓         |
-| [HorizontalFlip](https://explore.albumentations.ai/transform/HorizontalFlip)                     | ✓     | ✓    | ✓      | ✓         |
-| [Lambda](https://explore.albumentations.ai/transform/Lambda)                                     | ✓     | ✓    | ✓      | ✓         |
-| [LongestMaxSize](https://explore.albumentations.ai/transform/LongestMaxSize)                     | ✓     | ✓    | ✓      | ✓         |
-| [MaskDropout](https://explore.albumentations.ai/transform/MaskDropout)                           | ✓     | ✓    | ✓      | ✓         |
-| [Morphological](https://explore.albumentations.ai/transform/Morphological)                       | ✓     | ✓    | ✓      | ✓         |
-| [NoOp](https://explore.albumentations.ai/transform/NoOp)                                         | ✓     | ✓    | ✓      | ✓         |
-| [OpticalDistortion](https://explore.albumentations.ai/transform/OpticalDistortion)               | ✓     | ✓    | ✓      | ✓         |
-| [OverlayElements](https://explore.albumentations.ai/transform/OverlayElements)                   | ✓     | ✓    |        |           |
-| [Pad](https://explore.albumentations.ai/transform/Pad)                                           | ✓     | ✓    | ✓      | ✓         |
-| [PadIfNeeded](https://explore.albumentations.ai/transform/PadIfNeeded)                           | ✓     | ✓    | ✓      | ✓         |
-| [Perspective](https://explore.albumentations.ai/transform/Perspective)                           | ✓     | ✓    | ✓      | ✓         |
-| [PiecewiseAffine](https://explore.albumentations.ai/transform/PiecewiseAffine)                   | ✓     | ✓    | ✓      | ✓         |
-| [PixelDropout](https://explore.albumentations.ai/transform/PixelDropout)                         | ✓     | ✓    | ✓      | ✓         |
-| [RandomCrop](https://explore.albumentations.ai/transform/RandomCrop)                             | ✓     | ✓    | ✓      | ✓         |
-| [RandomCropFromBorders](https://explore.albumentations.ai/transform/RandomCropFromBorders)       | ✓     | ✓    | ✓      | ✓         |
-| [RandomCropNearBBox](https://explore.albumentations.ai/transform/RandomCropNearBBox)             | ✓     | ✓    | ✓      | ✓         |
-| [RandomGridShuffle](https://explore.albumentations.ai/transform/RandomGridShuffle)               | ✓     | ✓    | ✓      | ✓         |
-| [RandomResizedCrop](https://explore.albumentations.ai/transform/RandomResizedCrop)               | ✓     | ✓    | ✓      | ✓         |
-| [RandomRotate90](https://explore.albumentations.ai/transform/RandomRotate90)                     | ✓     | ✓    | ✓      | ✓         |
-| [RandomScale](https://explore.albumentations.ai/transform/RandomScale)                           | ✓     | ✓    | ✓      | ✓         |
-| [RandomSizedBBoxSafeCrop](https://explore.albumentations.ai/transform/RandomSizedBBoxSafeCrop)   | ✓     | ✓    | ✓      | ✓         |
-| [RandomSizedCrop](https://explore.albumentations.ai/transform/RandomSizedCrop)                   | ✓     | ✓    | ✓      | ✓         |
-| [Resize](https://explore.albumentations.ai/transform/Resize)                                     | ✓     | ✓    | ✓      | ✓         |
-| [Rotate](https://explore.albumentations.ai/transform/Rotate)                                     | ✓     | ✓    | ✓      | ✓         |
-| [SafeRotate](https://explore.albumentations.ai/transform/SafeRotate)                             | ✓     | ✓    | ✓      | ✓         |
-| [ShiftScaleRotate](https://explore.albumentations.ai/transform/ShiftScaleRotate)                 | ✓     | ✓    | ✓      | ✓         |
-| [SmallestMaxSize](https://explore.albumentations.ai/transform/SmallestMaxSize)                   | ✓     | ✓    | ✓      | ✓         |
-| [ThinPlateSpline](https://explore.albumentations.ai/transform/ThinPlateSpline)                   | ✓     | ✓    | ✓      | ✓         |
-| [TimeMasking](https://explore.albumentations.ai/transform/TimeMasking)                           | ✓     | ✓    | ✓      | ✓         |
-| [TimeReverse](https://explore.albumentations.ai/transform/TimeReverse)                           | ✓     | ✓    | ✓      | ✓         |
-| [Transpose](https://explore.albumentations.ai/transform/Transpose)                               | ✓     | ✓    | ✓      | ✓         |
-| [VerticalFlip](https://explore.albumentations.ai/transform/VerticalFlip)                         | ✓     | ✓    | ✓      | ✓         |
-| [XYMasking](https://explore.albumentations.ai/transform/XYMasking)                               | ✓     | ✓    | ✓      | ✓         |
+- Volume: 3D array of shape (D, H, W) or (D, H, W, C) where D is depth, H is height, W is width, and C is number of channels (optional)
+- Mask3D: Binary or multi-class 3D mask of shape (D, H, W) where each slice represents segmentation for the corresponding volume slice
+
+| Transform                                                                                        | Image | Mask | BBoxes | Keypoints | Volume | Mask3D |
+| ------------------------------------------------------------------------------------------------ | :---: | :--: | :----: | :-------: | :----: | :----: |
+| [Affine](https://explore.albumentations.ai/transform/Affine)                                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [BBoxSafeRandomCrop](https://explore.albumentations.ai/transform/BBoxSafeRandomCrop)             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [CenterCrop](https://explore.albumentations.ai/transform/CenterCrop)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [CoarseDropout](https://explore.albumentations.ai/transform/CoarseDropout)                       | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Crop](https://explore.albumentations.ai/transform/Crop)                                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [CropAndPad](https://explore.albumentations.ai/transform/CropAndPad)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [CropNonEmptyMaskIfExists](https://explore.albumentations.ai/transform/CropNonEmptyMaskIfExists) | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [D4](https://explore.albumentations.ai/transform/D4)                                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [ElasticTransform](https://explore.albumentations.ai/transform/ElasticTransform)                 | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Erasing](https://explore.albumentations.ai/transform/Erasing)                                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [FrequencyMasking](https://explore.albumentations.ai/transform/FrequencyMasking)                 | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [GridDistortion](https://explore.albumentations.ai/transform/GridDistortion)                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [GridDropout](https://explore.albumentations.ai/transform/GridDropout)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [GridElasticDeform](https://explore.albumentations.ai/transform/GridElasticDeform)               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [HorizontalFlip](https://explore.albumentations.ai/transform/HorizontalFlip)                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Lambda](https://explore.albumentations.ai/transform/Lambda)                                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [LongestMaxSize](https://explore.albumentations.ai/transform/LongestMaxSize)                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [MaskDropout](https://explore.albumentations.ai/transform/MaskDropout)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Morphological](https://explore.albumentations.ai/transform/Morphological)                       | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [NoOp](https://explore.albumentations.ai/transform/NoOp)                                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [OpticalDistortion](https://explore.albumentations.ai/transform/OpticalDistortion)               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [OverlayElements](https://explore.albumentations.ai/transform/OverlayElements)                   | ✓     | ✓    |        |           |        |        |
+| [Pad](https://explore.albumentations.ai/transform/Pad)                                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [PadIfNeeded](https://explore.albumentations.ai/transform/PadIfNeeded)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Perspective](https://explore.albumentations.ai/transform/Perspective)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [PiecewiseAffine](https://explore.albumentations.ai/transform/PiecewiseAffine)                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [PixelDropout](https://explore.albumentations.ai/transform/PixelDropout)                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomCrop](https://explore.albumentations.ai/transform/RandomCrop)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomCropFromBorders](https://explore.albumentations.ai/transform/RandomCropFromBorders)       | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomCropNearBBox](https://explore.albumentations.ai/transform/RandomCropNearBBox)             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomGridShuffle](https://explore.albumentations.ai/transform/RandomGridShuffle)               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomResizedCrop](https://explore.albumentations.ai/transform/RandomResizedCrop)               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomRotate90](https://explore.albumentations.ai/transform/RandomRotate90)                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomScale](https://explore.albumentations.ai/transform/RandomScale)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomSizedBBoxSafeCrop](https://explore.albumentations.ai/transform/RandomSizedBBoxSafeCrop)   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [RandomSizedCrop](https://explore.albumentations.ai/transform/RandomSizedCrop)                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Resize](https://explore.albumentations.ai/transform/Resize)                                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Rotate](https://explore.albumentations.ai/transform/Rotate)                                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [SafeRotate](https://explore.albumentations.ai/transform/SafeRotate)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [ShiftScaleRotate](https://explore.albumentations.ai/transform/ShiftScaleRotate)                 | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [SmallestMaxSize](https://explore.albumentations.ai/transform/SmallestMaxSize)                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [ThinPlateSpline](https://explore.albumentations.ai/transform/ThinPlateSpline)                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [TimeMasking](https://explore.albumentations.ai/transform/TimeMasking)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [TimeReverse](https://explore.albumentations.ai/transform/TimeReverse)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [Transpose](https://explore.albumentations.ai/transform/Transpose)                               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [VerticalFlip](https://explore.albumentations.ai/transform/VerticalFlip)                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [XYMasking](https://explore.albumentations.ai/transform/XYMasking)                               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 
 ### 3D transforms
 
 3D transforms operate on volumetric data and can modify both the input volume and associated 3D mask.
 
-| Transform                                                                  | Image | Mask |
-| -------------------------------------------------------------------------- | :---: | :--: |
-| [CenterCrop3D](https://explore.albumentations.ai/transform/CenterCrop3D)   | ✓     | ✓    |
-| [Pad3D](https://explore.albumentations.ai/transform/Pad3D)                 | ✓     | ✓    |
-| [PadIfNeeded3D](https://explore.albumentations.ai/transform/PadIfNeeded3D) | ✓     | ✓    |
-| [RandomCrop3D](https://explore.albumentations.ai/transform/RandomCrop3D)   | ✓     | ✓    |
+Where:
+
+- Volume: 3D array of shape (D, H, W) or (D, H, W, C) where D is depth, H is height, W is width, and C is number of channels (optional)
+- Mask3D: Binary or multi-class 3D mask of shape (D, H, W) where each slice represents segmentation for the corresponding volume slice
+
+| Transform                                                                  | Volume | Mask3D |
+| -------------------------------------------------------------------------- | :----: | :----: |
+| [CenterCrop3D](https://explore.albumentations.ai/transform/CenterCrop3D)   | ✓      | ✓      |
+| [Pad3D](https://explore.albumentations.ai/transform/Pad3D)                 | ✓      | ✓      |
+| [PadIfNeeded3D](https://explore.albumentations.ai/transform/PadIfNeeded3D) | ✓      | ✓      |
+| [RandomCrop3D](https://explore.albumentations.ai/transform/RandomCrop3D)   | ✓      | ✓      |
 
 ## A few more examples of **augmentations**
 

@@ -147,8 +147,8 @@ def test_augmentations_serialization_with_custom_parameters(
     elif augmentation_cls == A.TextImage:
         data["textimage_metadata"] = []
     elif augmentation_cls in transforms3d:
-        data["images"] = np.array([image] * 10)
-        data["masks"] = np.array([mask] * 10)
+        data["volume"] = np.array([image] * 10)
+        data["mask"] = np.array([mask] * 10)
 
     aug_data = aug(**data)
     deserialized_aug_data = deserialized_aug(**data)
@@ -157,8 +157,8 @@ def test_augmentations_serialization_with_custom_parameters(
         np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
         np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
     else:
-        np.testing.assert_array_equal(aug_data["images"], deserialized_aug_data["images"])
-        np.testing.assert_array_equal(aug_data["masks"], deserialized_aug_data["masks"])
+        np.testing.assert_array_equal(aug_data["volume"], deserialized_aug_data["volume"])
+        np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 @pytest.mark.parametrize("image", UINT8_IMAGES)
@@ -200,8 +200,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         elif augmentation_cls == A.TextImage:
             data["textimage_metadata"] = []
         elif augmentation_cls in transforms3d:
-            data["images"] = np.array([image] * 10)
-            data["masks"] = np.array([mask] * 10)
+            data["volume"] = np.array([image] * 10)
+            data["mask"] = np.array([mask] * 10)
 
         aug_data = aug(**data)
         deserialized_aug_data = deserialized_aug(**data)
@@ -210,8 +210,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
             np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
         else:
-            np.testing.assert_array_equal(aug_data["images"], deserialized_aug_data["images"])
-            np.testing.assert_array_equal(aug_data["masks"], deserialized_aug_data["masks"])
+            np.testing.assert_array_equal(aug_data["volume"], deserialized_aug_data["volume"])
+            np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 @pytest.mark.parametrize(
@@ -623,7 +623,7 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
         return fgeometric.bboxes_vflip(bboxes)
 
     def vflip_keypoint(keypoints, **kwargs):
-        return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
+        return fgeometric.keypoints_vflip(keypoints, kwargs["shape"][0])
 
     mask = image.copy()
 

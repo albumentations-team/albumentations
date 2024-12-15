@@ -24,6 +24,7 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
+    ALL_TARGETS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     PAIR,
     ColorType,
@@ -32,7 +33,6 @@ from albumentations.core.types import (
     PxType,
     ScaleFloatType,
     ScaleIntType,
-    Targets,
 )
 
 from . import functional as fcrops
@@ -59,7 +59,7 @@ class CropSizeError(Exception):
 class BaseCrop(DualTransform):
     """Base class for transforms that only perform cropping."""
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     def apply(
         self,
@@ -281,7 +281,7 @@ class RandomCrop(BaseCropAndPad):
         p: probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -412,7 +412,7 @@ class CenterCrop(BaseCropAndPad):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -544,7 +544,7 @@ class Crop(BaseCropAndPad):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -690,7 +690,7 @@ class CropNonEmptyMaskIfExists(BaseCrop):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -903,7 +903,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -942,7 +942,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         # taken from a random location in the original image and then resized.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         interpolation: InterpolationType
@@ -1051,7 +1051,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -1088,7 +1088,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         # and the crop's aspect ratio between 3:4 and 4:3.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         scale: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
@@ -1217,7 +1217,7 @@ class RandomCropNearBBox(BaseCrop):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -1229,7 +1229,7 @@ class RandomCropNearBBox(BaseCrop):
 
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         max_part_shift: ZeroOneRangeType
@@ -1308,7 +1308,7 @@ class BBoxSafeRandomCrop(BaseCrop):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -1331,7 +1331,7 @@ class BBoxSafeRandomCrop(BaseCrop):
         >>> transformed_bboxes = transformed['bboxes']
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         erosion_rate: float = Field(
@@ -1420,7 +1420,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -1458,7 +1458,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         # with their coordinates adjusted to the new image size.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         height: Annotated[int, Field(ge=1)]
@@ -1580,7 +1580,7 @@ class CropAndPad(DualTransform):
             Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -1604,7 +1604,7 @@ class CropAndPad(DualTransform):
         >>> transformed_keypoints = transformed['keypoints']
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         px: PxType | None
@@ -1906,7 +1906,7 @@ class RandomCropFromBorders(BaseCrop):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -1935,7 +1935,7 @@ class RandomCropFromBorders(BaseCrop):
         # and 10% from the bottom. The image size will be reduced accordingly.
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         crop_left: float = Field(

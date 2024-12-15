@@ -34,8 +34,8 @@ def test_pad_if_needed_3d_shapes(volume_shape, min_zyx, pad_divisor_zyx, expecte
         fill=0,
         fill_mask=0
     )
-    transformed = transform(images=volume)
-    assert transformed["images"].shape == expected_shape
+    transformed = transform(volume=volume)
+    assert transformed["volume"].shape == expected_shape
 
 @pytest.mark.parametrize("position", ["center", "random"])
 def test_pad_if_needed_3d_positions(position):
@@ -46,9 +46,9 @@ def test_pad_if_needed_3d_positions(position):
         fill=0,
         fill_mask=0
     )
-    transformed = transform(images=volume)
+    transformed = transform(volume=volume)
     # Check that the original volume is preserved somewhere in the padded volume
-    assert np.any(transformed["images"] == 1)
+    assert np.any(transformed["volume"] == 1)
 
 def test_pad_if_needed_3d_2d_equivalence():
     """Test that PadIfNeeded3D behaves like PadIfNeeded when no z-padding is needed"""
@@ -63,7 +63,7 @@ def test_pad_if_needed_3d_2d_equivalence():
         fill=0,
         fill_mask=0
     )
-    transformed_3d = transform_3d(images=volume_3d)
+    transformed_3d = transform_3d(volume=volume_3d)
 
     # Apply 2D padding to a single slice
     transform_2d = A.PadIfNeeded(
@@ -79,13 +79,13 @@ def test_pad_if_needed_3d_2d_equivalence():
     # Compare each slice of 3D result with 2D result
     for slice_idx in range(10):
         np.testing.assert_array_equal(
-            transformed_3d["images"][slice_idx],
+            transformed_3d["volume"][slice_idx],
             transformed_2d["image"]
         )
 
 def test_pad_if_needed_3d_fill_values():
     volume = np.zeros((5, 50, 50), dtype=np.uint8)
-    mask = np.ones((5, 50, 50), dtype=np.uint8)
+    mask3d = np.ones((5, 50, 50), dtype=np.uint8)
 
     transform = A.PadIfNeeded3D(
         min_zyx=(10, 100, 100),
@@ -94,11 +94,11 @@ def test_pad_if_needed_3d_fill_values():
         fill_mask=128
     )
 
-    transformed = transform(images=volume, masks=mask)
+    transformed = transform(volume=volume, mask3d=mask3d)
 
     # Check fill values in padded regions
-    assert np.all(transformed["images"][:, :25, :] == 255)  # top padding
-    assert np.all(transformed["masks"][:, :25, :] == 128)  # top padding in mask
+    assert np.all(transformed["volume"][:, :25, :] == 255)  # top padding
+    assert np.all(transformed["mask3d"][:, :25, :] == 128)  # top padding in mask
 
 
 @pytest.mark.parametrize(
@@ -120,16 +120,16 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
 
     transform = A.Compose([augmentation_cls(p=1, **params)], seed=42)
 
-    images = np.stack([image_uint8, image_uint8])
+    volume = np.stack([image_uint8, image_uint8])
 
-    data = {"images": images}
+    data = {"volume": volume}
 
-    transformed_uint8 = transform(**data)["images"]
+    transformed_uint8 = transform(**data)["volume"]
 
-    data["images"] = np.stack([image_float32, image_float32])
+    data["volume"] = np.stack([image_float32, image_float32])
 
     transform.set_random_seed(42)
-    transformed_float32 = transform(**data)["images"]
+    transformed_float32 = transform(**data)["volume"]
 
     np.testing.assert_array_almost_equal(transformed_uint8 / 255.0, transformed_float32, decimal=2)
 
@@ -153,7 +153,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
 def test_pad3d_shapes(padding, expected_shape):
     volume = np.ones((10, 10, 10, 1), dtype=np.float32)
     augmentation = A.Pad3D(padding=padding)
-    padded = augmentation(images=volume)["images"]
+    padded = augmentation(volume=volume)["volume"]
     assert padded.shape == expected_shape
 
 
@@ -166,13 +166,13 @@ def test_pad3d_shapes(padding, expected_shape):
 )
 def test_pad3d_fill_values(fill, fill_mask):
     volume = np.ones((3, 3, 3, 1), dtype=np.float32)
-    masks = np.ones((3, 3, 3, 1), dtype=np.float32)
+    mask3d = np.ones((3, 3, 3, 1), dtype=np.float32)
 
     augmentation = A.Pad3D(padding=1, fill=fill, fill_mask=fill_mask)
-    transformed = augmentation(images=volume, masks=masks)
+    transformed = augmentation(volume=volume, mask3d=mask3d)
 
-    padded_volume = transformed["images"]
-    padded_mask = transformed["masks"]
+    padded_volume = transformed["volume"]
+    padded_mask = transformed["mask3d"]
 
     # Check fill values in padded regions
     assert np.all(padded_volume[0, :, :] == fill)  # front slice
@@ -190,7 +190,7 @@ def test_pad3d_fill_values(fill, fill_mask):
 def test_pad3d_different_shapes(volume_shape):
     volume = np.ones(volume_shape, dtype=np.float32)
     augmentation = A.Pad3D(padding=2)
-    padded = augmentation(images=volume)["images"]
+    padded = augmentation(volume=volume)["volume"]
 
     expected_shape = tuple(s + 4 for s in volume_shape[:3])  # +4 because padding=2 on each side
     if len(volume_shape) == 4:
@@ -203,7 +203,7 @@ def test_pad3d_different_dtypes():
     for dtype in [np.uint8, np.float32]:
         volume = np.ones((5, 5, 5), dtype=dtype)
         augmentation = A.Pad3D(padding=1)
-        padded = augmentation(images=volume)["images"]
+        padded = augmentation(volume=volume)["volume"]
         assert padded.dtype == dtype
 
 
@@ -211,7 +211,7 @@ def test_pad3d_preservation():
     """Test that the original data is preserved in the non-padded region"""
     volume = np.random.randint(0, 255, (5, 5, 5), dtype=np.uint8)
     augmentation = A.Pad3D(padding=2)
-    padded = augmentation(images=volume)["images"]
+    padded = augmentation(volume=volume)["volume"]
 
     # Check if the original volume is preserved in the center
     np.testing.assert_array_equal(
@@ -246,7 +246,7 @@ def test_pad3d_2d_equivalence(pad3d_padding, pad2d_padding):
         fill=0,
         fill_mask=0
     )
-    transformed_3d = transform_3d(images=volume_3d)
+    transformed_3d = transform_3d(volume=volume_3d)
 
     # Apply 2D padding to a single slice
     transform_2d = A.Pad(
@@ -259,12 +259,12 @@ def test_pad3d_2d_equivalence(pad3d_padding, pad2d_padding):
     # Compare each slice of 3D result with 2D result
     for slice_idx in range(num_slices):
         np.testing.assert_array_equal(
-            transformed_3d["images"][slice_idx],
+            transformed_3d["volume"][slice_idx],
             transformed_2d["image"]
         )
 
     # Also verify that z dimension hasn't changed
-    assert transformed_3d["images"].shape[0] == volume_3d.shape[0]
+    assert transformed_3d["volume"].shape[0] == volume_3d.shape[0]
 
 
 @pytest.mark.parametrize(
@@ -280,22 +280,24 @@ def test_pad3d_2d_equivalence(pad3d_padding, pad2d_padding):
         },
     ),
 )
-def test_change_image(augmentation_cls, params):
-    """Checks whether resulting image is different from the original one."""
+def test_change_volume(augmentation_cls, params):
+    """Checks whether resulting volume is different from the original one."""
     aug = A.Compose([augmentation_cls(p=1, **params)], seed=0)
 
-    images = np.array([SQUARE_UINT8_IMAGE] * 4)
-    original_images = images.copy()
+    num_slices = 4
+
+    volume = np.array([SQUARE_UINT8_IMAGE] * num_slices)
+    original_volume = volume.copy()
 
     data = {
-        "images": images,
-        "masks": np.array([SQUARE_UINT8_IMAGE] * 3),
+        "volume": volume,
+        "mask3d": np.array([SQUARE_UINT8_IMAGE] * num_slices),
     }
-    original_masks = data["masks"].copy()
+    original_mask3d = data["mask3d"].copy()
     transformed = aug(**data)
 
-    assert not np.array_equal(transformed["images"], original_images)
-    assert not np.array_equal(transformed["masks"], original_masks)
+    assert not np.array_equal(transformed["volume"], original_volume)
+    assert not np.array_equal(transformed["mask3d"], original_mask3d)
 
 
 @pytest.mark.parametrize(
@@ -321,8 +323,8 @@ def test_change_image(augmentation_cls, params):
 )
 def test_crop_3d_shapes(transform, input_shape, expected_shape):
     volume = np.random.randint(0, 256, input_shape, dtype=np.uint8)
-    transformed = transform(images=volume)
-    assert transformed["images"].shape == expected_shape
+    transformed = transform(volume=volume)
+    assert transformed["volume"].shape == expected_shape
 
 
 @pytest.mark.parametrize(
@@ -383,8 +385,8 @@ def test_crop_3d_padding(transform_cls, input_shape, target_shape, description):
 
     transform = A.Compose([transform_cls(p=1, size=target_shape, pad_if_needed=True, fill=0, fill_mask=0)], seed=0)
 
-    transformed = transform(images=volume)
-    assert transformed["images"].shape == target_shape
+    transformed = transform(volume=volume)
+    assert transformed["volume"].shape == target_shape
 
 
 @pytest.mark.parametrize(
@@ -404,13 +406,13 @@ def test_crop_3d_padding(transform_cls, input_shape, target_shape, description):
 )
 def test_crop_3d_fill_values(transform_cls, size, fill, fill_mask):
     volume = np.ones((3, 50, 50), dtype=np.uint8)
-    mask = np.zeros((3, 50, 50), dtype=np.uint8)
+    mask3d = np.zeros((3, 50, 50), dtype=np.uint8)
 
     transform = A.Compose([transform_cls(p=1, size=size, pad_if_needed=True, fill=fill, fill_mask=fill_mask)], seed=0)
 
-    transformed = transform(images=volume, masks=mask)
-    padded_volume = transformed["images"]
-    padded_mask = transformed["masks"]
+    transformed = transform(volume=volume, mask3d=mask3d)
+    padded_volume = transformed["volume"]
+    padded_mask = transformed["mask3d"]
 
     # Verify shapes
     assert padded_volume.shape == size
@@ -446,11 +448,11 @@ def test_random_crop_3d_reproducibility():
 
     # First run
     transform.set_random_seed(42)
-    result1 = transform(images=volume)["images"]
+    result1 = transform(volume=volume)["volume"]
 
     # Second run
     transform.set_random_seed(42)
-    result2 = transform(images=volume)["images"]
+    result2 = transform(volume=volume)["volume"]
 
     np.testing.assert_array_equal(result1, result2)
 
@@ -473,55 +475,13 @@ def test_crop_3d_different_shapes(volume_shape):
 
     for transform_cls in [A.CenterCrop3D, A.RandomCrop3D]:
         transform = transform_cls(size=(4, 60, 60))
-        transformed = transform(images=volume)
+        transformed = transform(volume=volume)
 
         expected_shape = (4, 60, 60)
         if len(volume_shape) == 4:
             expected_shape += (volume_shape[3],)
 
-        assert transformed["images"].shape == expected_shape
-
-
-@pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
-    get_3d_transforms(
-        custom_arguments={
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
-            A.Pad3D: {"padding": 10},
-            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
-            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
-        },
-        except_augmentations={
-        },
-    ),
-)
-@pytest.mark.parametrize(
-    "masks",
-    [
-        np.stack([np.random.randint(0, 2, (100, 100), dtype=np.uint8)] * 4),
-        np.stack([np.random.randint(0, 2, (100, 100, 3), dtype=np.uint8)] * 4),
-    ],
-)
-def test_masks_as_target(augmentation_cls, params, masks):
-    num_images = masks.shape[0]
-
-    image = SQUARE_UINT8_IMAGE
-
-    data = {
-        "images": np.stack([image] * num_images),
-        "masks": masks,
-    }
-
-    aug = A.Compose(
-        [augmentation_cls(p=1, **params)],
-        seed=42,
-    )
-
-    transformed = aug(**data)
-
-    np.testing.assert_array_equal(transformed["masks"][0], transformed["masks"][1])
-
-    assert transformed["masks"][0].dtype == masks[0].dtype
+        assert transformed["volume"].shape == expected_shape
 
 
 @pytest.mark.parametrize(
@@ -539,14 +499,16 @@ def test_masks_as_target(augmentation_cls, params, masks):
 )
 def test_return_nonzero(augmentation_cls, params):
     """Mistakes in clipping may lead to zero image, testing for that"""
-    images = np.ones((3, 100, 100), dtype=np.uint8)
-
+    volume = np.ones((3, 100, 100), dtype=np.uint8)
+    mask3d = np.ones((3, 100, 100), dtype=np.uint8)
     aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
     data = {
-        "images": images,
+        "volume": volume,
+        "mask3d": mask3d,
     }
 
     result = aug(**data)
 
-    assert np.max(result["images"]) > 0
+    assert np.max(result["volume"]) > 0
+    assert np.max(result["mask3d"]) > 0

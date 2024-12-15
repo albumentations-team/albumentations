@@ -334,7 +334,7 @@ def test_lambda_transform():
         return fgeometric.bboxes_vflip(bboxes)
 
     def vflip_keypoints(keypoints, **kwargs):
-        return fgeometric.keypoints_vflip(keypoints, kwargs["rows"])
+        return fgeometric.keypoints_vflip(keypoints, kwargs["shape"][0])
 
     aug = A.Lambda(
         image=negate_image,
