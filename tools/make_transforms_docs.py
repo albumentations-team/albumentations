@@ -20,7 +20,6 @@ IGNORED_CLASSES = {
 
 def make_augmentation_docs_link(cls) -> str:
     module_parts = cls.__module__.split(".")
-    module_page = "/".join(module_parts[1:])
     return (
         f"[{cls.__name__}](https://explore.albumentations.ai/transform/{cls.__name__})"
     )
@@ -195,7 +194,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table, tra
             continue
 
         # Check if all generated lines are in the section
-        section_content = match.group(1).strip()
+        section_content = match[1].strip()
         for line in section_info["generated"].split("\n"):
             if line.strip() and line not in section_content:
                 outdated_docs.add(section_name)

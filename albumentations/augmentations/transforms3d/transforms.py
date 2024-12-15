@@ -682,9 +682,11 @@ class CoarseDropout3D(Transform3D):
         """Calculate random hole dimensions based on the provided ranges."""
         depth, height, width = volume_shape[:3]
 
-        hole_depths = (depth * self.random_generator.uniform(*depth_range, size=size)).astype(int)
-        hole_heights = (height * self.random_generator.uniform(*height_range, size=size)).astype(int)
-        hole_widths = (width * self.random_generator.uniform(*width_range, size=size)).astype(int)
+        hole_depths = np.maximum(1, np.ceil(depth * self.random_generator.uniform(*depth_range, size=size))).astype(int)
+        hole_heights = np.maximum(1, np.ceil(height * self.random_generator.uniform(*height_range, size=size))).astype(
+            int,
+        )
+        hole_widths = np.maximum(1, np.ceil(width * self.random_generator.uniform(*width_range, size=size))).astype(int)
 
         return hole_depths, hole_heights, hole_widths
 
