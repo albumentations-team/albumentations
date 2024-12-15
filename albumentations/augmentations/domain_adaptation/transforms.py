@@ -16,7 +16,7 @@ from albumentations.augmentations.domain_adaptation.functional import (
 )
 from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.composition import Compose
-from albumentations.core.pydantic import ZeroOneRangeType, check_01, nondecreasing
+from albumentations.core.pydantic import ZeroOneRangeType, check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, BasicTransform, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
 
@@ -90,7 +90,11 @@ class HistogramMatching(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
-        blend_ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
+        blend_ratio: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, 1)),
+        ]
         read_fn: Callable[[Any], np.ndarray]
 
     def __init__(
@@ -301,7 +305,11 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
-        blend_ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
+        blend_ratio: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, 1)),
+        ]
         read_fn: Callable[[Any], np.ndarray]
         transform_type: Literal["pca", "standard", "minmax"]
 

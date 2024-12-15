@@ -8,7 +8,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import AfterValidator, Field, field_validator, model_validator
+from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Self
 
 from albumentations.augmentations.geometric import functional as fgeometric
@@ -18,8 +18,7 @@ from albumentations.core.pydantic import (
     InterpolationType,
     OnePlusIntRangeType,
     ZeroOneRangeType,
-    check_0plus,
-    check_01,
+    check_range_bounds,
     nondecreasing,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -804,14 +803,7 @@ class CropNonEmptyMaskIfExists(BaseCrop):
 
 
 class BaseRandomSizedCropInitSchema(BaseTransformInitSchema):
-    size: tuple[int, int]
-
-    @field_validator("size")
-    @classmethod
-    def check_size(cls, value: tuple[int, int]) -> tuple[int, int]:
-        if any(x <= 0 for x in value):
-            raise ValueError("All elements of 'size' must be positive integers.")
-        return value
+    size: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
 
 
 class _BaseRandomSizedCrop(DualTransform):
@@ -949,26 +941,20 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         mask_interpolation: InterpolationType
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
-        width: int | None = Field(
-            None,
-            deprecated=(
-                "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                "Please use a tuple (height, width) for the 'size' argument."
-            ),
-        )
-        height: int | None = Field(
-            None,
-            deprecated=(
-                "Initializing with 'height' and 'width' is deprecated. "
-                "Please use a tuple (height, width) for the 'size' argument."
-            ),
-        )
+        width: int | None
+        height: int | None
         size: ScaleIntType | None
 
         @model_validator(mode="after")
         def process(self) -> Self:
             if isinstance(self.size, int):
                 if isinstance(self.width, int):
+                    warn(
+                        "Initializing with 'size' as an integer and a separate 'width', `height` are deprecated. "
+                        "Please use a tuple (height, width) for the 'size' argument.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                     self.size = (self.size, self.width)
                 else:
                     msg = "If size is an integer, width as integer must be specified."
@@ -1091,8 +1077,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        scale: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)]
-        ratio: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)]
+        scale: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1)), AfterValidator(nondecreasing)]
+        ratio: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, None)),
+            AfterValidator(nondecreasing),
+        ]
         width: int | None = Field(
             None,
             deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
@@ -1109,6 +1099,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         def process(self) -> Self:
             if isinstance(self.size, int):
                 if isinstance(self.width, int):
+                    warn(
+                        "Initializing with 'size' as an integer and a separate 'width', `height` are deprecated. "
+                        "Please use a tuple (height, width) for the 'size' argument.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                     self.size = (self.size, self.width)
                 else:
                     msg = "If size is an integer, width as integer must be specified."

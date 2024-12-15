@@ -3,6 +3,7 @@ import inspect
 import os
 import sys
 from pathlib import Path
+import re
 
 sys.path.append("..")
 import albumentations
@@ -19,7 +20,6 @@ IGNORED_CLASSES = {
 
 def make_augmentation_docs_link(cls) -> str:
     module_parts = cls.__module__.split(".")
-    module_page = "/".join(module_parts[1:])
     return (
         f"[{cls.__name__}](https://explore.albumentations.ai/transform/{cls.__name__})"
     )
@@ -147,49 +147,80 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table, transforms_3d_table) -> None:
+    """Check if the documentation file is up to date with the current transforms.
+
+    Args:
+        filepath: Path to the documentation file (README.md)
+        image_only_transforms_links: Generated links for pixel-level transforms
+        dual_transforms_table: Generated table for spatial-level transforms
+        transforms_3d_table: Generated table for 3D transforms
+
+    Raises:
+        ValueError: If any section is outdated with detailed information about missing lines
+    """
     with open(filepath, encoding="utf8") as f:
         text = f.read()
 
+    # Find sections using regex
+    sections = {
+        "Pixel-level": {
+            "pattern": r"### Pixel-level transforms\n\n(.*?)(?=###|\Z)",
+            "generated": image_only_transforms_links,
+            "lines_not_in_text": [],
+        },
+        "Spatial-level": {
+            "pattern": r"### Spatial-level transforms\n\n(.*?)(?=###|\Z)",
+            "generated": dual_transforms_table,
+            "lines_not_in_text": [],
+        },
+        "3D": {
+            "pattern": r"### 3D transforms\n\n(.*?)(?=###|\Z)",
+            "generated": transforms_3d_table,
+            "lines_not_in_text": [],
+        }
+    }
+
     outdated_docs = set()
-    image_only_lines_not_in_text = []
-    dual_lines_not_in_text = []
-    transforms_3d_lines_not_in_text = []
 
-    for line in image_only_transforms_links.split("\n"):
-        if line not in text:
-            outdated_docs.update(["Pixel-level"])
-            image_only_lines_not_in_text.append(line)
+    # Check each section
+    for section_name, section_info in sections.items():
+        # Find section content
+        match = re.search(section_info["pattern"], text, re.DOTALL)
+        if not match:
+            outdated_docs.add(section_name)
+            section_info["lines_not_in_text"].extend(
+                section_info["generated"].split("\n")
+            )
+            continue
 
-    for line in dual_transforms_table.split("\n"):
-        if line not in text:
-            dual_lines_not_in_text.append(line)
-            outdated_docs.update(["Spatial-level"])
+        # Check if all generated lines are in the section
+        section_content = match[1].strip()
+        for line in section_info["generated"].split("\n"):
+            if line.strip() and line not in section_content:
+                outdated_docs.add(section_name)
+                section_info["lines_not_in_text"].append(line)
 
-    for line in transforms_3d_table.split("\n"):
-        if line not in text:
-            transforms_3d_lines_not_in_text.append(line)
-            outdated_docs.update(["3D"])
-
+    # If any sections are outdated, raise error with detailed information
     if outdated_docs:
         msg = (
-            "Docs for the following transform types are outdated: {outdated_docs_headers}. "
+            "Docs for the following transform types are outdated: {outdated_docs_headers}.\n"
             "Generate new docs by executing the `python -m tools.{py_file} make` command "
-            "and paste them to {filename}.\n"
-            "# Pixel-level transforms lines not in file:\n"
-            "{image_only_lines}\n"
-            "# Spatial-level transforms lines not in file:\n"
-            "{dual_lines}\n"
-            "# 3D transforms lines not in file:\n"
-            "{transforms_3d_lines}\n".format(
-                outdated_docs_headers=", ".join(outdated_docs),
-                py_file=Path(os.path.realpath(__file__)).name,
-                filename=os.path.basename(filepath),
-                image_only_lines="\n".join(image_only_lines_not_in_text),
-                dual_lines="\n".join(dual_lines_not_in_text),
-                transforms_3d_lines="\n".join(transforms_3d_lines_not_in_text),
-            )
+            "and paste them to {filename}.\n\n"
+        ).format(
+            outdated_docs_headers=", ".join(sorted(outdated_docs)),
+            py_file=Path(os.path.realpath(__file__)).name,
+            filename=os.path.basename(filepath),
         )
-        raise ValueError(msg)
+
+        # Add missing lines for each outdated section
+        for section_name, section_info in sections.items():
+            if section_name in outdated_docs:
+                msg += (
+                    f"# {section_name} transforms lines not in file:\n"
+                    f"{chr(10).join(section_info['lines_not_in_text'])}\n\n"
+                )
+
+        raise ValueError(msg.strip())
 
 
 def main() -> None:

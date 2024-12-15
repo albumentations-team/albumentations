@@ -8,7 +8,7 @@ from typing_extensions import Self
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
-from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
+from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.types import MIN_UNIT_SIZE, ColorType, DropoutFillValue
 
 __all__ = ["GridDropout"]
@@ -110,10 +110,13 @@ class GridDropout(BaseDropout):
         fill_value: DropoutFillValue | None = Field(deprecated="Deprecated use fill instead")
         mask_fill_value: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
 
-        unit_size_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
-        shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)]
+        unit_size_range: (
+            Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None)), AfterValidator(nondecreasing)]
+            | None
+        )
+        shift_xy: Annotated[tuple[int, int], AfterValidator(check_range_bounds(0, None))]
 
-        holes_number_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)] | None
+        holes_number_xy: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))] | None
 
         @model_validator(mode="after")
         def validate_normalization(self) -> Self:

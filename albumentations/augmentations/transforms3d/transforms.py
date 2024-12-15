@@ -8,11 +8,11 @@ from typing_extensions import Self
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.transforms3d import functional as f3d
-from albumentations.core.pydantic import check_range_bounds_3d
+from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, Transform3D
 from albumentations.core.types import ColorType, Targets
 
-__all__ = ["CenterCrop3D", "Pad3D", "PadIfNeeded3D", "RandomCrop3D"]
+__all__ = ["CenterCrop3D", "CoarseDropout3D", "Pad3D", "PadIfNeeded3D", "RandomCrop3D"]
 
 NUM_DIMENSIONS = 3
 
@@ -171,8 +171,8 @@ class PadIfNeeded3D(BasePad3D):
     """
 
     class InitSchema(BasePad3D.InitSchema):
-        min_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(0, None))]
-        pad_divisor_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds_3d(1, None))]
+        min_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds(0, None))]
+        pad_divisor_zyx: Annotated[tuple[int, int, int] | None, AfterValidator(check_range_bounds(1, None))]
         position: Literal["center", "random"]
 
         @model_validator(mode="after")
@@ -321,7 +321,7 @@ class BaseCropAndPad3D(Transform3D):
         **params: Any,
     ) -> np.ndarray:
         # First crop
-        cropped = f3d.crop(volume, crop_coords)
+        cropped = f3d.crop3d(volume, crop_coords)
 
         # Then pad if needed
         if pad_params is not None:
@@ -349,7 +349,7 @@ class BaseCropAndPad3D(Transform3D):
         **params: Any,
     ) -> np.ndarray:
         # First crop
-        cropped = f3d.crop(mask3d, crop_coords)
+        cropped = f3d.crop3d(mask3d, crop_coords)
 
         # Then pad if needed
         if pad_params is not None:
@@ -385,10 +385,15 @@ class CenterCrop3D(BaseCropAndPad3D):
 
     Image types:
         uint8, float32
+
+    Note:
+        If you want to perform cropping only in the XY plane while preserving all slices along
+        the Z axis, consider using CenterCrop instead. CenterCrop will apply the same XY crop
+        to each slice independently, maintaining the full depth of the volume.
     """
 
     class InitSchema(BaseTransformInitSchema):
-        size: Annotated[tuple[int, int, int], AfterValidator(check_range_bounds_3d(1, None))]
+        size: Annotated[tuple[int, int, int], AfterValidator(check_range_bounds(1, None))]
         pad_if_needed: bool
         fill: ColorType
         fill_mask: ColorType
@@ -478,10 +483,15 @@ class RandomCrop3D(BaseCropAndPad3D):
 
     Image types:
         uint8, float32
+
+    Note:
+        If you want to perform random cropping only in the XY plane while preserving all slices along
+        the Z axis, consider using RandomCrop instead. RandomCrop will apply the same XY crop
+        to each slice independently, maintaining the full depth of the volume.
     """
 
     class InitSchema(BaseTransformInitSchema):
-        size: Annotated[tuple[int, int, int], AfterValidator(check_range_bounds_3d(1, None))]
+        size: Annotated[tuple[int, int, int], AfterValidator(check_range_bounds(1, None))]
         pad_if_needed: bool
         fill: ColorType
         fill_mask: ColorType
@@ -546,3 +556,184 @@ class RandomCrop3D(BaseCropAndPad3D):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "size", "pad_if_needed", "fill", "fill_mask"
+
+
+class CoarseDropout3D(Transform3D):
+    """CoarseDropout3D randomly drops out cuboid regions from a 3D volume and optionally,
+    the corresponding regions in an associated 3D mask, to simulate occlusion and
+    varied object sizes found in real-world volumetric data.
+
+    Args:
+        num_holes_range (tuple[int, int]): Range (min, max) for the number of cuboid
+            regions to drop out. Default: (1, 1)
+        hole_depth_range (tuple[float, float]): Range (min, max) for the depth
+            of dropout regions as a fraction of the volume depth (between 0 and 1). Default: (0.1, 0.2)
+        hole_height_range (tuple[float, float]): Range (min, max) for the height
+            of dropout regions as a fraction of the volume height (between 0 and 1). Default: (0.1, 0.2)
+        hole_width_range (tuple[float, float]): Range (min, max) for the width
+            of dropout regions as a fraction of the volume width (between 0 and 1). Default: (0.1, 0.2)
+        fill (ColorType): Value for the dropped voxels. Can be:
+            - int or float: all channels are filled with this value
+            - tuple: tuple of values for each channel
+            Default: 0
+        fill_mask (ColorType | None): Fill value for dropout regions in the 3D mask.
+            If None, mask regions corresponding to volume dropouts are unchanged. Default: None
+        p (float): Probability of applying the transform. Default: 0.5
+
+    Targets:
+        volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The actual number and size of dropout regions are randomly chosen within the specified ranges.
+        - All values in hole_depth_range, hole_height_range and hole_width_range must be between 0 and 1.
+        - If you want to apply dropout only in the XY plane while preserving the full depth dimension,
+          consider using CoarseDropout instead. CoarseDropout will apply the same rectangular dropout
+          to each slice independently, effectively creating cylindrical dropout regions that extend
+          through the entire depth of the volume.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)    # (D, H, W)
+        >>> aug = A.CoarseDropout3D(
+        ...     num_holes_range=(3, 6),
+        ...     hole_depth_range=(0.1, 0.2),
+        ...     hole_height_range=(0.1, 0.2),
+        ...     hole_width_range=(0.1, 0.2),
+        ...     fill=0,
+        ...     p=1.0
+        ... )
+        >>> transformed = aug(volume=volume, mask3d=mask3d)
+        >>> transformed_volume, transformed_mask3d = transformed["volume"], transformed["mask3d"]
+    """
+
+    _targets = (Targets.VOLUME, Targets.MASK3D)
+
+    class InitSchema(Transform3D.InitSchema):
+        num_holes_range: Annotated[
+            tuple[int, int],
+            AfterValidator(check_range_bounds(0, None)),
+            AfterValidator(nondecreasing),
+        ]
+        hole_depth_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, 1)),
+            AfterValidator(nondecreasing),
+        ]
+        hole_height_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, 1)),
+            AfterValidator(nondecreasing),
+        ]
+        hole_width_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, 1)),
+            AfterValidator(nondecreasing),
+        ]
+        fill: ColorType
+        fill_mask: ColorType | None
+
+        @staticmethod
+        def validate_range(range_value: tuple[float, float], range_name: str) -> None:
+            if not 0 <= range_value[0] <= range_value[1] <= 1:
+                raise ValueError(
+                    f"All values in {range_name} should be in [0, 1] range and first value "
+                    f"should be less or equal than the second value. Got: {range_value}",
+                )
+
+        @model_validator(mode="after")
+        def check_ranges(self) -> Self:
+            self.validate_range(self.hole_depth_range, "hole_depth_range")
+            self.validate_range(self.hole_height_range, "hole_height_range")
+            self.validate_range(self.hole_width_range, "hole_width_range")
+            return self
+
+    def __init__(
+        self,
+        num_holes_range: tuple[int, int] = (1, 1),
+        hole_depth_range: tuple[float, float] = (0.1, 0.2),
+        hole_height_range: tuple[float, float] = (0.1, 0.2),
+        hole_width_range: tuple[float, float] = (0.1, 0.2),
+        fill: ColorType = 0,
+        fill_mask: ColorType | None = None,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.num_holes_range = num_holes_range
+        self.hole_depth_range = hole_depth_range
+        self.hole_height_range = hole_height_range
+        self.hole_width_range = hole_width_range
+        self.fill = fill
+        self.fill_mask = fill_mask
+
+    def calculate_hole_dimensions(
+        self,
+        volume_shape: tuple[int, int, int],
+        depth_range: tuple[float, float],
+        height_range: tuple[float, float],
+        width_range: tuple[float, float],
+        size: int,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Calculate random hole dimensions based on the provided ranges."""
+        depth, height, width = volume_shape[:3]
+
+        hole_depths = np.maximum(1, np.ceil(depth * self.random_generator.uniform(*depth_range, size=size))).astype(int)
+        hole_heights = np.maximum(1, np.ceil(height * self.random_generator.uniform(*height_range, size=size))).astype(
+            int,
+        )
+        hole_widths = np.maximum(1, np.ceil(width * self.random_generator.uniform(*width_range, size=size))).astype(int)
+
+        return hole_depths, hole_heights, hole_widths
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        volume_shape = data["volume"].shape[:3]
+
+        num_holes = self.py_random.randint(*self.num_holes_range)
+
+        hole_depths, hole_heights, hole_widths = self.calculate_hole_dimensions(
+            volume_shape,
+            self.hole_depth_range,
+            self.hole_height_range,
+            self.hole_width_range,
+            size=num_holes,
+        )
+
+        depth, height, width = volume_shape[:3]
+
+        z_min = self.random_generator.integers(0, depth - hole_depths + 1, size=num_holes)
+        y_min = self.random_generator.integers(0, height - hole_heights + 1, size=num_holes)
+        x_min = self.random_generator.integers(0, width - hole_widths + 1, size=num_holes)
+        z_max = z_min + hole_depths
+        y_max = y_min + hole_heights
+        x_max = x_min + hole_widths
+
+        holes = np.stack([z_min, y_min, x_min, z_max, y_max, x_max], axis=-1)
+
+        return {"holes": holes}
+
+    def apply_to_volume(self, volume: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
+        if holes.size == 0:
+            return volume
+
+        return f3d.cutout3d(volume, holes, cast(ColorType, self.fill))
+
+    def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
+        if self.fill_mask is None or holes.size == 0:
+            return mask
+
+        return f3d.cutout3d(mask, holes, cast(ColorType, self.fill_mask))
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            "num_holes_range",
+            "hole_depth_range",
+            "hole_height_range",
+            "hole_width_range",
+            "fill",
+            "fill_mask",
+        )

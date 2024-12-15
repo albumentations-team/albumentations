@@ -17,8 +17,7 @@ from albumentations.core.pydantic import (
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
-    check_01,
-    check_1plus,
+    check_range_bounds,
     check_valid_border_modes,
     check_valid_interpolation,
     create_symmetric_range,
@@ -129,52 +128,6 @@ def test_process_non_negative_range_with_valid_input(
 def test_process_non_negative_range_with_invalid_input(value: Tuple[float, float]) -> None:
     with pytest.raises(ValueError):
         process_non_negative_range(value)
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        (0, 0.9),  # Invalid input
-        (0, 1.1),  # Invalid input
-    ],
-)
-def test_check_1plus_range_with_invalid_input(value: Tuple[float, float]) -> None:
-    with pytest.raises(ValueError):
-        check_1plus(value)
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        ((1, 2), (1.0, 2.0)),
-    ],
-)
-def test_check_1plus_range_with_valid_input(value: Tuple[float, float], expected: Tuple[float, float]) -> None:
-    assert check_1plus(value) == expected
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        (0, -0.1),
-        (2, 1.2),
-    ],
-)
-def test_check_01_range_with_invalid_input(value: Tuple[float, float]) -> None:
-    with pytest.raises(ValueError):
-        check_01(value)
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        ((0, 1), (0.0, 1.0)),
-        ((0, 0.3), (0.0, 0.3)),
-    ],
-)
-def test_check_01_range_with_valid_input(value: Tuple[float, float], expected: Tuple[float, float]) -> None:
-    assert check_01(value) == expected
-
 
 class ValidationModel(BaseModel):
     interpolation: Optional[InterpolationType] = None
@@ -401,3 +354,90 @@ def test_wrong_argument() -> None:
         assert issubclass(w[0].category, UserWarning)
         assert str(w[0].message) == "Argument 'wrong_param' is not valid and will be ignored."
     warnings.resetwarnings()
+
+
+def test_check_range_bounds_doctest():
+    # Test the examples from the docstring
+    validator = check_range_bounds(0, 1)
+    assert validator((0.1, 0.5)) == (0.1, 0.5)
+    assert validator((0.1, 0.5, 0.7)) == (0.1, 0.5, 0.7)
+
+    with pytest.raises(ValueError):
+        validator((1.1, 0.5))
+
+    validator_exclusive = check_range_bounds(0, 1, max_inclusive=False)
+    with pytest.raises(ValueError):
+        validator_exclusive((0, 1))
+
+@pytest.mark.parametrize(
+    ["min_val", "max_val", "min_inclusive", "max_inclusive", "test_value", "expected"],
+    [
+        # Basic cases
+        (0, 1, True, True, (0, 0.5, 1), (0, 0.5, 1)),  # All inclusive bounds
+        (0, 1, False, False, (0.1, 0.5, 0.9), (0.1, 0.5, 0.9)),  # All exclusive bounds
+
+        # None cases
+        (0, None, True, True, None, None),  # None input
+        (0, None, True, True, (1, 2, 3), (1, 2, 3)),  # Only min bound
+
+        # Different number of elements
+        (0, 1, True, True, (0.5,), (0.5,)),  # Single element
+        (0, 1, True, True, (0.2, 0.4), (0.2, 0.4)),  # Two elements
+        (0, 1, True, True, (0.2, 0.4, 0.6, 0.8), (0.2, 0.4, 0.6, 0.8)),  # Four elements
+
+        # Edge cases
+        (0, 1, True, True, (0, 1), (0, 1)),  # Inclusive bounds
+        (-1, 1, True, True, (-1, 0, 1), (-1, 0, 1)),  # Negative values
+        (0.5, 1.5, True, True, (0.5, 1.0, 1.5), (0.5, 1.0, 1.5)),  # Float bounds
+    ]
+)
+def test_check_range_bounds_valid(min_val, max_val, min_inclusive, max_inclusive, test_value, expected):
+    validator = check_range_bounds(min_val, max_val, min_inclusive, max_inclusive)
+    assert validator(test_value) == expected
+
+@pytest.mark.parametrize(
+    ["min_val", "max_val", "min_inclusive", "max_inclusive", "test_value", "error_pattern"],
+    [
+        # Min bound violations
+        (0, 1, True, True, (-0.1, 0.5), "must be >= 0"),
+        (0, 1, False, True, (0, 0.5), "must be > 0"),
+
+        # Max bound violations
+        (0, 1, True, True, (0.5, 1.1), "must be >= 0 and <= 1"),
+        (0, 1, True, False, (0.5, 1), "must be >= 0 and < 1"),
+
+        # Both bounds violations
+        (0, 1, True, True, (-0.1, 1.1), "must be >= 0 and <= 1"),
+        (0, 1, False, False, (0, 1), "must be > 0 and < 1"),
+
+        # Only min bound with violations
+        (0, None, True, True, (-1, -0.5), "must be >= 0"),
+        (0, None, False, True, (0, 1), "must be > 0"),
+    ]
+)
+def test_check_range_bounds_invalid(min_val, max_val, min_inclusive, max_inclusive, test_value, error_pattern):
+    validator = check_range_bounds(min_val, max_val, min_inclusive, max_inclusive)
+    with pytest.raises(ValueError, match=error_pattern):
+        validator(test_value)
+
+@pytest.mark.parametrize(
+    ["min_val", "max_val", "values"],
+    [
+        (0, 1, [(0.1, 0.2), (0.3, 0.4), (0.5, 0.6)]),  # Multiple valid tuples
+        (0, None, [(1, 2), (3, 4), (5, 6)]),  # Multiple valid tuples with no max
+    ]
+)
+def test_check_range_bounds_multiple_calls(min_val, max_val, values):
+    validator = check_range_bounds(min_val, max_val)
+    for value in values:
+        assert validator(value) == value
+
+def test_check_range_bounds_type_preservation():
+    # Test that the function preserves input types
+    validator = check_range_bounds(0, 1)
+
+    int_tuple = (0, 1)
+    assert isinstance(validator(int_tuple)[0], int)
+
+    float_tuple = (0.5, 0.7)
+    assert isinstance(validator(float_tuple)[0], float)

@@ -236,7 +236,11 @@ class MotionBlur(Blur):
 
     class InitSchema(BlurInitSchema):
         allow_shifted: bool
-        angle_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
+        angle_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, 360)),
+        ]
         direction_range: Annotated[
             tuple[float, float],
             AfterValidator(nondecreasing),

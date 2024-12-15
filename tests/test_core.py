@@ -1063,7 +1063,7 @@ def test_transform_always_apply_warning() -> None:
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_2d_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -1105,10 +1105,6 @@ def test_transform_always_apply_warning() -> None:
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
-            A.PadIfNeeded3D,
-            A.Pad3D,
-            A.CenterCrop3D,
-            A.RandomCrop3D,
         },
     ),
 )

@@ -9,7 +9,7 @@ from pydantic import AfterValidator
 
 import albumentations.augmentations.text.functional as ftext
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
-from albumentations.core.pydantic import check_01, nondecreasing
+from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ColorType
 
@@ -40,7 +40,7 @@ class TextImage(ImageOnlyTransform):
         p (float): Probability of applying the transform.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -71,11 +71,15 @@ class TextImage(ImageOnlyTransform):
         font_path: str | Path
         stopwords: tuple[str, ...]
         augmentations: tuple[str | None, ...] | list[str | None]
-        fraction_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
+        fraction_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, 1)),
+        ]
         font_size_fraction_range: Annotated[
             tuple[float, float],
             AfterValidator(nondecreasing),
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
         ]
         font_color: list[ColorType | str] | ColorType | str
         clear_bg: bool

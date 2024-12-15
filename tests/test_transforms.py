@@ -1380,8 +1380,8 @@ def test_image_compression_invalid_input(params):
         ),
         # Boundary values
         ({"num_holes_range": (2, 3)}, {"num_holes_range": (2, 3)}),
-        ({"hole_height_range": (0.1, 0.1)}, {"hole_height_range": (0.1, 0.1)}),
-        ({"hole_width_range": (0.1, 0.1)}, {"hole_width_range": (0.1, 0.1)}),
+        ({"hole_height_range": (1, 12)}, {"hole_height_range": (1, 12)}),
+        ({"hole_width_range": (1, 12)}, {"hole_width_range": (1, 12)}),
         # Random fill value
         ({"fill": "random"}, {"fill": "random"}),
         ({"fill": (255, 255, 255)}, {"fill": (255, 255, 255)}),
