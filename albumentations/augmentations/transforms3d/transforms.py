@@ -235,7 +235,7 @@ class PadIfNeeded3D(BasePad3D):
 class BaseCropAndPad3D(Transform3D):
     """Base class for 3D transforms that need both cropping and padding."""
 
-    _targets = (Targets.MASK3D, Targets.VOLUME)
+    _targets = (Targets.VOLUME, Targets.MASK3D)
 
     class InitSchema(Transform3D.InitSchema):
         pad_if_needed: bool
