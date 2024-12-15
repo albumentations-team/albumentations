@@ -385,6 +385,11 @@ class CenterCrop3D(BaseCropAndPad3D):
 
     Image types:
         uint8, float32
+
+    Note:
+        If you want to perform cropping only in the XY plane while preserving all slices along
+        the Z axis, consider using CenterCrop instead. CenterCrop will apply the same XY crop
+        to each slice independently, maintaining the full depth of the volume.
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -478,6 +483,11 @@ class RandomCrop3D(BaseCropAndPad3D):
 
     Image types:
         uint8, float32
+
+    Note:
+        If you want to perform random cropping only in the XY plane while preserving all slices along
+        the Z axis, consider using RandomCrop instead. RandomCrop will apply the same XY crop
+        to each slice independently, maintaining the full depth of the volume.
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -579,6 +589,10 @@ class CoarseDropout3D(Transform3D):
     Note:
         - The actual number and size of dropout regions are randomly chosen within the specified ranges.
         - All values in hole_depth_range, hole_height_range and hole_width_range must be between 0 and 1.
+        - If you want to apply dropout only in the XY plane while preserving the full depth dimension,
+          consider using CoarseDropout instead. CoarseDropout will apply the same rectangular dropout
+          to each slice independently, effectively creating cylindrical dropout regions that extend
+          through the entire depth of the volume.
 
     Example:
         >>> import numpy as np
