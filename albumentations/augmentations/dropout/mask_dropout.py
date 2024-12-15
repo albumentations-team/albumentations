@@ -11,7 +11,7 @@ from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, no
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ScaleIntType, Targets
+from albumentations.core.types import ALL_TARGETS, ScaleIntType
 
 __all__ = ["MaskDropout"]
 
@@ -36,7 +36,7 @@ class MaskDropout(DualTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -69,7 +69,7 @@ class MaskDropout(DualTransform):
         >>> # and the corresponding bounding box removed if it doesn't meet the area and visibility criteria
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         max_objects: OnePlusIntRangeType

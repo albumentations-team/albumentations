@@ -7,7 +7,7 @@ from pydantic import Field
 from albumentations.augmentations.dropout.xy_masking import XYMasking
 from albumentations.augmentations.geometric.transforms import HorizontalFlip
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import Targets
+from albumentations.core.types import ALL_TARGETS
 
 __all__ = [
     "FrequencyMasking",
@@ -32,7 +32,7 @@ class TimeReverse(HorizontalFlip):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -50,7 +50,7 @@ class TimeReverse(HorizontalFlip):
         - Audiomentations: https://iver56.github.io/audiomentations/waveform_transforms/reverse/
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         pass
@@ -87,7 +87,7 @@ class TimeMasking(XYMasking):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -162,7 +162,7 @@ class FrequencyMasking(XYMasking):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32

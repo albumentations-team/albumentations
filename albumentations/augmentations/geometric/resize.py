@@ -9,7 +9,7 @@ from pydantic import Field, ValidationInfo, field_validator
 
 from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ScaleFloatType, ScaleIntType, Targets
+from albumentations.core.types import ALL_TARGETS, ScaleFloatType, ScaleIntType
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
@@ -34,7 +34,7 @@ class RandomScale(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -62,7 +62,7 @@ class RandomScale(DualTransform):
 
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         scale_limit: ScaleFloatType
@@ -155,7 +155,7 @@ class LongestMaxSize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -180,7 +180,7 @@ class LongestMaxSize(DualTransform):
 
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(MaxSizeInitSchema):
         pass
@@ -251,7 +251,7 @@ class SmallestMaxSize(DualTransform):
         p (float): Probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -283,7 +283,7 @@ class SmallestMaxSize(DualTransform):
         # is scaled to 120, and the larger side is scaled proportionally
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
+    _targets = ALL_TARGETS
 
     class InitSchema(MaxSizeInitSchema):
         pass
@@ -354,14 +354,14 @@ class Resize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
 
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         height: int = Field(ge=1)

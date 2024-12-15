@@ -70,6 +70,7 @@ from albumentations.core.transforms_interface import (
     NoOp,
 )
 from albumentations.core.types import (
+    ALL_TARGETS,
     MAX_RAIN_ANGLE,
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
@@ -83,7 +84,6 @@ from albumentations.core.types import (
     ScaleFloatType,
     ScaleIntType,
     SpatterMode,
-    Targets,
 )
 from albumentations.core.utils import format_args, to_tuple
 
@@ -2203,7 +2203,7 @@ class Equalize(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -2343,7 +2343,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -2492,7 +2492,7 @@ class GaussNoise(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -2648,7 +2648,7 @@ class ISONoise(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -2763,7 +2763,7 @@ class CLAHE(ImageOnlyTransform):
           adaptiveness but can lead to an unnatural look if set too high.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -2857,7 +2857,7 @@ class InvertImg(ImageOnlyTransform):
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -2893,7 +2893,7 @@ class RandomGamma(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -3078,7 +3078,7 @@ class ToRGB(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -3147,7 +3147,7 @@ class ToSepia(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -3243,7 +3243,7 @@ class ToFloat(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, uint16, uint32, float32
@@ -3317,7 +3317,7 @@ class FromFloat(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         float32, float64
@@ -3401,7 +3401,7 @@ class Downscale(ImageOnlyTransform):
             Default: 0.5
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -3526,7 +3526,7 @@ class Lambda(NoOp):
         p: probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -3648,7 +3648,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -3760,7 +3760,7 @@ class FancyPCA(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -3873,7 +3873,7 @@ class ColorJitter(ImageOnlyTransform):
 
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -4211,7 +4211,7 @@ class Emboss(ImageOnlyTransform):
             Default: 0.5
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -4336,7 +4336,7 @@ class Superpixels(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -4448,7 +4448,7 @@ class RingingOvershoot(ImageOnlyTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -4593,7 +4593,7 @@ class UnsharpMask(ImageOnlyTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32
@@ -4727,7 +4727,7 @@ class PixelDropout(DualTransform):
             Default: 0.5
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -4764,7 +4764,7 @@ class PixelDropout(DualTransform):
                 raise ValueError(msg)
             return self
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     def __init__(
         self,
@@ -5299,7 +5299,7 @@ class Morphological(DualTransform):
         p (float, optional): The probability of applying this transformation. Default is 0.5.
 
     Targets:
-        image, mask, keypoints, bboxes
+        image, mask, keypoints, bboxes, volume, mask3d
 
     Image types:
         uint8, float32
@@ -5315,7 +5315,7 @@ class Morphological(DualTransform):
         >>> image = transform(image=image)["image"]
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         scale: OnePlusIntRangeType

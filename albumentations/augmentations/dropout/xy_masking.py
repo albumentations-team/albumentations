@@ -50,7 +50,7 @@ class XYMasking(BaseDropout):
         p (float): Probability of applying the transform. Defaults to 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32

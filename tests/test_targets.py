@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.core.types import Targets
+from albumentations.core.types import ALL_TARGETS, Targets
 
 from .utils import get_dual_transforms, get_image_only_transforms
 
 
 def get_targets_from_methods(cls):
-    targets = {Targets.IMAGE, Targets.MASK}
+    targets = {Targets.IMAGE, Targets.MASK, Targets.VOLUME, Targets.MASK3D}
 
     has_bboxes_method = any(
         hasattr(cls, attr) and getattr(cls, attr) is not getattr(A.DualTransform, attr, None)
@@ -56,6 +56,8 @@ str2target = {
     "mask": Targets.MASK,
     "bboxes": Targets.BBOXES,
     "keypoints": Targets.KEYPOINTS,
+    "volume": Targets.VOLUME,
+    "mask3d": Targets.MASK3D,
 }
 
 
@@ -85,8 +87,7 @@ str2target = {
 )
 def test_image_only(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-
-    assert aug._targets == (Targets.IMAGE)
+    assert aug._targets == (Targets.IMAGE, Targets.VOLUME)
 
 
 @pytest.mark.parametrize(
@@ -116,7 +117,7 @@ def test_image_only(augmentation_cls, params):
 )
 def test_dual(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-    assert set(aug._targets) == set(DUAL_TARGETS.get(augmentation_cls, {Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS}))
+    assert set(aug._targets) == set(DUAL_TARGETS.get(augmentation_cls, ALL_TARGETS))
     assert set(aug._targets) <= get_targets_from_methods(augmentation_cls)
 
     targets_from_docstring = {str2target[target] for target in extract_targets_from_docstring(augmentation_cls)}

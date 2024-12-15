@@ -13,7 +13,7 @@ from albumentations.augmentations.dropout.functional import (
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, DropoutFillValue, Targets
+from albumentations.core.types import ALL_TARGETS, ColorType, DropoutFillValue
 
 
 class BaseDropout(DualTransform):
@@ -30,13 +30,13 @@ class BaseDropout(DualTransform):
         p (float): Probability of applying the transform.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         fill: DropoutFillValue

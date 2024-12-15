@@ -48,7 +48,7 @@ class ChannelDropout(ImageOnlyTransform):
             equal to the number of channels in the input image.
 
     Targets:
-        image
+        image, volume
 
     Image types:
         uint8, float32

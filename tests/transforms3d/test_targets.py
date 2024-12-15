@@ -28,21 +28,28 @@ def extract_targets_from_docstring(cls):
 
 
 def get_targets_from_methods(cls):
-    targets = {Targets.IMAGE, Targets.MASK}
+    targets = {Targets.VOLUME, Targets.MASK3D}
 
-    has_images_method = any(
+    has_volume_method = any(
         hasattr(cls, attr) and getattr(cls, attr) is not getattr(A.Transform3D, attr, None)
-        for attr in ["apply_to_images"]
+        for attr in ["apply_to_volume"]
     )
-    if has_images_method:
-        targets.add(Targets.IMAGE)
+    if has_volume_method:
+        targets.add(Targets.VOLUME)
 
     has_masks_method = any(
         hasattr(cls, attr) and getattr(cls, attr) is not getattr(A.Transform3D, attr, None)
-        for attr in ["apply_to_masks"]
+        for attr in ["apply_to_mask"]
     )
     if has_masks_method:
         targets.add(Targets.MASK)
+
+    has_masks3d_method = any(
+        hasattr(cls, attr) and getattr(cls, attr) is not getattr(A.Transform3D, attr, None)
+        for attr in ["apply_to_mask3d"]
+    )
+    if has_masks3d_method:
+        targets.add(Targets.MASK3D)
 
     has_bboxes_method = any(
         hasattr(cls, attr) and getattr(cls, attr) is not getattr(A.Transform3D, attr, None)
@@ -63,8 +70,8 @@ def get_targets_from_methods(cls):
 TRASNFORM_3d_DUAL_TARGETS = {}
 
 str2target = {
-    "images": Targets.IMAGE,
-    "masks": Targets.MASK,
+    "mask3d": Targets.MASK3D,
+    "volume": Targets.VOLUME,
 }
 
 @pytest.mark.parametrize(
@@ -76,9 +83,9 @@ str2target = {
         A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
     })
 )
-def test_dual(augmentation_cls, params):
+def test_transform3d(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-    assert set(aug._targets) == set(TRASNFORM_3d_DUAL_TARGETS.get(augmentation_cls, {Targets.IMAGE, Targets.MASK}))
+    assert set(aug._targets) == set(TRASNFORM_3d_DUAL_TARGETS.get(augmentation_cls, {Targets.MASK3D, Targets.VOLUME}))
     assert set(aug._targets) <= get_targets_from_methods(augmentation_cls)
 
     targets_from_docstring = {str2target[target] for target in extract_targets_from_docstring(augmentation_cls)}

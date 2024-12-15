@@ -21,9 +21,9 @@ from albumentations.core.transforms_interface import (
     DualTransform,
 )
 from albumentations.core.types import (
+    ALL_TARGETS,
     ColorType,
     ScaleFloatType,
-    Targets,
 )
 
 from . import functional as fgeometric
@@ -40,14 +40,14 @@ class RandomRotate90(DualTransform):
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
 
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     def apply(self, img: np.ndarray, factor: int, **params: Any) -> np.ndarray:
         return fgeometric.rot90(img, factor)
@@ -112,7 +112,7 @@ class Rotate(DualTransform):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -148,7 +148,7 @@ class Rotate(DualTransform):
         # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(RotateInitSchema):
         rotate_method: Literal["largest_box", "ellipse"]
@@ -410,7 +410,7 @@ class SafeRotate(Affine):
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
@@ -450,7 +450,7 @@ class SafeRotate(Affine):
         # scaled to fit within the original 100x100 frame
     """
 
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _targets = ALL_TARGETS
 
     class InitSchema(RotateInitSchema):
         rotate_method: Literal["largest_box", "ellipse"]

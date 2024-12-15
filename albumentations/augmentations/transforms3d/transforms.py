@@ -20,7 +20,7 @@ NUM_DIMENSIONS = 3
 class BasePad3D(Transform3D):
     """Base class for 3D padding transforms."""
 
-    _targets = (Targets.IMAGE, Targets.MASK)
+    _targets = (Targets.VOLUME, Targets.MASK3D)
 
     class InitSchema(Transform3D.InitSchema):
         fill: ColorType
@@ -37,30 +37,30 @@ class BasePad3D(Transform3D):
         self.fill = fill
         self.fill_mask = fill_mask
 
-    def apply_to_images(
+    def apply_to_volume(
         self,
-        images: np.ndarray,
+        volume: np.ndarray,
         padding: tuple[int, int, int, int, int, int],
         **params: Any,
     ) -> np.ndarray:
         if padding == (0, 0, 0, 0, 0, 0):
-            return images
+            return volume
         return f3d.pad_3d_with_params(
-            img=images,
+            volume=volume,
             padding=padding,
             value=cast(ColorType, self.fill),
         )
 
-    def apply_to_masks(
+    def apply_to_mask3d(
         self,
-        masks: np.ndarray,
+        mask3d: np.ndarray,
         padding: tuple[int, int, int, int, int, int],
         **params: Any,
     ) -> np.ndarray:
         if padding == (0, 0, 0, 0, 0, 0):
-            return masks
+            return mask3d
         return f3d.pad_3d_with_params(
-            img=masks,
+            volume=mask3d,
             padding=padding,
             value=cast(ColorType, self.fill_mask),
         )
@@ -86,7 +86,7 @@ class Pad3D(BasePad3D):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        images, masks
+        volume, mask3d
 
     Image types:
         uint8, float32
@@ -138,7 +138,7 @@ class Pad3D(BasePad3D):
         return {"padding": padding}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("padding", "fill", "fill_mask")
+        return "padding", "fill", "fill_mask"
 
 
 class PadIfNeeded3D(BasePad3D):
@@ -155,12 +155,12 @@ class PadIfNeeded3D(BasePad3D):
             If not specified, min_zyx must be provided.
         position (Literal["center", "random"]): Position where the volume is to be placed after padding.
             Default is 'center'.
-        fill (ColorType): Value to fill the border voxels for images. Default: 0
+        fill (ColorType): Value to fill the border voxels for volume. Default: 0
         fill_mask (ColorType): Value to fill the border voxels for masks. Default: 0
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        images, masks
+        volume, mask3d
 
     Image types:
         uint8, float32
@@ -202,7 +202,7 @@ class PadIfNeeded3D(BasePad3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        depth, height, width = data["images"].shape[:3]
+        depth, height, width = data["volume"].shape[:3]
         sizes = (depth, height, width)
 
         paddings = [
@@ -235,7 +235,7 @@ class PadIfNeeded3D(BasePad3D):
 class BaseCropAndPad3D(Transform3D):
     """Base class for 3D transforms that need both cropping and padding."""
 
-    _targets = (Targets.IMAGE, Targets.MASK)
+    _targets = (Targets.MASK3D, Targets.VOLUME)
 
     class InitSchema(Transform3D.InitSchema):
         pad_if_needed: bool
@@ -313,15 +313,15 @@ class BaseCropAndPad3D(Transform3D):
             "pad_right": w_right,
         }
 
-    def apply_to_images(
+    def apply_to_volume(
         self,
-        images: np.ndarray,
+        volume: np.ndarray,
         crop_coords: tuple[int, int, int, int, int, int],
         pad_params: dict[str, int] | None,
         **params: Any,
     ) -> np.ndarray:
         # First crop
-        cropped = f3d.crop(images, crop_coords)
+        cropped = f3d.crop(volume, crop_coords)
 
         # Then pad if needed
         if pad_params is not None:
@@ -341,15 +341,15 @@ class BaseCropAndPad3D(Transform3D):
 
         return cropped
 
-    def apply_to_masks(
+    def apply_to_mask3d(
         self,
-        masks: np.ndarray,
+        mask3d: np.ndarray,
         crop_coords: tuple[int, int, int, int, int, int],
         pad_params: dict[str, int] | None,
         **params: Any,
     ) -> np.ndarray:
         # First crop
-        cropped = f3d.crop(masks, crop_coords)
+        cropped = f3d.crop(mask3d, crop_coords)
 
         # Then pad if needed
         if pad_params is not None:
@@ -381,7 +381,7 @@ class CenterCrop3D(BaseCropAndPad3D):
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
-        images, masks
+        volume, mask3d
 
     Image types:
         uint8, float32
@@ -416,7 +416,7 @@ class CenterCrop3D(BaseCropAndPad3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        volume = data["images"]
+        volume = data["volume"]
         z, h, w = volume.shape[:3]
         target_z, target_h, target_w = self.size
 
@@ -474,7 +474,7 @@ class RandomCrop3D(BaseCropAndPad3D):
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
-        images, masks
+        volume, mask3d
 
     Image types:
         uint8, float32
@@ -509,7 +509,7 @@ class RandomCrop3D(BaseCropAndPad3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        volume = data["images"]
+        volume = data["volume"]
         z, h, w = volume.shape[:3]
         target_z, target_h, target_w = self.size
 
