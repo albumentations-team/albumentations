@@ -28,8 +28,7 @@ from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
     SymmetricRangeType,
-    check_01,
-    check_1plus,
+    check_range_bounds,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -1907,7 +1906,7 @@ class GridElasticDeform(DualTransform):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+        num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
         magnitude: int = Field(gt=0)
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
@@ -2080,7 +2079,7 @@ class RandomGridShuffle(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        grid: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+        grid: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
 
     _targets = ALL_TARGETS
 
@@ -2570,7 +2569,7 @@ class ThinPlateSpline(BaseDistortion):
     """
 
     class InitSchema(BaseDistortion.InitSchema):
-        scale_range: Annotated[tuple[float, float], AfterValidator(check_01)]
+        scale_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
         num_control_points: int = Field(ge=2)
 
     def __init__(

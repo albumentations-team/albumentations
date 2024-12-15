@@ -56,9 +56,6 @@ from albumentations.core.pydantic import (
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
-    check_0plus,
-    check_01,
-    check_1plus,
     check_range_bounds,
     nondecreasing,
 )
@@ -330,7 +327,7 @@ class ImageCompression(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         quality_range: Annotated[
             tuple[int, int],
-            AfterValidator(check_1plus),
+            AfterValidator(check_range_bounds(1, 100)),
             AfterValidator(nondecreasing),
         ]
 
@@ -494,7 +491,7 @@ class RandomSnow(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         snow_point_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
@@ -1049,7 +1046,7 @@ class RandomFog(ImageOnlyTransform):
         )
         fog_coef_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
@@ -1316,13 +1313,13 @@ class RandomSunFlare(ImageOnlyTransform):
 
         angle_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
         num_flare_circles_range: Annotated[
             tuple[int, int],
-            AfterValidator(check_1plus),
+            AfterValidator(check_range_bounds(1, None)),
             AfterValidator(nondecreasing),
         ]
         method: Literal["overlay", "physics_based"]
@@ -1582,7 +1579,7 @@ class RandomShadow(ImageOnlyTransform):
         shadow_roi: tuple[float, float, float, float]
         num_shadows_limit: Annotated[
             tuple[int, int],
-            AfterValidator(check_1plus),
+            AfterValidator(check_range_bounds(1, None)),
             AfterValidator(nondecreasing),
         ]
         num_shadows_lower: int | None
@@ -1591,7 +1588,7 @@ class RandomShadow(ImageOnlyTransform):
 
         shadow_intensity_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
@@ -2024,7 +2021,7 @@ class Solarize(ImageOnlyTransform):
         threshold: ScaleFloatType | None
         threshold_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
@@ -2531,7 +2528,7 @@ class GaussNoise(ImageOnlyTransform):
         mean: float | None
         std_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
         mean_range: Annotated[
@@ -2680,12 +2677,12 @@ class ISONoise(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         color_shift: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
         intensity: Annotated[
             tuple[float, float],
-            AfterValidator(check_0plus),
+            AfterValidator(check_range_bounds(0, None)),
             AfterValidator(nondecreasing),
         ]
 
@@ -2787,7 +2784,7 @@ class CLAHE(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         clip_limit: OnePlusFloatRangeType
-        tile_grid_size: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+        tile_grid_size: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
 
     def __init__(
         self,
@@ -3441,7 +3438,7 @@ class Downscale(ImageOnlyTransform):
 
         scale_range: Annotated[
             tuple[float, float],
-            AfterValidator(check_01),
+            AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
@@ -3680,7 +3677,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         multiplier: Annotated[
             tuple[float, float],
-            AfterValidator(check_0plus),
+            AfterValidator(check_range_bounds(0, None)),
             AfterValidator(nondecreasing),
         ]
         per_channel: bool
@@ -4116,8 +4113,8 @@ class Sharpen(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: Annotated[tuple[float, float], AfterValidator(check_01)]
-        lightness: Annotated[tuple[float, float], AfterValidator(check_0plus)]
+        alpha: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
+        lightness: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, None))]
         method: Literal["kernel", "gaussian"]
         kernel_size: int = Field(ge=3)
         sigma: float = Field(gt=0)
@@ -4239,8 +4236,8 @@ class Emboss(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: Annotated[tuple[float, float], AfterValidator(check_01)]
-        strength: Annotated[tuple[float, float], AfterValidator(check_0plus)]
+        alpha: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
+        strength: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, None))]
 
     def __init__(
         self,
@@ -5646,7 +5643,7 @@ class ShotNoise(ImageOnlyTransform):
         scale_range: Annotated[
             tuple[float, float],
             AfterValidator(nondecreasing),
-            AfterValidator(check_0plus),
+            AfterValidator(check_range_bounds(0, None)),
         ]
 
     def __init__(
@@ -6140,8 +6137,8 @@ class SaltAndPepper(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        amount: Annotated[tuple[float, float], AfterValidator(check_01)]
-        salt_vs_pepper: Annotated[tuple[float, float], AfterValidator(check_01)]
+        amount: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
+        salt_vs_pepper: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
 
     def __init__(
         self,
@@ -6475,7 +6472,7 @@ class PlasmaShadow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        shadow_intensity_range: Annotated[tuple[float, float], AfterValidator(check_01)]
+        shadow_intensity_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
         plasma_size: int = Field(default=256, gt=0)
         roughness: float = Field(default=3.0, gt=0)
 

@@ -130,7 +130,7 @@ def test_augmentations_serialization_with_custom_parameters(
     mask = image[:, :, 0].copy()
     aug = augmentation_cls(p=p, **params)
     aug.set_random_seed(seed)
-    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.Pad3D}
+    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D}
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -177,7 +177,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
     image,
     data_format,
 ):
-    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D}
+    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D}
     mask = image[:, :, 0].copy()
     with patch("builtins.open", OpenMock()):
         aug = augmentation_cls(p=p, **params)

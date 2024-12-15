@@ -86,7 +86,7 @@ def pad_3d_with_params(
     )
 
 
-def crop(
+def crop3d(
     volume: np.ndarray,
     crop_coords: tuple[int, int, int, int, int, int],
 ) -> np.ndarray:
@@ -102,3 +102,11 @@ def crop(
     z_min, z_max, y_min, y_max, x_min, x_max = crop_coords
 
     return volume[z_min:z_max, y_min:y_max, x_min:x_max]
+
+
+def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: ColorType) -> np.ndarray:
+    """Cut out holes in 3D volume and fill them with a given value."""
+    volume = volume.copy()
+    for z1, y1, x1, z2, y2, x2 in holes:
+        volume[z1:z2, y1:y2, x1:x2] = fill_value
+    return volume

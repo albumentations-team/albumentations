@@ -22,6 +22,15 @@ def image():
 def bboxes():
     return np.array([[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]])
 
+@pytest.fixture
+def volume():
+    return np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)
+
+@pytest.fixture
+def mask3d():
+    return np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)
+
+
 
 @pytest.fixture
 def albumentations_bboxes():

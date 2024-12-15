@@ -280,20 +280,17 @@ def test_pad3d_2d_equivalence(pad3d_padding, pad2d_padding):
         },
     ),
 )
-def test_change_volume(augmentation_cls, params):
+def test_change_volume(volume, mask3d,augmentation_cls, params):
     """Checks whether resulting volume is different from the original one."""
     aug = A.Compose([augmentation_cls(p=1, **params)], seed=0)
 
-    num_slices = 4
-
-    volume = np.array([SQUARE_UINT8_IMAGE] * num_slices)
     original_volume = volume.copy()
+    original_mask3d = mask3d.copy()
 
     data = {
         "volume": volume,
-        "mask3d": np.array([SQUARE_UINT8_IMAGE] * num_slices),
+        "mask3d": mask3d,
     }
-    original_mask3d = data["mask3d"].copy()
     transformed = aug(**data)
 
     assert not np.array_equal(transformed["volume"], original_volume)
@@ -497,10 +494,9 @@ def test_crop_3d_different_shapes(volume_shape):
         },
     ),
 )
-def test_return_nonzero(augmentation_cls, params):
+def test_return_nonzero(volume, mask3d, augmentation_cls, params):
     """Mistakes in clipping may lead to zero image, testing for that"""
-    volume = np.ones((3, 100, 100), dtype=np.uint8)
-    mask3d = np.ones((3, 100, 100), dtype=np.uint8)
+
     aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
     data = {

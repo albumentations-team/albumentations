@@ -9,7 +9,7 @@ from albucore import get_num_channels
 from pydantic import AfterValidator, model_validator
 from typing_extensions import Self
 
-from albumentations.core.pydantic import check_1plus
+from albumentations.core.pydantic import check_range_bounds
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 
 from .functional import channel_dropout
@@ -75,7 +75,7 @@ class ChannelDropout(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        channel_drop_range: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+        channel_drop_range: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
         fill_value: float | None
         fill: float
 
