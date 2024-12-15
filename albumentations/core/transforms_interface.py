@@ -544,7 +544,7 @@ class DualTransform(BasicTransform):
         else:  # (D, H, W, C)
             depth, height, width, num_channels = original_shape
             transformed_2d = transformed_2d.reshape(height, width, depth, num_channels)  # (H, W, D*C) => (H, W, D, C)
-            transformed_3d = np.moveaxis(transformed_2d, -2, 0)  # (H, W, D, C) => (D, H, W, C)
+            return np.moveaxis(transformed_2d, -2, 0)  # (H, W, D, C) => (D, H, W, C)
 
         return transformed_3d
 

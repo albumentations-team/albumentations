@@ -115,7 +115,7 @@ def make_transforms_targets_table(transforms_info, header, targets_to_check=None
     rows = [header]
     for transform, info in sorted(transforms_info.items(), key=lambda kv: kv[0]):
         transform_targets = []
-        targets_iter = targets_to_check if targets_to_check else Targets
+        targets_iter = targets_to_check or Targets
         for target in targets_iter:
             mark = "✓" if target in info["targets"] else ""
             transform_targets.append(mark)
