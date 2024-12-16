@@ -508,3 +508,11 @@ def test_return_nonzero(volume, mask3d, augmentation_cls, params):
 
     assert np.max(result["volume"]) > 0
     assert np.max(result["mask3d"]) > 0
+
+
+def test2d_3d(volume, mask3d):
+    transform = A.Compose([A.RandomCrop3D(size=(2, 30, 30), pad_if_needed=True, p=1), A.HorizontalFlip(p=1)])
+
+    transformed = transform(volume=volume, mask3d=mask3d)
+    assert np.max(transformed["volume"]) > 0
+    assert np.max(transformed["mask3d"]) > 0
