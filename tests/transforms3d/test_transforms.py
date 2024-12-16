@@ -4,7 +4,7 @@ import albumentations as A
 import cv2
 
 from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE
-from tests.utils import get_2d_transforms, get_3d_transforms
+from tests.utils import get_3d_transforms
 
 @pytest.mark.parametrize(
     ["volume_shape", "min_zyx", "pad_divisor_zyx", "expected_shape"],
