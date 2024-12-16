@@ -6700,7 +6700,7 @@ class Illumination(ImageOnlyTransform):
         # Determine if brightening or darkening
         sign = 1  # brighten
         if self.effect_type == "both":
-            sign = 1 if self.py_random.random() > 0.5 else -1  # noqa: PLR2004
+            sign = 1 if self.py_random.random() > 0.5 else -1
         elif self.effect_type == "darken":
             sign = -1
 
