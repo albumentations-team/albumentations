@@ -388,9 +388,9 @@ def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
         raise ValueError("Image and reference must have the same number of dimensions.")
 
     # Expand dimensions for grayscale images
-    if image.ndim == 2:  # noqa: PLR2004
+    if image.ndim == 2:
         image = np.expand_dims(image, axis=-1)
-    if reference.ndim == 2:  # noqa: PLR2004
+    if reference.ndim == 2:
         reference = np.expand_dims(reference, axis=-1)
 
     matched = np.empty(image.shape, dtype=np.uint8)

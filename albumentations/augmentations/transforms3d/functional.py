@@ -110,3 +110,46 @@ def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: ColorType) -> np
     for z1, y1, x1, z2, y2, x2 in holes:
         volume[z1:z2, y1:y2, x1:x2] = fill_value
     return volume
+
+
+def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
+    """Transform cube by index (0-47)
+
+    Args:
+        cube: Input array with shape (D, H, W) or (D, H, W, C)
+        index: Integer from 0 to 47 specifying which transformation to apply
+    Returns:
+        Transformed cube with same shape as input
+    """
+    if not (0 <= index < 48):
+        raise ValueError("Index must be between 0 and 47")
+
+    # First determine if we need reflection (indices 24-47)
+    needs_reflection = index >= 24
+    working_cube = cube[:, :, ::-1].copy() if needs_reflection else cube.copy()
+    rotation_index = index % 24
+
+    # Map rotation_index (0-23) to specific rotations
+    if rotation_index < 4:
+        # First 4: rotate around axis 0
+        return np.rot90(working_cube, rotation_index, axes=(1, 2))
+
+    if rotation_index < 8:
+        # Next 4: flip 180° about axis 1, then rotate around axis 0
+        temp = np.rot90(working_cube, 2, axes=(0, 2))
+        return np.rot90(temp, rotation_index - 4, axes=(1, 2))
+
+    if rotation_index < 16:
+        # Next 8: split between 90° and 270° about axis 1, then rotate around axis 2
+        if rotation_index < 12:
+            temp = np.rot90(working_cube, axes=(0, 2))
+            return np.rot90(temp, rotation_index - 8, axes=(0, 1))
+        temp = np.rot90(working_cube, -1, axes=(0, 2))
+        return np.rot90(temp, rotation_index - 12, axes=(0, 1))
+
+    # Final 8: split between rotations about axis 2, then rotate around axis 1
+    if rotation_index < 20:
+        temp = np.rot90(working_cube, axes=(0, 1))
+        return np.rot90(temp, rotation_index - 16, axes=(0, 2))
+    temp = np.rot90(working_cube, -1, axes=(0, 1))
+    return np.rot90(temp, rotation_index - 20, axes=(0, 2))

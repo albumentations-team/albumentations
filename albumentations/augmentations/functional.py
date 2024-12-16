@@ -506,7 +506,7 @@ def image_compression(
         return cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
 
     # For 2,4 or more channels, we need to handle alpha/extra channels separately
-    if num_channels == 2:  # noqa: PLR2004
+    if num_channels == 2:
         # For 2 channels, pad to 3 channels and take only first 2 after compression
         padded = np.pad(img, ((0, 0), (0, 0), (0, 1)), mode="constant")
         _, encoded_bgr = cv2.imencode(image_type, padded, (int(quality_flag), quality))
@@ -525,7 +525,7 @@ def image_compression(
             channel = img[..., i]
             _, encoded = cv2.imencode(image_type, channel, (int(quality_flag), quality))
             decoded = cv2.imdecode(encoded, cv2.IMREAD_GRAYSCALE)
-            if len(decoded.shape) == 2:  # noqa: PLR2004
+            if len(decoded.shape) == 2:
                 decoded = decoded[..., np.newaxis]
             extra_channels.append(decoded)
 
@@ -622,7 +622,7 @@ def generate_snow_textures(
     snow_texture = cv2.GaussianBlur(snow_texture, (0, 0), sigmaX=1, sigmaY=1)
 
     # Generate sparkle mask
-    sparkle_mask = random_generator.random(img_shape[:2]) > 0.99  # noqa: PLR2004
+    sparkle_mask = random_generator.random(img_shape[:2]) > 0.99
 
     return snow_texture, sparkle_mask
 
@@ -2720,10 +2720,10 @@ def apply_corner_illumination(
     # Adjust coordinates based on corner
     if corner == 1:  # top-right
         x = width - 1 - x
-    elif corner == 2:  # bottom-right  # noqa: PLR2004
+    elif corner == 2:  # bottom-right
         x = width - 1 - x
         y = height - 1 - y
-    elif corner == 3:  # bottom-left  # noqa: PLR2004
+    elif corner == 3:  # bottom-left
         y = height - 1 - y
 
     # Calculate normalized distance

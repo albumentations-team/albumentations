@@ -12,7 +12,7 @@ from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, Transform3D
 from albumentations.core.types import ColorType, Targets
 
-__all__ = ["CenterCrop3D", "CoarseDropout3D", "Pad3D", "PadIfNeeded3D", "RandomCrop3D"]
+__all__ = ["CenterCrop3D", "CoarseDropout3D", "CubicSymmetry", "Pad3D", "PadIfNeeded3D", "RandomCrop3D"]
 
 NUM_DIMENSIONS = 3
 
@@ -737,3 +737,82 @@ class CoarseDropout3D(Transform3D):
             "fill",
             "fill_mask",
         )
+
+
+class CubicSymmetry(Transform3D):
+    """Applies a random cubic symmetry transformation to a 3D volume.
+
+    This transform is a 3D extension of D4. While D4 handles the 8 symmetries
+    of a square (4 rotations x 2 reflections), CubicSymmetry handles all 48 symmetries of a cube.
+    Like D4, this transform does not create any interpolation artifacts as it only remaps voxels
+    from one position to another without any interpolation.
+
+    The 48 transformations consist of:
+    - 24 rotations (orientation-preserving):
+        * 4 rotations around each face diagonal (6 face diagonals x 4 rotations = 24)
+    - 24 rotoreflections (orientation-reversing):
+        * Reflection through a plane followed by any of the 24 rotations
+
+    For a cube, these transformations preserve:
+    - All face centers (6)
+    - All vertex positions (8)
+    - All edge centers (12)
+
+    works with 3D volumes and masks of the shape (D, H, W) or (D, H, W, C)
+
+    Args:
+        p (float): Probability of applying the transform. Default: 1.0
+
+    Targets:
+        volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - This transform is particularly useful for data augmentation in 3D medical imaging,
+          crystallography, and voxel-based 3D modeling where the object's orientation
+          is arbitrary.
+        - All transformations preserve the object's chirality (handedness) when using
+          pure rotations (indices 0-23) and invert it when using rotoreflections
+          (indices 24-47).
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)    # (D, H, W)
+        >>> transform = A.CubicSymmetry(p=1.0)
+        >>> transformed = transform(volume=volume, mask3d=mask3d)
+        >>> transformed_volume = transformed["volume"]
+        >>> transformed_mask3d = transformed["mask3d"]
+
+    See Also:
+        - D4: The 2D version that handles the 8 symmetries of a square
+    """
+
+    _targets = (Targets.VOLUME, Targets.MASK3D)
+
+    def __init__(
+        self,
+        p: float = 1.0,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
+        # Randomly select one of 48 possible transformations
+        return {"index": self.py_random.randint(0, 47)}
+
+    def apply_to_volume(self, volume: np.ndarray, index: int, **params: Any) -> np.ndarray:
+        return f3d.transform_cube(volume, index)
+
+    def apply_to_mask(self, mask: np.ndarray, index: int, **params: Any) -> np.ndarray:
+        return f3d.transform_cube(mask, index)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ()
