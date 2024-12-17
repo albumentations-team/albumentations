@@ -1083,14 +1083,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             AfterValidator(check_range_bounds(0, None)),
             AfterValidator(nondecreasing),
         ]
-        width: int | None = Field(
-            None,
-            deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
-        )
-        height: int | None = Field(
-            None,
-            deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
-        )
+        width: int | None
+        height: int | None
         size: ScaleIntType | None
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
