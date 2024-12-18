@@ -620,11 +620,13 @@ def reshape_batch_3d_channel(data: np.ndarray) -> tuple[np.ndarray, tuple[int, .
     """Reshape (N,D,H,W) or (N,D,H,W,C) for channel transforms."""
     if data.ndim == 4:  # (N,D,H,W) => (N*D*H,W)
         num_images, depth, height, width = data.shape
-        reshaped = np.ascontiguousarray(data.reshape(num_images * depth * height, width))
+        # Flatten N,D,H together, keep W separate
+        reshaped = np.ascontiguousarray(data.reshape(-1, width))
         return reshaped, data.shape
     if data.ndim == 5:  # (N,D,H,W,C) => (N*D*H,W,C)
         num_images, depth, height, width, channels = data.shape
-        reshaped = np.ascontiguousarray(data.reshape(num_images * depth * height, width, channels))
+        # Flatten N,D,H together, keep W and C separate
+        reshaped = np.ascontiguousarray(data.reshape(-1, width, channels))
         return reshaped, data.shape
     raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
 
@@ -660,18 +662,19 @@ def restore_batch_channel(data: np.ndarray, original_shape: tuple[int, ...]) -> 
 
 
 def restore_batch_3d_channel(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
-    """Restore (N*D*H,W) or (N*D*H,W,C) back to (N,D,H,W) or (N,D,H,W,C).
+    """Restore (N*D*H,W') or (N*D*H,W',C) back to (N,D,H,W',C).
 
-    Args:
-        data: Array of shape (N*D*H,W') or (N*D*H,W',C)
-        original_shape: Original shape (N,D,H,W) or (N,D,H,W,C)
+    Note: W' can be different from original W after transforms.
     """
     if len(original_shape) == 4:  # (N*D*H,W') => (N,D,H,W')
-        num_images, depth, height, _ = original_shape
-        return data.reshape(num_images, depth, height, data.shape[1])
+        num_images, depth, height, _ = original_shape  # Don't use original width
+        new_width = data.shape[1]  # Use transformed width
+        return data.reshape(num_images, depth, height, new_width)
+
     # (N*D*H,W',C) => (N,D,H,W',C)
-    num_images, depth, height, _, channels = original_shape
-    return data.reshape(num_images, depth, height, data.shape[1], channels)
+    num_images, depth, height, _, channels = original_shape  # Don't use original width
+    new_width = data.shape[1]  # Use transformed width
+    return data.reshape(num_images, depth, height, new_width, channels)
 
 
 # Dictionary mapping shape types to channel reshape functions
@@ -699,6 +702,7 @@ def reshape_for_channel(
     data: np.ndarray,
     has_batch_dim: bool,
     has_depth_dim: bool,
+    keep_depth_dim: bool = False,
 ) -> tuple[np.ndarray, tuple[int, ...]]:
     """Choose appropriate reshape function based on data dimensions."""
     if data.size == 0:
@@ -714,6 +718,7 @@ def restore_from_channel(
     original_shape: tuple[int, ...],
     has_batch_dim: bool,
     has_depth_dim: bool,
+    keep_depth_dim: bool = False,
 ) -> np.ndarray:
     """Choose appropriate restore function based on data dimensions."""
     shape_type = get_shape_type(original_shape, has_batch_dim, has_depth_dim)

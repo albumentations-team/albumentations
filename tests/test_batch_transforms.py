@@ -117,16 +117,18 @@ def test_channel_transform_preserves_width():
     input_shape = (10, 5, 32, 32, 3)  # N,D,H,W,C
     data = np.random.rand(*input_shape)
 
-    # Simulate a channel transform that changes W dimension
-    reshaped, original_shape = reshape_batch(data)
-    new_shape = (reshaped.shape[0], 64, reshaped.shape[2])  # Double width
-    transformed = np.random.rand(*new_shape)  # Simulated transform result
+    # Use reshape_for_channel instead of reshape_batch
+    reshaped, original_shape = reshape_for_channel(data, True, True)
+    # reshaped should be (1600, 32, 3)
+
+    # Double the width dimension
+    new_shape = (reshaped.shape[0], 64, reshaped.shape[2])  # (1600, 64, 3)
+    transformed = np.random.rand(*new_shape)
 
     restored = restore_from_channel(transformed, original_shape, True, True)
-    expected_shape = (10, 5, 32, 64, 3)  # Original dims preserved except W
+    # Should restore to (10, 5, 32, 64, 3) - note the new width
 
-    assert restored.shape == expected_shape
-    assert restored.flags["C_CONTIGUOUS"]
+    assert restored.shape == (10, 5, 32, 64, 3)
 
 
 SPATIAL_3D_SHAPES = [

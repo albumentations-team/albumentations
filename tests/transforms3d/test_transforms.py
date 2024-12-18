@@ -4,7 +4,7 @@ import albumentations as A
 import cv2
 
 from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE
-from tests.utils import get_3d_transforms
+from tests.utils import get_2d_transforms, get_3d_transforms
 
 @pytest.mark.parametrize(
     ["volume_shape", "min_zyx", "pad_divisor_zyx", "expected_shape"],
@@ -516,3 +516,42 @@ def test2d_3d(volume, mask3d):
     transformed = transform(volume=volume, mask3d=mask3d)
     assert np.max(transformed["volume"]) > 0
     assert np.max(transformed["mask3d"]) > 0
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_2d_transforms(
+        custom_arguments={
+            A.RandomCrop: {"height": 50, "width": 50},
+            A.CenterCrop: {"height": 50, "width": 50},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.Resize: {"height": 100, "width": 100},
+        },
+        except_augmentations={
+            A.RandomSizedBBoxSafeCrop,
+            A.PixelDropout,
+            A.FDA,
+            A.MaskDropout,
+            A.CropNonEmptyMaskIfExists,
+            A.BBoxSafeRandomCrop,
+            A.TextImage,
+            A.OverlayElements,
+            A.PixelDistributionAdaptation,
+            A.HistogramMatching,
+            A.TemplateTransform,
+
+        },
+    ),
+)
+def test_image_volume_matching(augmentation_cls, params):
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
+
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    volume = np.stack([image.copy()] * 4, axis=0)
+
+    volumes = np.stack([volume.copy()] * 2, axis=0)
+
+    transformed = aug(image=image, volumes=volumes, volume=volume)
+
+    np.testing.assert_array_equal(transformed["image"], transformed["volume"][0])
+    np.testing.assert_array_equal(transformed["volume"], transformed["volumes"][0])
