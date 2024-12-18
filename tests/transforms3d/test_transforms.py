@@ -548,10 +548,12 @@ def test_image_volume_matching(augmentation_cls, params):
 
     image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
     volume = np.stack([image.copy()] * 4, axis=0)
+    images = np.stack([image.copy()] * 3, axis=0)
 
     volumes = np.stack([volume.copy()] * 2, axis=0)
 
-    transformed = aug(image=image, volumes=volumes, volume=volume)
+    transformed = aug(image=image, volumes=volumes, volume=volume, images=images)
 
     np.testing.assert_array_equal(transformed["image"], transformed["volume"][0])
     np.testing.assert_array_equal(transformed["volume"], transformed["volumes"][0])
+    np.testing.assert_array_equal(transformed["image"], transformed["images"][0])

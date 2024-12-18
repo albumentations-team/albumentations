@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Sequence
 from numbers import Real
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
 
@@ -13,8 +13,6 @@ from .types import PAIR, Number, ScaleFloatType, ScaleIntType, ScaleType
 
 if TYPE_CHECKING:
     import torch
-
-F = TypeVar("F", bound=Callable[..., Any])
 
 
 def get_shape(img: np.ndarray | torch.Tensor) -> tuple[int, int]:
