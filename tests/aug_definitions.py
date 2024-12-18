@@ -154,6 +154,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.CenterCrop, {"height": 10, "width": 10}],
     [A.RandomCrop, {"height": 10, "width": 10}],
+    [A.AtLeastOneBBoxRandomCrop, {"height": 10, "width": 10}],
     [A.CropNonEmptyMaskIfExists, {"height": 10, "width": 10}],
     [A.RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
     [A.Crop, {"x_max": 64, "y_max": 64}],

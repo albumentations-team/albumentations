@@ -37,6 +37,7 @@ from albumentations.core.types import (
 from . import functional as fcrops
 
 __all__ = [
+    "AtLeastOneBBoxRandomCrop",
     "BBoxSafeRandomCrop",
     "CenterCrop",
     "Crop",
@@ -1989,3 +1990,113 @@ class RandomCropFromBorders(BaseCrop):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "crop_left", "crop_right", "crop_top", "crop_bottom"
+
+
+class AtLeastOneBBoxRandomCrop(BaseCrop):
+    """Crops an image to a fixed resolution, while ensuring that at least one bounding box is always in the crop.
+    The maximal erosion factor define by how much the target bounding box can be thinned out.
+    For example, erosion_factor = 0.2 means that the bounding box dimensions can be thinned by up to 20%.
+
+    Args:
+        height: Height of the crop.
+        width: Width of the crop.
+        erosion_factor: Maximal erosion factor of the height and width of the target bounding box. Default: 0.0.
+        p: The probability of applying the transform. Default: 1.0.
+        always_apply: Whether to apply the transform systematically.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+    """
+
+    _targets = ALL_TARGETS
+
+    class InitSchema(BaseCrop.InitSchema):
+        height: Annotated[int, Field(ge=1)]
+        width: Annotated[int, Field(ge=1)]
+        erosion_factor: Annotated[float, Field(ge=0.0, le=1.0)]
+
+    def __init__(
+        self,
+        height: int,
+        width: int,
+        erosion_factor: float = 0.0,
+        p: float = 1.0,
+        always_apply: bool | None = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.height = height
+        self.width = width
+        self.erosion_factor = erosion_factor
+
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        image_height, image_width = params["shape"][:2]
+        bboxes = data.get("bboxes", [])
+
+        if self.height > image_height or self.width > image_width:
+            raise CropSizeError(
+                f"Crop size (height, width) exceeds image dimensions (height, width):"
+                f" {(self.height, self.width)} vs {image_height, image_width}",
+            )
+
+        if len(bboxes) > 0:
+            # Pick a bbox amongst all possible as our reference bbox.
+            bboxes = denormalize_bboxes(bboxes, image_shape=(image_height, image_width))
+            bbox = self.py_random.choice(bboxes)
+
+            x1, y1, x2, y2 = bbox[:4]
+
+            w = x2 - x1
+            h = y2 - y1
+
+            # Compute the eroded width and height
+            ew = w * (1.0 - self.erosion_factor)
+            eh = h * (1.0 - self.erosion_factor)
+
+            # Compute the lower and upper bounds for the x-axis and y-axis.
+            ax1 = np.clip(
+                a=x1 + ew - self.width,
+                a_min=0.0,
+                a_max=image_width - self.width,
+            )
+            bx1 = np.clip(
+                a=x2 - ew,
+                a_min=0.0,
+                a_max=image_width - self.width,
+            )
+
+            ay1 = np.clip(
+                a=y1 + eh - self.height,
+                a_min=0.0,
+                a_max=image_height - self.height,
+            )
+            by1 = np.clip(
+                a=y2 - eh,
+                a_min=0.0,
+                a_max=image_height - self.height,
+            )
+        else:
+            # If there are no bboxes, just crop anywhere in the image.
+            ax1 = 0.0
+            bx1 = image_width - self.width
+
+            ay1 = 0.0
+            by1 = image_height - self.height
+
+        # Randomly draw the upper-left corner.
+        x1 = int(self.py_random.uniform(a=ax1, b=bx1))
+        y1 = int(self.py_random.uniform(a=ay1, b=by1))
+
+        x2 = x1 + self.width
+        y2 = y1 + self.height
+
+        return {"crop_coords": (x1, y1, x2, y2)}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "height", "width", "erosion_factor"
