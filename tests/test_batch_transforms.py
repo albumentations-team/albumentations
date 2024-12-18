@@ -127,3 +127,132 @@ def test_channel_transform_preserves_width():
 
     assert restored.shape == expected_shape
     assert restored.flags["C_CONTIGUOUS"]
+
+
+SPATIAL_3D_SHAPES = [
+    # (input_shape, expected_shape, has_batch, has_depth, keep_depth)
+    ((5, 32, 32), (5, 32, 32), False, True, True),  # D,H,W stays D,H,W
+    ((5, 32, 32, 3), (5, 32, 32, 3), False, True, True),  # D,H,W,C stays D,H,W,C
+    ((10, 5, 32, 32), (5, 32, 32, 10), True, True, True),  # N,D,H,W => D,H,W,N
+    ((10, 5, 32, 32, 3), (5, 32, 32, 30), True, True, True),  # N,D,H,W,C => D,H,W,N*C
+]
+
+@pytest.mark.parametrize(
+    "input_shape,expected_shape,has_batch,has_depth,keep_depth",
+    SPATIAL_3D_SHAPES
+)
+def test_spatial_3d_reshape(
+    input_shape: tuple,
+    expected_shape: tuple,
+    has_batch: bool,
+    has_depth: bool,
+    keep_depth: bool
+):
+    """Test spatial reshape for 3D volumes."""
+    data = np.random.rand(*input_shape)
+    reshaped, original_shape = reshape_for_spatial(
+        data, has_batch, has_depth, keep_depth_dim=keep_depth
+    )
+
+    assert reshaped.shape == expected_shape
+    assert original_shape == input_shape
+    assert reshaped.flags["C_CONTIGUOUS"]
+
+@pytest.mark.parametrize(
+    "input_shape,_,has_batch,has_depth,keep_depth",
+    SPATIAL_3D_SHAPES
+)
+def test_spatial_3d_roundtrip(
+    input_shape: tuple,
+    _: tuple,
+    has_batch: bool,
+    has_depth: bool,
+    keep_depth: bool
+):
+    """Test that reshape->restore preserves data for 3D spatial transforms."""
+    data = np.random.rand(*input_shape)
+    reshaped, original_shape = reshape_for_spatial(
+        data, has_batch, has_depth, keep_depth_dim=keep_depth
+    )
+    restored = restore_from_spatial(
+        reshaped, original_shape, has_batch, has_depth, keep_depth_dim=keep_depth
+    )
+
+    assert restored.shape == input_shape
+    assert restored.flags["C_CONTIGUOUS"]
+    np.testing.assert_array_equal(data, restored)
+
+def test_spatial_3d_transform_preserves_dims():
+    """Test that 3D spatial transforms preserve N,C dimensions while allowing D,H,W to change."""
+    input_shape = (10, 5, 32, 32, 3)  # N,D,H,W,C
+    data = np.random.rand(*input_shape)
+
+    # Simulate a spatial transform that changes H,W dimensions
+    reshaped, original_shape = reshape_for_spatial(
+        data, True, True, keep_depth_dim=True
+    )
+    # Double H,W dimensions
+    transformed = np.random.rand(5, 64, 64, 30)  # (D,H',W',N*C)
+
+    restored = restore_from_spatial(
+        transformed, original_shape, True, True, keep_depth_dim=True
+    )
+    expected_shape = (10, 5, 64, 64, 3)  # (N,D,H',W',C)
+
+    assert restored.shape == expected_shape
+    assert restored.flags["C_CONTIGUOUS"]
+
+def test_spatial_3d_transform_preserves_order():
+    """Test that 3D spatial transforms preserve data order."""
+    input_shape = (2, 3, 4, 4, 1)  # N,D,H,W,C
+    data = np.arange(np.prod(input_shape)).reshape(input_shape)
+
+    reshaped, original_shape = reshape_for_spatial(
+        data, True, True, keep_depth_dim=True
+    )
+    restored = restore_from_spatial(
+        reshaped, original_shape, True, True, keep_depth_dim=True
+    )
+
+    np.testing.assert_array_equal(data, restored)
+
+@pytest.mark.parametrize("keep_depth", [True, False])
+def test_spatial_3d_transform_modes(keep_depth: bool):
+    """Test both modes of 3D spatial transforms."""
+    input_shape = (2, 3, 4, 4, 1)  # N,D,H,W,C
+    data = np.random.rand(*input_shape)
+
+    reshaped, original_shape = reshape_for_spatial(
+        data, True, True, keep_depth_dim=keep_depth
+    )
+
+    if keep_depth:
+        assert reshaped.shape == (3, 4, 4, 2)  # D,H,W,N
+    else:
+        assert reshaped.shape == (4, 4, 6)  # H,W,N*D
+
+    restored = restore_from_spatial(
+        reshaped, original_shape, True, True, keep_depth_dim=keep_depth
+    )
+    np.testing.assert_array_equal(data, restored)
+
+
+def test_spatial_3d_transform_allows_dhw_changes():
+    """Test that 3D spatial transforms allow D,H,W dimensions to change (e.g., for RandomCrop3D)."""
+    input_shape = (10, 8, 32, 32, 3)  # N,D,H,W,C
+    data = np.random.rand(*input_shape)
+
+    # Simulate a spatial transform that changes D,H,W dimensions
+    reshaped, original_shape = reshape_for_spatial(
+        data, True, True, keep_depth_dim=True
+    )
+    # Simulate crop: reduce D,H,W dimensions
+    transformed = np.random.rand(4, 16, 16, 30)  # (D',H',W',N*C)
+
+    restored = restore_from_spatial(
+        transformed, original_shape, True, True, keep_depth_dim=True
+    )
+    expected_shape = (10, 4, 16, 16, 3)  # (N,D',H',W',C)
+
+    assert restored.shape == expected_shape
+    assert restored.flags["C_CONTIGUOUS"]

@@ -506,6 +506,7 @@ class DualTransform(BasicTransform):
     def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         return self.apply(mask, *args, **params)
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_masks(self, masks: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to multiple masks.
 
@@ -517,10 +518,9 @@ class DualTransform(BasicTransform):
         Returns:
             Array of transformed masks with same shape as input
         """
-        transformed_slices = [self.apply_to_mask(mask_slice, *args, **params) for mask_slice in masks]
-        return np.stack(transformed_slices)
+        return self.apply(masks, *args, **params)
 
-    @batch_transform("spatial")
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to single 3D mask.
 
@@ -534,7 +534,7 @@ class DualTransform(BasicTransform):
         """
         return self.apply_to_mask(mask3d, *args, **params)
 
-    @batch_transform("spatial")
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to batch of 3D masks.
 
