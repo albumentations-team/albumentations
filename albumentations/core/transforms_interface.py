@@ -612,17 +612,19 @@ class Transform3D(DualTransform):
         """Apply transform to single 3D volume."""
         raise NotImplementedError
 
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to batch of 3D volumes."""
-        return np.stack([self.apply_to_volume(volume, *args, **params) for volume in volumes])
+        return self.apply_to_volume(volumes, *args, **params)
 
     def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to single 3D mask."""
         return self.apply_to_volume(mask3d, *args, **params)
 
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to batch of 3D masks."""
-        return np.stack([self.apply_to_mask3d(mask3d, *args, **params) for mask3d in masks3d])
+        return self.apply_to_mask3d(masks3d, *args, **params)
 
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
