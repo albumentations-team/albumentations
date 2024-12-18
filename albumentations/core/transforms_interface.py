@@ -17,12 +17,11 @@ from albumentations.core.validation import ValidatedTransformMeta
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
 from .types import (
     ALL_TARGETS,
-    NUM_MULTI_CHANNEL_DIMENSIONS,
     ColorType,
     DropoutFillValue,
     Targets,
 )
-from .utils import ensure_contiguous_output, format_args
+from .utils import batch_transform, ensure_contiguous_output, format_args
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "Transform3D"]
 
@@ -244,9 +243,17 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return np.require(transformed, requirements=["C_CONTIGUOUS"])
 
     def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform slice by slice to a volume."""
-        transformed_slices = [self.apply(volume_slice, *args, **params) for volume_slice in volume]
-        return np.stack(transformed_slices)
+        """Apply transform slice by slice to a volume.
+
+        Args:
+            volume: Input volume of shape (depth, height, width) or (depth, height, width, channels)
+            *args: Additional positional arguments
+            **params: Additional parameters specific to the transform
+
+        Returns:
+            Transformed volume as numpy array in the same format as input
+        """
+        return self.apply_to_images(volume, *args, **params)
 
     def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to multiple volumes."""
@@ -513,6 +520,7 @@ class DualTransform(BasicTransform):
         transformed_slices = [self.apply_to_mask(mask_slice, *args, **params) for mask_slice in masks]
         return np.stack(transformed_slices)
 
+    @batch_transform("spatial")
     def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to single 3D mask.
 
@@ -524,33 +532,21 @@ class DualTransform(BasicTransform):
         Returns:
             Transformed 3D mask in the same format as input
         """
-        # Remember original shape
-        original_shape = mask3d.shape
+        return self.apply_to_mask(mask3d, *args, **params)
 
-        # Convert (D, H, W) => (H, W, D) or (D, H, W, C) => (H, W, D*C)
-        if mask3d.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:  # (D, H, W)
-            mask_2d = np.moveaxis(mask3d, 0, -1)  # => (H, W, D)
-        else:  # (D, H, W, C)
-            depth, height, width, num_channels = mask3d.shape
-            mask_2d = np.moveaxis(mask3d, 0, -2)  # (H, W, D, C)
-            mask_2d = mask_2d.reshape(height, width, depth * num_channels)  # (H, W, D*C)
-
-        # Apply 2D transform
-        transformed_2d = self.apply_to_mask(mask_2d, *args, **params)
-
-        # Convert back to original format
-        if len(original_shape) == NUM_MULTI_CHANNEL_DIMENSIONS:  # (D, H, W)
-            transformed_3d = np.moveaxis(transformed_2d, -1, 0)  # (H, W, D) => (D, H, W)
-        else:  # (D, H, W, C)
-            depth, height, width, num_channels = original_shape
-            transformed_2d = transformed_2d.reshape(height, width, depth, num_channels)  # (H, W, D*C) => (H, W, D, C)
-            return np.moveaxis(transformed_2d, -2, 0)  # (H, W, D, C) => (D, H, W, C)
-
-        return transformed_3d
-
+    @batch_transform("spatial")
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to batch of 3D masks."""
-        return np.stack([self.apply_to_mask3d(mask3d, *args, **params) for mask3d in masks3d])
+        """Apply transform to batch of 3D masks.
+
+        Args:
+            masks3d: Input 3D masks of shape (N, D, H, W) or (N, D, H, W, C)
+            *args: Additional positional arguments
+            **params: Additional parameters specific to the transform
+
+        Returns:
+            Transformed 3D masks in the same format as input
+        """
+        return self.apply_to_mask(masks3d, *args, **params)
 
 
 class ImageOnlyTransform(BasicTransform):

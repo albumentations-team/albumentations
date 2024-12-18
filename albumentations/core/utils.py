@@ -411,123 +411,294 @@ def to_tuple(
 BatchTransformType = Literal["spatial", "channel", "full"]
 
 
-def reshape_for_spatial(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
-    """Reshape array for spatial transforms by moving batch dims to channels.
+def reshape_3d(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Reshape (D,H,W) or (D,H,W,C) for spatial transforms."""
+    if data.ndim == 3:  # (D,H,W) => (H,W,D)
+        depth, height, width = data.shape
+        reshaped = np.ascontiguousarray(np.moveaxis(data, 0, -1))  # (H,W,D)
+        return reshaped, data.shape
+    if data.ndim == 4:  # (D,H,W,C) => (H,W,D*C)
+        depth, height, width, channels = data.shape
+        reshaped = np.moveaxis(data, 0, -2)  # (H,W,D,C)
+        final = np.ascontiguousarray(reshaped.reshape(height, width, -1))  # (H,W,D*C)
+        return final, data.shape
+    if data.ndim == 5:  # (N,D,H,W,C) => (H,W,N*D*C)
+        num_images, depth, height, width, channels = data.shape
+        flat = data.reshape(-1, height, width, channels)  # (N*D,H,W,C)
+        reshaped = np.moveaxis(flat, 0, -2)  # (H,W,N*D,C)
+        final = np.ascontiguousarray(reshaped.reshape(height, width, -1))  # (H,W,N*D*C)
+        return final, data.shape
+    raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
 
-    Args:
-        data: Input array of shape (N, H, W) or (N, H, W, C) or (N, D, H, W, C)
 
-    Returns:
-        Reshaped array with shape (H, W, N) or (H, W, N*C) or (H, W, N*D*C)
-        Original shape for restoration
-    """
+def reshape_batch(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Reshape (N,H,W) or (N,H,W,C) for spatial transforms."""
+    if data.ndim == 3:  # (N,H,W) => (H,W,N)
+        num_images, height, width = data.shape
+        reshaped = np.ascontiguousarray(np.moveaxis(data, 0, -1))  # (H,W,N)
+        return reshaped, data.shape
+    if data.ndim == 4:  # (N,H,W,C) => (H,W,N*C)
+        num_images, height, width, channels = data.shape
+        reshaped = np.moveaxis(data, 0, -2)  # (H,W,N,C)
+        final = np.ascontiguousarray(reshaped.reshape(height, width, -1))  # (H,W,N*C)
+        return final, data.shape
+    if data.ndim == 5:  # (N,D,H,W,C) => (H,W,N*D*C)
+        num_images, depth, height, width, channels = data.shape
+        flat = data.reshape(-1, height, width, channels)  # (N*D,H,W,C)
+        reshaped = np.moveaxis(flat, 0, -2)  # (H,W,N*D,C)
+        final = np.ascontiguousarray(reshaped.reshape(height, width, -1))  # (H,W,N*D*C)
+        return final, data.shape
+    raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
+
+
+def reshape_batch_3d(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Reshape (N,D,H,W) or (N,D,H,W,C) for spatial transforms."""
+    if data.ndim == 4:  # (N,D,H,W) => (H,W,N*D)
+        num_images, depth, height, width = data.shape
+        flat = data.reshape(-1, height, width)  # (N*D,H,W)
+        reshaped = np.ascontiguousarray(np.moveaxis(flat, 0, -1))  # (H,W,N*D)
+        return reshaped, data.shape
+    if data.ndim == 5:  # (N,D,H,W,C) => (H,W,N*D*C)
+        num_images, depth, height, width, channels = data.shape
+        flat = data.reshape(-1, height, width, channels)  # (N*D,H,W,C)
+        reshaped = np.moveaxis(flat, 0, -2)  # (H,W,N*D,C)
+        final = np.ascontiguousarray(reshaped.reshape(height, width, -1))  # (H,W,N*D*C)
+        return final, data.shape
+    raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
+
+
+def reshape_for_spatial(
+    data: np.ndarray,
+    has_batch_dim: bool,
+    has_depth_dim: bool,
+) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Choose appropriate reshape function based on data dimensions."""
     if data.size == 0:
         raise ValueError("Empty arrays are not supported")
 
-    if data.ndim == 3:  # (N, H, W) => (H, W, N)
-        num_images, height, width = data.shape
-        reshaped = np.moveaxis(data, 0, -1)  # (H, W, N)
-        return reshaped, data.shape
-    # (N, H, W, C) => (H, W, N*C) or (N, D, H, W, C) => (H, W, N*D*C)
-    *batch_dims, height, width, channels = data.shape
-    num_images = np.prod(batch_dims)
-    flat = data.reshape(num_images, height, width, channels)
-    reshaped = np.moveaxis(flat, 0, -1)  # (H, W, C, N)
-    final = reshaped.reshape(height, width, -1)  # (H, W, N*C)
-    return final, data.shape
+    if has_batch_dim and has_depth_dim:
+        return reshape_batch_3d(data)
+    if has_batch_dim:
+        return reshape_batch(data)
+    # has_depth_dim
+    return reshape_3d(data)
 
 
-def restore_from_spatial(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
-    """Restore original shape after spatial transform, allowing for H,W changes.
-
-    Args:
-        data: Array of shape (H', W', N) or (H', W', N*C)
-        original_shape: Original shape (N, H, W) or (N, H, W, C) or (N, D, H, W, C)
-
-    Returns:
-        Array with shape (N, H', W') or (N, H', W', C) or (N, D, H', W', C)
-    """
+def restore_3d(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
+    """Restore (H,W,D) or (H,W,D*C) back to (D,H,W) or (D,H,W,C)."""
     height, width = data.shape[:2]
 
-    if len(original_shape) == 3:  # (H', W', N) => (N, H', W')
+    if len(original_shape) == 3:  # (H',W',D) => (D,H',W')
+        depth = original_shape[0]
+        reshaped = data.reshape(height, width, depth)
+        return np.ascontiguousarray(np.moveaxis(reshaped, -1, 0))
+    # (H',W',D*C) => (D,H',W',C)
+    depth, _, _, channels = original_shape
+    reshaped = data.reshape(height, width, depth, channels)  # (H',W',D,C)
+    return np.ascontiguousarray(np.moveaxis(reshaped, -2, 0))  # (D,H',W',C)
+
+
+def restore_batch(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
+    """Restore (H,W,N) or (H,W,N*C) back to (N,H,W) or (N,H,W,C)."""
+    height, width = data.shape[:2]
+
+    if len(original_shape) == 3:  # (H',W',N) => (N,H',W')
         num_images = original_shape[0]
-        moved = np.moveaxis(data, -1, 0)  # Move N to front
-        return np.ascontiguousarray(moved)  # Ensure C_CONTIGUOUS
-    # (H', W', N*C) => (N, H', W', C) or (H', W', N*D*C) => (N, D, H', W', C)
-    *batch_dims, _, _, channels = original_shape
-    num_images = np.prod(batch_dims)
-    reshaped = data.reshape(height, width, channels, num_images)  # (H', W', C, N)
-    moved = np.moveaxis(reshaped, -1, 0)  # (N, H', W', C)
-    if len(batch_dims) > 1:
-        moved = moved.reshape(*batch_dims, height, width, channels)
-    return np.ascontiguousarray(moved)  # Ensure C_CONTIGUOUS
+        reshaped = data.reshape(height, width, num_images)
+        return np.ascontiguousarray(np.moveaxis(reshaped, -1, 0))
+    # (H',W',N*C) => (N,H',W',C)
+    num_images, _, _, channels = original_shape
+    reshaped = data.reshape(height, width, num_images, channels)  # (H',W',N,C)
+    return np.ascontiguousarray(np.moveaxis(reshaped, -2, 0))  # (N,H',W',C)
 
 
-def reshape_for_channel(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
-    """Reshape array for channel transforms by combining batch with spatial dims.
+def restore_batch_3d(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
+    """Restore (H,W,N*D) or (H,W,N*D*C) back to (N,D,H,W) or (N,D,H,W,C)."""
+    height, width = data.shape[:2]
+
+    if len(original_shape) == 4:  # (H',W',N*D) => (N,D,H',W')
+        num_images, depth = original_shape[:2]
+        reshaped = np.moveaxis(data, -1, 0)  # (N*D,H',W')
+        return np.ascontiguousarray(reshaped.reshape(num_images, depth, height, width))
+    # (H',W',N*D*C) => (N,D,H',W',C)
+    num_images, depth, _, _, channels = original_shape
+    reshaped = data.reshape(height, width, -1, channels)  # (H',W',N*D,C)
+    moved = np.moveaxis(reshaped, -2, 0)  # (N*D,H',W',C)
+    return np.ascontiguousarray(moved.reshape(num_images, depth, height, width, channels))
+
+
+def restore_from_spatial(
+    data: np.ndarray,
+    original_shape: tuple[int, ...],
+    has_batch_dim: bool,
+    has_depth_dim: bool,
+) -> np.ndarray:
+    """Choose appropriate restore function based on data dimensions."""
+    if has_batch_dim and has_depth_dim:
+        result = restore_batch_3d(data, original_shape)
+    elif has_batch_dim:
+        result = restore_batch(data, original_shape)
+    else:  # has_depth_dim
+        result = restore_3d(data, original_shape)
+
+    return np.ascontiguousarray(result)  # Ensure C_CONTIGUOUS
+
+
+def reshape_3d_channel(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Reshape (D,H,W) or (D,H,W,C) for channel transforms."""
+    if data.ndim == 3:  # (D,H,W) => (D*H,W)
+        depth, height, width = data.shape
+        reshaped = np.ascontiguousarray(data.reshape(depth * height, width))
+        return reshaped, data.shape
+    if data.ndim == 4:  # (D,H,W,C) => (D*H,W,C)
+        depth, height, width, channels = data.shape
+        reshaped = np.ascontiguousarray(data.reshape(depth * height, width, channels))
+        return reshaped, data.shape
+    raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
+
+
+def reshape_batch_channel(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Reshape (N,H,W) or (N,H,W,C) for channel transforms."""
+    if data.ndim == 3:  # (N,H,W) => (N*H,W)
+        num_images, height, width = data.shape
+        reshaped = np.ascontiguousarray(data.reshape(num_images * height, width))
+        return reshaped, data.shape
+    if data.ndim == 4:  # (N,H,W,C) => (N*H,W,C)
+        num_images, height, width, channels = data.shape
+        reshaped = np.ascontiguousarray(data.reshape(num_images * height, width, channels))
+        return reshaped, data.shape
+    raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
+
+
+def reshape_batch_3d_channel(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Reshape (N,D,H,W) or (N,D,H,W,C) for channel transforms."""
+    if data.ndim == 4:  # (N,D,H,W) => (N*D*H,W)
+        num_images, depth, height, width = data.shape
+        reshaped = np.ascontiguousarray(data.reshape(num_images * depth * height, width))
+        return reshaped, data.shape
+    if data.ndim == 5:  # (N,D,H,W,C) => (N*D*H,W,C)
+        num_images, depth, height, width, channels = data.shape
+        reshaped = np.ascontiguousarray(data.reshape(num_images * depth * height, width, channels))
+        return reshaped, data.shape
+    raise ValueError(f"Unsupported number of dimensions: {data.ndim}")
+
+
+def reshape_for_channel(
+    data: np.ndarray,
+    has_batch_dim: bool,
+    has_depth_dim: bool,
+) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Choose appropriate reshape function based on data dimensions."""
+    if data.size == 0:
+        raise ValueError("Empty arrays are not supported")
+
+    if has_batch_dim and has_depth_dim:
+        return reshape_batch_3d_channel(data)
+    if has_batch_dim:
+        return reshape_batch_channel(data)
+    # has_depth_dim
+    return reshape_3d_channel(data)
+
+
+def restore_3d_channel(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
+    """Restore (D*H,W) or (D*H,W,C) back to (D,H,W) or (D,H,W,C).
 
     Args:
-        data: Input array of shape (N, H, W, C) or (N, D, H, W, C)
-
-    Returns:
-        Reshaped array with shape (N*H, W, C) or (N*D*H, W, C)
-        Original shape for restoration
+        data: Array of shape (D*H,W') or (D*H,W',C)
+        original_shape: Original shape (D,H,W) or (D,H,W,C)
     """
-    if data.ndim == 4:  # (N, H, W, C) => (N*H, W, C)
-        num_images, height, width, channels = data.shape
-        return data.reshape(num_images * height, width, channels), data.shape
-    # (N, D, H, W, C) => (N*D*H, W, C)
-    num_images, depth, height, width, channels = data.shape
-    return data.reshape(num_images * depth * height, width, channels), data.shape
+    if len(original_shape) == 3:  # (D*H,W') => (D,H,W')
+        depth, height, _ = original_shape
+        return data.reshape(depth, height, data.shape[1])
+    # (D*H,W',C) => (D,H,W',C)
+    depth, height, _, channels = original_shape
+    return data.reshape(depth, height, data.shape[1], channels)
 
 
-def restore_from_channel(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
-    """Restore original shape after channel transform."""
-    if len(original_shape) == 4:  # (N*H, W, C) => (N, H, W, C)
-        num_images, height, width, channels = original_shape
-        return data.reshape(num_images, height, width, channels)
-    # (N*D*H, W, C) => (N, D, H, W, C)
-    num_images, depth, height, width, channels = original_shape
-    return data.reshape(num_images, depth, height, width, channels)
+def restore_batch_channel(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
+    """Restore (N*H,W) or (N*H,W,C) back to (N,H,W) or (N,H,W,C).
+
+    Args:
+        data: Array of shape (N*H,W') or (N*H,W',C)
+        original_shape: Original shape (N,H,W) or (N,H,W,C)
+    """
+    if len(original_shape) == 3:  # (N*H,W') => (N,H,W')
+        num_images, height, _ = original_shape
+        return data.reshape(num_images, height, data.shape[1])
+    # (N*H,W',C) => (N,H,W',C)
+    num_images, height, _, channels = original_shape
+    return data.reshape(num_images, height, data.shape[1], channels)
 
 
-def reshape_for_full(data: np.ndarray) -> tuple[np.ndarray, tuple[int, ...]]:
-    """No reshape, return as is."""
-    return data, data.shape
+def restore_batch_3d_channel(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
+    """Restore (N*D*H,W) or (N*D*H,W,C) back to (N,D,H,W) or (N,D,H,W,C).
+
+    Args:
+        data: Array of shape (N*D*H,W') or (N*D*H,W',C)
+        original_shape: Original shape (N,D,H,W) or (N,D,H,W,C)
+    """
+    if len(original_shape) == 4:  # (N*D*H,W') => (N,D,H,W')
+        num_images, depth, height, _ = original_shape
+        return data.reshape(num_images, depth, height, data.shape[1])
+    # (N*D*H,W',C) => (N,D,H,W',C)
+    num_images, depth, height, _, channels = original_shape
+    return data.reshape(num_images, depth, height, data.shape[1], channels)
 
 
-def restore_from_full(data: np.ndarray, original_shape: tuple[int, ...]) -> np.ndarray:
-    """No reshape, return as is."""
-    return data
+def restore_from_channel(
+    data: np.ndarray,
+    original_shape: tuple[int, ...],
+    has_batch_dim: bool,
+    has_depth_dim: bool,
+) -> np.ndarray:
+    """Choose appropriate restore function based on data dimensions."""
+    if has_batch_dim and has_depth_dim:
+        result = restore_batch_3d_channel(data, original_shape)
+    elif has_batch_dim:
+        result = restore_batch_channel(data, original_shape)
+    else:  # has_depth_dim
+        result = restore_3d_channel(data, original_shape)
+
+    return np.ascontiguousarray(result)  # Ensure C_CONTIGUOUS
 
 
-def batch_transform(transform_type: BatchTransformType) -> Callable[[F], F]:
-    """Decorator to handle batch transformations based on shape requirements."""
+def batch_transform(
+    transform_type: BatchTransformType,
+    has_batch_dim: bool = True,
+    has_depth_dim: bool = False,
+) -> Callable[[F], F]:
+    """Decorator to handle batch transformations based on shape requirements.
+
+    Args:
+        transform_type: Type of transform ("spatial", "channel", "full")
+        has_batch_dim: Whether first dimension is batch (N)
+        has_depth_dim: Whether data has depth dimension (D)
+    """
 
     def decorator(func: F) -> Any:
         @wraps(func)
         def wrapper(self: Any, data: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-            # Ensure input is C_CONTIGUOUS
             if not data.flags["C_CONTIGUOUS"]:
                 data = np.ascontiguousarray(data)
 
+            if transform_type == "full":
+                return func(self, data, *args, **params)
+
+            # Get appropriate reshape and restore functions
             reshape_func = {
                 "spatial": reshape_for_spatial,
                 "channel": reshape_for_channel,
-                "full": reshape_for_full,
             }[transform_type]
 
             restore_func = {
                 "spatial": restore_from_spatial,
                 "channel": restore_from_channel,
-                "full": restore_from_full,
             }[transform_type]
 
-            reshaped, original_shape = reshape_func(data)
+            # Apply transform with reshape/restore
+            reshaped, original_shape = reshape_func(data, has_batch_dim, has_depth_dim)
             transformed = func(self, reshaped, *args, **params)
-            result = restore_func(transformed, original_shape)
-
-            return np.require(result, requirements=["C_CONTIGUOUS"])
+            return restore_func(transformed, original_shape, has_batch_dim, has_depth_dim)
 
         return wrapper
 
