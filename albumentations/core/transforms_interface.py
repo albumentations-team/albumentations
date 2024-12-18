@@ -7,6 +7,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from albucore import batch_transform
 from pydantic import BaseModel, ConfigDict
 
 from albumentations.core.bbox_utils import BboxProcessor
@@ -21,7 +22,7 @@ from .types import (
     DropoutFillValue,
     Targets,
 )
-from .utils import batch_transform, ensure_contiguous_output, format_args
+from .utils import ensure_contiguous_output, format_args
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "Transform3D"]
 

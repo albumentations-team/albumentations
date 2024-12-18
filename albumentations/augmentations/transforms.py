@@ -14,6 +14,7 @@ import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    batch_transform,
     clip,
     from_float,
     get_num_channels,
@@ -82,7 +83,7 @@ from albumentations.core.types import (
     ScaleIntType,
     SpatterMode,
 )
-from albumentations.core.utils import batch_transform, format_args, to_tuple
+from albumentations.core.utils import format_args, to_tuple
 
 from . import functional as fmain
 
