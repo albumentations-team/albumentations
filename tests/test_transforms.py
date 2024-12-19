@@ -465,7 +465,7 @@ def test_crop_non_empty_mask():
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
     _test_crop(mask_6, crop_6, aug_6, n=10)
-    _test_crops([mask_2, mask_1], [crop_2, crop_1], aug_1, n=1)
+    _test_crops(np.stack([mask_2, mask_1]), np.stack([crop_2, crop_1]), aug_1, n=1)
 
 
 @pytest.mark.parametrize(
@@ -1847,7 +1847,7 @@ def test_dual_transforms_methods(augmentation_cls, params):
 
     arg = {
         "masks": mask,
-        "masks": [mask],
+        "masks": np.stack([mask] * 2),
         "bboxes": np.array([[0, 0, 0.1, 0.1, 1]]),
         "keypoints": np.array([(0, 0, 0, 0), (1, 1, 0, 0)]),
     }

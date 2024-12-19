@@ -811,8 +811,5 @@ class CubicSymmetry(Transform3D):
     def apply_to_volume(self, volume: np.ndarray, index: int, **params: Any) -> np.ndarray:
         return f3d.transform_cube(volume, index)
 
-    def apply_to_mask(self, mask: np.ndarray, index: int, **params: Any) -> np.ndarray:
-        return f3d.transform_cube(mask, index)
-
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()

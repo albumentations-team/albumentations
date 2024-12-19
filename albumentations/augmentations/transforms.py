@@ -14,6 +14,7 @@ import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    batch_transform,
     clip,
     from_float,
     get_num_channels,
@@ -265,6 +266,18 @@ class Normalize(ImageOnlyTransform):
                 self.denominator,
             )
         return normalize_per_image(img, self.normalization)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "mean", "std", "max_pixel_value", "normalization"
