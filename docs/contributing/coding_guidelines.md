@@ -397,6 +397,24 @@ This small difference is crucial for pixel-perfect accuracy. Always use the appr
 - Explain why, not what (the code shows what)
 - Keep comments up to date with code changes
 
+### Updating Transform Documentation
+
+When adding a new transform or modifying the targets of an existing one, you must update the transforms documentation in the README:
+
+1. Generate the updated documentation by running:
+
+   ```bash
+   python -m tools.make_transforms_docs make
+   ```
+
+2. This will output a formatted list of all transforms and their supported targets
+
+3. Update the relevant section in README.md with the new information
+
+4. Ensure the documentation accurately reflects which targets (image, mask, bboxes, keypoints, etc.) are supported by each transform
+
+This helps maintain accurate and up-to-date documentation about transform capabilities.
+
 ## Testing
 
 ### Test Coverage
