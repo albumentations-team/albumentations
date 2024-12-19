@@ -523,6 +523,7 @@ def test2d_3d(volume, mask3d):
     get_2d_transforms(
         custom_arguments={
             A.RandomCrop: {"height": 50, "width": 50},
+            A.AtLeastOneBBoxRandomCrop: {"height": 50, "width": 50},
             A.CenterCrop: {"height": 50, "width": 50},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.Resize: {"height": 100, "width": 100},

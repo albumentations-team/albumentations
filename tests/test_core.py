@@ -693,6 +693,7 @@ def test_single_transform_compose(
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
+            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
             A.RandomResizedCrop: {"size": (10, 10)},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
             A.CropAndPad: {"px": 10},
@@ -1069,6 +1070,7 @@ def test_transform_always_apply_warning() -> None:
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
+            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
             A.RandomResizedCrop: {"size": (10, 10)},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
             A.CropAndPad: {"px": 10},
@@ -1160,7 +1162,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
         if len(shape) == 3:
             assert transformed["images"].shape[-1] == image.shape[2]  # Channels match input
 
-        if augmentation_cls not in [A.RandomCrop, A.RandomResizedCrop, A.Resize, A.RandomSizedCrop, A.RandomSizedBBoxSafeCrop,
+        if augmentation_cls not in [A.RandomCrop, A.AtLeastOneBBoxRandomCrop, A.RandomResizedCrop, A.Resize, A.RandomSizedCrop, A.RandomSizedBBoxSafeCrop,
                                     A.BBoxSafeRandomCrop, A.Transpose, A.RandomCropNearBBox, A.CenterCrop, A.Crop, A.CropAndPad,
                                     A.LongestMaxSize, A.RandomScale, A.PadIfNeeded, A.SmallestMaxSize, A.RandomCropFromBorders,
                                     A.RandomRotate90, A.D4]:
@@ -1198,6 +1200,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
+            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
             A.RandomResizedCrop: {"height": 10, "width": 10},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
@@ -1292,6 +1295,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
+            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
             A.RandomResizedCrop: {"size": (10, 10)},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
             A.CropAndPad: {"px": 10},
@@ -1378,6 +1382,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.PixelDistributionAdaptation,
             A.PadIfNeeded,
             A.RandomCrop,
+            A.AtLeastOneBBoxRandomCrop,
             A.Crop,
             A.CenterCrop,
             A.FDA,
