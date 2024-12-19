@@ -254,6 +254,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | Transform                                                                                        | Image | Mask | BBoxes | Keypoints | Volume | Mask3D |
 | ------------------------------------------------------------------------------------------------ | :---: | :--: | :----: | :-------: | :----: | :----: |
 | [Affine](https://explore.albumentations.ai/transform/Affine)                                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [AtLeastOneBBoxRandomCrop](https://explore.albumentations.ai/transform/AtLeastOneBBoxRandomCrop) | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [BBoxSafeRandomCrop](https://explore.albumentations.ai/transform/BBoxSafeRandomCrop)             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [CenterCrop](https://explore.albumentations.ai/transform/CenterCrop)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [CoarseDropout](https://explore.albumentations.ai/transform/CoarseDropout)                       | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
