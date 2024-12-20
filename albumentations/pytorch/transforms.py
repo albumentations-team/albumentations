@@ -87,55 +87,46 @@ class ToTensorV2(BasicTransform):
 class ToTensor3D(BasicTransform):
     """Convert 3D volumes and masks to PyTorch tensors.
 
-    This transform is designed for 3D medical imaging data. It handles the conversion
-    of numpy arrays to PyTorch tensors and performs necessary channel transpositions.
+    This transform is designed for 3D medical imaging data. It converts numpy arrays
+    to PyTorch tensors and ensures consistent channel positioning.
 
-    For volumes:
-        - Input:  (D, H, W, C) - depth, height, width, channels
-        - Output: (C, D, H, W) - channels, depth, height, width
+    For all inputs (volumes and masks):
+        - Input:  (D, H, W, C) or (D, H, W) - depth, height, width, [channels]
+        - Output: (C, D, H, W) - channels first format for PyTorch
+                 For single-channel input, adds C=1 dimension
 
-    For masks:
-        - If transpose_mask=False:
-            - Input:  (D, H, W) or (D, H, W, C)
-            - Output: Same shape as input
-        - If transpose_mask=True and mask has channels:
-            - Input:  (D, H, W, C)
-            - Output: (C, D, H, W)
+    Note:
+        This transform always moves channels to first position as this is
+        the standard PyTorch format. For masks that need to stay in DHWC format,
+        use a different transform or handle the transposition after this transform.
 
     Args:
-        transpose_mask (bool): If True and masks have channels, transposes masks from
-            (D, H, W, C) to (C, D, H, W). Default: False
         p (float): Probability of applying the transform. Default: 1.0
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
-    def __init__(self, transpose_mask: bool = False, p: float = 1.0, always_apply: bool | None = None):
+    def __init__(self, p: float = 1.0, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
-        self.transpose_mask = transpose_mask
 
     @property
     def targets(self) -> dict[str, Any]:
         return {
-            "images": self.apply_to_images,
-            "masks": self.apply_to_masks,
+            "volume": self.apply_to_volume,
+            "mask3d": self.apply_to_mask3d,
         }
 
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> torch.Tensor:
-        """Convert 3D volume from (D,H,W,C) to (C,D,H,W)."""
-        if images.ndim != NUM_VOLUME_DIMENSIONS:  # D,H,W,C
-            raise ValueError(f"Expected 4D array (D,H,W,C), got {images.ndim}D array")
-        return torch.from_numpy(images.transpose(3, 0, 1, 2))
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> torch.Tensor:
+        """Convert 3D volume to channels-first tensor."""
+        if volume.ndim == NUM_VOLUME_DIMENSIONS:  # D,H,W,C
+            return torch.from_numpy(volume.transpose(3, 0, 1, 2))
+        if volume.ndim == NUM_VOLUME_DIMENSIONS - 1:  # D,H,W
+            return torch.from_numpy(volume[np.newaxis, ...])
+        raise ValueError(f"Expected 3D or 4D array (D,H,W) or (D,H,W,C), got {volume.ndim}D array")
 
-    def apply_to_masks(self, masks: np.ndarray, **params: Any) -> torch.Tensor:
-        """Convert 3D mask to tensor.
-
-        If transpose_mask is True and mask has channels (D,H,W,C),
-        converts to (C,D,H,W). Otherwise keeps the original shape.
-        """
-        if self.transpose_mask and masks.ndim == NUM_VOLUME_DIMENSIONS:  # D,H,W,C
-            masks = masks.transpose(3, 0, 1, 2)
-        return torch.from_numpy(masks)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> torch.Tensor:
+        """Convert 3D mask to channels-first tensor."""
+        return self.apply_to_volume(mask3d, **params)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("transpose_mask",)
+        return ()
