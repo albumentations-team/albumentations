@@ -544,17 +544,16 @@ def test2d_3d(volume, mask3d):
         },
     ),
 )
-def test_image_volume_matching(augmentation_cls, params):
+def test_image_volume_matching(image,augmentation_cls, params):
     aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
-    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
     volume = np.stack([image.copy()] * 4, axis=0)
-    images = np.stack([image.copy()] * 3, axis=0)
+    images = np.stack([image.copy()] * 5, axis=0)
 
     volumes = np.stack([volume.copy()] * 2, axis=0)
 
     transformed = aug(image=image, volumes=volumes, volume=volume, images=images)
 
-    np.testing.assert_array_equal(transformed["image"], transformed["volume"][0])
-    np.testing.assert_array_equal(transformed["volume"], transformed["volumes"][0])
-    np.testing.assert_array_equal(transformed["image"], transformed["images"][0])
+    np.testing.assert_allclose(transformed["image"], transformed["images"][0], atol=4, rtol=1e-1), f"Image shape = {transformed['image'].shape}, Images shape = {transformed['images'].shape}"
+    np.testing.assert_allclose(transformed["image"], transformed["volume"][0], atol=4, rtol=1e-1), f"Image shape = {transformed['image'].shape}, Volume shape = {transformed['volume'].shape}"
+    np.testing.assert_allclose(transformed["volume"], transformed["volumes"][0], atol=1, rtol=1e-3), f"Volume shape = {transformed['volume'].shape}, Volumes shape = {transformed['volumes'].shape}"

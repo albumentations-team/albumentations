@@ -51,7 +51,7 @@ def test_rot90(target):
     expected = np.array([[1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated = fgeometric.rot90(img, factor=1)
-    assert np.array_equal(rotated, expected)
+    np.testing.assert_array_equal(rotated, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "image_4_channels"])
@@ -64,7 +64,7 @@ def test_rot90_float(target):
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated = fgeometric.rot90(img, factor=1)
-    assert_array_almost_equal_nulp(rotated, expected)
+    np.testing.assert_array_almost_equal_nulp(rotated, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -77,7 +77,7 @@ def test_pad(target):
     padded = fgeometric.pad(
         img, min_height=4, min_width=4, border_mode=cv2.BORDER_REFLECT_101, value=None
     )
-    assert np.array_equal(padded, expected)
+    np.testing.assert_array_equal(padded, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "image_4_channels"])
@@ -96,7 +96,7 @@ def test_pad_float(target):
     padded_img = fgeometric.pad(
         img, min_height=4, min_width=4, value=None, border_mode=cv2.BORDER_REFLECT_101
     )
-    assert_array_almost_equal_nulp(padded_img, expected)
+    np.testing.assert_array_almost_equal_nulp(padded_img, expected)
 
 
 @pytest.mark.parametrize(["gamma", "expected"], [(1, 1), (0.8, 3)])
@@ -104,7 +104,7 @@ def test_gamma_transform(gamma, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8)
     img = F.gamma_transform(img, gamma=gamma)
     assert img.dtype == np.dtype("uint8")
-    assert (img == expected).all()
+    np.testing.assert_array_equal(img, expected)
 
 
 @pytest.mark.parametrize(["gamma", "expected"], [(1, 0.4), (10, 0.00010486)])
@@ -113,7 +113,7 @@ def test_gamma_transform_float(gamma, expected):
     expected = np.ones((100, 100, 3), dtype=np.float32) * expected
     img = F.gamma_transform(img, gamma=gamma)
     assert img.dtype == np.dtype("float32")
-    assert np.allclose(img, expected)
+    np.testing.assert_allclose(img, expected, atol=1e-6)
 
 
 def test_gamma_float_equal_uint8():
@@ -127,7 +127,7 @@ def test_gamma_float_equal_uint8():
     img = img.astype(np.float32)
     img_f *= 255.0
 
-    assert (np.abs(img - img_f) <= 1).all()
+    np.testing.assert_allclose(img, img_f, atol=1)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -149,41 +149,7 @@ def test_scale(target):
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     scaled = fgeometric.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
-    assert np.array_equal(scaled, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_longest_max_size(target):
-    img = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=np.uint8)
-    expected = np.array([[2, 3], [6, 7], [10, 11]], dtype=np.uint8)
-
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = fgeometric.longest_max_size(
-        img, max_size=3, interpolation=cv2.INTER_LINEAR
-    )
-    assert np.array_equal(scaled, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_smallest_max_size(target):
-    img = np.array(
-        [
-            [1, 2, 3, 4, 5, 6],
-            [7, 8, 9, 10, 11, 12],
-            [12, 13, 14, 15, 16, 17],
-            [18, 19, 20, 21, 22, 23],
-        ],
-        dtype=np.uint8,
-    )
-    expected = np.array(
-        [[2, 4, 5, 7], [10, 11, 13, 14], [17, 19, 20, 22]], dtype=np.uint8
-    )
-
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = fgeometric.smallest_max_size(
-        img, max_size=3, interpolation=cv2.INTER_LINEAR
-    )
-    assert np.array_equal(scaled, expected)
+    np.testing.assert_array_equal(scaled, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -197,7 +163,7 @@ def test_resize_linear_interpolation(target):
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
-    assert np.array_equal(resized_img, expected)
+    np.testing.assert_array_equal(resized_img, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -211,7 +177,7 @@ def test_resize_nearest_interpolation(target):
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
-    assert np.array_equal(resized_img, expected)
+    np.testing.assert_array_equal(resized_img, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -244,7 +210,7 @@ def test_resize_default_interpolation_float(target):
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
-    assert_array_almost_equal_nulp(resized_img, expected)
+    np.testing.assert_array_almost_equal_nulp(resized_img, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -264,7 +230,7 @@ def test_resize_nearest_interpolation_float(target):
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
-    assert np.array_equal(resized_img, expected)
+    np.testing.assert_array_equal(resized_img, expected)
 
 
 @pytest.mark.parametrize(
@@ -294,17 +260,6 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
         f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, "
         f"but at {rotated_keypoints}"
     )
-
-
-def test_fun_max_size():
-    target_width = 256
-
-    img = np.empty((330, 49), dtype=np.uint8)
-    out = fgeometric.smallest_max_size(
-        img, target_width, interpolation=cv2.INTER_LINEAR
-    )
-
-    assert out.shape == (1724, target_width)
 
 
 def test_is_rgb_image():
@@ -524,7 +479,7 @@ def test_equalize_rgb_mask():
 def test_downscale_ones(dtype):
     img = np.ones((100, 100, 3), dtype=dtype)
     downscaled = F.downscale(img, scale=0.5)
-    assert np.all(downscaled == img)
+    np.testing.assert_array_equal(downscaled, img)
 
 
 def test_downscale_random():
@@ -532,7 +487,7 @@ def test_downscale_random():
     downscaled = F.downscale(img, scale=0.5)
     assert downscaled.shape == img.shape
     downscaled = F.downscale(img, scale=1)
-    assert np.all(img == downscaled)
+    np.testing.assert_array_equal(img, downscaled)
 
 
 @pytest.mark.parametrize(

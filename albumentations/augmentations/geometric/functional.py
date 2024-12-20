@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, Callable, Literal, cast
+from typing import Any, Literal, cast
 from warnings import warn
 
 import cv2
@@ -35,7 +35,6 @@ from albumentations.core.types import (
 )
 
 __all__ = [
-    "_func_max_size",
     "bboxes_d4",
     "bboxes_hflip",
     "bboxes_rot90",
@@ -52,7 +51,6 @@ __all__ = [
     "keypoints_rot90",
     "keypoints_transpose",
     "keypoints_vflip",
-    "longest_max_size",
     "pad",
     "pad_with_params",
     "perspective",
@@ -62,7 +60,6 @@ __all__ = [
     "resize",
     "rotation2d_matrix_to_euler_angles",
     "scale",
-    "smallest_max_size",
     "to_distance_maps",
     "transpose",
     "warp_affine",
@@ -329,32 +326,6 @@ def keypoints_scale(
         )
 
     return scaled_keypoints
-
-
-def _func_max_size(
-    img: np.ndarray,
-    max_size: int,
-    interpolation: int,
-    func: Callable[..., Any],
-) -> np.ndarray:
-    image_shape = img.shape[:2]
-
-    scale = max_size / float(func(image_shape))
-
-    if scale != 1.0:
-        new_height, new_width = tuple(round(dim * scale) for dim in image_shape)
-        return resize(img, (new_height, new_width), interpolation=interpolation)
-    return img
-
-
-@preserve_channel_dim
-def longest_max_size(img: np.ndarray, max_size: int, interpolation: int) -> np.ndarray:
-    return _func_max_size(img, max_size, interpolation, max)
-
-
-@preserve_channel_dim
-def smallest_max_size(img: np.ndarray, max_size: int, interpolation: int) -> np.ndarray:
-    return _func_max_size(img, max_size, interpolation, min)
 
 
 @preserve_channel_dim

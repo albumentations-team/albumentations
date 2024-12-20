@@ -2535,9 +2535,7 @@ class GaussNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        var_limit: ScaleFloatType | None = Field(
-            deprecated="var_limit parameter is deprecated. Use std_range instead.",
-        )
+        var_limit: ScaleFloatType | None
         mean: float | None
         std_range: Annotated[
             tuple[float, float],
@@ -2555,6 +2553,7 @@ class GaussNoise(ImageOnlyTransform):
         @model_validator(mode="after")
         def check_range(self) -> Self:
             if self.var_limit is not None:
+                warnings.warn("`var_limit` deprecated. Use `std_range` instead.", DeprecationWarning, stacklevel=2)
                 self.var_limit = to_tuple(self.var_limit, 0)
                 if self.var_limit[1] > 1:
                     # Convert legacy uint8 variance to normalized std dev

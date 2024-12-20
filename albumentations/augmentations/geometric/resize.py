@@ -5,6 +5,7 @@ from typing import Any, cast
 
 import cv2
 import numpy as np
+from albucore import batch_transform
 from pydantic import Field, field_validator, model_validator
 from typing_extensions import Self
 
@@ -168,7 +169,7 @@ class MaxSizeTransform(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         height, width = img.shape[:2]
-        new_height, new_width = int(height * scale), int(width * scale)
+        new_height, new_width = round(height * scale), round(width * scale)
         return fgeometric.resize(img, (new_height, new_width), interpolation=self.interpolation)
 
     def apply_to_mask(
@@ -178,7 +179,7 @@ class MaxSizeTransform(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         height, width = mask.shape[:2]
-        new_height, new_width = int(height * scale), int(width * scale)
+        new_height, new_width = round(height * scale), round(width * scale)
         return fgeometric.resize(mask, (new_height, new_width), interpolation=self.mask_interpolation)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
@@ -192,6 +193,26 @@ class MaxSizeTransform(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.keypoints_scale(keypoints, scale, scale)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return self.apply(images, *args, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return self.apply(volume, *args, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return self.apply(volumes, *args, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, *args, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(masks3d, *args, **params)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_size", "max_size_hw", "interpolation", "mask_interpolation"
