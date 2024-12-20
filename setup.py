@@ -10,7 +10,7 @@ INSTALL_REQUIRES = [
     "typing-extensions>=4.9.0; python_version<'3.10'",
     "pydantic>=2.9.2",
     "albucore==0.0.22",
-    "eval-type-backport",
+    "eval-type-backport; python_version<'3.10'",
 ]
 
 MIN_OPENCV_VERSION = "4.9.0.80"
