@@ -68,8 +68,8 @@
                 "sigma": 50,
                 "interpolation": 1,
                 "border_mode": 4,
-                "value": null,
-                "mask_value": null,
+                "fill": null,
+                "fill_mask": null,
                 "approximate": false
             },
             {
@@ -127,8 +127,8 @@
                 ],
                 "interpolation": 1,
                 "border_mode": 4,
-                "value": null,
-                "mask_value": null
+                "fill": null,
+                "fill_mask": null
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.HorizontalFlip",
@@ -393,8 +393,8 @@
                 ],
                 "interpolation": 1,
                 "border_mode": 4,
-                "value": null,
-                "mask_value": null
+                "fill": 0,
+                "fill_mask": 0
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.ShiftScaleRotate",
@@ -414,8 +414,8 @@
                 ],
                 "interpolation": 1,
                 "border_mode": 4,
-                "value": 0,
-                "mask_value": 0
+                "fill": 0,
+                "fill_mask": 0
             },
             {
                 "__class_fullname__": "albumentations.augmentations.transforms.SmallestMaxSize",

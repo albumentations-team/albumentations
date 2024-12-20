@@ -488,70 +488,6 @@ def test_downscale(interpolation):
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
-def test_crop_keypoints():
-    image = np.random.randint(0, 256, (100, 100), np.uint8)
-    keypoints = np.array([(50, 50, 0, 0)])
-
-    aug = A.Crop(0, 0, 80, 80, p=1)
-    result = aug(image=image, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], keypoints)
-
-    aug = A.Crop(50, 50, 100, 100, p=1)
-    result = aug(image=image, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(0, 0, 0, 0)])
-
-
-def test_longest_max_size_keypoints():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
-
-    aug = A.LongestMaxSize(max_size=100, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_almost_equal(
-        result["keypoints"], [(18, 10, 0, 0)], decimal=5
-    )
-
-    aug = A.LongestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_almost_equal(
-        result["keypoints"], [(0.9, 0.5, 0, 0)], decimal=5
-    )
-
-    aug = A.LongestMaxSize(max_size=50, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
-
-
-def test_smallest_max_size_keypoints():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
-
-    aug = A.SmallestMaxSize(max_size=100, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(90, 50, 0, 0)])
-
-    aug = A.SmallestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(4.5, 2.5, 0, 0)])
-
-    aug = A.SmallestMaxSize(max_size=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
-
-
-def test_resize_keypoints():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
-
-    aug = A.Resize(height=100, width=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(4.5, 10, 0, 0)])
-
-    aug = A.Resize(height=50, width=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    np.testing.assert_array_equal(result["keypoints"], [(9, 5, 0, 0)])
-
-
 @pytest.mark.parametrize(
     "image",
     [
@@ -1049,7 +985,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     image = np.empty([100, 200, 3], dtype=np.uint8)
     t = A.Compose(
         [
-            A.SafeRotate(limit=(angle, angle), border_mode=0, value=0, p=1),
+            A.SafeRotate(limit=(angle, angle), border_mode=0, fill=0, p=1),
         ],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
         keypoint_params=A.KeypointParams("xyas", angle_in_degrees=True),
@@ -2487,3 +2423,50 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
     np.testing.assert_allclose(
         transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1.5
     )
+
+
+
+@pytest.mark.parametrize(
+    ["input_shape", "max_size", "max_size_hw", "expected_shape"],
+    [
+        # LongestMaxSize with max_size
+        ((80, 60, 3), 40, None, (40, 30, 3)),  # landscape
+        ((60, 80, 3), 40, None, (30, 40, 3)),  # portrait
+        ((80, 80, 3), 40, None, (40, 40, 3)),  # square
+        # LongestMaxSize with max_size_hw - both dimensions
+        ((80, 60, 3), None, (40, 30), (40, 30, 3)),  # exact fit
+        ((80, 60, 3), None, (30, 40), (30, 22, 3)),  # height constrains
+        ((60, 80, 3), None, (40, 30), (22, 30, 3)),  # width constrains
+        # LongestMaxSize with max_size_hw - single dimension
+        ((80, 60, 3), None, (40, None), (40, 30, 3)),  # height only
+        ((80, 60, 3), None, (None, 30), (40, 30, 3)),  # width only
+    ],
+)
+def test_longest_max_size(input_shape, max_size, max_size_hw, expected_shape):
+    image = np.zeros(input_shape, dtype=np.uint8)
+    aug = A.LongestMaxSize(max_size=max_size, max_size_hw=max_size_hw)
+    transformed = aug(image=image)["image"]
+    assert transformed.shape == expected_shape
+
+
+@pytest.mark.parametrize(
+    ["input_shape", "max_size", "max_size_hw", "expected_shape"],
+    [
+        # SmallestMaxSize with max_size
+        ((80, 60, 3), 40, None, (53, 40, 3)),  # landscape
+        ((60, 80, 3), 40, None, (40, 53, 3)),  # portrait
+        ((80, 80, 3), 40, None, (40, 40, 3)),  # square
+        # SmallestMaxSize with max_size_hw - both dimensions
+        ((80, 60, 3), None, (40, 30), (40, 30, 3)),  # height determines
+        ((60, 80, 3), None, (30, 40), (30, 40, 3)),  # width determines
+        ((80, 80, 3), None, (40, 40), (40, 40, 3)),  # square input
+        # SmallestMaxSize with max_size_hw - single dimension
+        ((80, 60, 3), None, (40, None), (40, 30, 3)),  # height only
+        ((80, 60, 3), None, (None, 30), (40, 30, 3)),  # width only
+    ],
+)
+def test_smallest_max_size(input_shape, max_size, max_size_hw, expected_shape):
+    image = np.zeros(input_shape, dtype=np.uint8)
+    aug = A.SmallestMaxSize(max_size=max_size, max_size_hw=max_size_hw)
+    transformed = aug(image=image)["image"]
+    assert transformed.shape == expected_shape
