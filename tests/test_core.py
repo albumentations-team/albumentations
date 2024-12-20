@@ -375,7 +375,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
 def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
     image = np.empty([100, 100], dtype=np.uint8)
     augs = Compose(
-        [A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)],
+        [A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -1399,6 +1399,8 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.TimeMasking,
             A.FrequencyMasking,
             A.Erasing,
+            A.ElasticTransform,
+
         },
     ),
 )
@@ -1411,7 +1413,7 @@ def test_mask_interpolation(augmentation_cls, params, interpolation):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
 
-    aug = A.Compose([augmentation_cls(p=1, interpolation=interpolation, mask_interpolation=interpolation, seed=42,**params)])
+    aug = A.Compose([augmentation_cls(p=1, interpolation=interpolation, mask_interpolation=interpolation, **params)], seed=42)
 
     transformed = aug(image=image, mask=mask)
 
