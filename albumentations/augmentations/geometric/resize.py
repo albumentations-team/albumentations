@@ -169,7 +169,7 @@ class MaxSizeTransform(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         height, width = img.shape[:2]
-        new_height, new_width = min(1, round(height * scale)), min(1, round(width * scale))
+        new_height, new_width = max(1, round(height * scale)), max(1, round(width * scale))
         return fgeometric.resize(img, (new_height, new_width), interpolation=self.interpolation)
 
     def apply_to_mask(
@@ -179,7 +179,7 @@ class MaxSizeTransform(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         height, width = mask.shape[:2]
-        new_height, new_width = min(1, round(height * scale)), min(1, round(width * scale))
+        new_height, new_width = max(1, round(height * scale)), max(1, round(width * scale))
         return fgeometric.resize(mask, (new_height, new_width), interpolation=self.mask_interpolation)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
