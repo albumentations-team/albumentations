@@ -81,10 +81,10 @@ repos:
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.14.0
     hooks:
       - id: mypy
         files: ^albumentations/
-        additional_dependencies: [ types-PyYAML, types-setuptools, pydantic>=2.7]
+        additional_dependencies: [ types-PyYAML, types-setuptools, pydantic>=2.9]
         args:
           [ --config-file=pyproject.toml ]

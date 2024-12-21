@@ -12,23 +12,34 @@ build:
   script: python -m pip install . --no-deps --ignore-installed --no-cache-dir -vvv
 
 requirements:
+  host:
+    - python
+    - pip
+    - setuptools
+
   build:
     - python
     - numpy>=1.24.4
     - scipy
-    - pydantic>=2.7
+    - pydantic>=2.9
     - pytorch
     - typing_extensions
-    - opencv-python-headless  # Ensure correct dependency
+    - opencv-python-headless
 
   run:
     - python
     - numpy>=1.24.4
-    - scipy
-    - pydantic>=2.7
-    - pytorch
-    - typing_extensions
-    - opencv-python-headless  # Ensure correct dependency
+    - scipy>=1.10.0
+    - pyyaml
+    - pydantic>=2.9.2
+    - typing-extensions>=4.9.0
+    - opencv-python-headless>=4.9.0.80
+    - albucore==0.0.22
+
+suggests:
+  - pytorch
+  - huggingface-hub
+  - pillow
 
 test:
   imports:
