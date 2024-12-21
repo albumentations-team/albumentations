@@ -271,29 +271,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     np.testing.assert_array_equal(mask, mask_copy)
 
 
-def test_wont_change_input():
-    transform_list = [
-    # A.RandomGamma(gamma_limit=(100, 220), p=1),
-    # A.RandomGravel(number_of_patches=4, p=1),
-    A.RandomRain(rain_type="drizzle", slant_range=(-10, 10), drop_length=20, drop_width=1, drop_color=(200, 200, 200), blur_value=3, brightness_coefficient=0.7, p=1),
-    # A.RandomShadow(shadow_roi=(0, 0.5, 1, 1), num_shadows_limit=(1, 2), shadow_dimension=5, p=1),
-    #     A.RandomSnow(snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, p=1),
-    ]
-    image = SQUARE_UINT8_IMAGE
-    original_image = image.copy()
-    mask = image[:, :, 0].copy()
-    original_mask = mask.copy()
-
-    data = {"image": image, "mask": mask}
-
-    for transform_step in transform_list:
-        transform_step(**data)
-
-
-    np.testing.assert_array_equal(image, original_image)
-    np.testing.assert_array_equal(mask, original_mask)
-
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
