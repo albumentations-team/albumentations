@@ -132,9 +132,7 @@ class ToTensor3D(BasicTransform):
             return torch.from_numpy(volume.transpose(3, 0, 1, 2))
         if volume.ndim == NUM_VOLUME_DIMENSIONS - 1:  # D,H,W
             return torch.from_numpy(volume[np.newaxis, ...])
-        raise ValueError(
-            f"Expected 3D or 4D array (D,H,W) or (D,H,W,C), got {volume.ndim}D array",
-        )
+        raise ValueError(f"Expected 3D or 4D array (D,H,W) or (D,H,W,C), got {volume.ndim}D array")
 
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> torch.Tensor:
         """Convert 3D mask to channels-first tensor."""
