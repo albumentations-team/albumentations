@@ -60,6 +60,8 @@ classifiers = [
 ]
 dynamic = [ "dependencies" ]
 optional-dependencies.hub = [ "huggingface-hub" ]
+optional-dependencies.pytorch = [ "torch" ]
+
 optional-dependencies.text = [ "pillow" ]
 urls.Homepage = "https://albumentations.ai"
 
