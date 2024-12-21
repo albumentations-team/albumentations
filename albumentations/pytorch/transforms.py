@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, overload
 
 import numpy as np
 import torch
@@ -58,18 +58,28 @@ class ToTensorV2(BasicTransform):
             mask = mask.transpose(2, 0, 1)
         return torch.from_numpy(mask)
 
-    def apply_to_masks(self, masks: np.ndarray, **params: Any) -> torch.Tensor:
-        """Convert numpy array of masks to torch tensor.
+    @overload
+    def apply_to_masks(self, masks: list[np.ndarray], **params: Any) -> list[torch.Tensor]: ...
+
+    @overload
+    def apply_to_masks(self, masks: np.ndarray, **params: Any) -> torch.Tensor: ...
+
+    def apply_to_masks(self, masks: np.ndarray | list[np.ndarray], **params: Any) -> torch.Tensor | list[torch.Tensor]:
+        """Convert numpy array or list of numpy array masks to torch tensor(s).
 
         Args:
-            masks: numpy array of shape (N, H, W) or (N, H, W, C)
-            params: Additional parameters
+            masks: Numpy array of shape (N, H, W) or (N, H, W, C),
+                or a list of numpy arrays with shape (H, W) or (H, W, C).
+            params: Additional parameters.
 
         Returns:
-            torch.Tensor: If transpose_mask is True and input is (N, H, W, C),
-                         returns tensor of shape (N, C, H, W).
-                         Otherwise returns tensor with same shape as input.
+            If transpose_mask is True and input is (N, H, W, C), returns tensor of shape (N, C, H, W).
+            If transpose_mask is True and input is (H, W, C), returns a list of tensors with shape (C, H, W).
+            Otherwise, returns tensors with the same shape as input.
         """
+        if isinstance(masks, list):
+            return [self.apply_to_mask(mask, **params) for mask in masks]
+
         if self.transpose_mask and masks.ndim == NUM_VOLUME_DIMENSIONS:  # (N, H, W, C)
             masks = np.transpose(masks, (0, 3, 1, 2))  # -> (N, C, H, W)
         return torch.from_numpy(masks)
@@ -122,7 +132,9 @@ class ToTensor3D(BasicTransform):
             return torch.from_numpy(volume.transpose(3, 0, 1, 2))
         if volume.ndim == NUM_VOLUME_DIMENSIONS - 1:  # D,H,W
             return torch.from_numpy(volume[np.newaxis, ...])
-        raise ValueError(f"Expected 3D or 4D array (D,H,W) or (D,H,W,C), got {volume.ndim}D array")
+        raise ValueError(
+            f"Expected 3D or 4D array (D,H,W) or (D,H,W,C), got {volume.ndim}D array",
+        )
 
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> torch.Tensor:
         """Convert 3D mask to channels-first tensor."""
