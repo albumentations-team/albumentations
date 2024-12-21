@@ -42,7 +42,6 @@ from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
-    ColorType,
     ImageMode,
     SpatterMode,
 )
@@ -767,6 +766,7 @@ def add_rain(
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
+    img = img.copy()
     for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
@@ -861,11 +861,12 @@ def add_fog(
 
 @uint8_io
 @preserve_channel_dim
+@maybe_process_in_chunks
 def add_sun_flare_overlay(
     img: np.ndarray,
     flare_center: tuple[float, float],
     src_radius: int,
-    src_color: ColorType,
+    src_color: tuple[int, ...],
     circles: list[Any],
 ) -> np.ndarray:
     """Add a sun flare effect to an image using a simple overlay technique.
@@ -879,7 +880,7 @@ def add_sun_flare_overlay(
         flare_center (tuple[float, float]): (x, y) coordinates of the flare center
             in pixel coordinates.
         src_radius (int): The radius of the main sun circle in pixels.
-        src_color (ColorType): The color of the sun, represented as a tuple of RGB values.
+        src_color (tuple[int, ...]): The color of the sun, represented as a tuple of RGB values.
         circles (list[Any]): A list of tuples, each representing a circle that contributes
             to the flare effect. Each tuple contains:
             - alpha (float): The transparency of the circle (0.0 to 1.0).
@@ -928,10 +929,10 @@ def add_sun_flare_overlay(
     weighted_brightness = 0.0
     total_radius_length = 0.0
 
-    for alpha, (x, y), rad3, (r_color, g_color, b_color) in circles:
+    for alpha, (x, y), rad3, circle_color in circles:
         weighted_brightness += alpha * rad3
         total_radius_length += rad3
-        cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
+        cv2.circle(overlay, (x, y), rad3, circle_color, -1)
         output = add_weighted(overlay, alpha, output, 1 - alpha)
 
     point = [int(x) for x in flare_center]
@@ -2015,7 +2016,7 @@ def slic(
     num_pixels = height * width
 
     # Normalize image to [0, 1] range
-    image_normalized = image.astype(np.float32) / np.max(image)
+    image_normalized = image.astype(np.float32) / np.max(image + 1e-6)
 
     # Initialize cluster centers
     grid_step = int((num_pixels / n_segments) ** 0.5)

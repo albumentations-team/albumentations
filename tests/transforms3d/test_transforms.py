@@ -527,6 +527,9 @@ def test2d_3d(volume, mask3d):
             A.CenterCrop: {"height": 50, "width": 50},
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.Resize: {"height": 100, "width": 100},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.CropAndPad: {"px": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -540,7 +543,7 @@ def test2d_3d(volume, mask3d):
             A.PixelDistributionAdaptation,
             A.HistogramMatching,
             A.TemplateTransform,
-
+            A.RandomCropNearBBox,
         },
     ),
 )

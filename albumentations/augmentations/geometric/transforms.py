@@ -53,7 +53,6 @@ __all__ = [
     "D4",
     "Affine",
     "ElasticTransform",
-    "Flip",
     "GridDistortion",
     "GridElasticDeform",
     "HorizontalFlip",
@@ -1404,41 +1403,6 @@ class HorizontalFlip(DualTransform):
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_hflip(keypoints, params["shape"][1])
-
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
-
-
-class Flip(DualTransform):
-    """Deprecated. Consider using HorizontalFlip, VerticalFlip, RandomRotate90 or D4."""
-
-    _targets = ALL_TARGETS
-
-    def __init__(self, always_apply: bool | None = None, p: float = 0.5):
-        super().__init__(p=p, always_apply=always_apply)
-        warn(
-            "Flip is deprecated. Consider using HorizontalFlip, VerticalFlip, RandomRotate90 or D4.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-    def apply(self, img: np.ndarray, d: int, **params: Any) -> np.ndarray:
-        """Args:
-        d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
-                -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
-                180 degrees).
-        """
-        return fgeometric.random_flip(img, d)
-
-    def get_params(self) -> dict[str, int]:
-        # Random int in the range [-1, 1]
-        return {"d": self.py_random.randint(-1, 1)}
-
-    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.bboxes_flip(bboxes, params["d"])
-
-    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        return fgeometric.keypoints_flip(keypoints, params["d"], params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()

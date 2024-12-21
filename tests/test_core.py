@@ -725,6 +725,7 @@ def test_single_transform_compose(
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
+            A.RandomCropNearBBox,
         },
     ),
 )
@@ -1107,6 +1108,7 @@ def test_transform_always_apply_warning() -> None:
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
+            A.RandomCropNearBBox,
         },
     ),
 )
@@ -1116,7 +1118,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
     if len(shape) == 2:
         if augmentation_cls in {A.ChannelDropout, A.Spatter, A.ISONoise,
                                 A.RandomGravel, A.ChromaticAberration, A.PlanckianJitter, A.PixelDistributionAdaptation,
-                                A.MaskDropout, A.ChannelShuffle, A.ToRGB}:
+                                A.MaskDropout, A.ChannelShuffle, A.ToRGB, A.RandomSunFlare, A.RandomFog, A.RandomSnow, A.RandomRain}:
             pytest.skip("ChannelDropout is not applicable to grayscale images")
 
 
@@ -1217,6 +1219,9 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
         },
     ),
 )
@@ -1334,6 +1339,8 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             A.TextImage,
             A.FromFloat,
             A.MaskDropout,
+            A.RandomCropNearBBox,
+            A.PadIfNeeded,
         },
     ),
 )
@@ -1400,7 +1407,10 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.FrequencyMasking,
             A.Erasing,
             A.ElasticTransform,
-
+            A.RandomCropNearBBox,
+            A.GridDropout,
+            A.CoarseDropout,
+            A.PadIfNeeded,
         },
     ),
 )

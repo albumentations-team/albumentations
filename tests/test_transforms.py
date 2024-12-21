@@ -139,6 +139,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.FromFloat,
             A.MaskDropout,
             A.XYMasking,
+            A.RandomCropNearBBox
         },
     ),
 )
@@ -1403,6 +1404,12 @@ def test_coarse_dropout_invalid_input(params):
                 "spatial_mode": "constant",
                 "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
             },
+            A.AdvancedBlur: {
+                "blur_limit": (7, 9),  # Force larger kernel
+                "sigma_x_limit": (0.5, 1.0),  # Force stronger blur
+                "sigma_y_limit": (0.5, 1.0),  # Force stronger blur
+                "noise_limit": (0.75, 1.25),  # Increase noise variation
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1479,6 +1486,12 @@ def test_change_image(augmentation_cls, params):
                 "noise_type": "uniform",
                 "spatial_mode": "constant",
                 "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
+            },
+            A.AdvancedBlur: {
+                "blur_limit": (7, 9),  # Force larger kernel
+                "sigma_x_limit": (0.5, 1.0),  # Force stronger blur
+                "sigma_y_limit": (0.5, 1.0),  # Force stronger blur
+                "noise_limit": (0.75, 1.25),  # Increase noise variation
             },
         },
         except_augmentations={
