@@ -79,9 +79,6 @@ def get_all_valid_transforms():
         if not inspect.isclass(cls) or not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):
             continue
 
-        if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
-            continue
-
         valid_transforms.append(cls)
     return valid_transforms
 

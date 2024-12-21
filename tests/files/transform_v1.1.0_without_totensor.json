@@ -86,11 +86,6 @@
                 "alpha": 0.1
             },
             {
-                "__class_fullname__": "albumentations.augmentations.transforms.Flip",
-                "always_apply": false,
-                "p": 0.5
-            },
-            {
                 "__class_fullname__": "albumentations.augmentations.transforms.GaussNoise",
                 "always_apply": false,
                 "p": 0.5,

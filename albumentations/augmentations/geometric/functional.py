@@ -1154,11 +1154,6 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
     raise ValueError(f"Invalid group member: {group_member}")
 
 
-@preserve_channel_dim
-def random_flip(img: np.ndarray, code: int) -> np.ndarray:
-    return cv2.flip(img, code)
-
-
 def transpose(img: np.ndarray) -> np.ndarray:
     """Transposes the first two dimensions of an array of any dimensionality.
     Retains the order of any additional dimensions.
@@ -1215,33 +1210,6 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
     flipped_bboxes[:, 2] = 1 - bboxes[:, 0]  # new x_max = 1 - x_min
 
     return flipped_bboxes
-
-
-@handle_empty_array("bboxes")
-def bboxes_flip(bboxes: np.ndarray, d: int) -> np.ndarray:
-    """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
-
-    Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-        d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
-
-    Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: if value of `d` is not -1, 0 or 1.
-
-    """
-    if d == 0:
-        return bboxes_vflip(bboxes)
-    if d == 1:
-        return bboxes_hflip(bboxes)
-    if d == -1:
-        bboxes = bboxes_hflip(bboxes)
-        return bboxes_vflip(bboxes)
-
-    raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
 @handle_empty_array("bboxes")
@@ -1305,43 +1273,6 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     flipped_keypoints[:, 2] = np.pi - keypoints[:, 2]
 
     return flipped_keypoints
-
-
-@handle_empty_array("keypoints")
-@angle_2pi_range
-def keypoints_flip(
-    keypoints: np.ndarray,
-    d: int,
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
-
-    Args:
-        keypoints: A keypoints `(x, y, angle, scale)`.
-        d: Number of flip. Must be -1, 0 or 1:
-            * 0 - vertical flip,
-            * 1 - horizontal flip,
-            * -1 - vertical and horizontal flip.
-        image_shape: A tuple of image shape `(height, width, channels)`.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    Raises:
-        ValueError: if value of `d` is not -1, 0 or 1.
-
-    """
-    rows, cols = image_shape[:2]
-
-    if d == 0:
-        return keypoints_vflip(keypoints, rows)
-    if d == 1:
-        return keypoints_hflip(keypoints, cols)
-    if d == -1:
-        keypoints = keypoints_hflip(keypoints, cols)
-        return keypoints_vflip(keypoints, rows)
-
-    raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
 
 
 @handle_empty_array("keypoints")

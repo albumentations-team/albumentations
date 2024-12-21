@@ -270,7 +270,6 @@ AUGMENTATION_CLS_PARAMS = [
     [A.ChannelDropout, dict(channel_drop_range=(1, 2), fill=1)],
     [A.ChannelShuffle, {}],
     [A.Downscale, dict(scale_min=0.5, scale_max=0.75, interpolation=cv2.INTER_LINEAR)],
-    [A.Flip, {}],
     [A.FromFloat, dict(dtype="uint8", max_value=1)],
     [A.HorizontalFlip, {}],
     [A.ISONoise, dict(color_shift=(0.2, 0.3), intensity=(0.7, 0.9))],

@@ -1003,7 +1003,7 @@ class RandomFog(ImageOnlyTransform):
         uint8, float32
 
     Number of channels:
-        Any
+        3
 
     Note:
         - The fog effect is created by overlaying semi-transparent circles on the image.
@@ -1110,6 +1110,7 @@ class RandomFog(ImageOnlyTransform):
         intensity: float,
         **params: Any,
     ) -> np.ndarray:
+        non_rgb_error(img)
         return fmain.add_fog(
             img,
             intensity,
@@ -1221,8 +1222,7 @@ class RandomSunFlare(ImageOnlyTransform):
         uint8, float32
 
     Number of channels:
-        - overlay: Any
-        - physics_based: RGB
+        3
 
     Note:
         The transform offers two methods for generating sun flares:
@@ -1429,6 +1429,7 @@ class RandomSunFlare(ImageOnlyTransform):
         circles: list[Any],
         **params: Any,
     ) -> np.ndarray:
+        non_rgb_error(img)
         if self.method == "overlay":
             return fmain.add_sun_flare_overlay(
                 img,
@@ -1438,7 +1439,6 @@ class RandomSunFlare(ImageOnlyTransform):
                 circles,
             )
         if self.method == "physics_based":
-            non_rgb_error(img)
             return fmain.add_sun_flare_physics_based(
                 img,
                 flare_center,
