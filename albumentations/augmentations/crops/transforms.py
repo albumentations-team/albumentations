@@ -38,6 +38,7 @@ from . import functional as fcrops
 
 __all__ = [
     "AtLeastOneBBoxRandomCrop",
+    "AtLeastOneBBoxRandomCrop",
     "BBoxSafeRandomCrop",
     "CenterCrop",
     "Crop",
@@ -2050,7 +2051,7 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
 
         if len(bboxes) > 0:
             # Pick a bbox amongst all possible as our reference bbox.
-            bboxes = denormalize_bboxes(bboxes, image_shape=(image_height, image_width))
+            bboxes = denormalize_bboxes(bboxes, shape=(image_height, image_width))
             bbox = self.py_random.choice(bboxes)
 
             x1, y1, x2, y2 = bbox[:4]

@@ -14,22 +14,57 @@ from .types import PAIR, Number, ScaleFloatType, ScaleIntType, ScaleType
 if TYPE_CHECKING:
     import torch
 
+ShapeType = dict[Literal["depth", "height", "width"], int]
 
-def get_shape(img: np.ndarray | torch.Tensor) -> tuple[int, int]:
+
+def get_image_shape(img: np.ndarray | torch.Tensor) -> tuple[int, int]:
     if isinstance(img, np.ndarray):
-        return img.shape[:2]
-
+        return img.shape[:2]  # HWC format
     try:
         import torch
 
         if torch.is_tensor(img):
-            return img.shape[-2:]
+            return img.shape[-2:]  # CHW format
     except ImportError:
         pass
+    raise RuntimeError(f"Unsupported image type: {type(img)}")
 
-    raise RuntimeError(
-        f"Albumentations supports only numpy.ndarray and torch.Tensor data type for image. Got: {type(img)}",
-    )
+
+def get_volume_shape(vol: np.ndarray | torch.Tensor) -> tuple[int, int, int]:
+    if isinstance(vol, np.ndarray):
+        return vol.shape[:3]  # DHWC format
+    try:
+        import torch
+
+        if torch.is_tensor(vol):
+            return vol.shape[-3:]  # CDHW format
+    except ImportError:
+        pass
+    raise RuntimeError(f"Unsupported volume type: {type(vol)}")
+
+
+def get_shape(data: dict[str, Any]) -> ShapeType:
+    """Extract spatial dimensions from input data dictionary containing image or volume.
+
+    Args:
+        data: Dictionary containing image or volume data with one of:
+            - 'volume': 3D array of shape (D, H, W, C) [numpy] or (C, D, H, W) [torch]
+            - 'image': 2D array of shape (H, W, C) [numpy] or (C, H, W) [torch]
+            - 'images': Batch of arrays of shape (N, H, W, C) [numpy] or (N, C, H, W) [torch]
+
+    Returns:
+        dict[Literal["depth", "height", "width"], int]: Dictionary containing spatial dimensions
+    """
+    if "volume" in data:
+        depth, height, width = get_volume_shape(data["volume"])
+        return {"depth": depth, "height": height, "width": width}
+    if "image" in data:
+        height, width = get_image_shape(data["image"])
+        return {"height": height, "width": width}
+    if "images" in data:
+        height, width = get_image_shape(data["images"][0])
+        return {"height": height, "width": width}
+    raise ValueError("No image or volume found in data", data.keys())
 
 
 def format_args(args_dict: dict[str, Any]) -> str:
@@ -131,23 +166,23 @@ class DataProcessor(ABC):
         pass
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
-        image_shape = get_shape(data["image"])
-        data = self._process_data_fields(data, image_shape)
+        shape = get_shape(data)
+        data = self._process_data_fields(data, shape)
         data = self.remove_label_fields_from_data(data)
         return self._convert_sequence_inputs(data)
 
-    def _process_data_fields(self, data: dict[str, Any], image_shape: tuple[int, int]) -> dict[str, Any]:
+    def _process_data_fields(self, data: dict[str, Any], shape: ShapeType) -> dict[str, Any]:
         for data_name in set(self.data_fields) & set(data.keys()):
-            data[data_name] = self._process_single_field(data_name, data[data_name], image_shape)
+            data[data_name] = self._process_single_field(data_name, data[data_name], shape)
         return data
 
-    def _process_single_field(self, data_name: str, field_data: Any, image_shape: tuple[int, int]) -> Any:
-        field_data = self.filter(field_data, image_shape)
+    def _process_single_field(self, data_name: str, field_data: Any, shape: ShapeType) -> Any:
+        field_data = self.filter(field_data, shape)
 
         if data_name == "keypoints" and len(field_data) == 0:
             field_data = self._create_empty_keypoints_array()
 
-        return self.check_and_convert(field_data, image_shape, direction="from")
+        return self.check_and_convert(field_data, shape, direction="from")
 
     def _create_empty_keypoints_array(self) -> np.ndarray:
         return np.array([], dtype=np.float32).reshape(0, len(self.params.format))
@@ -159,7 +194,7 @@ class DataProcessor(ABC):
         return data
 
     def preprocess(self, data: dict[str, Any]) -> None:
-        image_shape = get_shape(data["image"])
+        shape = get_shape(data)
 
         for data_name in set(self.data_fields) & set(data.keys()):  # Convert list of lists to numpy array if necessary
             if isinstance(data[data_name], Sequence):
@@ -170,35 +205,35 @@ class DataProcessor(ABC):
 
         data = self.add_label_fields_to_data(data)
         for data_name in set(self.data_fields) & set(data.keys()):
-            data[data_name] = self.check_and_convert(data[data_name], image_shape, direction="to")
+            data[data_name] = self.check_and_convert(data[data_name], shape, direction="to")
 
     def check_and_convert(
         self,
         data: np.ndarray,
-        image_shape: tuple[int, int],
+        shape: ShapeType,
         direction: Literal["to", "from"] = "to",
     ) -> np.ndarray:
         if self.params.format == "albumentations":
-            self.check(data, image_shape)
+            self.check(data, shape)
             return data
 
         process_func = self.convert_to_albumentations if direction == "to" else self.convert_from_albumentations
 
-        return process_func(data, image_shape)
+        return process_func(data, shape)
 
     @abstractmethod
-    def filter(self, data: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+    def filter(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
         pass
 
     @abstractmethod
-    def check(self, data: np.ndarray, image_shape: tuple[int, int]) -> None:
+    def check(self, data: np.ndarray, shape: ShapeType) -> None:
         pass
 
     @abstractmethod
     def convert_to_albumentations(
         self,
         data: np.ndarray,
-        image_shape: tuple[int, int],
+        shape: ShapeType,
     ) -> np.ndarray:
         pass
 
@@ -206,7 +241,7 @@ class DataProcessor(ABC):
     def convert_from_albumentations(
         self,
         data: np.ndarray,
-        image_shape: tuple[int, int],
+        shape: ShapeType,
     ) -> np.ndarray:
         pass
 
@@ -324,7 +359,7 @@ def ensure_int_output(
 
 def ensure_contiguous_output(arg: np.ndarray | Sequence[np.ndarray]) -> np.ndarray | list[np.ndarray]:
     if isinstance(arg, np.ndarray):
-        arg = np.require(arg, requirements=["C_CONTIGUOUS"])
+        arg = np.ascontiguousarray(arg)
     elif isinstance(arg, Sequence):
         arg = list(map(ensure_contiguous_output, arg))
     return arg

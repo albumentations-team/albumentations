@@ -51,8 +51,8 @@ def angle_2pi_range(
     @wraps(func)
     def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         result = func(keypoints, *args, **kwargs)
-        if len(result) > 0 and result.shape[1] > 2:
-            result[:, 2] = angle_to_2pi_range(result[:, 2])
+        if len(result) > 0 and result.shape[1] > 3:
+            result[:, 3] = angle_to_2pi_range(result[:, 3])
         return result
 
     return wrapped_function

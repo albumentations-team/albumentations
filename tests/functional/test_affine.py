@@ -686,7 +686,7 @@ def test_inverse_translate(image_shape, translate, shape):
 
 @pytest.mark.parametrize(
     ["keypoint", "expected", "angle", "scale", "dx", "dy"],
-    [[[50, 50, 0, 5], [120.5, 158.5,  math.pi / 2, 10], 90, 2, 0.1, 0.1]],
+    [[[50, 50, 33, 0, 5], [120.5, 158.5, 33, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
     height, width = 100, 200

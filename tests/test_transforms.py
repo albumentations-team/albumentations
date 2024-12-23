@@ -702,27 +702,27 @@ def test_perspective_keep_size():
 
 def test_longest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
+    keypoints = np.array([(9, 5, 33, 0, 0)])
 
     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(10, 2), (5, 1)]
     assert tuple(result["keypoints"][0].tolist()) in [
-        (0.9, 0.5, 0, 0),
-        (1.8, 1.0, 0, 0),
+        (0.9, 0.5, 33, 0, 0),
+        (1.8, 1.0, 33, 0, 0),
     ]
 
 
 def test_smallest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = np.array([(9, 5, 0, 0)])
+    keypoints = np.array([(9, 5, 33, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
     assert tuple(result["keypoints"][0].tolist()) in [
-        (45.0, 25.0, 0, 0),
-        (90.0, 50.0, 0, 0),
+        (45.0, 25.0, 33, 0, 0),
+        (90.0, 50.0, 33, 0, 0),
     ]
 
 
@@ -857,9 +857,9 @@ def test_affine_incorrect_scale_range(params):
                 ],
                 "keypoints": [
                     [0, 0, 0, 0],
-                    [199, 0, 10, 10],
-                    [199, 99, 20, 20],
-                    [0, 99, 30, 30],
+                    [199, 0, 10, 8.72],
+                    [199, 99, 20, 17.46],
+                    [0, 99, 30, 26.19],
                 ],
             },
             {
@@ -899,19 +899,19 @@ def test_affine_incorrect_scale_range(params):
                         199.61117553710938,
                         26.338354110717773,
                         1.9260603189468384,
-                        9.345794677734375,
+                        8.149533,
                     ],
                     [
                         183.54466247558594,
                         99.64359283447266,
                         11.92605972290039,
-                        18.69158935546875,
+                        16.317757,
                     ],
                     [
                         0.3888263702392578,
                         73.6616439819336,
                         21.92605972290039,
-                        28.037382125854492,
+                        24.476635,
                     ],
                 ],
             },
@@ -927,9 +927,9 @@ def test_affine_incorrect_scale_range(params):
                 ],
                 "keypoints": [
                     [0, 0, 0, 0],
-                    [199, 0, 10, 10],
-                    [199, 99, 20, 20],
-                    [0, 99, 30, 30],
+                    [199, 0, 10, 8.72],
+                    [199, 99, 20, 17.46],
+                    [0, 99, 30, 26.19],
                 ],
             },
             {
@@ -963,19 +963,19 @@ def test_affine_incorrect_scale_range(params):
                         183.54466247558594,
                         0.35640716552734375,
                         18.073938369750977,
-                        9.345794677734375,
+                        8.149533,
                     ],
                     [
                         199.61117553710938,
                         73.6616439819336,
                         28.073936462402344,
-                        18.69158935546875,
+                        16.317757,
                     ],
                     [
                         16.455339431762695,
                         99.64359283447266,
                         38.073936462402344,
-                        28.037382125854492,
+                        24.476635,
                     ],
                 ],
             },
@@ -991,11 +991,12 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
         keypoint_params=A.KeypointParams("xyas", angle_in_degrees=True),
         p=1,
+        seed=42,
     )
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        np.testing.assert_allclose(value, res[key], atol=1e-6, rtol=1e-6), key
+        np.testing.assert_allclose(res[key], value, atol=1e-6, rtol=1e-6), key
 
 
 @pytest.mark.parametrize(
@@ -1798,7 +1799,7 @@ def test_dual_transforms_methods(augmentation_cls, params):
         "masks": mask,
         "masks": np.stack([mask] * 2),
         "bboxes": np.array([[0, 0, 0.1, 0.1, 1]]),
-        "keypoints": np.array([(0, 0, 0, 0), (1, 1, 0, 0)]),
+        "keypoints": np.array([(0, 0, 1, 0, 0), (1, 1, 1, 0, 0)]),
     }
 
     for target in aug.targets:

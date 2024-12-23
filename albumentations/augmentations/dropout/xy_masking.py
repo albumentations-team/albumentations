@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from typing import Any, cast
+from warnings import warn
 
 import numpy as np
-from pydantic import Field, model_validator
+from pydantic import model_validator
 from typing_extensions import Self
 
 from albumentations.augmentations.dropout.transforms import BaseDropout
@@ -64,8 +65,8 @@ class XYMasking(BaseDropout):
         mask_x_length: NonNegativeIntRangeType
         mask_y_length: NonNegativeIntRangeType
 
-        fill_value: DropoutFillValue | None = Field(deprecated="Deprecated use fill instead")
-        mask_fill_value: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
+        fill_value: DropoutFillValue | None
+        mask_fill_value: ColorType | None
 
         fill: DropoutFillValue
         fill_mask: ColorType | None
@@ -82,9 +83,11 @@ class XYMasking(BaseDropout):
                 raise ValueError(msg)
 
             if self.fill_value is not None:
+                warn("fill_value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
                 self.fill = self.fill_value
 
             if self.mask_fill_value is not None:
+                warn("mask_fill_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
                 self.fill_mask = self.mask_fill_value
 
             return self

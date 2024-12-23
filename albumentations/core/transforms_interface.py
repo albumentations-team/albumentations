@@ -589,8 +589,14 @@ class NoOp(DualTransform):
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         return volume
 
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return volumes
+
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         return mask3d
+
+    def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
+        return masks3d
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()

@@ -49,7 +49,7 @@ class RandomRotate90(DualTransform):
 
     _targets = ALL_TARGETS
 
-    def apply(self, img: np.ndarray, factor: int, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
         return fgeometric.rot90(img, factor)
 
     def get_params(self) -> dict[str, int]:
@@ -59,7 +59,7 @@ class RandomRotate90(DualTransform):
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
-        factor: int,
+        factor: Literal[0, 1, 2, 3],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.bboxes_rot90(bboxes, factor)
@@ -67,7 +67,7 @@ class RandomRotate90(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        factor: int,
+        factor: Literal[0, 1, 2, 3],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])

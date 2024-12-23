@@ -410,4 +410,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomCrop3D, {"size": (2, 30, 30)}],
     [A.CoarseDropout3D, {"num_holes_range": (1, 3), "hole_depth_range": (0.1, 0.2), "hole_height_range": (0.1, 0.2), "hole_width_range": (0.1, 0.2), "fill": 0, "fill_mask": None}],
     [A.CubicSymmetry, {}],
+    [A.AtLeastOneBBoxRandomCrop, {"height": 10, "width": 10, "erosion_factor": 0.2}],
 ]
