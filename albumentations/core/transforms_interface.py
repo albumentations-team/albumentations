@@ -633,10 +633,6 @@ class Transform3D(DualTransform):
         """Apply transform to batch of 3D masks."""
         return self.apply_to_mask3d(masks3d, *args, **params)
 
-    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to single 3D keypoints."""
-        raise NotImplementedError
-
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
         """Define valid targets for 3D transforms."""
