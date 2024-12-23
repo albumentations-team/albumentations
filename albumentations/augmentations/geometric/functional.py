@@ -72,7 +72,7 @@ ROT90_270_FACTOR = 3
 
 
 @handle_empty_array("bboxes")
-def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
+def bboxes_rot90(bboxes: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
     """Rotates bounding boxes by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -82,13 +82,7 @@ def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
 
     Returns:
         np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
-
-    Raises:
-        ValueError: If factor is not in set {0, 1, 2, 3}.
     """
-    if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
-
     if factor == 0:
         return bboxes
 
@@ -1185,7 +1179,7 @@ def transpose(img: np.ndarray) -> np.ndarray:
     return img.transpose(new_axes)
 
 
-def rot90(img: np.ndarray, factor: int) -> np.ndarray:
+def rot90(img: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
     return np.rot90(img, factor)
 
 
