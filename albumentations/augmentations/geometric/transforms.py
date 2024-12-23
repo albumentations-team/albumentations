@@ -387,13 +387,9 @@ class Perspective(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType
         keep_size: bool
-        pad_mode: BorderModeType | None = Field(
-            deprecated="Deprecated use border_mode instead",
-        )
-        pad_val: ColorType | None = Field(deprecated="Deprecated use fill instead")
-        mask_pad_val: ColorType | None = Field(
-            deprecated="Deprecated use fill_mask instead",
-        )
+        pad_mode: BorderModeType | None
+        pad_val: ColorType | None
+        mask_pad_val: ColorType | None
         fit_output: bool
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
@@ -404,10 +400,13 @@ class Perspective(DualTransform):
         @model_validator(mode="after")
         def validate_deprecated_fields(self) -> Self:
             if self.pad_mode is not None:
+                warn("pad_mode is deprecated, use border_mode instead", DeprecationWarning, stacklevel=2)
                 self.border_mode = self.pad_mode
             if self.pad_val is not None:
+                warn("pad_val is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
                 self.fill = self.pad_val
             if self.mask_pad_val is not None:
+                warn("mask_pad_val is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
                 self.fill_mask = self.mask_pad_val
             return self
 
@@ -1050,27 +1049,21 @@ class ShiftScaleRotate(Affine):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        shift_limit: SymmetricRangeType = (-0.0625, 0.0625)
-        scale_limit: SymmetricRangeType = (-0.1, 0.1)
-        rotate_limit: SymmetricRangeType = (-45, 45)
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
+        shift_limit: SymmetricRangeType
+        scale_limit: SymmetricRangeType
+        rotate_limit: SymmetricRangeType
+        interpolation: InterpolationType
+        border_mode: BorderModeType
 
-        value: ColorType | None = Field(
-            default=None,
-            deprecated="Deprecated. Use fill instead.",
-        )
-        mask_value: ColorType | None = Field(
-            default=None,
-            deprecated="Deprecated. Use fill_mask instead.",
-        )
+        value: ColorType | None
+        mask_value: ColorType | None
 
         fill: ColorType = 0
         fill_mask: ColorType = 0
 
-        shift_limit_x: ScaleFloatType | None = Field(default=None)
-        shift_limit_y: ScaleFloatType | None = Field(default=None)
-        rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
+        shift_limit_x: ScaleFloatType | None
+        shift_limit_y: ScaleFloatType | None
+        rotate_method: Literal["largest_box", "ellipse"]
         mask_interpolation: InterpolationType
 
         @model_validator(mode="after")
@@ -1085,6 +1078,12 @@ class ShiftScaleRotate(Affine):
             )
             check_range(self.shift_limit_y, *bounds, "shift_limit_y")
 
+            if self.value is not None:
+                warn("value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
+                self.fill = self.value
+            if self.mask_value is not None:
+                warn("mask_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
+                self.fill_mask = self.mask_value
             return self
 
         @field_validator("scale_limit")

@@ -272,17 +272,25 @@ class BaseCompose(Serializable):
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
-    def check_data_post_transform(self, data: Any) -> dict[str, Any]:
+    def check_data_post_transform(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Check and filter data after transformation.
+
+        Args:
+            data: Dictionary containing transformed data
+
+        Returns:
+            Filtered data dictionary
+        """
         if self.check_each_transform:
-            image_shape = get_shape(data["image"])
+            shape = get_shape(data)
 
             for proc in self.check_each_transform:
-                for data_name in data:
+                for data_name, data_value in data.items():
                     if data_name in proc.data_fields or (
                         data_name in self._additional_targets
                         and self._additional_targets[data_name] in proc.data_fields
                     ):
-                        data[data_name] = proc.filter(data[data_name], image_shape)
+                        data[data_name] = proc.filter(data_value, shape)
         return data
 
 

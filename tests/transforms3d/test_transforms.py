@@ -4,7 +4,7 @@ import albumentations as A
 import cv2
 
 from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE
-from tests.utils import get_2d_transforms, get_3d_transforms
+from tests.utils import get_2d_transforms, get_3d_transforms, get_dual_transforms
 
 @pytest.mark.parametrize(
     ["volume_shape", "min_zyx", "pad_divisor_zyx", "expected_shape"],
@@ -560,3 +560,75 @@ def test_image_volume_matching(image,augmentation_cls, params):
     np.testing.assert_allclose(transformed["image"], transformed["images"][0], atol=4, rtol=1e-1), f"Image shape = {transformed['image'].shape}, Images shape = {transformed['images'].shape}"
     np.testing.assert_allclose(transformed["image"], transformed["volume"][0], atol=4, rtol=1e-1), f"Image shape = {transformed['image'].shape}, Volume shape = {transformed['volume'].shape}"
     np.testing.assert_allclose(transformed["volume"], transformed["volumes"][0], atol=1, rtol=1e-3), f"Volume shape = {transformed['volume'].shape}, Volumes shape = {transformed['volumes'].shape}"
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+            A.RandomCrop: {"height": 50, "width": 50},
+            A.CenterCrop: {"height": 50, "width": 50},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.RandomResizedCrop: {"size": (30, 30)},
+            A.AtLeastOneBBoxRandomCrop: {"height": 50, "width": 50},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 50, "width": 50},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 50, "width": 50},
+        },
+        except_augmentations={
+            A.MaskDropout,
+            A.CropNonEmptyMaskIfExists,
+            A.RandomCropNearBBox,
+            A.OverlayElements,
+            A.BBoxSafeRandomCrop,
+            A.RandomSizedBBoxSafeCrop
+        },
+    ),
+)
+def test_keypoints_xy_xyz(augmentation_cls, params):
+    """Test that xy and xyz keypoint formats produce identical results for x,y coordinates."""
+    seed = 42
+    aug1 = A.Compose([augmentation_cls(**params, p=1)], seed=seed, keypoint_params={"format": "xy"})
+    aug2 = A.Compose([augmentation_cls(**params, p=1)], seed=seed, keypoint_params={"format": "xyz"})
+
+    # Create test keypoints
+    keypoints_xy = np.array([
+        [0, 0],     # corner
+        [50, 50],   # center-ish
+        [99, 99],   # corner
+        [25, 75],   # random point
+    ])
+
+    # Create xyz version by adding z coordinates
+    keypoints_xyz = np.column_stack([
+        keypoints_xy,
+        np.array([1.0, 2.0, 3.0, 4.0])  # z coordinates
+    ])
+
+    # Transform both formats
+    transformed_xy = aug1(
+        image=np.zeros((100, 100, 3)),
+        keypoints=keypoints_xy,
+    )["keypoints"]
+
+    transformed_xyz = aug2(
+        image=np.zeros((100, 100, 3)),
+        keypoints=keypoints_xyz,
+    )["keypoints"]
+
+    # Check that number of keypoints matches between formats
+    assert len(transformed_xy) == len(transformed_xyz), \
+        f"Different number of keypoints after transform: xy={len(transformed_xy)}, xyz={len(transformed_xyz)}"
+
+    if len(transformed_xyz) > 0:  # if any keypoints remain after transform
+        # Check that x,y coordinates match
+        np.testing.assert_allclose(
+            transformed_xy[:, :2],  # take only x,y from xy format
+            transformed_xyz[:, :2], # take only x,y from xyz format
+            atol=1e-6,
+            err_msg=f"XY and XYZ formats produced different results for {augmentation_cls.__name__}"
+        )
+
+        # Check that z coordinates are a subset of original z coordinates
+        assert all(z in keypoints_xyz[:, 2] for z in transformed_xyz[:, 2]), \
+            f"Z coordinates after transform are not a subset of original z coordinates for {augmentation_cls.__name__}"

@@ -1,7 +1,7 @@
 import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
-
+import torch
 import cv2
 import numpy as np
 import pytest
@@ -21,7 +21,7 @@ from albumentations.core.composition import (
     SomeOf,
 )
 from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
-from albumentations.core.utils import to_tuple
+from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
     SQUARE_FLOAT_IMAGE,
@@ -1590,3 +1590,104 @@ def test_compose_probability():
     result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
 
     assert len(result["applied_transforms"]) == 0
+
+
+@pytest.mark.parametrize(
+    ["data", "expected_shape"],
+    [
+        # Test numpy image formats
+        (
+            {"image": np.zeros((100, 200, 3))},  # HWC
+            {"height": 100, "width": 200},
+        ),
+        (
+            {"image": np.zeros((100, 200))},  # HW
+            {"height": 100, "width": 200},
+        ),
+        (
+            {"images": [np.zeros((100, 200, 3)), np.zeros((100, 200, 3))]},  # N×HWC
+            {"height": 100, "width": 200},
+        ),
+
+        # Test torch image formats
+        (
+            {"image": torch.zeros(3, 100, 200)},  # CHW
+            {"height": 100, "width": 200},
+        ),
+        (
+            {"image": torch.zeros(1, 100, 200)},  # 1HW
+            {"height": 100, "width": 200},
+        ),
+        (
+            {"images": torch.zeros(5, 3, 100, 200)},  # NCHW
+            {"height": 100, "width": 200},
+        ),
+
+        # Test numpy volume formats
+        (
+            {"volume": np.zeros((50, 100, 200, 3))},  # DHWC
+            {"depth": 50, "height": 100, "width": 200},
+        ),
+        (
+            {"volume": np.zeros((50, 100, 200))},  # DHW
+            {"depth": 50, "height": 100, "width": 200},
+        ),
+
+        # Test torch volume formats
+        (
+            {"volume": torch.zeros(3, 50, 100, 200)},  # CDHW
+            {"depth": 50, "height": 100, "width": 200},
+        ),
+        (
+            {"volume": torch.zeros(1, 50, 100, 200)},  # 1DHW
+            {"depth": 50, "height": 100, "width": 200},
+        ),
+    ],
+)
+def test_get_shape(data, expected_shape):
+    assert get_shape(data) == expected_shape
+
+
+@pytest.mark.parametrize(
+    ["data", "error_type", "error_message"],
+    [
+        (
+            {},
+            ValueError,
+            "No image or volume found in data",
+        ),
+        (
+            {"wrong_key": np.zeros((100, 200))},
+            ValueError,
+            "No image or volume found in data",
+        ),
+        (
+            {"image": "not_an_array"},
+            RuntimeError,
+            "Unsupported image type: <class 'str'>",
+        ),
+        (
+            {"volume": "not_an_array"},
+            RuntimeError,
+            "Unsupported volume type: <class 'str'>",
+        ),
+    ],
+)
+def test_get_shape_errors(data, error_type, error_message):
+    with pytest.raises(error_type, match=error_message):
+        get_shape(data)
+
+
+@pytest.mark.parametrize(
+    "key", ["image", "images", "volume"]
+)
+def test_get_shape_empty_arrays(key):
+    # Test that empty arrays don't cause issues
+    if key == "images":
+        data = {key: [np.zeros((0, 0, 3))]}
+    else:
+        data = {key: np.zeros((0, 0, 3))}
+
+    shape = get_shape(data)
+    assert isinstance(shape, dict)
+    assert all(isinstance(v, int) for v in shape.values())

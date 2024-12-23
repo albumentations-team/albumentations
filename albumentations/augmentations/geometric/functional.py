@@ -166,7 +166,7 @@ def bboxes_d4(
 @angle_2pi_range
 def keypoints_rot90(
     keypoints: np.ndarray,
-    factor: int,
+    factor: Literal[0, 1, 2, 3],
     image_shape: tuple[int, int],
 ) -> np.ndarray:
     """Rotate keypoints by 90 degrees counter-clockwise (CCW) a specified number of times.
@@ -178,33 +178,27 @@ def keypoints_rot90(
 
     Returns:
         np.ndarray: The rotated keypoints with the same shape as the input.
-
-    Raises:
-        ValueError: If the factor is not in the set {0, 1, 2, 3}.
     """
-    if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
-
     if factor == 0:
         return keypoints
 
     height, width = image_shape[:2]
     rotated_keypoints = keypoints.copy().astype(np.float32)
 
-    x, y, angle = keypoints[:, 0], keypoints[:, 1], keypoints[:, 2]
+    x, y, angle = keypoints[:, 0], keypoints[:, 1], keypoints[:, 3]
 
     if factor == 1:
         rotated_keypoints[:, 0] = y
         rotated_keypoints[:, 1] = width - 1 - x
-        rotated_keypoints[:, 2] = angle - np.pi / 2
+        rotated_keypoints[:, 3] = angle - np.pi / 2
     elif factor == ROT90_180_FACTOR:
         rotated_keypoints[:, 0] = width - 1 - x
         rotated_keypoints[:, 1] = height - 1 - y
-        rotated_keypoints[:, 2] = angle - np.pi
+        rotated_keypoints[:, 3] = angle - np.pi
     elif factor == ROT90_270_FACTOR:
         rotated_keypoints[:, 0] = height - 1 - y
         rotated_keypoints[:, 1] = x
-        rotated_keypoints[:, 2] = angle + np.pi / 2
+        rotated_keypoints[:, 3] = angle + np.pi / 2
 
     return rotated_keypoints
 
@@ -294,19 +288,24 @@ def keypoints_scale(
     """Scales keypoints by scale_x and scale_y.
 
     Args:
-        keypoints: A numpy array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
+        keypoints: A numpy array of keypoints with shape (N, 5+) in the format
+                  (x, y, z, angle, scale, ...).
         scale_x: Scale coefficient x-axis.
         scale_y: Scale coefficient y-axis.
 
     Returns:
         A numpy array of scaled keypoints with the same shape as input.
+        X and Y coordinates are scaled by their respective scale factors,
+        Z coordinate remains unchanged, and the keypoint scale is multiplied
+        by max(scale_x, scale_y).
     """
-    # Extract x, y, angle, and scale
-    x, y, angle, scale = (
+    # Extract x, y, z, angle, and scale
+    x, y, z, angle, scale = (
         keypoints[:, 0],
         keypoints[:, 1],
         keypoints[:, 2],
         keypoints[:, 3],
+        keypoints[:, 4],
     )
 
     # Scale x and y
@@ -317,7 +316,7 @@ def keypoints_scale(
     scale_scaled = scale * max(scale_x, scale_y)
 
     # Create the output array
-    scaled_keypoints = np.column_stack([x_scaled, y_scaled, angle, scale_scaled])
+    scaled_keypoints = np.column_stack([x_scaled, y_scaled, z, angle, scale_scaled])
 
     # If there are additional columns, preserve them
     if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
@@ -463,15 +462,30 @@ def perspective_keypoints(
     max_height: int,
     keep_size: bool,
 ) -> np.ndarray:
+    """Apply perspective transformation to keypoints.
+
+    Args:
+        keypoints: Array of shape (N, 5+) in format [x, y, z, angle, scale, ...].
+        image_shape: Original image shape (height, width).
+        matrix: 3x3 perspective transformation matrix.
+        max_width: Maximum width after transformation.
+        max_height: Maximum height after transformation.
+        keep_size: Whether to keep original size.
+
+    Returns:
+        Transformed keypoints array with same shape as input.
+        Z coordinate remains unchanged through the transformation.
+    """
     keypoints = keypoints.copy().astype(np.float32)
 
     height, width = image_shape[:2]
 
-    x, y, angle, scale = (
+    x, y, z, angle, scale = (
         keypoints[:, 0],
         keypoints[:, 1],
         keypoints[:, 2],
         keypoints[:, 3],
+        keypoints[:, 4],
     )
 
     # Reshape keypoints for perspective transform
@@ -501,8 +515,8 @@ def perspective_keypoints(
         y *= scale_y
         scale *= max(scale_x, scale_y)
 
-    # Create the output array
-    transformed_keypoints = np.column_stack([x, y, angle, scale])
+    # Create the output array with unchanged z coordinate
+    transformed_keypoints = np.column_stack([x, y, z, angle, scale])
 
     # If there are additional columns, preserve them
     if keypoints.shape[1] > NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS:
@@ -642,7 +656,7 @@ def keypoints_affine(
             center_in_origin=True,
         )
 
-    # Extract x, y coordinates
+    # Extract x, y coordinates (z is preserved)
     xy = keypoints[:, :2]
 
     # Ensure matrix is 2x3
@@ -655,15 +669,14 @@ def keypoints_affine(
     # Calculate angle adjustment
     angle_adjustment = rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=False)
 
-    # Update angles
-    keypoints[:, 2] = keypoints[:, 2] + angle_adjustment
+    # Update angles (now at index 3)
+    keypoints[:, 3] = keypoints[:, 3] + angle_adjustment
 
-    # Update scales
+    # Update scales (now at index 4)
     max_scale = max(scale["x"], scale["y"])
+    keypoints[:, 4] *= max_scale
 
-    keypoints[:, 3] *= max_scale
-
-    # Update x, y coordinates
+    # Update x, y coordinates and preserve z
     keypoints[:, :2] = xy_transformed
 
     return keypoints
@@ -1247,7 +1260,7 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
     flipped_keypoints[:, 1] = (rows - 1) - keypoints[:, 1]
 
     # Negate angles
-    flipped_keypoints[:, 2] = -keypoints[:, 2]
+    flipped_keypoints[:, 3] = -keypoints[:, 3]
 
     return flipped_keypoints
 
@@ -1270,7 +1283,7 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
     flipped_keypoints[:, 0] = (cols - 1) - keypoints[:, 0]
 
     # Adjust angles
-    flipped_keypoints[:, 2] = np.pi - keypoints[:, 2]
+    flipped_keypoints[:, 3] = np.pi - keypoints[:, 3]
 
     return flipped_keypoints
 
@@ -1292,8 +1305,8 @@ def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
     transposed_keypoints[:, [0, 1]] = keypoints[:, [1, 0]]
 
     # Adjust angles to reflect the coordinate swap
-    angles = keypoints[:, 2]
-    transposed_keypoints[:, 2] = np.where(
+    angles = keypoints[:, 3]
+    transposed_keypoints[:, 3] = np.where(
         angles <= np.pi,
         np.pi / 2 - angles,
         3 * np.pi / 2 - angles,
@@ -2047,7 +2060,7 @@ def pad_keypoints(
     image_shape: tuple[int, int],
 ) -> np.ndarray:
     if border_mode not in REFLECT_BORDER_MODES:
-        shift_vector = np.array([pad_left, pad_top])  # Only shift x and y
+        shift_vector = np.array([pad_left, pad_top, 0])
         return shift_keypoints(keypoints, shift_vector)
 
     grid_dimensions = get_pad_grid_dimensions(
@@ -2104,7 +2117,7 @@ def validate_keypoints(
 
 def shift_keypoints(keypoints: np.ndarray, shift_vector: np.ndarray) -> np.ndarray:
     shifted_keypoints = keypoints.copy()
-    shifted_keypoints[:, :2] += shift_vector[:2]  # Only shift x and y
+    shifted_keypoints[:, :3] += shift_vector[:3]  # Only shift x, y and z
     return shifted_keypoints
 
 
@@ -2163,7 +2176,7 @@ def generate_reflected_keypoints(
 
     # Shift all versions to the original position
     shift_vector = np.array(
-        [original_col * cols, original_row * rows, 0, 0],
+        [original_col * cols, original_row * rows, 0, 0, 0],
     )  # Only shift x and y
     keypoints = shift_keypoints(keypoints, shift_vector)
     keypoints_hflipped = shift_keypoints(keypoints_hflipped, shift_vector)
@@ -2191,6 +2204,7 @@ def generate_reflected_keypoints(
                     (grid_row - original_row) * rows,
                     0,
                     0,
+                    0,
                 ],
             )
             shifted_keypoints = shift_keypoints(current_keypoints, cell_shift)
@@ -2213,10 +2227,10 @@ def flip_keypoints(
     flipped_keypoints = keypoints.copy()
     if flip_horizontal:
         flipped_keypoints[:, 0] = cols - flipped_keypoints[:, 0]
-        flipped_keypoints[:, 2] = -flipped_keypoints[:, 2]  # Flip angle
+        flipped_keypoints[:, 3] = -flipped_keypoints[:, 3]  # Flip angle
     if flip_vertical:
         flipped_keypoints[:, 1] = rows - flipped_keypoints[:, 1]
-        flipped_keypoints[:, 2] = -flipped_keypoints[:, 2]  # Flip angle
+        flipped_keypoints[:, 3] = -flipped_keypoints[:, 3]  # Flip angle
     return flipped_keypoints
 
 
