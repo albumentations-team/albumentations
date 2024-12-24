@@ -240,8 +240,8 @@ def main() -> None:
 
     transforms_3d_table = make_transforms_targets_table(
         transforms_3d,
-        header=["Transform"] + [target.value for target in [Targets.VOLUME, Targets.MASK3D]],
-        targets_to_check=[Targets.VOLUME, Targets.MASK3D]
+        header=["Transform"] + [target.value for target in [Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS]],
+        targets_to_check=[Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS]
     )
 
     if command == "make":
