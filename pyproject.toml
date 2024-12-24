@@ -6,31 +6,73 @@ requires = [ "setuptools>=45", "wheel" ]
 [project]
 name = "albumentations"
 
-version = "1.4.23"
+version = "1.4.24"
 
-description = "Fast, flexible, and advanced image augmentation library for deep learning and computer vision. Albumentations offers a wide range of transformations for images, masks, bounding boxes, and keypoints, with optimized performance and seamless integration into ML workflows."
+description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks) data, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
 keywords = [
+  "2D augmentation",
+  "3D augmentation",
+  "aerial photography",
+  "anomaly detection",
+
   "artificial intelligence",
-  "bounding box",
+
+  "autonomous driving",
+  "bounding boxes",
+  # Core Computer Vision Tasks
+  "classification",
+  # Technical Domains
   "computer vision",
   "computer vision library",
   "data augmentation",
+
   "data preprocessing",
+  "data science",
   "deep learning",
+  "deep learning library",
+
+  "depth estimation",
+  "face recognition",
+  # Performance & Features
   "fast augmentation",
+  # Data Types & Processing
   "image augmentation",
-  "image classification",
   "image processing",
   "image transformation",
+  # Data Structures
+  "images",
   "instance segmentation",
   "keras",
   "keypoint detection",
+  "keypoints",
   "machine learning",
+  "machine learning tools",
+  "masks",
+  # Application Domains
+  "medical imaging",
+  "microscopy",
+  "object counting",
   "object detection",
+  "optimized performance",
+  "panoptic segmentation",
+  "pose estimation",
+  # Development
+  "python library",
+  # ML Frameworks
   "pytorch",
+  "quality inspection",
+
+  "real-time processing",
+
+  "robotics vision",
+  "satellite imagery",
   "semantic segmentation",
   "tensorflow",
+  "volumes",
+  "volumetric data",
+  "volumetric masks",
+
 ]
 license = { file = "LICENSE" }
 
@@ -40,24 +82,48 @@ authors = [ { name = "Vladimir Iglovikov" } ]
 requires-python = ">=3.9"
 
 classifiers = [
+  # Development Status
   "Development Status :: 5 - Production/Stable",
+
+  # Intended Audience
   "Intended Audience :: Developers",
+  "Intended Audience :: Healthcare Industry",    # valid for medical applications
+  "Intended Audience :: Information Technology",
+
   "Intended Audience :: Science/Research",
+  # License
   "License :: OSI Approved :: MIT License",
+
+  # Operating System
   "Operating System :: OS Independent",
+
+  # Python Versions
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+
   "Programming Language :: Python :: 3.13",
+  # Topics - Scientific
+  "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Topic :: Scientific/Engineering :: Atmospheric Science",
+
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
   "Topic :: Scientific/Engineering :: Image Processing",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Scientific/Engineering :: Visualization",
+  # Topics - Software Development
   "Topic :: Software Development :: Libraries",
   "Topic :: Software Development :: Libraries :: Python Modules",
+
+  # Typing
   "Typing :: Typed",
 ]
+
 dynamic = [ "dependencies" ]
 optional-dependencies.hub = [ "huggingface-hub" ]
 optional-dependencies.pytorch = [ "torch" ]
