@@ -758,3 +758,108 @@ def test_pad_if_needed3d_keypoints(params, volume_shape, initial_coords, expecte
             f"from {initial_coords} to {expected_coords}"
         )
     )
+
+
+@pytest.mark.parametrize(
+    ["volume_shape", "crop_size", "pad_if_needed", "initial_coords", "expected_coords"],
+    [
+        # Basic center crop (no padding needed)
+        (
+            (6, 6, 6),           # volume shape (ZYX)
+            (4, 4, 4),           # crop size (ZYX)
+            False,               # pad_if_needed
+            [2, 2, 2],          # initial keypoint (XYZ)
+            [1, 1, 1],          # expected keypoint after crop (XYZ)
+        ),
+        # Asymmetric volume shape
+        (
+            (8, 6, 4),          # volume shape (ZYX)
+            (4, 4, 2),          # crop size (ZYX)
+            False,              # pad_if_needed
+            [2, 2, 2],         # initial keypoint (XYZ)
+            [1, 1, 0],         # expected keypoint after crop (XYZ)
+        ),
+        # Crop with padding needed
+        (
+            (2, 2, 2),          # volume shape (ZYX)
+            (4, 4, 4),          # crop size (ZYX)
+            True,               # pad_if_needed
+            [1, 1, 1],         # initial keypoint (XYZ)
+            [2, 2, 2],         # expected keypoint after pad+crop (XYZ)
+        ),
+        # Edge case: exact size match
+        (
+            (4, 4, 4),          # volume shape (ZYX)
+            (4, 4, 4),          # crop size (ZYX)
+            False,              # pad_if_needed
+            [2, 2, 2],         # initial keypoint (XYZ)
+            [2, 2, 2],         # expected keypoint (no change) (XYZ)
+        ),
+        # Edge case: keypoint at volume border
+        (
+            (6, 6, 6),          # volume shape (ZYX)
+            (4, 4, 4),          # crop size (ZYX)
+            False,              # pad_if_needed
+            [0, 0, 0],         # initial keypoint (XYZ)
+            None,              # expected keypoint (should be cropped out)
+        ),
+    ],
+)
+def test_center_crop3d_keypoints(
+    volume_shape, crop_size, pad_if_needed, initial_coords, expected_coords
+):
+    """Test CenterCrop3D transform with keypoints.
+
+    Tests:
+    1. Basic center cropping
+    2. Asymmetric volume shapes
+    3. Padding when needed
+    4. Edge cases:
+       - Exact size match
+       - Keypoints at volume borders
+       - Keypoints that get cropped out
+    """
+    # Create test volume
+    volume = np.zeros(volume_shape, dtype=np.uint8)
+
+    # Create keypoint
+    x, y, z = initial_coords
+    keypoints = np.array([[x, y, z]])  # XYZ format
+
+    # Mark keypoint in volume for visual verification
+    volume[z, y, x] = 1
+
+    # Apply transform
+    transform = A.Compose([
+        A.CenterCrop3D(
+            size=crop_size,
+            pad_if_needed=pad_if_needed,
+            p=1.0
+        )
+    ], keypoint_params={"format": "xyz"})
+
+    transformed = transform(volume=volume, keypoints=keypoints)
+
+    if expected_coords is None:
+        # Keypoint should be cropped out
+        assert len(transformed["keypoints"]) == 0, \
+            "Expected keypoint to be cropped out"
+    else:
+        # Verify keypoint position
+        np.testing.assert_array_almost_equal(
+            transformed["keypoints"][0],
+            expected_coords,
+            err_msg=(
+                f"CenterCrop3D failed: keypoint at {initial_coords} "
+                f"should move to {expected_coords}, but got {transformed['keypoints'][0]}"
+            )
+        )
+
+        # Verify volume dimensions
+        assert transformed["volume"].shape[:3] == crop_size, \
+            f"Expected volume shape {crop_size}, got {transformed['volume'].shape[:3]}"
+
+        # Verify keypoint is still marked in volume
+        x_new, y_new, z_new = expected_coords
+        assert transformed["volume"][z_new, y_new, x_new] == 1, \
+            f"Expected marked voxel at {expected_coords}"

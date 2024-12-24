@@ -70,6 +70,8 @@ def get_targets_from_methods(cls):
 TRASNFORM_3d_DUAL_TARGETS = {
     A.PadIfNeeded3D: {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS},
     A.Pad3D: {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS},
+    A.RandomCrop3D: {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS},
+    A.CenterCrop3D: {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS},
 }
 
 str2target = {

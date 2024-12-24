@@ -236,7 +236,7 @@ class PadIfNeeded3D(BasePad3D):
 class BaseCropAndPad3D(Transform3D):
     """Base class for 3D transforms that need both cropping and padding."""
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
         pad_if_needed: bool
@@ -370,6 +370,38 @@ class BaseCropAndPad3D(Transform3D):
 
         return cropped
 
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        crop_coords: tuple[int, int, int, int, int, int],
+        pad_params: dict[str, int] | None,
+        **params: Any,
+    ) -> np.ndarray:
+        # Extract crop start coordinates (z1,y1,x1)
+        crop_z1, _, crop_y1, _, crop_x1, _ = crop_coords
+
+        # Initialize shift vector with negative crop coordinates
+        shift = np.array(
+            [
+                -crop_x1,  # X shift
+                -crop_y1,  # Y shift
+                -crop_z1,  # Z shift
+            ],
+        )
+
+        # Add padding shift if needed
+        if pad_params is not None:
+            shift += np.array(
+                [
+                    pad_params["pad_left"],  # X shift
+                    pad_params["pad_top"],  # Y shift
+                    pad_params["pad_front"],  # Z shift
+                ],
+            )
+
+        # Apply combined shift
+        return fgeometric.shift_keypoints(keypoints, shift)
+
 
 class CenterCrop3D(BaseCropAndPad3D):
     """Crop the center of 3D volume.
@@ -382,7 +414,7 @@ class CenterCrop3D(BaseCropAndPad3D):
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -480,7 +512,7 @@ class RandomCrop3D(BaseCropAndPad3D):
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
