@@ -87,8 +87,6 @@ class Pad3D(BasePad3D):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-
-    Targets:
         volume, mask3d, keypoints
 
     Image types:

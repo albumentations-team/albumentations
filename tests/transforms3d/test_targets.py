@@ -67,11 +67,15 @@ def get_targets_from_methods(cls):
 
     return targets
 
-TRASNFORM_3d_DUAL_TARGETS = {}
+TRASNFORM_3d_DUAL_TARGETS = {
+    A.PadIfNeeded3D: {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS},
+    A.Pad3D: {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS},
+}
 
 str2target = {
     "mask3d": Targets.MASK3D,
     "volume": Targets.VOLUME,
+    "keypoints": Targets.KEYPOINTS,
 }
 
 @pytest.mark.parametrize(
