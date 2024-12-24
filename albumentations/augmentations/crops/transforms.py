@@ -1321,6 +1321,12 @@ class BBoxSafeRandomCrop(BaseCrop):
             Defaults to 0.0.
         p (float, optional): Probability of applying the transform. Defaults to 1.0.
 
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+
     Raises:
         CropSizeError: If requested crop size exceeds image dimensions or is too small to
             contain all bounding boxes
@@ -2045,6 +2051,12 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
             - 1.0 means maximum erosion (crop can be anywhere that intersects the reference box)
             Defaults to 0.0.
         p (float, optional): Probability of applying the transform. Defaults to 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
 
     Raises:
         CropSizeError: If requested crop size exceeds image dimensions
