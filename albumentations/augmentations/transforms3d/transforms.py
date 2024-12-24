@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.transforms3d import functional as f3d
+from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, Transform3D
 from albumentations.core.types import ColorType, Targets
@@ -20,7 +21,7 @@ NUM_DIMENSIONS = 3
 class BasePad3D(Transform3D):
     """Base class for 3D padding transforms."""
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
         fill: ColorType
@@ -65,6 +66,11 @@ class BasePad3D(Transform3D):
             value=cast(ColorType, self.fill_mask),
         )
 
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        padding = params["padding"]
+        shift_vector = np.array([padding[4], padding[2], padding[0]])
+        return fgeometric.shift_keypoints(keypoints, shift_vector)
+
 
 class Pad3D(BasePad3D):
     """Pad the sides of a 3D volume by specified number of voxels.
@@ -72,21 +78,17 @@ class Pad3D(BasePad3D):
     Args:
         padding (int, tuple[int, int, int] or tuple[int, int, int, int, int, int]): Padding values. Can be:
             * int - pad all sides by this value
-            * tuple[int, int, int] - symmetric padding (pad_z, pad_y, pad_x) where:
-                - pad_z: padding for depth/z-axis (front/back)
-                - pad_y: padding for height/y-axis (top/bottom)
-                - pad_x: padding for width/x-axis (left/right)
+            * tuple[int, int, int] - symmetric padding (depth, height, width) where each value
+              is applied to both sides of the corresponding dimension
             * tuple[int, int, int, int, int, int] - explicit padding per side in order:
-                (front, top, left, back, bottom, right) where:
-                - front/back: padding along z-axis (depth)
-                - top/bottom: padding along y-axis (height)
-                - left/right: padding along x-axis (width)
+              (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+
         fill (ColorType): Padding value for image
         fill_mask (ColorType): Padding value for mask
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -160,7 +162,7 @@ class PadIfNeeded3D(BasePad3D):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -235,7 +237,7 @@ class PadIfNeeded3D(BasePad3D):
 class BaseCropAndPad3D(Transform3D):
     """Base class for 3D transforms that need both cropping and padding."""
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
         pad_if_needed: bool
@@ -369,6 +371,38 @@ class BaseCropAndPad3D(Transform3D):
 
         return cropped
 
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        crop_coords: tuple[int, int, int, int, int, int],
+        pad_params: dict[str, int] | None,
+        **params: Any,
+    ) -> np.ndarray:
+        # Extract crop start coordinates (z1,y1,x1)
+        crop_z1, _, crop_y1, _, crop_x1, _ = crop_coords
+
+        # Initialize shift vector with negative crop coordinates
+        shift = np.array(
+            [
+                -crop_x1,  # X shift
+                -crop_y1,  # Y shift
+                -crop_z1,  # Z shift
+            ],
+        )
+
+        # Add padding shift if needed
+        if pad_params is not None:
+            shift += np.array(
+                [
+                    pad_params["pad_left"],  # X shift
+                    pad_params["pad_top"],  # Y shift
+                    pad_params["pad_front"],  # Z shift
+                ],
+            )
+
+        # Apply combined shift
+        return fgeometric.shift_keypoints(keypoints, shift)
+
 
 class CenterCrop3D(BaseCropAndPad3D):
     """Crop the center of 3D volume.
@@ -381,7 +415,7 @@ class CenterCrop3D(BaseCropAndPad3D):
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -479,7 +513,7 @@ class RandomCrop3D(BaseCropAndPad3D):
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -581,7 +615,7 @@ class CoarseDropout3D(Transform3D):
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -611,7 +645,7 @@ class CoarseDropout3D(Transform3D):
         >>> transformed_volume, transformed_mask3d = transformed["volume"], transformed["mask3d"]
     """
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
         num_holes_range: Annotated[
@@ -728,6 +762,21 @@ class CoarseDropout3D(Transform3D):
 
         return f3d.cutout3d(mask, holes, cast(ColorType, self.fill_mask))
 
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        holes: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        """Remove keypoints that fall within dropout regions."""
+        if holes.size == 0:
+            return keypoints
+        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+
+        if processor is None or not processor.params.remove_invisible:
+            return keypoints
+        return f3d.filter_keypoints_in_holes3d(keypoints, holes)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "num_holes_range",
@@ -764,7 +813,7 @@ class CubicSymmetry(Transform3D):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -791,7 +840,7 @@ class CubicSymmetry(Transform3D):
         - D4: The 2D version that handles the 8 symmetries of a square
     """
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -806,10 +855,15 @@ class CubicSymmetry(Transform3D):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         # Randomly select one of 48 possible transformations
-        return {"index": self.py_random.randint(0, 47)}
+
+        volume_shape = data["volume"].shape
+        return {"index": self.py_random.randint(0, 47), "volume_shape": volume_shape}
 
     def apply_to_volume(self, volume: np.ndarray, index: int, **params: Any) -> np.ndarray:
         return f3d.transform_cube(volume, index)
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, index: int, **params: Any) -> np.ndarray:
+        return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume_shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()

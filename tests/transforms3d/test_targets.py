@@ -67,11 +67,13 @@ def get_targets_from_methods(cls):
 
     return targets
 
-TRASNFORM_3d_DUAL_TARGETS = {}
+TRASNFORM_3D_TARGETS = {
+}
 
 str2target = {
     "mask3d": Targets.MASK3D,
     "volume": Targets.VOLUME,
+    "keypoints": Targets.KEYPOINTS,
 }
 
 @pytest.mark.parametrize(
@@ -85,7 +87,7 @@ str2target = {
 )
 def test_transform3d(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-    assert set(aug._targets) == set(TRASNFORM_3d_DUAL_TARGETS.get(augmentation_cls, {Targets.MASK3D, Targets.VOLUME}))
+    assert set(aug._targets) == set(TRASNFORM_3D_TARGETS.get(augmentation_cls, {Targets.MASK3D, Targets.VOLUME, Targets.KEYPOINTS}))
     assert set(aug._targets) <= get_targets_from_methods(augmentation_cls)
 
     targets_from_docstring = {str2target[target] for target in extract_targets_from_docstring(augmentation_cls)}

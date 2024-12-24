@@ -132,7 +132,7 @@ def test_augmentations_serialization_with_custom_parameters(
     mask = image[:, :, 0].copy()
     aug = augmentation_cls(p=p, **params)
     aug.set_random_seed(seed)
-    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D}
+    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D, A.CubicSymmetry}
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -179,7 +179,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
     image,
     data_format,
 ):
-    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D}
+    transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D, A.CubicSymmetry}
     mask = image[:, :, 0].copy()
     with patch("builtins.open", OpenMock()):
         aug = augmentation_cls(p=p, **params)
@@ -202,8 +202,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         elif augmentation_cls == A.TextImage:
             data["textimage_metadata"] = []
         elif augmentation_cls in transforms3d:
-            data["volume"] = np.array([image] * 10)
-            data["mask"] = np.array([mask] * 10)
+            data = {"volume": np.array([image] * 10), "mask3d": np.array([mask] * 10)}
 
         aug_data = aug(**data)
         deserialized_aug_data = deserialized_aug(**data)
@@ -213,7 +212,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
         else:
             np.testing.assert_array_equal(aug_data["volume"], deserialized_aug_data["volume"])
-            np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+            np.testing.assert_array_equal(aug_data["mask3d"], deserialized_aug_data["mask3d"])
 
 
 @pytest.mark.parametrize(

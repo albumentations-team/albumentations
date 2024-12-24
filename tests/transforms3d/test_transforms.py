@@ -632,3 +632,279 @@ def test_keypoints_xy_xyz(augmentation_cls, params):
         # Check that z coordinates are a subset of original z coordinates
         assert all(z in keypoints_xyz[:, 2] for z in transformed_xyz[:, 2]), \
             f"Z coordinates after transform are not a subset of original z coordinates for {augmentation_cls.__name__}"
+
+
+@pytest.mark.parametrize(
+    ["padding", "initial_coords", "expected_coords"],
+    [
+        # Test single int padding - converts to (d,d, h,h, w,w)
+        (2, [1, 1, 1], [3, 3, 3]),  # becomes (2,2, 2,2, 2,2)
+
+        # Test symmetric padding (depth,height,width) - converts to (d,d, h,h, w,w)
+        ((2, 3, 4), [1, 1, 1], [5, 4, 3]),  # becomes (2,2, 3,3, 4,4)
+
+        # Test explicit padding (depth_front,depth_back, height_top,height_bottom, width_left,width_right)
+        ((2, 0, 3, 0, 4, 0), [1, 1, 1], [5, 4, 3]),  # pad only at start of each axis
+        ((0, 2, 0, 3, 0, 4), [1, 1, 1], [1, 1, 1]),  # pad only at end of each axis
+        ((1, 1, 2, 2, 3, 3), [1, 1, 1], [4, 3, 2]),  # equal padding on both sides
+    ],
+)
+def test_pad3d_keypoints(padding, initial_coords, expected_coords):
+    """Test that Pad3D correctly transforms keypoints.
+
+    The padding values are converted to 6-tuple format:
+    (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+
+    For keypoints in XYZ format:
+    - X coordinate is shifted by width_left
+    - Y coordinate is shifted by height_top
+    - Z coordinate is shifted by depth_front
+
+    Test cases verify:
+    1. Single int padding (same value for all sides)
+    2. Symmetric padding (different values per axis)
+    3. Explicit padding (different values for each side)
+    """
+    # Create test volume with a single marked voxel
+    volume = np.zeros((4, 4, 4), dtype=np.uint8)
+    x, y, z = initial_coords
+    volume[z, y, x] = 1  # Mark voxel in ZYX order
+
+    # Create keypoint at the same location
+    keypoints = np.array([[x, y, z]])  # XYZ order
+
+    # Apply padding transform
+    transform = A.Compose([A.Pad3D(padding=padding, p=1.0)], seed=42, keypoint_params={"format": "xyz"})
+    transformed = transform(volume=volume, keypoints=keypoints)
+
+    # Verify keypoint transformation
+    np.testing.assert_array_almost_equal(
+        transformed["keypoints"][0],
+        expected_coords,
+        err_msg=f"Padding {padding} failed to correctly shift keypoint from {initial_coords} to {expected_coords}"
+    )
+
+    # Verify volume transformation (optional)
+    transformed_volume = transformed["volume"]
+    x_new, y_new, z_new = expected_coords
+    assert transformed_volume[z_new, y_new, x_new] == 1, \
+        f"Expected marked voxel at {expected_coords}, but value is {transformed_volume[z_new, y_new, x_new]}"
+
+
+@pytest.mark.parametrize(
+    ["params", "volume_shape", "initial_coords", "expected_coords"],
+    [
+        # Test min_zyx only
+        (
+            {"min_zyx": (6, 8, 10)},  # force padding to reach minimum size
+            (4, 4, 4),                 # initial volume shape
+            [1, 1, 1],                 # initial keypoint
+            [4, 3, 2],                 # expected keypoint after padding
+        ),
+
+        # Test pad_divisor_zyx only
+        (
+            {"pad_divisor_zyx": (4, 4, 4)},  # make dimensions divisible by 4
+            (5, 6, 7),                       # initial volume shape
+            [2, 2, 2],                       # initial keypoint
+            [2, 3, 3],                       # expected keypoint after padding
+        ),
+
+        # Test both min_zyx and pad_divisor_zyx
+        (
+            {
+                "min_zyx": (8, 8, 8),        # minimum size
+                "pad_divisor_zyx": (4, 4, 4)  # also make divisible by 4
+            },
+            (5, 5, 5),                       # initial volume shape
+            [2, 2, 2],                       # initial keypoint
+            [3, 3, 3],                       # expected keypoint after padding
+        ),
+    ],
+)
+def test_pad_if_needed3d_keypoints(params, volume_shape, initial_coords, expected_coords):
+    """Test that PadIfNeeded3D correctly transforms keypoints.
+
+    For volume shape (D,H,W) and keypoints in XYZ format:
+    - D (depth) padding shifts Z coordinate
+    - H (height) padding shifts Y coordinate
+    - W (width) padding shifts X coordinate
+
+    For center position:
+    - Padding is split evenly between start/end
+    - If odd padding, extra pixel goes to end
+    """
+    # Create test volume with a single marked voxel
+    volume = np.zeros(volume_shape, dtype=np.uint8)
+    x, y, z = initial_coords
+    volume[z, y, x] = 1  # Mark voxel in ZYX order
+
+    # Create keypoint at the same location
+    keypoints = np.array([[x, y, z]])  # XYZ order
+
+    # Apply padding transform
+    transform = A.Compose([
+        A.PadIfNeeded3D(position="center", **params, p=1.0)
+    ], keypoint_params={"format": "xyz"})
+
+    transformed = transform(volume=volume, keypoints=keypoints)
+
+    # Verify keypoint transformation
+    np.testing.assert_array_almost_equal(
+        transformed["keypoints"][0],
+        expected_coords,
+        err_msg=(
+            f"PadIfNeeded3D with params {params} failed to correctly shift keypoint "
+            f"from {initial_coords} to {expected_coords}"
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ["volume_shape", "crop_size", "pad_if_needed", "initial_coords", "expected_coords"],
+    [
+        # Basic center crop (no padding needed)
+        (
+            (6, 6, 6),           # volume shape (ZYX)
+            (4, 4, 4),           # crop size (ZYX)
+            False,               # pad_if_needed
+            [2, 2, 2],          # initial keypoint (XYZ)
+            [1, 1, 1],          # expected keypoint after crop (XYZ)
+        ),
+        # Asymmetric volume shape
+        (
+            (8, 6, 4),          # volume shape (ZYX)
+            (4, 4, 2),          # crop size (ZYX)
+            False,              # pad_if_needed
+            [2, 2, 2],         # initial keypoint (XYZ)
+            [1, 1, 0],         # expected keypoint after crop (XYZ)
+        ),
+        # Crop with padding needed
+        (
+            (2, 2, 2),          # volume shape (ZYX)
+            (4, 4, 4),          # crop size (ZYX)
+            True,               # pad_if_needed
+            [1, 1, 1],         # initial keypoint (XYZ)
+            [2, 2, 2],         # expected keypoint after pad+crop (XYZ)
+        ),
+        # Edge case: exact size match
+        (
+            (4, 4, 4),          # volume shape (ZYX)
+            (4, 4, 4),          # crop size (ZYX)
+            False,              # pad_if_needed
+            [2, 2, 2],         # initial keypoint (XYZ)
+            [2, 2, 2],         # expected keypoint (no change) (XYZ)
+        ),
+        # Edge case: keypoint at volume border
+        (
+            (6, 6, 6),          # volume shape (ZYX)
+            (4, 4, 4),          # crop size (ZYX)
+            False,              # pad_if_needed
+            [0, 0, 0],         # initial keypoint (XYZ)
+            None,              # expected keypoint (should be cropped out)
+        ),
+    ],
+)
+def test_center_crop3d_keypoints(
+    volume_shape, crop_size, pad_if_needed, initial_coords, expected_coords
+):
+    """Test CenterCrop3D transform with keypoints.
+
+    Tests:
+    1. Basic center cropping
+    2. Asymmetric volume shapes
+    3. Padding when needed
+    4. Edge cases:
+       - Exact size match
+       - Keypoints at volume borders
+       - Keypoints that get cropped out
+    """
+    # Create test volume
+    volume = np.zeros(volume_shape, dtype=np.uint8)
+
+    # Create keypoint
+    x, y, z = initial_coords
+    keypoints = np.array([[x, y, z]])  # XYZ format
+
+    # Mark keypoint in volume for visual verification
+    volume[z, y, x] = 1
+
+    # Apply transform
+    transform = A.Compose([
+        A.CenterCrop3D(
+            size=crop_size,
+            pad_if_needed=pad_if_needed,
+            p=1.0
+        )
+    ], keypoint_params={"format": "xyz"})
+
+    transformed = transform(volume=volume, keypoints=keypoints)
+
+    if expected_coords is None:
+        # Keypoint should be cropped out
+        assert len(transformed["keypoints"]) == 0, \
+            "Expected keypoint to be cropped out"
+    else:
+        # Verify keypoint position
+        np.testing.assert_array_almost_equal(
+            transformed["keypoints"][0],
+            expected_coords,
+            err_msg=(
+                f"CenterCrop3D failed: keypoint at {initial_coords} "
+                f"should move to {expected_coords}, but got {transformed['keypoints'][0]}"
+            )
+        )
+
+        # Verify volume dimensions
+        assert transformed["volume"].shape[:3] == crop_size, \
+            f"Expected volume shape {crop_size}, got {transformed['volume'].shape[:3]}"
+
+        # Verify keypoint is still marked in volume
+        x_new, y_new, z_new = expected_coords
+        assert transformed["volume"][z_new, y_new, x_new] == 1, \
+            f"Expected marked voxel at {expected_coords}"
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_3d_transforms(
+        custom_arguments={
+            A.PadIfNeeded3D: {"min_zyx": (8, 8, 8), "position": "center"},
+            A.Pad3D: {"padding": 2},
+            A.RandomCrop3D: {"size": (4, 4, 4)},
+            A.CenterCrop3D: {"size": (4, 4, 4)},
+            A.CubicSymmetry: {},
+        },
+        except_augmentations={
+            A.CoarseDropout3D
+        }
+    ),
+)
+def test_3d_transforms_keypoint_positions(augmentation_cls, params):
+    """Test that keypoints match marked points in transformed volume."""
+    # Create test volume with marked points
+    volume = np.zeros((6, 6, 6), dtype=np.uint8)
+    keypoints = np.array([
+        [1, 1, 1],  # XYZ coordinates
+        [1, 3, 1],
+        [3, 1, 3],
+        [2, 2, 2],
+    ], dtype=np.float32)
+
+    # Mark points in volume (converting from XYZ to ZYX)
+    for x, y, z in keypoints:
+        volume[int(z), int(y), int(x)] = 1
+
+    # Apply transform
+    transform = A.Compose([
+        augmentation_cls(p=1, **params)
+    ], keypoint_params={"format": "xyz"})
+
+    transformed = transform(volume=volume, keypoints=keypoints)
+
+    # Verify each transformed keypoint matches a marked point in volume
+    for x, y, z in transformed["keypoints"]:
+        assert transformed["volume"][int(z), int(y), int(x)] == 1, (
+            f"Keypoint at ({x}, {y}, {z}) should match marked point in volume "
+            f"after {augmentation_cls.__name__} transform"
+        )
