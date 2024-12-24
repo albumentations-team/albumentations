@@ -2117,35 +2117,60 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
 
             bbox_x1, bbox_y1, bbox_x2, bbox_y2 = reference_bbox[:4]
 
-            bbox_width = bbox_x2 - bbox_x1
-            bbox_height = bbox_y2 - bbox_y1
+            # Compute valid crop bounds:
+            # erosion_factor = 0.0: crop must fully contain the bbox
+            # erosion_factor = 1.0: crop can be anywhere that intersects the bbox
+            if self.erosion_factor < 1.0:
+                # Regular case: compute eroded box dimensions
+                bbox_width = bbox_x2 - bbox_x1
+                bbox_height = bbox_y2 - bbox_y1
+                eroded_width = bbox_width * (1.0 - self.erosion_factor)
+                eroded_height = bbox_height * (1.0 - self.erosion_factor)
 
-            # Compute the eroded width and height
-            eroded_width = bbox_width * (1.0 - self.erosion_factor)
-            eroded_height = bbox_height * (1.0 - self.erosion_factor)
+                min_crop_x = np.clip(
+                    a=bbox_x1 + eroded_width - self.width,
+                    a_min=0.0,
+                    a_max=image_width - self.width,
+                )
+                max_crop_x = np.clip(
+                    a=bbox_x2 - eroded_width,
+                    a_min=0.0,
+                    a_max=image_width - self.width,
+                )
 
-            # Compute the lower and upper bounds for the x-axis and y-axis.
-            min_crop_x = np.clip(
-                a=bbox_x1 + eroded_width - self.width,
-                a_min=0.0,
-                a_max=image_width - self.width,
-            )
-            max_crop_x = np.clip(
-                a=bbox_x2 - eroded_width,
-                a_min=0.0,
-                a_max=image_width - self.width,
-            )
+                min_crop_y = np.clip(
+                    a=bbox_y1 + eroded_height - self.height,
+                    a_min=0.0,
+                    a_max=image_height - self.height,
+                )
+                max_crop_y = np.clip(
+                    a=bbox_y2 - eroded_height,
+                    a_min=0.0,
+                    a_max=image_height - self.height,
+                )
+            else:
+                # Maximum erosion case: crop can be anywhere that intersects the bbox
+                min_crop_x = np.clip(
+                    a=bbox_x1 - self.width,  # leftmost position that still intersects
+                    a_min=0.0,
+                    a_max=image_width - self.width,
+                )
+                max_crop_x = np.clip(
+                    a=bbox_x2,  # rightmost position that still intersects
+                    a_min=0.0,
+                    a_max=image_width - self.width,
+                )
 
-            min_crop_y = np.clip(
-                a=bbox_y1 + eroded_height - self.height,
-                a_min=0.0,
-                a_max=image_height - self.height,
-            )
-            max_crop_y = np.clip(
-                a=bbox_y2 - eroded_height,
-                a_min=0.0,
-                a_max=image_height - self.height,
-            )
+                min_crop_y = np.clip(
+                    a=bbox_y1 - self.height,  # topmost position that still intersects
+                    a_min=0.0,
+                    a_max=image_height - self.height,
+                )
+                max_crop_y = np.clip(
+                    a=bbox_y2,  # bottommost position that still intersects
+                    a_min=0.0,
+                    a_max=image_height - self.height,
+                )
         else:
             # If there are no bboxes, just crop anywhere in the image.
             min_crop_x = 0.0
