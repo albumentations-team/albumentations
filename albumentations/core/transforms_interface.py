@@ -613,6 +613,7 @@ class Transform3D(DualTransform):
         volumes: Batch of 3D arrays of shape (N, D, H, W) or (N, D, H, W, C)
         mask: 3D numpy array of shape (D, H, W)
         masks: Batch of 3D arrays of shape (N, D, H, W)
+        keypoints: 3D numpy array of shape (N, 3)
     """
 
     def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
@@ -641,4 +642,5 @@ class Transform3D(DualTransform):
             "volumes": self.apply_to_volumes,
             "mask3d": self.apply_to_mask3d,
             "masks3d": self.apply_to_masks3d,
+            "keypoints": self.apply_to_keypoints,
         }

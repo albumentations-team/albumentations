@@ -20,7 +20,7 @@ NUM_DIMENSIONS = 3
 class BasePad3D(Transform3D):
     """Base class for 3D padding transforms."""
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
         fill: ColorType
@@ -65,6 +65,11 @@ class BasePad3D(Transform3D):
             value=cast(ColorType, self.fill_mask),
         )
 
+    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        padding = params["padding"]
+        shift_vector = np.array([padding[4], padding[2], padding[0]])
+        return fgeometric.shift_keypoints(keypoints, shift_vector)
+
 
 class Pad3D(BasePad3D):
     """Pad the sides of a 3D volume by specified number of voxels.
@@ -72,21 +77,19 @@ class Pad3D(BasePad3D):
     Args:
         padding (int, tuple[int, int, int] or tuple[int, int, int, int, int, int]): Padding values. Can be:
             * int - pad all sides by this value
-            * tuple[int, int, int] - symmetric padding (pad_z, pad_y, pad_x) where:
-                - pad_z: padding for depth/z-axis (front/back)
-                - pad_y: padding for height/y-axis (top/bottom)
-                - pad_x: padding for width/x-axis (left/right)
+            * tuple[int, int, int] - symmetric padding (depth, height, width) where each value
+              is applied to both sides of the corresponding dimension
             * tuple[int, int, int, int, int, int] - explicit padding per side in order:
-                (front, top, left, back, bottom, right) where:
-                - front/back: padding along z-axis (depth)
-                - top/bottom: padding along y-axis (height)
-                - left/right: padding along x-axis (width)
+              (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+
         fill (ColorType): Padding value for image
         fill_mask (ColorType): Padding value for mask
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        volume, mask3d
+
+    Targets:
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -160,7 +163,7 @@ class PadIfNeeded3D(BasePad3D):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32

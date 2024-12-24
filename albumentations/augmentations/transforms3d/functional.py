@@ -48,30 +48,40 @@ def adjust_padding_by_position3d(
 
 def pad_3d_with_params(
     volume: np.ndarray,
-    padding: tuple[int, int, int, int, int, int],  # (d_front, d_back, h_top, h_bottom, w_left, w_right)
+    padding: tuple[int, int, int, int, int, int],
     value: ColorType,
 ) -> np.ndarray:
-    """Pad 3D image with given parameters.
+    """Pad 3D volume with given parameters.
 
     Args:
         volume: Input volume with shape (depth, height, width) or (depth, height, width, channels)
-        padding: Padding values (d_front, d_back, h_top, h_bottom, w_left, w_right)
-        value: Padding value
+        padding: Padding values in format:
+            (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+            where:
+            - depth_front/back: padding at start/end of depth axis (z)
+            - height_top/bottom: padding at start/end of height axis (y)
+            - width_left/right: padding at start/end of width axis (x)
+        value: Value to fill the padding
 
     Returns:
-        Padded image with same number of dimensions as input
+        Padded volume with same number of dimensions as input
+
+    Note:
+        The padding order matches the volume dimensions (depth, height, width).
+        For each dimension, the first value is padding at the start (smaller indices),
+        and the second value is padding at the end (larger indices).
     """
-    d_front, d_back, h_top, h_bottom, w_left, w_right = padding
+    depth_front, depth_back, height_top, height_bottom, width_left, width_right = padding
 
     # Skip if no padding is needed
-    if d_front == d_back == h_top == h_bottom == w_left == w_right == 0:
+    if all(p == 0 for p in padding):
         return volume
 
     # Handle both 3D and 4D arrays
     pad_width = [
-        (d_front, d_back),  # depth padding
-        (h_top, h_bottom),  # height padding
-        (w_left, w_right),  # width padding
+        (depth_front, depth_back),  # depth (z) padding
+        (height_top, height_bottom),  # height (y) padding
+        (width_left, width_right),  # width (x) padding
     ]
 
     # Add channel padding if 4D array
