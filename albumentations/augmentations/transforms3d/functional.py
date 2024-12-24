@@ -224,7 +224,7 @@ def keypoints_rot90(
     volume_shape: tuple[int, int, int],
 ) -> np.ndarray:
     if k == 0 or len(keypoints) == 0:
-        return keypoints.copy()
+        return keypoints
 
     # Normalize factor to range [0, 3]
     k = ((k % 4) + 4) % 4
