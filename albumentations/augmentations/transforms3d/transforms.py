@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.transforms3d import functional as f3d
+from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, Transform3D
 from albumentations.core.types import ColorType, Targets
@@ -761,6 +762,21 @@ class CoarseDropout3D(Transform3D):
 
         return f3d.cutout3d(mask, holes, cast(ColorType, self.fill_mask))
 
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        holes: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        """Remove keypoints that fall within dropout regions."""
+        if holes.size == 0:
+            return keypoints
+        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+
+        if processor is None or not processor.params.remove_invisible:
+            return keypoints
+        return f3d.filter_keypoints_in_holes3d(keypoints, holes)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "num_holes_range",
@@ -797,7 +813,7 @@ class CubicSymmetry(Transform3D):
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -824,7 +840,7 @@ class CubicSymmetry(Transform3D):
         - D4: The 2D version that handles the 8 symmetries of a square
     """
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -843,6 +859,9 @@ class CubicSymmetry(Transform3D):
 
     def apply_to_volume(self, volume: np.ndarray, index: int, **params: Any) -> np.ndarray:
         return f3d.transform_cube(volume, index)
+
+    def apply_to_keypoints(self, keypoints: np.ndarray, index: int, **params: Any) -> np.ndarray:
+        return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume"].shape)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
