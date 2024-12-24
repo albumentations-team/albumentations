@@ -615,7 +615,7 @@ class CoarseDropout3D(Transform3D):
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
-        volume, mask3d
+        volume, mask3d, keypoints
 
     Image types:
         uint8, float32
@@ -645,7 +645,7 @@ class CoarseDropout3D(Transform3D):
         >>> transformed_volume, transformed_mask3d = transformed["volume"], transformed["mask3d"]
     """
 
-    _targets = (Targets.VOLUME, Targets.MASK3D)
+    _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
         num_holes_range: Annotated[
