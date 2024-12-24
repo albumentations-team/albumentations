@@ -863,3 +863,48 @@ def test_center_crop3d_keypoints(
         x_new, y_new, z_new = expected_coords
         assert transformed["volume"][z_new, y_new, x_new] == 1, \
             f"Expected marked voxel at {expected_coords}"
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_3d_transforms(
+        custom_arguments={
+            A.PadIfNeeded3D: {"min_zyx": (8, 8, 8), "position": "center"},
+            A.Pad3D: {"padding": 2},
+            A.RandomCrop3D: {"size": (4, 4, 4)},
+            A.CenterCrop3D: {"size": (4, 4, 4)},
+            A.CubicSymmetry: {},
+        },
+        except_augmentations={
+            A.CoarseDropout3D
+        }
+    ),
+)
+def test_3d_transforms_keypoint_positions(augmentation_cls, params):
+    """Test that keypoints match marked points in transformed volume."""
+    # Create test volume with marked points
+    volume = np.zeros((6, 6, 6), dtype=np.uint8)
+    keypoints = np.array([
+        [1, 1, 1],  # XYZ coordinates
+        [1, 3, 1],
+        [3, 1, 3],
+        [2, 2, 2],
+    ], dtype=np.float32)
+
+    # Mark points in volume (converting from XYZ to ZYX)
+    for x, y, z in keypoints:
+        volume[int(z), int(y), int(x)] = 1
+
+    # Apply transform
+    transform = A.Compose([
+        augmentation_cls(p=1, **params)
+    ], keypoint_params={"format": "xyz"})
+
+    transformed = transform(volume=volume, keypoints=keypoints)
+
+    # Verify each transformed keypoint matches a marked point in volume
+    for x, y, z in transformed["keypoints"]:
+        assert transformed["volume"][int(z), int(y), int(x)] == 1, (
+            f"Keypoint at ({x}, {y}, {z}) should match marked point in volume "
+            f"after {augmentation_cls.__name__} transform"
+        )

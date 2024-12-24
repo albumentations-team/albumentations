@@ -855,13 +855,15 @@ class CubicSymmetry(Transform3D):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         # Randomly select one of 48 possible transformations
-        return {"index": self.py_random.randint(0, 47)}
+
+        volume_shape = data["volume"].shape
+        return {"index": self.py_random.randint(0, 47), "volume_shape": volume_shape}
 
     def apply_to_volume(self, volume: np.ndarray, index: int, **params: Any) -> np.ndarray:
         return f3d.transform_cube(volume, index)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, index: int, **params: Any) -> np.ndarray:
-        return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume"].shape)
+        return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume_shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()

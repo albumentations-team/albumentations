@@ -198,20 +198,23 @@ def test_keypoints_rot90_matches_numpy(factor, axes):
 
 @pytest.mark.parametrize("index", range(48))
 def test_transform_cube_keypoints_matches_transform_cube(index):
-    """Test that transform_cube_keypoints matches transform_cube behavior."""
+    """Test that transform_cube_keypoints matches transform_cube behavior and preserves extra columns."""
     # Create volume with different dimensions to catch edge cases
     volume = np.zeros((5, 6, 7), dtype=np.uint8)  # (D, H, W)
 
-    # Create test points (avoiding edges for clear results)
+    # Create test points with additional columns
     keypoints = np.array([
-        [1, 1, 1],  # XYZ coordinates
-        [1, 3, 1],
-        [3, 1, 3],
-        [2, 2, 2],
+        [1, 1, 1, 0.5, 0.6, 0.7],  # XYZ coordinates + 3 extra values
+        [1, 3, 1, 0.2, 0.3, 0.4],
+        [3, 1, 3, 0.8, 0.9, 1.0],
+        [2, 2, 2, 0.1, 0.2, 0.3],
     ], dtype=np.float32)
 
+    # Store original extra columns for comparison
+    original_extra_cols = keypoints[:, 3:].copy()
+
     # Mark points in volume (converting from XYZ to DHW)
-    for x, y, z in keypoints:
+    for x, y, z in keypoints[:, :3]:
         volume[int(z), int(y), int(x)] = 1
 
     # Transform volume
@@ -221,8 +224,15 @@ def test_transform_cube_keypoints_matches_transform_cube(index):
     transformed_keypoints = f3d.transform_cube_keypoints(keypoints.copy(), index, volume_shape=volume.shape)
 
     # Verify each transformed keypoint matches a marked point in transformed volume
-    for x, y, z in transformed_keypoints:
+    for x, y, z in transformed_keypoints[:, :3]:
         assert transformed_volume[int(z), int(y), int(x)] == 1, (
             f"Keypoint at ({x}, {y}, {z}) should match marked point in volume "
             f"after transformation with index={index}"
         )
+
+    # Verify extra columns remain unchanged
+    np.testing.assert_array_equal(
+        transformed_keypoints[:, 3:],
+        original_extra_cols,
+        err_msg=f"Extra columns should remain unchanged after transformation with index={index}"
+    )

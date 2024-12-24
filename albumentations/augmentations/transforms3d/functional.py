@@ -261,9 +261,13 @@ def transform_cube_keypoints(
     if not (0 <= index < 48):
         raise ValueError("Index must be between 0 and 47")
 
-    # Convert from XYZ to HWD coordinates (like in the test)
+    # Create working copy preserving all columns
     working_points = keypoints.copy()
-    working_points = working_points[:, [2, 1, 0]]  # XYZ -> HWD
+
+    # Convert only XYZ coordinates to HWD, keeping other columns unchanged
+    xyz = working_points[:, :3]  # Get first 3 columns (XYZ)
+    xyz = xyz[:, [2, 1, 0]]  # XYZ -> HWD
+    working_points[:, :3] = xyz  # Put back transformed coordinates
 
     current_shape = volume_shape
 
@@ -271,7 +275,6 @@ def transform_cube_keypoints(
     if index >= 24:
         working_points[:, 2] = current_shape[2] - 1 - working_points[:, 2]  # Reflect W axis
 
-    # Get rotation index (0-23)
     rotation_index = index % 24
 
     # Apply the same rotation logic as transform_cube
@@ -281,33 +284,29 @@ def transform_cube_keypoints(
     elif rotation_index < 8:
         # Next 4: flip 180° about axis 1, then rotate around axis 0
         temp = keypoints_rot90(working_points, k=2, axes=(0, 2), volume_shape=current_shape)
-        # After first rotation: (D,H,W) -> (W,H,D)
         temp_shape = (current_shape[2], current_shape[1], current_shape[0])
         result = keypoints_rot90(temp, k=rotation_index - 4, axes=(1, 2), volume_shape=volume_shape)
     elif rotation_index < 16:
-        # Next 8: split between 90° and 270° about axis 1, then rotate around axis 2
         if rotation_index < 12:
             temp = keypoints_rot90(working_points, k=1, axes=(0, 2), volume_shape=current_shape)
-            # After first rotation: (D,H,W) -> (W,H,D)
             temp_shape = (current_shape[2], current_shape[1], current_shape[0])
             result = keypoints_rot90(temp, k=rotation_index - 8, axes=(0, 1), volume_shape=temp_shape)
         else:
             temp = keypoints_rot90(working_points, k=3, axes=(0, 2), volume_shape=current_shape)
-            # After first rotation: (D,H,W) -> (W,H,D)
             temp_shape = (current_shape[2], current_shape[1], current_shape[0])
             result = keypoints_rot90(temp, k=rotation_index - 12, axes=(0, 1), volume_shape=temp_shape)
-
-    # Final 8: split between rotations about axis 2, then rotate around axis 1
     elif rotation_index < 20:
         temp = keypoints_rot90(working_points, k=1, axes=(0, 1), volume_shape=current_shape)
-        # After first rotation: (D,H,W) -> (H,D,W)
         temp_shape = (current_shape[1], current_shape[0], current_shape[2])
         result = keypoints_rot90(temp, k=rotation_index - 16, axes=(0, 2), volume_shape=temp_shape)
     else:
         temp = keypoints_rot90(working_points, k=3, axes=(0, 1), volume_shape=current_shape)
-        # After first rotation: (D,H,W) -> (H,D,W)
         temp_shape = (current_shape[1], current_shape[0], current_shape[2])
         result = keypoints_rot90(temp, k=rotation_index - 20, axes=(0, 2), volume_shape=temp_shape)
 
-    # Convert back from DHW to XYZ coordinates
-    return result[:, [2, 1, 0]]  # HWD -> XYZ
+    # Convert back from HWD to XYZ coordinates for first 3 columns only
+    xyz = result[:, :3]
+    xyz = xyz[:, [2, 1, 0]]  # HWD -> XYZ
+    result[:, :3] = xyz
+
+    return result
