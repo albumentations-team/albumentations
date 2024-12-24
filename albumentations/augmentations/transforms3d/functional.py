@@ -284,7 +284,6 @@ def transform_cube_keypoints(
     elif rotation_index < 8:
         # Next 4: flip 180° about axis 1, then rotate around axis 0
         temp = keypoints_rot90(working_points, k=2, axes=(0, 2), volume_shape=current_shape)
-        temp_shape = (current_shape[2], current_shape[1], current_shape[0])
         result = keypoints_rot90(temp, k=rotation_index - 4, axes=(1, 2), volume_shape=volume_shape)
     elif rotation_index < 16:
         if rotation_index < 12:
