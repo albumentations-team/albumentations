@@ -1301,23 +1301,22 @@ class BBoxSafeRandomCrop(BaseCrop):
     - Losing any bounding box would be problematic (e.g., rare object classes)
     - You're training a model that needs to detect multiple objects simultaneously
 
-    The crop coordinates are selected to ensure that:
-    1. All bounding boxes from the original image are fully included in the crop
-    2. The crop dimensions match the specified width and height
-    3. The crop stays within image boundaries
-
     The algorithm:
-    1. Computes the union of all bounding boxes
-    2. Samples crop coordinates such that they contain this union
-    3. If no bounding boxes exist, falls back to random crop anywhere in the image
+    1. If bounding boxes exist:
+        - Computes the union of all bounding boxes
+        - Applies erosion based on erosion_rate to this union
+        - Clips the eroded union to valid image coordinates [0,1]
+        - Randomly samples crop coordinates within the clipped union area
+    2. If no bounding boxes exist:
+        - Computes crop height based on erosion_rate
+        - Sets crop width to maintain original aspect ratio
+        - Randomly places the crop within the image
 
     Args:
-        height (int): Height of the crop
-        width (int): Width of the crop
-        erosion_factor (float, optional): Factor by which to erode (shrink) the bounding box union
-            when computing valid crop regions. Must be in range [0.0, 1.0].
-            - 0.0 means no erosion (crop must fully contain all boxes)
-            - 1.0 means maximum erosion (crop can be anywhere that contains all boxes)
+        erosion_rate (float): Controls how much the valid crop region can deviate from the bbox union.
+            Must be in range [0.0, 1.0].
+            - 0.0: crop must contain the exact bbox union
+            - 1.0: crop can deviate maximally from the bbox union while still containing all boxes
             Defaults to 0.0.
         p (float, optional): Probability of applying the transform. Defaults to 1.0.
 
@@ -1328,12 +1327,11 @@ class BBoxSafeRandomCrop(BaseCrop):
         uint8, float32
 
     Raises:
-        CropSizeError: If requested crop size exceeds image dimensions or is too small to
-            contain all bounding boxes
+        CropSizeError: If requested crop size exceeds image dimensions
 
     Example:
         >>> import albumentations as A
-        >>> transform = A.BBoxSafeRandomCrop(height=100, width=100)
+        >>> transform = A.BBoxSafeRandomCrop(erosion_rate=0.2)
         >>> result = transform(
         ...     image=image,
         ...     bboxes=[[0.1, 0.2, 0.5, 0.7, 'cat'], [0.3, 0.4, 0.6, 0.8, 'dog']],
@@ -1343,10 +1341,10 @@ class BBoxSafeRandomCrop(BaseCrop):
         >>> transformed_bboxes = result['bboxes']
 
     Note:
-        - The transform will preserve aspect ratio of the input image
         - All bounding boxes will be preserved in their entirety
+        - Aspect ratio is preserved only when no bounding boxes are present
         - May be more restrictive in crop placement compared to AtLeastOneBboxRandomCrop
-        - If no bounding boxes are provided, acts as a regular random crop
+        - The crop size is determined by the bounding boxes when present
     """
 
     _targets = ALL_TARGETS
@@ -2024,27 +2022,26 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
 
     Similar to BBoxSafeRandomCrop, but with a key difference:
     - BBoxSafeRandomCrop ensures ALL bounding boxes are preserved in the crop
-    - AtLeastOneBboxRandomCrop ensures AT LEAST ONE bounding box is present in the crop
+    - AtLeastOneBBoxRandomCrop ensures AT LEAST ONE bounding box is present in the crop
 
-    This makes AtLeastOneBboxRandomCrop more flexible for scenarios where:
+    This makes AtLeastOneBBoxRandomCrop more flexible for scenarios where:
     - You want to focus on individual objects rather than all objects
     - You're willing to lose some bounding boxes to get more varied crops
     - The image has many bounding boxes and keeping all of them would be too restrictive
 
-    The crop coordinates are selected to ensure that:
-    1. At least one bounding box from the original image is partially or fully included in the crop
-    2. The crop dimensions match the specified width and height
-    3. The crop stays within image boundaries
-
     The algorithm:
-    1. Randomly selects a reference bounding box from available boxes
-    2. Computes an eroded version of this box (shrunk by erosion_factor)
-    3. Samples crop coordinates such that they overlap with the eroded box
-    4. If no bounding boxes exist, falls back to random crop anywhere in the image
+    1. If bounding boxes exist:
+        - Randomly selects a reference bounding box from available boxes
+        - Computes an eroded version of this box (shrunk by erosion_factor)
+        - Calculates valid crop bounds that ensure overlap with the eroded box
+        - Randomly samples crop coordinates within these bounds
+    2. If no bounding boxes exist:
+        - Uses full image dimensions as valid bounds
+        - Randomly samples crop coordinates within these bounds
 
     Args:
-        height (int): Height of the crop
-        width (int): Width of the crop
+        height (int): Fixed height of the crop
+        width (int): Fixed width of the crop
         erosion_factor (float, optional): Factor by which to erode (shrink) the reference
             bounding box when computing valid crop regions. Must be in range [0.0, 1.0].
             - 0.0 means no erosion (crop must fully contain the reference box)
@@ -2063,7 +2060,7 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
 
     Example:
         >>> import albumentations as A
-        >>> transform = A.AtLeastOneBboxRandomCrop(height=100, width=100)
+        >>> transform = A.AtLeastOneBBoxRandomCrop(height=100, width=100)
         >>> result = transform(
         ...     image=image,
         ...     bboxes=[[0.1, 0.2, 0.5, 0.7, 'cat']],
@@ -2073,7 +2070,7 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
         >>> transformed_bboxes = result['bboxes']
 
     Note:
-        - The transform will preserve aspect ratio of the input image
+        - Uses fixed crop dimensions (height and width)
         - Bounding boxes that end up partially outside the crop will be adjusted
         - Bounding boxes that end up completely outside the crop will be removed
         - If no bounding boxes are provided, acts as a regular random crop
