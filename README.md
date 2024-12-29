@@ -22,10 +22,10 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 - **Complete Computer Vision Support**: Works with [all major CV tasks](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation) including classification, segmentation (semantic & instance), object detection, and pose estimation.
 - **Simple, Unified API**: [One consistent interface](#a-simple-example) for all data types - RGB/grayscale/multispectral images, masks, bounding boxes, and keypoints.
-- **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/api_reference/augmentations/transforms/) to enhance your training data.
+- **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/api_reference/transforms/) to enhance your training data.
 - **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarks/), with optimizations for production use.
 - **Deep Learning Integration**: Works with [PyTorch](https://pytorch.org/), [TensorFlow](https://www.tensorflow.org/), and other frameworks. Part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
-- **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](https://albumentations.ai/docs/#authors).
+- **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](#authors).
 
 ## Community-Driven Project, Supported By
 
@@ -142,11 +142,11 @@ transformed_image = transformed["image"]
 
 ### I am new to image augmentation
 
-Please start with the [introduction articles](https://albumentations.ai/docs/#introduction-to-image-augmentation) about why image augmentation is important and how it helps to build better models.
+Please start with the [introduction articles](https://albumentations.ai/docs/#learning-path) about why image augmentation is important and how it helps to build better models.
 
 ### I want to use Albumentations for the specific task such as classification or segmentation
 
-If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#getting-started-with-albumentations) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
+If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#quick-start-guide) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
 
 ### I want to know how to use Albumentations with deep learning frameworks
 
