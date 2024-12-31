@@ -242,52 +242,74 @@ def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.nd
     return keypoints[valid_keypoints]
 
 
-def find_region_coordinates(region: np.ndarray) -> tuple[int, int, int, int]:
-    """Find coordinates of smallest region covering visible areas.
+def find_region_coordinates(regions: np.ndarray) -> np.ndarray:
+    """Vectorized version to find coordinates of smallest regions covering visible areas.
 
     Args:
-        region: Binary mask where 1 indicates holes/covered areas
-               and 0 indicates visible areas
+        regions: Binary masks where 1 indicates holes/covered areas
+                Shape: (N, H, W) where N is number of regions
 
     Returns:
-        Tuple of (x_min, y_min, x_max, y_max):
-        - Returns coordinates of smallest region covering all visible areas
-        - If region is fully covered (all 1s), returns (0, 0, 0, 0)
+        Array of shape (N, 4) with (x_min, y_min, x_max, y_max) for each region
     """
-    visible = 1 - region
-    if not visible.any():
-        return 0, 0, 0, 0
+    visible = 1 - regions  # (N, H, W)
 
-    y = visible.any(axis=1).nonzero()[0]
-    x = visible.any(axis=0).nonzero()[0]
+    # Check if any regions are fully covered
+    has_visible = visible.any(axis=(1, 2))  # (N,)
 
-    return x[0], y[0], x[-1] + 1, y[-1] + 1
+    # Initialize output array
+    coords = np.zeros((len(regions), 4), dtype=np.int32)
+
+    if not has_visible.any():
+        return coords
+
+    # Find visible pixels along each axis
+    visible_rows = visible.any(axis=2)  # (N, H)
+    visible_cols = visible.any(axis=1)  # (N, W)
+
+    # Get indices of visible pixels
+    row_indices = [r.nonzero()[0] for r in visible_rows[has_visible]]
+    col_indices = [c.nonzero()[0] for c in visible_cols[has_visible]]
+
+    # Calculate coordinates for visible regions
+    coords[has_visible, 0] = [x[0] for x in col_indices]  # x_min
+    coords[has_visible, 1] = [y[0] for y in row_indices]  # y_min
+    coords[has_visible, 2] = [x[-1] + 1 for x in col_indices]  # x_max
+    coords[has_visible, 3] = [y[-1] + 1 for y in row_indices]  # y_max
+
+    return coords
 
 
 def resize_boxes_to_visible_area(
     boxes: np.ndarray,
     hole_mask: np.ndarray,
 ) -> np.ndarray:
-    """Resize boxes to their largest visible rectangular regions if possible."""
-    new_boxes = []
+    """Vectorized version to resize boxes to their largest visible rectangular regions."""
+    if len(boxes) == 0:
+        return boxes
 
-    for box in boxes:
-        # Get box region from hole mask
-        x1, y1, x2, y2 = box[:4].astype(int)
-        region = hole_mask[y1:y2, x1:x2]
+    # Extract box coordinates
+    x1 = boxes[:, 0].astype(int)
+    y1 = boxes[:, 1].astype(int)
+    x2 = boxes[:, 2].astype(int)
+    y2 = boxes[:, 3].astype(int)
 
-        # Try to find visible rectangle
-        x_min, y_min, x_max, y_max = find_region_coordinates(region)
+    # Get regions for all boxes at once
+    regions = np.array(
+        [hole_mask[y_start:y_end, x_start:x_end] for x_start, y_start, x_end, y_end in zip(x1, y1, x2, y2)],
+    )
 
-        # Create new box with resized coordinates
-        new_box = box.copy()
-        new_box[0] = x1 + x_min
-        new_box[1] = y1 + y_min
-        new_box[2] = x1 + x_max
-        new_box[3] = y1 + y_max
-        new_boxes.append(new_box)
+    # Find visible coordinates for all regions
+    visible_coords = find_region_coordinates(regions)
 
-    return np.array(new_boxes)
+    # Create new boxes array
+    new_boxes = boxes.copy()
+    new_boxes[:, 0] = x1 + visible_coords[:, 0]  # x_min
+    new_boxes[:, 1] = y1 + visible_coords[:, 1]  # y_min
+    new_boxes[:, 2] = x1 + visible_coords[:, 2]  # x_max
+    new_boxes[:, 3] = y1 + visible_coords[:, 3]  # y_max
+
+    return new_boxes
 
 
 def filter_bboxes_by_holes(

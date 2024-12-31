@@ -212,87 +212,92 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
 
 
 @pytest.mark.parametrize(
-    ["region", "expected"],
+    ["regions", "expected"],
     [
-        # Test case 1: Scattered holes - return full region
+        # Test case 1: Single scattered holes - return full region
         (
-            np.array([
+            np.array([[
                 [0, 1, 0],
                 [1, 0, 1],
                 [0, 1, 0],
-            ]),
-            (0, 0, 3, 3)
+            ]]),
+            np.array([[0, 0, 3, 3]])
         ),
         # Test case 2: Perfect visible rectangle in middle
         (
-            np.array([
+            np.array([[
                 [1, 1, 1, 1],
                 [1, 0, 0, 1],
                 [1, 0, 0, 1],
                 [1, 1, 1, 1],
-            ]),
-            (1, 1, 3, 3)
+            ]]),
+            np.array([[1, 1, 3, 3]])
         ),
-        # Test case 3: L-shaped visible region - return full region
+        # Test case 3: Multiple regions of different types
         (
             np.array([
-                [0, 0, 0],
-                [0, 1, 1],
-                [0, 1, 1],
+                # Region 1: L-shaped visible region
+                [
+                    [0, 0, 0],
+                    [0, 1, 1],
+                    [0, 1, 1],
+                ],
+                # Region 2: Single visible pixel
+                [
+                    [1, 1, 1],
+                    [1, 0, 1],
+                    [1, 1, 1],
+                ],
+                # Region 3: Vertical slice
+                [
+                    [1, 0, 1],
+                    [1, 0, 1],
+                    [1, 0, 1],
+                ],
             ]),
-            (0, 0, 3, 3)
+            np.array([
+                [0, 0, 3, 3],  # Full region for L-shape
+                [1, 1, 2, 2],  # Single pixel
+                [1, 0, 2, 3],  # Vertical slice
+            ])
         ),
-        # Test case 5: All visible - return full region as perfect rectangle
-        (
-            np.zeros((2, 2), dtype=np.uint8),
-            (0, 0, 2, 2)
-
-        ),
-
-        # Test case 6: Single visible pixel - valid rectangle
+        # Test case 4: Mix of fully covered and visible regions
         (
             np.array([
-                [1, 1, 1],
-                [1, 0, 1],
-                [1, 1, 1],
-            ]),
-            (1, 1, 2, 2)
-        ),
-
-        # Test case 7: Thin vertical slice - valid rectangle
-        (
+                # Region 1: Fully covered (3x3)
+                [
+                    [1, 1, 1],
+                    [1, 1, 1],
+                    [1, 1, 1],
+                ],
+                # Region 2: All visible (padded to 3x3)
+                [
+                    [0, 0, 1],
+                    [0, 0, 1],
+                    [1, 1, 1],
+                ],
+                # Region 3: Horizontal slice
+                [
+                    [1, 1, 1],
+                    [0, 0, 0],
+                    [1, 1, 1],
+                ],
+            ], dtype=np.uint8),
             np.array([
-                [1, 0, 1],
-                [1, 0, 1],
-                [1, 0, 1],
-            ]),
-            (1, 0, 2, 3)
-        ),
-
-        # Test case 8: Thin horizontal slice - valid rectangle
-        (
-            np.array([
-                [1, 1, 1],
-                [0, 0, 0],
-                [1, 1, 1],
-            ]),
-            (0, 1, 3, 2)
-        ),
-
-        # Test case 9: Multiple separate rectangles - return smallest rectangle covering all
-        (
-            np.array([
-                [0, 0, 1],
-                [1, 1, 1],
-                [0, 0, 1],
-            ]),
-            (0, 0, 2, 3)
+                [0, 0, 0, 0],  # Fully covered
+                [0, 0, 2, 2],  # Visible region
+                [0, 1, 3, 2],  # Horizontal slice
+            ])
         ),
     ]
 )
-def test_find_region_coordinates(region, expected):
-    result = fdropout.find_region_coordinates(region)
-    assert result == expected, f"Expected {expected}, but got {result}"
+def test_find_region_coordinates_vectorized(regions, expected):
+    """Test vectorized version of find_region_coordinates."""
+    result = fdropout.find_region_coordinates(regions)
+    np.testing.assert_array_equal(
+        result, expected,
+        err_msg=f"Expected {expected}, but got {result}"
+    )
 
 
 @pytest.mark.parametrize(
