@@ -293,3 +293,61 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
 def test_find_region_coordinates(region, expected):
     result = fdropout.find_region_coordinates(region)
     assert result == expected, f"Expected {expected}, but got {result}"
+
+
+@pytest.mark.parametrize(
+    ["boxes", "hole_mask", "expected"],
+    [
+        # Test case 1: Single box with perfect visible rectangle in middle
+        (
+            np.array([[10, 20, 14, 24]]),  # box: x1=10, y1=20, x2=14, y2=24
+            np.zeros((100, 100), dtype=np.uint8),  # Full image visible
+            np.array([[10, 20, 14, 24]])  # Expected: unchanged as no holes
+        ),
+
+        # Test case 2: Single box fully covered by hole
+        (
+            np.array([[5, 5, 8, 8]]),
+            np.ones((100, 100), dtype=np.uint8),  # Full image covered
+            np.array([[5, 5, 5, 5]])  # Box collapses to point when fully covered
+        ),
+
+        # Test case 3: Box partially covered by hole
+        (
+            np.array([[10, 10, 20, 20]]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
+            np.array([[10, 10, 15, 20]])  # Only left part visible after hole
+        ),
+
+        # Test case 4: Multiple boxes with different coverage
+        (
+            np.array([
+                [0, 0, 10, 10],    # Box 1: fully visible
+                [20, 20, 30, 30],  # Box 2: fully covered
+                [40, 40, 50, 50],  # Box 3: partially covered
+            ]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
+            np.array([
+                [0, 0, 10, 10],     # Box 1: unchanged (no hole)
+                [20, 20, 20, 20],   # Box 2: collapsed (fully covered)
+                [40, 40, 45, 50],   # Box 3: width reduced (partially covered)
+            ])
+        ),
+    ]
+)
+def test_resize_boxes_to_visible_area(boxes, hole_mask, expected):
+    # Create holes in the mask for specific test cases
+    if len(boxes) == 1 and np.array_equal(boxes[0], [10, 10, 20, 20]):
+        # For test case 3: create hole in right half of the box
+        hole_mask[10:20, 15:20] = 1
+
+    elif len(boxes) == 3:
+        # For test case 4: create specific holes
+        hole_mask[20:30, 20:30] = 1  # Fully cover second box
+        hole_mask[40:50, 45:50] = 1  # Partially cover third box (right part)
+
+    result = fdropout.resize_boxes_to_visible_area(boxes, hole_mask)
+    np.testing.assert_array_equal(
+        result, expected,
+        err_msg=f"Expected {expected}, but got {result}"
+    )
