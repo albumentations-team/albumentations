@@ -242,6 +242,54 @@ def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.nd
     return keypoints[valid_keypoints]
 
 
+def find_region_coordinates(region: np.ndarray) -> tuple[int, int, int, int]:
+    """Find coordinates of smallest region covering visible areas.
+
+    Args:
+        region: Binary mask where 1 indicates holes/covered areas
+               and 0 indicates visible areas
+
+    Returns:
+        Tuple of (x_min, y_min, x_max, y_max):
+        - Returns coordinates of smallest region covering all visible areas
+        - If region is fully covered (all 1s), returns (0, 0, 0, 0)
+    """
+    visible = 1 - region
+    if not visible.any():
+        return 0, 0, 0, 0
+
+    y = visible.any(axis=1).nonzero()[0]
+    x = visible.any(axis=0).nonzero()[0]
+
+    return x[0], y[0], x[-1] + 1, y[-1] + 1
+
+
+def resize_boxes_to_visible_area(
+    boxes: np.ndarray,
+    hole_mask: np.ndarray,
+) -> np.ndarray:
+    """Resize boxes to their largest visible rectangular regions if possible."""
+    new_boxes = []
+
+    for box in boxes:
+        # Get box region from hole mask
+        x1, y1, x2, y2 = box[:4].astype(int)
+        region = hole_mask[y1:y2, x1:x2]
+
+        # Try to find visible rectangle
+        x_min, y_min, x_max, y_max = find_region_coordinates(region)
+
+        # Create new box with resized coordinates
+        new_box = box.copy()
+        new_box[0] = x1 + x_min
+        new_box[1] = y1 + y_min
+        new_box[2] = x1 + x_max
+        new_box[3] = y1 + y_max
+        new_boxes.append(new_box)
+
+    return np.array(new_boxes)
+
+
 def filter_bboxes_by_holes(
     bboxes: np.ndarray,
     holes: np.ndarray,
@@ -249,47 +297,29 @@ def filter_bboxes_by_holes(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
-    """Filter bounding boxes based on their remaining visible area and visibility ratio after intersection with holes.
-
-    Args:
-        bboxes (np.ndarray): Array of bounding boxes, each represented as [x_min, y_min, x_max, y_max].
-        holes (np.ndarray): Array of holes, each represented as [x_min, y_min, x_max, y_max].
-        image_shape (tuple[int, int]): Shape of the image (height, width).
-        min_area (int): Minimum remaining visible area to keep the bounding box.
-        min_visibility (float): Minimum visibility ratio to keep the bounding box.
-            Calculated as 1 - (intersection_area / bbox_area).
-
-    Returns:
-        np.ndarray: Filtered array of bounding boxes.
-    """
     if len(bboxes) == 0 or len(holes) == 0:
         return bboxes
 
-    # Create a blank mask for holes
+    # Create hole mask
     hole_mask = np.zeros(image_shape, dtype=np.uint8)
-
-    # Fill in the holes on the mask
     for hole in holes:
         x_min, y_min, x_max, y_max = hole.astype(int)
         hole_mask[y_min:y_max, x_min:x_max] = 1
 
-    # Vectorized calculation
+    # Filter boxes by area and visibility
     bboxes_int = bboxes.astype(int)
-    x_min, y_min, x_max, y_max = bboxes_int[:, 0], bboxes_int[:, 1], bboxes_int[:, 2], bboxes_int[:, 3]
+    box_areas = (bboxes_int[:, 2] - bboxes_int[:, 0]) * (bboxes_int[:, 3] - bboxes_int[:, 1])
+    intersection_areas = np.array([np.sum(hole_mask[y:y2, x:x2]) for x, y, x2, y2 in bboxes_int[:, :4]])
+    remaining_areas = box_areas - intersection_areas
+    visibility_ratios = remaining_areas / box_areas
+    mask = (remaining_areas >= min_area) & (visibility_ratios >= min_visibility)
 
-    # Calculate box areas
-    box_areas = (x_max - x_min) * (y_max - y_min)
+    valid_boxes = bboxes[mask]
+    if len(valid_boxes) == 0:
+        return np.empty((0, bboxes.shape[1]))
 
-    # Create a mask of the same shape as bboxes
-    mask = np.zeros(len(bboxes), dtype=bool)
-
-    for i in range(len(bboxes)):
-        intersection_area = np.sum(hole_mask[y_min[i] : y_max[i], x_min[i] : x_max[i]])
-        remaining_area = box_areas[i] - intersection_area
-        visibility_ratio = 1 - (intersection_area / box_areas[i])
-        mask[i] = (remaining_area >= min_area) and (visibility_ratio >= min_visibility)
-
-    return bboxes[mask]
+    # Try to resize valid boxes
+    return resize_boxes_to_visible_area(valid_boxes, hole_mask)
 
 
 def calculate_grid_dimensions(
