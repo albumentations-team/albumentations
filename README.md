@@ -25,7 +25,7 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 - **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/api_reference/transforms/) to enhance your training data.
 - **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarks/), with optimizations for production use.
 - **Deep Learning Integration**: Works with [PyTorch](https://pytorch.org/), [TensorFlow](https://www.tensorflow.org/), and other frameworks. Part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
-- **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](https://albumentations.ai/docs/#authors).
+- **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](#authors).
 
 ## Community-Driven Project, Supported By
 
@@ -142,11 +142,11 @@ transformed_image = transformed["image"]
 
 ### I am new to image augmentation
 
-Please start with the [introduction articles](https://albumentations.ai/docs/#introduction-to-image-augmentation) about why image augmentation is important and how it helps to build better models.
+Please start with the [introduction articles](https://albumentations.ai/docs/#learning-path) about why image augmentation is important and how it helps to build better models.
 
 ### I want to use Albumentations for the specific task such as classification or segmentation
 
-If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#getting-started-with-albumentations) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
+If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#quick-start-guide) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
 
 ### I want to know how to use Albumentations with deep learning frameworks
 
@@ -302,6 +302,24 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Transpose](https://explore.albumentations.ai/transform/Transpose)                               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [VerticalFlip](https://explore.albumentations.ai/transform/VerticalFlip)                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [XYMasking](https://explore.albumentations.ai/transform/XYMasking)                               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+
+### 3D transforms
+
+3D transforms operate on volumetric data and can modify both the input volume and associated 3D mask.
+
+Where:
+
+- Volume: 3D array of shape (D, H, W) or (D, H, W, C) where D is depth, H is height, W is width, and C is number of channels (optional)
+- Mask3D: Binary or multi-class 3D mask of shape (D, H, W) where each slice represents segmentation for the corresponding volume slice
+
+| Transform                                                                      | Volume | Mask3D | Keypoints |
+| ------------------------------------------------------------------------------ | :----: | :----: | :-------: |
+| [CenterCrop3D](https://explore.albumentations.ai/transform/CenterCrop3D)       | ✓      | ✓      | ✓         |
+| [CoarseDropout3D](https://explore.albumentations.ai/transform/CoarseDropout3D) | ✓      | ✓      | ✓         |
+| [CubicSymmetry](https://explore.albumentations.ai/transform/CubicSymmetry)     | ✓      | ✓      | ✓         |
+| [Pad3D](https://explore.albumentations.ai/transform/Pad3D)                     | ✓      | ✓      | ✓         |
+| [PadIfNeeded3D](https://explore.albumentations.ai/transform/PadIfNeeded3D)     | ✓      | ✓      | ✓         |
+| [RandomCrop3D](https://explore.albumentations.ai/transform/RandomCrop3D)       | ✓      | ✓      | ✓         |
 
 ## A few more examples of **augmentations**
 
