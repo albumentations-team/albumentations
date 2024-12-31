@@ -356,3 +356,92 @@ def test_resize_boxes_to_visible_area(boxes, hole_mask, expected):
         result, expected,
         err_msg=f"Expected {expected}, but got {result}"
     )
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "holes", "image_shape", "min_area", "min_visibility", "expected"],
+    [
+        # Test case 1: No boxes or holes
+        (
+            np.array([]),  # empty bboxes
+            np.array([]),  # empty holes
+            (100, 100),
+            1.0,
+            0.1,
+            np.array([])
+        ),
+
+        # Test case 2: Single box, single hole - box remains visible
+        (
+            np.array([[10, 10, 30, 30]]),  # 20x20 box
+            np.array([[15, 15, 20, 20]]),  # 5x5 hole in middle
+            (100, 100),
+            100,  # min area
+            0.5,  # min visibility
+            np.array([[10, 10, 30, 30]])  # box remains as >50% visible
+        ),
+
+        # Test case 3: Single box, single hole - box filtered out
+        (
+            np.array([[10, 10, 20, 20]]),  # 10x10 box
+            np.array([[10, 10, 19, 19]]),  # 9x9 hole covering most of box
+            (100, 100),
+            50,    # min area
+            0.5,   # min visibility
+            np.array([], dtype=np.float32).reshape(0, 4)  # box removed as <50% visible
+        ),
+
+        # Test case 4: Multiple boxes, multiple holes
+        (
+            np.array([
+                [10, 10, 20, 20],  # box 1: will be filtered out
+                [30, 30, 40, 40],  # box 2: will remain
+                [50, 50, 60, 60],  # box 3: will be resized
+            ]),
+            np.array([
+                [10, 10, 19, 19],  # hole covering box 1
+                [50, 50, 55, 60],  # hole covering half of box 3
+            ]),
+            (100, 100),
+            25,    # min area
+            0.3,   # min visibility
+            np.array([
+                [30, 30, 40, 40],  # box 2: unchanged
+                [55, 50, 60, 60],  # box 3: resized to visible part
+            ])
+        ),
+
+        # Test case 5: Edge cases with box sizes
+         (
+            np.array([
+                [0, 0, 10, 10],     # box at edge
+                [90, 90, 100, 100], # box at other edge
+                [45, 45, 55, 55],   # box in middle
+            ]),
+            np.array([
+                [0, 0, 5, 10],      # partial hole for first box
+                [95, 95, 100, 100], # small hole for second box
+                [45, 45, 55, 50],   # partial hole for middle box
+            ]),
+            (100, 100),
+            20,    # min area
+            0.4,   # min visibility
+            np.array([
+                [5, 0, 10, 10],      # first box resized from left
+                [90, 90, 100, 100],  # second box unchanged (hole too small)
+                [45, 50, 55, 55],    # middle box resized from top
+            ])
+        ),
+    ]
+)
+def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility, expected):
+    if len(bboxes) > 0:
+        bboxes = bboxes.astype(np.float32)
+    if len(expected) > 0:
+        expected = expected.astype(np.float32)
+
+    result = fdropout.filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
+    np.testing.assert_array_almost_equal(
+        result, expected,
+        err_msg=f"Expected {expected}, but got {result}"
+    )
