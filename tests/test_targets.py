@@ -118,7 +118,6 @@ def test_image_only(augmentation_cls, params):
 )
 def test_dual(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-    print(set(aug._targets),set(DUAL_TARGETS.get(augmentation_cls, ALL_TARGETS)))
     assert set(aug._targets) == set(DUAL_TARGETS.get(augmentation_cls, ALL_TARGETS))
     assert set(aug._targets) <= get_targets_from_methods(augmentation_cls)
 
