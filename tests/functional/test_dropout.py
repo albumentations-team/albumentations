@@ -212,95 +212,6 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
 
 
 @pytest.mark.parametrize(
-    ["regions", "expected"],
-    [
-        # Test case 1: Single scattered holes - return full region
-        (
-            np.array([[
-                [0, 1, 0],
-                [1, 0, 1],
-                [0, 1, 0],
-            ]]),
-            np.array([[0, 0, 3, 3]])
-        ),
-        # Test case 2: Perfect visible rectangle in middle
-        (
-            np.array([[
-                [1, 1, 1, 1],
-                [1, 0, 0, 1],
-                [1, 0, 0, 1],
-                [1, 1, 1, 1],
-            ]]),
-            np.array([[1, 1, 3, 3]])
-        ),
-        # Test case 3: Multiple regions of different types
-        (
-            np.array([
-                # Region 1: L-shaped visible region
-                [
-                    [0, 0, 0],
-                    [0, 1, 1],
-                    [0, 1, 1],
-                ],
-                # Region 2: Single visible pixel
-                [
-                    [1, 1, 1],
-                    [1, 0, 1],
-                    [1, 1, 1],
-                ],
-                # Region 3: Vertical slice
-                [
-                    [1, 0, 1],
-                    [1, 0, 1],
-                    [1, 0, 1],
-                ],
-            ]),
-            np.array([
-                [0, 0, 3, 3],  # Full region for L-shape
-                [1, 1, 2, 2],  # Single pixel
-                [1, 0, 2, 3],  # Vertical slice
-            ])
-        ),
-        # Test case 4: Mix of fully covered and visible regions
-        (
-            np.array([
-                # Region 1: Fully covered (3x3)
-                [
-                    [1, 1, 1],
-                    [1, 1, 1],
-                    [1, 1, 1],
-                ],
-                # Region 2: All visible (padded to 3x3)
-                [
-                    [0, 0, 1],
-                    [0, 0, 1],
-                    [1, 1, 1],
-                ],
-                # Region 3: Horizontal slice
-                [
-                    [1, 1, 1],
-                    [0, 0, 0],
-                    [1, 1, 1],
-                ],
-            ], dtype=np.uint8),
-            np.array([
-                [0, 0, 0, 0],  # Fully covered
-                [0, 0, 2, 2],  # Visible region
-                [0, 1, 3, 2],  # Horizontal slice
-            ])
-        ),
-    ]
-)
-def test_find_region_coordinates_vectorized(regions, expected):
-    """Test vectorized version of find_region_coordinates."""
-    result = fdropout.find_region_coordinates(regions)
-    np.testing.assert_array_equal(
-        result, expected,
-        err_msg=f"Expected {expected}, but got {result}"
-    )
-
-
-@pytest.mark.parametrize(
     ["boxes", "hole_mask", "expected"],
     [
         # Test case 1: Single box with perfect visible rectangle in middle
@@ -338,6 +249,51 @@ def test_find_region_coordinates_vectorized(regions, expected):
                 [40, 40, 45, 50],   # Box 3: width reduced (partially covered)
             ])
         ),
+        # Test case 5: Boxes of different sizes
+        (
+            np.array([
+                [10, 10, 15, 20],   # Tall box: 5x10
+                [30, 30, 50, 40],   # Wide box: 20x10
+                [60, 60, 80, 80],   # Square box: 20x20
+                [90, 90, 92, 98],   # Very thin tall box: 2x8
+            ]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),
+            np.array([
+                [10, 10, 15, 20],   # Tall box: unchanged
+                [30, 30, 40, 40],   # Wide box: right part removed
+                [60, 60, 70, 80],   # Square box: right part removed (not bottom)
+                [90, 90, 92, 98],   # Thin tall box: unchanged
+            ])
+        ),
+        # Test case 6: Overlapping holes on different sized boxes
+        (
+            np.array([
+                [10, 10, 30, 20],   # Wide box: 20x10
+                [40, 40, 45, 60],   # Tall box: 5x20
+                [70, 70, 85, 85],   # Square box: 15x15
+            ]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
+            np.array([
+                [10, 10, 20, 20],   # Wide box: right part removed
+                [40, 50, 45, 60],   # Tall box: top part removed
+                [75, 70, 85, 80],   # Square box: left and bottom parts removed
+            ])
+        ),
+
+        # Test case 7: Complex hole patterns on different sized boxes
+        (
+            np.array([
+                [10, 10, 40, 20],   # Wide box: 30x10
+                [50, 50, 55, 80],   # Tall box: 5x30
+                [70, 70, 90, 90],   # Square box: 20x20
+            ]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
+            np.array([
+                [20, 10, 30, 20],   # Wide box: ends removed
+                [50, 60, 55, 70],   # Tall box: top and bottom removed
+                [75, 75, 85, 85],   # Square box: corners removed
+            ])
+        ),
     ]
 )
 def test_resize_boxes_to_visible_area(boxes, hole_mask, expected):
@@ -346,10 +302,31 @@ def test_resize_boxes_to_visible_area(boxes, hole_mask, expected):
         # For test case 3: create hole in right half of the box
         hole_mask[10:20, 15:20] = 1
 
-    elif len(boxes) == 3:
+    elif len(boxes) == 3 and np.array_equal(boxes[0], [0, 0, 10, 10]):
         # For test case 4: create specific holes
         hole_mask[20:30, 20:30] = 1  # Fully cover second box
         hole_mask[40:50, 45:50] = 1  # Partially cover third box (right part)
+
+    elif len(boxes) == 4:  # Test case 5
+        hole_mask[30:40, 40:50] = 1  # Remove right part of wide box
+        hole_mask[60:80, 70:80] = 1  # Remove bottom part of square box
+
+    elif len(boxes) == 3 and np.array_equal(boxes[0], [10, 10, 30, 20]):  # Test case 6
+        hole_mask[10:20, 20:30] = 1  # Right part of wide box
+        hole_mask[40:50, 40:45] = 1  # Top part of tall box
+        hole_mask[70:85, 70:75] = 1  # Left part of square box
+        hole_mask[80:85, 70:85] = 1  # Bottom part of square box
+
+    elif len(boxes) == 3 and np.array_equal(boxes[0], [10, 10, 40, 20]):  # Test case 7
+        # Complex hole patternss
+        hole_mask[10:20, 10:20] = 1  # Left part of wide box
+        hole_mask[10:20, 30:40] = 1  # Right part of wide box
+        hole_mask[50:60, 50:55] = 1  # Top part of tall box
+        hole_mask[70:80, 50:55] = 1  # Bottom part of tall box
+        hole_mask[70:75, 70:90] = 1  # Top edge of square box
+        hole_mask[85:90, 70:90] = 1  # Bottom edge of square box
+        hole_mask[70:90, 70:75] = 1  # Left edge of square box
+        hole_mask[70:90, 85:90] = 1  # Right edge of square box
 
     result = fdropout.resize_boxes_to_visible_area(boxes, hole_mask)
     np.testing.assert_array_equal(
@@ -430,6 +407,99 @@ def test_resize_boxes_to_visible_area(boxes, hole_mask, expected):
                 [5, 0, 10, 10],      # first box resized from left
                 [90, 90, 100, 100],  # second box unchanged (hole too small)
                 [45, 50, 55, 55],    # middle box resized from top
+            ])
+        ),
+        (
+            np.array([
+                [10, 10, 15, 30],   # Tall thin box: 5x20
+                [30, 30, 60, 40],   # Wide short box: 30x10
+                [50, 50, 70, 70],   # Square box: 20x20
+                [80, 80, 82, 98],   # Very thin tall box: 2x18
+                [90, 90, 100, 95],  # Regular box: 10x5
+            ]),
+            np.array([
+                [10, 20, 15, 25],    # Middle hole in tall thin box
+                [45, 30, 60, 40],    # Right half of wide box
+                [50, 50, 70, 60],    # Top half of square box
+                [80, 85, 82, 90],    # Middle section of very thin box
+                [95, 90, 100, 95],   # Right half of regular box
+            ]),
+            (100, 100),
+            10,     # min area
+            0.3,    # min visibility
+            np.array([
+                [10, 10, 15, 30],    # Top part of tall thin box
+                [30, 30, 45, 40],    # Left part of wide box
+                [50, 60, 70, 70],    # Bottom part of square box
+                [80, 80, 82, 98],    # Top part of thin tall box
+                [90, 90, 95, 95],    # Left part of regular box
+            ])
+        ),
+
+        # Test case 7: Mixed visibility ratios
+        (
+            np.array([
+                [10, 10, 30, 20],    # Wide box: 20x10
+                [40, 40, 50, 60],    # Tall box: 10x20
+                [70, 70, 90, 90],    # Square box: 20x20
+                [5, 80, 15, 95],     # Another tall box: 10x15
+            ]),
+            np.array([
+                [10, 10, 15, 20],    # Small hole (25% coverage)
+                [40, 40, 50, 45],    # Small hole (25% coverage)
+                [70, 70, 90, 80],    # Large hole (50% coverage)
+                [5, 80, 15, 90],     # Large hole (66% coverage)
+            ]),
+            (100, 100),
+            50,     # min area
+            0.6,    # min visibility - strict
+            np.array([
+                [15, 10, 30, 20],    # Box 1: remains with resize
+                [40, 45, 50, 60],    # Box 2: remains with resize
+            ])
+        ),
+        # Test case 8: Corner and edge cases
+        (
+            np.array([
+                [0, 0, 20, 10],      # Top edge box
+                [90, 0, 100, 20],    # Top right corner box
+                [0, 90, 10, 100],    # Bottom left corner box
+                [50, 95, 70, 100],   # Bottom edge box
+            ]),
+            np.array([
+                [0, 0, 10, 10],      # Top left corner hole
+                [95, 0, 100, 20],    # Right edge hole
+                [0, 95, 10, 100],    # Bottom left corner hole
+                [50, 98, 70, 100],   # Small bottom edge hole
+            ]),
+            (100, 100),
+            30,     # min area
+            0.5,    # min visibility
+            np.array([
+                [10, 0, 20, 10],     # Right half remains
+                [90, 0, 95, 20],     # Left part remains
+                [0, 90, 10, 95],     # Bottom left corner hole
+                [50, 95, 70, 98],    # Top part remains
+            ])
+        ), # Test case for tall/vertical boxes
+        (
+            np.array([
+                [10, 10, 15, 40],   # Tall thin box: 5x30
+                [30, 10, 35, 50],   # Another tall box: 5x40
+                [50, 20, 55, 80],   # Very tall box: 5x60
+            ]),
+            np.array([
+                [10, 20, 15, 30],   # Middle hole in first box
+                [30, 30, 35, 40],   # Middle hole in second box
+                [50, 40, 55, 60],   # Middle hole in third box
+            ]),
+            (100, 100),
+            10,     # min area
+            0.4,    # min visibility
+            np.array([
+                [10, 10, 15, 40],   # Top part of first box
+                [30, 10, 35, 50],   # Top part of second box
+                [50, 20, 55, 80],   # Top part of third box
             ])
         ),
     ]
