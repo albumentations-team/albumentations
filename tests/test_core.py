@@ -741,7 +741,7 @@ def test_contiguous_output_dual(augmentation_cls, params):
     transform = augmentation_cls(p=1, **params)
 
     data = {"image": image, "mask": mask}
-    if augmentation_cls == A.MaskDropout:
+    if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -1118,7 +1118,8 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
     if len(shape) == 2:
         if augmentation_cls in {A.ChannelDropout, A.Spatter, A.ISONoise,
                                 A.RandomGravel, A.ChromaticAberration, A.PlanckianJitter, A.PixelDistributionAdaptation,
-                                A.MaskDropout, A.ChannelShuffle, A.ToRGB, A.RandomSunFlare, A.RandomFog, A.RandomSnow, A.RandomRain}:
+                                A.MaskDropout, A.ConstrainedCoarseDropout, A.ChannelShuffle, A.ToRGB, A.RandomSunFlare,
+                                A.RandomFog, A.RandomSnow, A.RandomRain}:
             pytest.skip("ChannelDropout is not applicable to grayscale images")
 
 
@@ -1134,7 +1135,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
         # Original list format
         data = {"images": [image, image2]}
 
-    if augmentation_cls == A.MaskDropout:
+    if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -1272,7 +1273,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             # requires float image
             image = (image / 255).astype(np.float32)
             assert not image.flags["C_CONTIGUOUS"]
-        elif augmentation_cls == A.MaskDropout:
+        elif augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
             # requires single channel mask
             mask = mask[:, :, 0]
 
@@ -1410,6 +1411,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.RandomCropNearBBox,
             A.GridDropout,
             A.CoarseDropout,
+            A.ConstrainedCoarseDropout,
             A.PadIfNeeded,
         },
     ),

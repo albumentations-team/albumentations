@@ -3,15 +3,16 @@ from __future__ import annotations
 from typing import Annotated, Any
 from warnings import warn
 
+import cv2
 import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Self
 
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
-from albumentations.core.types import ColorType, DropoutFillValue, Number, ScalarType
+from albumentations.core.types import ColorType, DropoutFillValue, Number, ScalarType, Targets
 
-__all__ = ["CoarseDropout", "Erasing"]
+__all__ = ["CoarseDropout", "ConstrainedCoarseDropout", "Erasing"]
 
 
 class CoarseDropout(BaseDropout):
@@ -395,3 +396,265 @@ class Erasing(BaseDropout):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "scale", "ratio", "fill", "fill_mask"
+
+
+class ConstrainedCoarseDropout(CoarseDropout):
+    """Constrained Coarse Dropout randomly drops out rectangular regions inside
+    the objects of a particular class (these classes are user-specified).
+
+    This transform identifies objects in the mask belonging to the user-specified classes and
+    randomly drops out rectangular regions within the bounding boxes that enclose these objects.
+
+    Args:
+        num_holes_range (tuple[int, int]): Range (min, max) for the number of rectangular
+            regions to drop out. Default: (1, 1)
+        hole_height_range (tuple[float, float]): Range (min, max) for the height
+            of dropout regions. Specifies the hole height as a fraction of the object height.
+            Default: (0.1, 0.1)
+        hole_width_range (tuple[Real, Real]): Range (min, max) for the width
+            of dropout regions.Specifies the hole width as a fraction of the object width.
+            Default: (0.1, 0.1)
+        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+            Value for the dropped pixels. Can be:
+            - int or float: all channels are filled with this value
+            - tuple: tuple of values for each channel
+            - 'random': each pixel is filled with random values
+            - 'random_uniform': each hole is filled with a single random color
+            - 'inpaint_telea': uses OpenCV Telea inpainting method
+            - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
+            Default: 0
+        fill_mask (ColorType | None): Fill value for dropout regions in the mask.
+            If None, mask regions corresponding to image dropouts are unchanged. Default: None
+        p (float): Probability of applying the transform. Default: 0.5
+        class_indices (list[int] | None): The classes of the object on which constrained coarse
+            dropout is to be applied. If None, defaults to regular Coarse Dropout.
+            Default : None
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - The mask should be a single-channel image where 0 represents the background and non-zero values represent
+          different object instances.
+    """
+
+    _targets: tuple[Targets, ...] | Targets = (Targets.IMAGE, Targets.MASK)
+
+    class InitSchema(BaseDropout.InitSchema):
+        num_holes_range: Annotated[
+            tuple[int, int],
+            AfterValidator(check_range_bounds(1, None)),
+            AfterValidator(nondecreasing),
+        ]
+
+        hole_height_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0.0, 1.0)),
+        ]
+
+        hole_width_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0.0, 1.0)),
+        ]
+
+        class_indices: Annotated[
+            list[int] | None,
+            AfterValidator(check_range_bounds(1, 255)),
+        ]
+
+        @staticmethod
+        def validate_range(range_value: tuple[float, float], range_name: str, minimum: float = 0) -> None:
+            if not minimum <= range_value[0] <= range_value[1]:
+                raise ValueError(
+                    f"First value in {range_name} should be less or equal than the second value "
+                    f"and at least {minimum}. Got: {range_value}",
+                )
+            if isinstance(range_value[0], float) and not all(0 <= x <= 1 for x in range_value):
+                raise ValueError(f"All values in {range_name} should be in [0, 1] range. Got: {range_value}")
+
+        @model_validator(mode="after")
+        def check_num_holes_and_dimensions(self) -> Self:
+            self.validate_range(self.num_holes_range, "num_holes_range", minimum=1)
+            self.validate_range(self.hole_height_range, "hole_height_range")
+            self.validate_range(self.hole_width_range, "hole_width_range")
+
+            return self
+
+    def __init__(
+        self,
+        fill_value: DropoutFillValue | None = None,
+        mask_fill_value: ColorType | None = None,
+        num_holes_range: tuple[int, int] = (1, 1),
+        hole_height_range: tuple[float, float] = (0.1, 0.1),
+        hole_width_range: tuple[float, float] = (0.1, 0.1),
+        fill: DropoutFillValue = 0,
+        fill_mask: ColorType | None = None,
+        p: float = 0.5,
+        always_apply: bool | None = None,
+        class_indices: list[int] | None = None,
+    ):
+        super().__init__(fill=fill, fill_mask=fill_mask, p=p)
+        self.num_holes_range = num_holes_range
+        self.hole_height_range = hole_height_range
+        self.hole_width_range = hole_width_range
+        self.class_indices = class_indices
+
+    def calculate_constrained_hole_dimensions(
+        self,
+        height_range: tuple[float, float],
+        width_range: tuple[float, float],
+        foreground_bounding_box_coords: np.ndarray,
+        hole_to_foreground_object_map: np.ndarray,
+        size: int,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Maps each hole randomly to a foreground object and calculates hole dimensions randomly relative
+        to the respective foreground object's dimensions
+        """
+        _, _, foreground_bounding_boxes_width, foreground_bounding_boxes_height = foreground_bounding_box_coords
+
+        hole_heights_raw = foreground_bounding_boxes_height[hole_to_foreground_object_map]
+        hole_widths_raw = foreground_bounding_boxes_width[hole_to_foreground_object_map]
+
+        hole_heights_proportion = self.random_generator.uniform(*height_range, size=size)
+        hole_widths_proportion = self.random_generator.uniform(*width_range, size=size)
+
+        hole_heights = hole_heights_raw * hole_heights_proportion
+        hole_widths = hole_widths_raw * hole_widths_proportion
+
+        hole_heights = hole_heights.astype(int)
+        hole_widths = hole_widths.astype(int)
+
+        return hole_heights, hole_widths
+
+    def get_hole_origin_coordinates(
+        self,
+        foreground_bounding_box_coords: np.ndarray,
+        hole_to_foreground_object_map: np.ndarray,
+        hole_heights: np.ndarray,
+        hole_widths: np.ndarray,
+        size: int,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Function that samples the starting coordinates of holes.
+        A proportion is sampled for each hole. Then a linear interpolation is done between the ends of the foreground
+        bounding box to which the hole is mapped to get the starting points of each hole.
+        This function is vectorised because two holes can correspond to two different foreground objects (each object)
+        having different dimensions and hence their starting coordinates would have to be calculated separately.
+        """
+        x_min_foreground, y_min_foreground, foreground_bounding_boxes_width, foreground_bounding_boxes_height = (
+            foreground_bounding_box_coords
+        )
+
+        x_min_holes = x_min_foreground[hole_to_foreground_object_map]
+        y_min_holes = y_min_foreground[hole_to_foreground_object_map]
+
+        hole_heights_raw = foreground_bounding_boxes_height[hole_to_foreground_object_map]
+        hole_widths_raw = foreground_bounding_boxes_width[hole_to_foreground_object_map]
+
+        height_proportions_hole = self.random_generator.uniform(0, 1, size)
+        width_proportions_hole = self.random_generator.uniform(0, 1, size)
+
+        x_min_holes = x_min_holes + width_proportions_hole * (hole_widths_raw - hole_widths)
+        y_min_holes = y_min_holes + height_proportions_hole * (hole_heights_raw - hole_heights)
+
+        x_min_holes = x_min_holes.astype(int)
+        y_min_holes = y_min_holes.astype(int)
+
+        return y_min_holes, x_min_holes
+
+    def get_bbox_coords(self, mask: np.ndarray) -> np.ndarray:
+        foreground_contours, _ = cv2.findContours(mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
+
+        object_bounding_boxes_list = []
+        for contour in foreground_contours:
+            object_bounding_box = cv2.boundingRect(contour)
+            object_bounding_boxes_list.append(object_bounding_box)
+
+        # Empty list implies no foreground
+        if not object_bounding_boxes_list:
+            return None
+
+        return np.stack(object_bounding_boxes_list, axis=1)
+
+    def get_foreground_objects_bounding_box_coords(self, mask: np.ndarray) -> np.ndarray:
+        """Function that retrieves the bounding box coordinates (x,y,w,h) for bounding boxes
+        enclosing the foreground objects which belong to the classes specified by the user.
+        """
+        mask = mask.astype(np.uint8)
+        foreground_indices_mask = np.isin(mask, np.array(self.class_indices))
+        foreground_mask = np.where(foreground_indices_mask, 255, 0)
+        foreground_mask = foreground_mask.astype(np.uint8)
+
+        return self.get_bbox_coords(foreground_mask)
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Function that gets the hole parameters for ConstrainedCoarseDropout class.
+        Number of holes are sampled randomly, each hole is mapped to a foreground object (belonging to a class
+        specified by the user). This is done to ensure that regions dropped out from the image are the regions
+        which also contain a foreground object of the class specified by the user.
+
+        Each hole's dimensions and origin point is calculated relative to the dimension and location of the
+        foreground object to which it is assigned.
+        """
+        num_holes = self.py_random.randint(*self.num_holes_range)
+
+        if "mask" not in data:
+            warn("Mask not supplied as input, proceeding with default Coarse Dropout", stacklevel=2)
+            return super().get_params_dependent_on_data(params=params, data=data)
+
+        if not self.class_indices:
+            warn(
+                "No classes are selected for constrained coarse dropout,proceeding with default Coarse Dropout",
+                stacklevel=2,
+            )
+            return super().get_params_dependent_on_data(params=params, data=data)
+
+        mask = data["mask"]
+        mask = mask.copy()
+        foreground_bounding_box_coords = self.get_foreground_objects_bounding_box_coords(mask)
+
+        # foreground_object_coords having None value implies no foreground objects. In that case
+        # params would be returned using Coarse Dropout function
+        if foreground_bounding_box_coords is None:
+            return super().get_params_dependent_on_data(params=params, data=data)
+
+        num_foreground_objects = foreground_bounding_box_coords.shape[1]
+
+        # Mapping from hole to a foreground object, done so that each hole is assigned randomly to a
+        # foreground object
+        hole_to_foreground_object_map = self.random_generator.integers(0, num_foreground_objects, size=num_holes)
+
+        hole_heights, hole_widths = self.calculate_constrained_hole_dimensions(
+            height_range=self.hole_height_range,
+            width_range=self.hole_width_range,
+            foreground_bounding_box_coords=foreground_bounding_box_coords,
+            hole_to_foreground_object_map=hole_to_foreground_object_map,
+            size=num_holes,
+        )
+
+        y_min, x_min = self.get_hole_origin_coordinates(
+            foreground_bounding_box_coords=foreground_bounding_box_coords,
+            hole_to_foreground_object_map=hole_to_foreground_object_map,
+            hole_heights=hole_heights,
+            hole_widths=hole_widths,
+            size=num_holes,
+        )
+        y_max = y_min + hole_heights
+        x_max = x_min + hole_widths
+
+        holes = np.stack([x_min, y_min, x_max, y_max], axis=-1)
+
+        return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            *super().get_transform_init_args_names(),
+            "num_holes_range",
+            "hole_height_range",
+            "hole_width_range",
+            "class_indices",
+        )

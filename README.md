@@ -258,6 +258,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [BBoxSafeRandomCrop](https://explore.albumentations.ai/transform/BBoxSafeRandomCrop)             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [CenterCrop](https://explore.albumentations.ai/transform/CenterCrop)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [CoarseDropout](https://explore.albumentations.ai/transform/CoarseDropout)                       | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [ConstrainedCoarseDropout](https://explore.albumentations.ai/transform/ConstrainedCoarseDropout) | ✓     | ✓    |        |           |        |        |
 | [Crop](https://explore.albumentations.ai/transform/Crop)                                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [CropAndPad](https://explore.albumentations.ai/transform/CropAndPad)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [CropNonEmptyMaskIfExists](https://explore.albumentations.ai/transform/CropNonEmptyMaskIfExists) | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
@@ -301,24 +302,6 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Transpose](https://explore.albumentations.ai/transform/Transpose)                               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [VerticalFlip](https://explore.albumentations.ai/transform/VerticalFlip)                         | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [XYMasking](https://explore.albumentations.ai/transform/XYMasking)                               | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
-
-### 3D transforms
-
-3D transforms operate on volumetric data and can modify both the input volume and associated 3D mask.
-
-Where:
-
-- Volume: 3D array of shape (D, H, W) or (D, H, W, C) where D is depth, H is height, W is width, and C is number of channels (optional)
-- Mask3D: Binary or multi-class 3D mask of shape (D, H, W) where each slice represents segmentation for the corresponding volume slice
-
-| Transform                                                                      | Volume | Mask3D | Keypoints |
-| ------------------------------------------------------------------------------ | :----: | :----: | :-------: |
-| [CenterCrop3D](https://explore.albumentations.ai/transform/CenterCrop3D)       | ✓      | ✓      | ✓         |
-| [CoarseDropout3D](https://explore.albumentations.ai/transform/CoarseDropout3D) | ✓      | ✓      | ✓         |
-| [CubicSymmetry](https://explore.albumentations.ai/transform/CubicSymmetry)     | ✓      | ✓      | ✓         |
-| [Pad3D](https://explore.albumentations.ai/transform/Pad3D)                     | ✓      | ✓      | ✓         |
-| [PadIfNeeded3D](https://explore.albumentations.ai/transform/PadIfNeeded3D)     | ✓      | ✓      | ✓         |
-| [RandomCrop3D](https://explore.albumentations.ai/transform/RandomCrop3D)       | ✓      | ✓      | ✓         |
 
 ## A few more examples of **augmentations**
 

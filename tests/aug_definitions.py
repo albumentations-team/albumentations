@@ -36,6 +36,23 @@ AUGMENTATION_CLS_PARAMS = [
         },
     ],
     [
+        A.ConstrainedCoarseDropout,
+        {
+            "num_holes_range": (2, 5),
+            "hole_height_range": (0.1, 0.2),
+            "hole_width_range": (0.2, 0.3),
+            "class_indices" : [2,3]
+        },
+    ],
+    [
+        A.ConstrainedCoarseDropout,
+        {
+            "num_holes_range": (2, 5),
+            "hole_height_range": (0.1, 0.2),
+            "hole_width_range": (0.2, 0.3)
+        },
+    ],
+    [
         A.RandomSnow,
         {"snow_point_range": (0.2, 0.4), "brightness_coeff": 4},
     ],
