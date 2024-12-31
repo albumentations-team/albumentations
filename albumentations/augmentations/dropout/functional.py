@@ -257,16 +257,16 @@ def resize_boxes_to_visible_area(
     y2 = boxes[:, 3].astype(int)
 
     # Process each box individually to avoid array shape issues
-    new_boxes = []
-    for i in range(len(boxes)):
-        # Get current box region
-        region = hole_mask[y1[i] : y2[i], x1[i] : x2[i]]
+    new_boxes: list[np.ndarray] = []
 
-        # Find visible area
-        visible = 1 - region
+    regions = [hole_mask[y1[i] : y2[i], x1[i] : x2[i]] for i in range(len(boxes))]
+    visible_areas = [1 - region for region in regions]
+
+    for i, (visible, box) in enumerate(zip(visible_areas, boxes)):
         if not visible.any():
-            # Box is fully covered
-            new_box = boxes[i].copy()
+            # Box is fully covered - handle directly
+            new_box = box.copy()
+
             new_box[2:] = new_box[:2]  # collapse to point
             new_boxes.append(new_box)
             continue
