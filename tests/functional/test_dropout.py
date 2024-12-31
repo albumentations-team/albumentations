@@ -5,7 +5,7 @@ from albumentations.augmentations.dropout.functional import label as cv_label
 
 from albucore import MAX_VALUES_BY_DTYPE
 
-from albumentations.augmentations.dropout.functional import cutout, filter_bboxes_by_holes
+import albumentations.augmentations.dropout.functional as fdropout
 
 from tests.utils import set_seed
 
@@ -107,7 +107,7 @@ def test_label_function_full_mask():
 def test_cutout_with_various_fill_values(img, fill):
     holes = [(2, 2, 5, 5)]
     generator = np.random.default_rng(42)
-    result = cutout(img, holes, fill, generator)
+    result = fdropout.cutout(img, holes, fill, generator)
 
     # Compute expected result
     expected_result = img.copy()
@@ -141,7 +141,7 @@ def test_cutout_with_random_fills(img_shape, fill):
     holes = np.array([[2, 2, 5, 5]])
     generator = np.random.default_rng(42)
 
-    result = cutout(img, holes, fill, generator)
+    result = fdropout.cutout(img, holes, fill, generator)
 
 
 @pytest.mark.parametrize(
@@ -188,7 +188,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
                 else [(i / shape[2]) for i in range(shape[2])]
             )
 
-    result_img = cutout(img, holes, fill, generator)
+    result_img = fdropout.cutout(img, holes, fill, generator)
 
     if fill_type == "random":
         assert result_img.dtype == dtype
@@ -212,136 +212,236 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
 
 
 @pytest.mark.parametrize(
-    "bboxes, holes, image_shape, min_area, min_visibility, expected_bboxes",
+    ["regions", "expected"],
     [
-        # Test case 1: No intersection
+        # Test case 1: Single scattered holes - return full region
         (
-            np.array([[10, 10, 20, 20]]),
-            np.array([[30, 30, 40, 40]]),
-            (50, 50),
-            100,
-            0.5,
-            np.array([[10, 10, 20, 20]]),
+            np.array([[
+                [0, 1, 0],
+                [1, 0, 1],
+                [0, 1, 0],
+            ]]),
+            np.array([[0, 0, 3, 3]])
         ),
-        # Test case 2: Small intersection
+        # Test case 2: Perfect visible rectangle in middle
         (
-            np.array([[10, 10, 30, 30]]),
-            np.array([[25, 25, 35, 35]]),
-            (50, 50),
-            100,
-            0.5,
-            np.array([[10, 10, 30, 30]]),
+            np.array([[
+                [1, 1, 1, 1],
+                [1, 0, 0, 1],
+                [1, 0, 0, 1],
+                [1, 1, 1, 1],
+            ]]),
+            np.array([[1, 1, 3, 3]])
         ),
-        # Test case 3: Large intersection
+        # Test case 3: Multiple regions of different types
         (
-            np.array([[10, 10, 40, 40]]),
-            np.array([[20, 20, 30, 30]]),
-            (50, 50),
-            100,
-            0.5,
-            np.array([[10, 10, 40, 40]]),
+            np.array([
+                # Region 1: L-shaped visible region
+                [
+                    [0, 0, 0],
+                    [0, 1, 1],
+                    [0, 1, 1],
+                ],
+                # Region 2: Single visible pixel
+                [
+                    [1, 1, 1],
+                    [1, 0, 1],
+                    [1, 1, 1],
+                ],
+                # Region 3: Vertical slice
+                [
+                    [1, 0, 1],
+                    [1, 0, 1],
+                    [1, 0, 1],
+                ],
+            ]),
+            np.array([
+                [0, 0, 3, 3],  # Full region for L-shape
+                [1, 1, 2, 2],  # Single pixel
+                [1, 0, 2, 3],  # Vertical slice
+            ])
         ),
-        # Test case 4: Multiple bboxes, some intersecting
+        # Test case 4: Mix of fully covered and visible regions
         (
-            np.array([[10, 10, 20, 20], [30, 30, 40, 40], [50, 50, 60, 60]]),
-            np.array([[15, 15, 25, 25], [45, 45, 55, 55]]),
-            (100, 100),
-            100,
-            0.5,
-            np.array([[30, 30, 40, 40]]),
+            np.array([
+                # Region 1: Fully covered (3x3)
+                [
+                    [1, 1, 1],
+                    [1, 1, 1],
+                    [1, 1, 1],
+                ],
+                # Region 2: All visible (padded to 3x3)
+                [
+                    [0, 0, 1],
+                    [0, 0, 1],
+                    [1, 1, 1],
+                ],
+                # Region 3: Horizontal slice
+                [
+                    [1, 1, 1],
+                    [0, 0, 0],
+                    [1, 1, 1],
+                ],
+            ], dtype=np.uint8),
+            np.array([
+                [0, 0, 0, 0],  # Fully covered
+                [0, 0, 2, 2],  # Visible region
+                [0, 1, 3, 2],  # Horizontal slice
+            ])
         ),
-        # Test case 5: Multiple holes
-        (
-            np.array([[10, 10, 30, 30], [40, 40, 60, 60]]),
-            np.array([[15, 15, 25, 25], [45, 45, 55, 55]]),
-            (100, 100),
-            100,
-            0.5,
-            np.array([[10, 10, 30, 30], [40, 40, 60, 60]]),
-        ),
-        # Test case 6: Empty bboxes
-        (
-            np.array([]),
-            np.array([[15, 15, 25, 25]]),
-            (50, 50),
-            100,
-            0.5,
-            np.array([]),
-        ),
-        # Test case 7: Empty holes
-        (
-            np.array([[10, 10, 20, 20]]),
-            np.array([]),
-            (50, 50),
-            100,
-            0.5,
-            np.array([[10, 10, 20, 20]]),
-        ),
-        # Test case 8: Bbox exactly equal to min_area
-        (
-            np.array([[10, 10, 20, 20]]),
-            np.array([[10, 10, 20, 20]]),
-            (50, 50),
-            100,
-            0.5,
-            np.array([]).reshape(0, 4),
-        ),
-        # Test case 9: High min_visibility
-        (
-            np.array([[10, 10, 30, 30]]),
-            np.array([[15, 15, 25, 25]]),
-            (50, 50),
-            100,
-            0.9,
-            np.array([]).reshape(0, 4),
-        ),
-        # Test case 10: Low min_visibility
-        (
-            np.array([[10, 10, 30, 30]]),
-            np.array([[15, 15, 25, 25]]),
-            (50, 50),
-            100,
-            0.1,
-            np.array([[10, 10, 30, 30]]),
-        ),
-    ],
+    ]
 )
-def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility, expected_bboxes):
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
-    np.testing.assert_array_equal(filtered_bboxes, expected_bboxes)
+def test_find_region_coordinates_vectorized(regions, expected):
+    """Test vectorized version of find_region_coordinates."""
+    result = fdropout.find_region_coordinates(regions)
+    np.testing.assert_array_equal(
+        result, expected,
+        err_msg=f"Expected {expected}, but got {result}"
+    )
 
 
 @pytest.mark.parametrize(
-    "min_area, min_visibility, expected",
+    ["boxes", "hole_mask", "expected"],
     [
-        (50, 0.5, np.array([[10, 10, 30, 30]])),
-        (150, 0.5, np.array([[10, 10, 30, 30]])),
-        (310, 0.5, np.array([]).reshape(0, 4)),
-        (50, 0.9, np.array([]).reshape(0, 4)),
-        (50, 0.1, np.array([[10, 10, 30, 30]])),
-    ],
+        # Test case 1: Single box with perfect visible rectangle in middle
+        (
+            np.array([[10, 20, 14, 24]]),  # box: x1=10, y1=20, x2=14, y2=24
+            np.zeros((100, 100), dtype=np.uint8),  # Full image visible
+            np.array([[10, 20, 14, 24]])  # Expected: unchanged as no holes
+        ),
+
+        # Test case 2: Single box fully covered by hole
+        (
+            np.array([[5, 5, 8, 8]]),
+            np.ones((100, 100), dtype=np.uint8),  # Full image covered
+            np.array([[5, 5, 5, 5]])  # Box collapses to point when fully covered
+        ),
+
+        # Test case 3: Box partially covered by hole
+        (
+            np.array([[10, 10, 20, 20]]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
+            np.array([[10, 10, 15, 20]])  # Only left part visible after hole
+        ),
+
+        # Test case 4: Multiple boxes with different coverage
+        (
+            np.array([
+                [0, 0, 10, 10],    # Box 1: fully visible
+                [20, 20, 30, 30],  # Box 2: fully covered
+                [40, 40, 50, 50],  # Box 3: partially covered
+            ]),
+            np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
+            np.array([
+                [0, 0, 10, 10],     # Box 1: unchanged (no hole)
+                [20, 20, 20, 20],   # Box 2: collapsed (fully covered)
+                [40, 40, 45, 50],   # Box 3: width reduced (partially covered)
+            ])
+        ),
+    ]
 )
-def test_filter_bboxes_by_holes_different_params(min_area, min_visibility, expected):
-    bboxes = np.array([[10, 10, 30, 30]])
-    holes = np.array([[15, 15, 25, 25]])
-    image_shape = (50, 50)
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
-    np.testing.assert_array_equal(filtered_bboxes, expected)
+def test_resize_boxes_to_visible_area(boxes, hole_mask, expected):
+    # Create holes in the mask for specific test cases
+    if len(boxes) == 1 and np.array_equal(boxes[0], [10, 10, 20, 20]):
+        # For test case 3: create hole in right half of the box
+        hole_mask[10:20, 15:20] = 1
+
+    elif len(boxes) == 3:
+        # For test case 4: create specific holes
+        hole_mask[20:30, 20:30] = 1  # Fully cover second box
+        hole_mask[40:50, 45:50] = 1  # Partially cover third box (right part)
+
+    result = fdropout.resize_boxes_to_visible_area(boxes, hole_mask)
+    np.testing.assert_array_equal(
+        result, expected,
+        err_msg=f"Expected {expected}, but got {result}"
+    )
 
 
-def test_filter_bboxes_by_holes_edge_cases():
-    # Test with min_visibility = 0 (should keep all bboxes)
-    bboxes = np.array([[10, 10, 20, 20], [30, 30, 40, 40]])
-    holes = np.array([[15, 15, 25, 25]])
-    image_shape = (50, 50)
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area=1, min_visibility=0)
-    np.testing.assert_array_equal(filtered_bboxes, bboxes)
+@pytest.mark.parametrize(
+    ["bboxes", "holes", "image_shape", "min_area", "min_visibility", "expected"],
+    [
+        # Test case 1: No boxes or holes
+        (
+            np.array([]),  # empty bboxes
+            np.array([]),  # empty holes
+            (100, 100),
+            1.0,
+            0.1,
+            np.array([])
+        ),
 
-    # Test with min_visibility = 1 (should remove all intersecting bboxes)
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, holes, image_shape, min_area=1, min_visibility=1)
-    np.testing.assert_array_equal(filtered_bboxes, np.array([[30, 30, 40, 40]]))
+        # Test case 2: Single box, single hole - box remains visible
+        (
+            np.array([[10, 10, 30, 30]]),  # 20x20 box
+            np.array([[15, 15, 20, 20]]),  # 5x5 hole in middle
+            (100, 100),
+            100,  # min area
+            0.5,  # min visibility
+            np.array([[10, 10, 30, 30]])  # box remains as >50% visible
+        ),
 
-    # Test with very large hole (should remove all bboxes)
-    large_hole = np.array([[0, 0, 50, 50]])
-    filtered_bboxes = filter_bboxes_by_holes(bboxes, large_hole, image_shape, min_area=1, min_visibility=0.1)
-    np.testing.assert_array_equal(filtered_bboxes, np.array([]).reshape(0, 4))
+        # Test case 3: Single box, single hole - box filtered out
+        (
+            np.array([[10, 10, 20, 20]]),  # 10x10 box
+            np.array([[10, 10, 19, 19]]),  # 9x9 hole covering most of box
+            (100, 100),
+            50,    # min area
+            0.5,   # min visibility
+            np.array([], dtype=np.float32).reshape(0, 4)  # box removed as <50% visible
+        ),
+
+        # Test case 4: Multiple boxes, multiple holes
+        (
+            np.array([
+                [10, 10, 20, 20],  # box 1: will be filtered out
+                [30, 30, 40, 40],  # box 2: will remain
+                [50, 50, 60, 60],  # box 3: will be resized
+            ]),
+            np.array([
+                [10, 10, 19, 19],  # hole covering box 1
+                [50, 50, 55, 60],  # hole covering half of box 3
+            ]),
+            (100, 100),
+            25,    # min area
+            0.3,   # min visibility
+            np.array([
+                [30, 30, 40, 40],  # box 2: unchanged
+                [55, 50, 60, 60],  # box 3: resized to visible part
+            ])
+        ),
+
+        # Test case 5: Edge cases with box sizes
+         (
+            np.array([
+                [0, 0, 10, 10],     # box at edge
+                [90, 90, 100, 100], # box at other edge
+                [45, 45, 55, 55],   # box in middle
+            ]),
+            np.array([
+                [0, 0, 5, 10],      # partial hole for first box
+                [95, 95, 100, 100], # small hole for second box
+                [45, 45, 55, 50],   # partial hole for middle box
+            ]),
+            (100, 100),
+            20,    # min area
+            0.4,   # min visibility
+            np.array([
+                [5, 0, 10, 10],      # first box resized from left
+                [90, 90, 100, 100],  # second box unchanged (hole too small)
+                [45, 50, 55, 55],    # middle box resized from top
+            ])
+        ),
+    ]
+)
+def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility, expected):
+    if len(bboxes) > 0:
+        bboxes = bboxes.astype(np.float32)
+    if len(expected) > 0:
+        expected = expected.astype(np.float32)
+
+    result = fdropout.filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibility)
+    np.testing.assert_array_almost_equal(
+        result, expected,
+        err_msg=f"Expected {expected}, but got {result}"
+    )

@@ -2404,6 +2404,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.Perspective,
             A.RandomGridShuffle,
             A.TimeReverse,
+            A.Erasing
         },
     ),
 )
@@ -2420,7 +2421,7 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
 
     transform = A.Compose(
         [aug],
-        bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]),
+        bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"], min_area=0, min_visibility=0),
         keypoint_params=A.KeypointParams(format="xy", remove_invisible=False),
         seed=42,
     )
@@ -2437,7 +2438,6 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
     np.testing.assert_allclose(
         transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1.5
     )
-
 
 
 @pytest.mark.parametrize(
