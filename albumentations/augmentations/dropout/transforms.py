@@ -13,7 +13,7 @@ from albumentations.augmentations.dropout.functional import (
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ALL_TARGETS, ColorType, DropoutFillValue
+from albumentations.core.types import ALL_TARGETS, ColorType, DropoutFillValue, Targets
 
 
 class BaseDropout(DualTransform):
@@ -36,7 +36,7 @@ class BaseDropout(DualTransform):
         uint8, float32
     """
 
-    _targets = ALL_TARGETS
+    _targets: tuple[Targets, ...] | Targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
         fill: DropoutFillValue

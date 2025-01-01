@@ -334,7 +334,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
-    elif augmentation_cls == A.MaskDropout:
+    elif augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -492,6 +492,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             A.PadIfNeeded,
             A.RandomScale,
             A.RandomCropFromBorders,
+            A.ConstrainedCoarseDropout
         },
     ),
 )
@@ -644,7 +645,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
-    elif augmentation_cls == A.MaskDropout:
+    elif augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -735,7 +736,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
-    elif augmentation_cls == A.MaskDropout:
+    elif augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -823,7 +824,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
-    elif augmentation_cls == A.MaskDropout:
+    elif augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -910,7 +911,7 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
-    elif augmentation_cls == A.MaskDropout:
+    elif augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
@@ -1129,7 +1130,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     transform = A.Compose([augmentation_cls(p=1, **params)], seed=42)
 
     data = {"image": image_uint8}
-    if augmentation_cls == A.MaskDropout:
+    if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image_uint8)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
