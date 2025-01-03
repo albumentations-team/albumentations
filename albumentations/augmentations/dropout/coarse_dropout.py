@@ -263,7 +263,7 @@ class Erasing(BaseDropout):
             - "inpaint_telea": uses OpenCV Telea inpainting method
             - "inpaint_ns": uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        mask_fill (ColorType | None): Value used to fill erased regions in the mask.
+        fill_mask (ColorType | None): Value used to fill erased regions in the mask.
             If None, mask regions are not modified. Default: None
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -404,31 +404,54 @@ class ConstrainedCoarseDropout(BaseDropout):
 
     This augmentation creates holes (dropout regions) for each target object in the image.
     Objects can be specified either by their class indices in a segmentation mask or
-    by their labels in bounding box annotations. For each target object:
-    1. A fixed number of holes is created (sampled once from num_holes_range)
-    2. Each hole is sized as a proportion of the object's dimensions
-    3. Each hole is positioned randomly within the object's bounding box
+    by their labels in bounding box annotations.
 
-    For example, if num_holes_range=(2,4) and there are 3 target objects, and 3 is sampled,
-    then each object will get exactly 3 holes, for a total of 9 holes in the image.
+    The hole generation differs between mask and box modes:
+
+    Mask mode:
+    1. For each connected component in the mask matching target indices:
+        - Samples N points randomly from within the object region (with replacement)
+        - Creates holes centered at these points
+        - Hole sizes are proportional to sqrt(component area), not total object area
+        - Each component's holes are sized based on its own area
+
+    Box mode:
+    1. For each bounding box matching target labels:
+        - Creates N holes with random positions inside the box
+        - Hole sizes are proportional to the box dimensions
+
+    In both modes:
+    - N is sampled once from num_holes_range and used for all objects
+    - For example, if num_holes_range=(2,4) and 3 is sampled:
+        * With 3 target objects, you'll get exactly 3 holes per object (9 total)
+        * Holes may overlap within or between objects
+        * All holes are clipped to image boundaries
 
     Args:
         num_holes_range (tuple[int, int]): Range for number of holes per object (min, max)
         hole_height_range (tuple[float, float]): Range for hole height as proportion
-            of object height (min, max). E.g., (0.2, 0.4) means hole height will be
-            20-40% of object height.
-        hole_width_range (tuple[float, float]): Range for hole width as proportion
-            of object width (min, max). Similar to hole_height_range.
-        fill (int, float, list of int, list of float): Value for dropped pixels.
-        fill_mask (int, float, list of int, list of float): Value for dropped pixels in mask.
-        p (float): Probability of applying the transform.
+            of object height/size (min, max). E.g., (0.2, 0.4) means:
+            - For boxes: 20-40% of box height
+            - For masks: 20-40% of sqrt(component area)
+        hole_width_range (tuple[float, float]): Range for hole width, similar to height
+        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+            Value used to fill the erased regions. Can be:
+            - int or float: fills all channels with this value
+            - tuple: fills each channel with corresponding value
+            - "random": fills each pixel with random values
+            - "random_uniform": fills entire erased region with a single random color
+            - "inpaint_telea": uses OpenCV Telea inpainting method
+            - "inpaint_ns": uses OpenCV Navier-Stokes inpainting method
+            Default: 0
+        fill_mask (ColorType | None): Value used to fill erased regions in the mask.
+            If None, mask regions are not modified. Default: None
+        p (float): Probability of applying the transform
         mask_indices (List[int], optional): List of class indices in segmentation mask to target.
             Only objects of these classes will be considered for hole placement.
         bbox_labels (List[str | int | float], optional): List of object labels in bbox
             annotations to target. String labels will be automatically encoded.
             When multiple label fields are specified in BboxParams, only the first
             label field is used for filtering.
-
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
@@ -451,8 +474,8 @@ class ConstrainedCoarseDropout(BaseDropout):
         >>> # Using segmentation mask
         >>> transform = ConstrainedCoarseDropout(
         ...     num_holes_range=(2, 4),        # 2-4 holes per object
-        ...     hole_height_range=(0.2, 0.4),  # 20-40% of object height
-        ...     hole_width_range=(0.2, 0.4),   # 20-40% of object width
+        ...     hole_height_range=(0.2, 0.4),  # 20-40% of sqrt(object area)
+        ...     hole_width_range=(0.2, 0.4),   # 20-40% of sqrt(object area)
         ...     mask_indices=[1, 2],           # Target objects of class 1 and 2
         ...     fill=0,                        # Fill holes with black
         ... )
@@ -463,10 +486,10 @@ class ConstrainedCoarseDropout(BaseDropout):
         >>> transform = A.Compose([
         ...     ConstrainedCoarseDropout(
         ...         num_holes_range=(1, 3),
-        ...         hole_height_range=(0.3, 0.5),
-        ...         hole_width_range=(0.3, 0.5),
-        ...         bbox_labels=['car', 'person'],  # Target cars and people
-        ...         fill=127,                       # Fill holes with gray
+        ...         hole_height_range=(0.3, 0.5),  # 30-50% of box height
+        ...         hole_width_range=(0.3, 0.5),   # 30-50% of box width
+        ...         bbox_labels=['person'],        # Target people
+        ...         fill=127,                      # Fill holes with gray
         ...     )
         ... ], bbox_params=A.BboxParams(
         ...     format='pascal_voc',  # [x_min, y_min, x_max, y_max]
@@ -556,73 +579,33 @@ class ConstrainedCoarseDropout(BaseDropout):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """Get hole parameters based on either mask indices or bbox labels."""
-        num_holes_per_box = self.py_random.randint(*self.num_holes_range)
+        num_holes_per_obj = self.py_random.randint(*self.num_holes_range)
 
-        # Get target boxes from either mask or bboxes
         if self.mask_indices is not None and "mask" in data:
-            target_boxes = fdropout.get_boxes_from_segmentation_mask(data["mask"], self.mask_indices)
+            holes = fdropout.get_holes_from_mask(
+                data["mask"],
+                num_holes_per_obj,
+                self.mask_indices,
+                self.hole_height_range,
+                self.hole_width_range,
+                self.random_generator,
+            )
         elif self.bbox_labels is not None and "bboxes" in data:
-            target_boxes = denormalize_bboxes(self.get_boxes_from_bboxes(data["bboxes"]), data["image"].shape[:2])
+            target_boxes = self.get_boxes_from_bboxes(data["bboxes"])
+            if target_boxes is None:
+                holes = np.array([], dtype=np.int32).reshape((0, 4))
+            else:
+                target_boxes = denormalize_bboxes(target_boxes, data["image"].shape[:2])
+                holes = fdropout.get_holes_from_boxes(
+                    target_boxes,
+                    num_holes_per_obj,
+                    self.hole_height_range,
+                    self.hole_width_range,
+                    self.random_generator,
+                )
         else:
             warn("Neither valid mask nor bboxes provided, do not apply Constrained Coarse Dropout", stacklevel=2)
-            return {
-                "holes": np.array([], dtype=np.int32).reshape((0, 4)),
-                "seed": self.random_generator.integers(0, 2**32 - 1),
-            }
-
-        if target_boxes is None or len(target_boxes) == 0:
-            warn("No valid target boxes found, do not apply Constrained Coarse Dropout", stacklevel=2)
-            return {
-                "holes": np.array([], dtype=np.int32).reshape((0, 4)),
-                "seed": self.random_generator.integers(0, 2**32 - 1),
-            }
-
-        num_boxes = len(target_boxes)
-
-        # Get box dimensions (N, )
-        box_widths = target_boxes[:, 2] - target_boxes[:, 0]  # x_max - x_min
-        box_heights = target_boxes[:, 3] - target_boxes[:, 1]  # y_max - y_min
-
-        # Sample hole dimensions (N, num_holes)
-        hole_heights = (
-            self.random_generator.uniform(
-                self.hole_height_range[0],
-                self.hole_height_range[1],
-                size=(num_boxes, num_holes_per_box),
-            )
-            * box_heights[:, None]
-        )
-
-        hole_widths = (
-            self.random_generator.uniform(
-                self.hole_width_range[0],
-                self.hole_width_range[1],
-                size=(num_boxes, num_holes_per_box),
-            )
-            * box_widths[:, None]
-        )
-
-        # Convert to int
-        hole_heights = hole_heights.astype(np.int32)
-        hole_widths = hole_widths.astype(np.int32)
-
-        # Sample positions (N, num_holes)
-        x_offsets = self.random_generator.uniform(0, 1, size=(num_boxes, num_holes_per_box)) * (
-            box_widths[:, None] - hole_widths
-        )
-        y_offsets = self.random_generator.uniform(0, 1, size=(num_boxes, num_holes_per_box)) * (
-            box_heights[:, None] - hole_heights
-        )
-
-        # Calculate final coordinates (N, num_holes)
-        x_min = target_boxes[:, 0, None] + x_offsets  # Use single index instead of slice
-        y_min = target_boxes[:, 1, None] + y_offsets  # Use single index instead of slice
-        x_max = x_min + hole_widths
-        y_max = y_min + hole_heights
-
-        # Stack and reshape to (N*num_holes, 4)
-        holes = np.stack([x_min, y_min, x_max, y_max], axis=-1).astype(np.int32)
-        holes = holes.reshape(-1, 4)
+            holes = np.array([], dtype=np.int32).reshape((0, 4))
 
         return {
             "holes": holes,

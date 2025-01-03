@@ -1134,8 +1134,6 @@ def test_constrained_coarse_dropout_with_bboxes(bbox_labels, bboxes, expected_nu
     # Apply transform
     transformed = transform(image=image, bboxes=bboxes_without_labels, class_labels=labels)
 
-    print("T = ", transformed["applied_transforms"][0])
-
     # Get applied parameters
     applied_params = transformed['applied_transforms'][0][1]  # First transform's params
     holes = applied_params['holes']
