@@ -10,9 +10,8 @@ from albucore import (
     is_multispectral_image,
     to_float,
 )
-from numpy.testing import assert_array_almost_equal_nulp
 
-import albumentations.augmentations.functional as F
+import albumentations.augmentations.functional as fmain
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.types import d4_group_elements
 from tests.conftest import (
@@ -102,7 +101,7 @@ def test_pad_float(target):
 @pytest.mark.parametrize(["gamma", "expected"], [(1, 1), (0.8, 3)])
 def test_gamma_transform(gamma, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8)
-    img = F.gamma_transform(img, gamma=gamma)
+    img = fmain.gamma_transform(img, gamma=gamma)
     assert img.dtype == np.dtype("uint8")
     np.testing.assert_array_equal(img, expected)
 
@@ -111,7 +110,7 @@ def test_gamma_transform(gamma, expected):
 def test_gamma_transform_float(gamma, expected):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
     expected = np.ones((100, 100, 3), dtype=np.float32) * expected
-    img = F.gamma_transform(img, gamma=gamma)
+    img = fmain.gamma_transform(img, gamma=gamma)
     assert img.dtype == np.dtype("float32")
     np.testing.assert_allclose(img, expected, atol=1e-6)
 
@@ -121,8 +120,8 @@ def test_gamma_float_equal_uint8():
     img_f = img.astype(np.float32) / 255.0
     gamma = 0.5
 
-    img = F.gamma_transform(img, gamma)
-    img_f = F.gamma_transform(img_f, gamma)
+    img = fmain.gamma_transform(img, gamma)
+    img_f = fmain.gamma_transform(img_f, gamma)
 
     img = img.astype(np.float32)
     img_f *= 255.0
@@ -264,30 +263,30 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
 
 def test_is_rgb_image():
     image = np.ones((5, 5, 3), dtype=np.uint8)
-    assert F.is_rgb_image(image)
+    assert fmain.is_rgb_image(image)
 
     multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
-    assert not F.is_rgb_image(multispectral_image)
+    assert not fmain.is_rgb_image(multispectral_image)
 
     gray_image = np.ones((5, 5), dtype=np.uint8)
-    assert not F.is_rgb_image(gray_image)
+    assert not fmain.is_rgb_image(gray_image)
 
     gray_image = np.ones((5, 5, 1), dtype=np.uint8)
-    assert not F.is_rgb_image(gray_image)
+    assert not fmain.is_rgb_image(gray_image)
 
 
 def test_is_grayscale_image():
     image = np.ones((5, 5, 3), dtype=np.uint8)
-    assert not F.is_grayscale_image(image)
+    assert not fmain.is_grayscale_image(image)
 
     multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
-    assert not F.is_grayscale_image(multispectral_image)
+    assert not fmain.is_grayscale_image(multispectral_image)
 
     gray_image = np.ones((5, 5), dtype=np.uint8)
-    assert F.is_grayscale_image(gray_image)
+    assert fmain.is_grayscale_image(gray_image)
 
     gray_image = np.ones((5, 5, 1), dtype=np.uint8)
-    assert F.is_grayscale_image(gray_image)
+    assert fmain.is_grayscale_image(gray_image)
 
 
 def test_is_multispectral_image():
@@ -363,7 +362,7 @@ def test_solarize(image, threshold):
     cond = check_img >= threshold_value
     check_img[cond] = max_value - check_img[cond]
 
-    result_img = F.solarize(image, threshold=threshold)
+    result_img = fmain.solarize(image, threshold=threshold)
 
     assert np.all(np.isclose(result_img, check_img))
     assert np.min(result_img) >= 0
@@ -402,13 +401,13 @@ def test_equalize_checks(
     mask = np.random.randint(0, 2, mask_shape).astype(bool)
 
     with pytest.raises(expected_error) as exc_info:
-        F.equalize(img, mask=mask, by_channels=by_channels)
+        fmain.equalize(img, mask=mask, by_channels=by_channels)
     assert str(exc_info.value) == expected_message
 
 
 def test_equalize_grayscale():
     img = np.random.randint(0, 255, (256, 256), dtype=np.uint8)
-    assert np.all(cv2.equalizeHist(img) == F.equalize(img, mode="cv"))
+    assert np.all(cv2.equalizeHist(img) == fmain.equalize(img, mode="cv"))
 
 
 def test_equalize_rgb():
@@ -417,13 +416,13 @@ def test_equalize_rgb():
     _img = img.copy()
     for i in range(3):
         _img[..., i] = cv2.equalizeHist(_img[..., i])
-    assert np.all(_img == F.equalize(img, mode="cv"))
+    assert np.all(_img == fmain.equalize(img, mode="cv"))
 
     _img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
     img_cv = _img.copy()
     img_cv[..., 0] = cv2.equalizeHist(_img[..., 0])
     img_cv = cv2.cvtColor(img_cv, cv2.COLOR_YCrCb2RGB)
-    assert np.all(img_cv == F.equalize(img, mode="cv", by_channels=False))
+    assert np.all(img_cv == fmain.equalize(img, mode="cv", by_channels=False))
 
 
 def test_equalize_grayscale_mask():
@@ -434,7 +433,7 @@ def test_equalize_grayscale_mask():
 
     assert np.all(
         cv2.equalizeHist(img[:10, :10])
-        == F.equalize(img, mask=mask, mode="cv")[:10, :10]
+        == fmain.equalize(img, mask=mask, mode="cv")[:10, :10]
     )
 
 
@@ -447,14 +446,14 @@ def test_equalize_rgb_mask():
     _img = img.copy()[:10, :10]
     for i in range(3):
         _img[..., i] = cv2.equalizeHist(_img[..., i])
-    assert np.all(_img == F.equalize(img, mask, mode="cv")[:10, :10])
+    assert np.all(_img == fmain.equalize(img, mask, mode="cv")[:10, :10])
 
     _img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
     img_cv = _img.copy()[:10, :10]
     img_cv[..., 0] = cv2.equalizeHist(img_cv[..., 0])
     img_cv = cv2.cvtColor(img_cv, cv2.COLOR_YCrCb2RGB)
     assert np.all(
-        img_cv == F.equalize(img, mask=mask, mode="cv", by_channels=False)[:10, :10]
+        img_cv == fmain.equalize(img, mask=mask, mode="cv", by_channels=False)[:10, :10]
     )
 
     mask = np.zeros([256, 256, 3], dtype=bool)
@@ -469,7 +468,7 @@ def test_equalize_rgb_mask():
     img_g = cv2.equalizeHist(img_g)
     img_b = cv2.equalizeHist(img_b)
 
-    result_img = F.equalize(img, mask=mask, mode="cv")
+    result_img = fmain.equalize(img, mask=mask, mode="cv")
     assert np.all(img_r == result_img[:10, :10, 0])
     assert np.all(img_g == result_img[10:20, 10:20, 1])
     assert np.all(img_b == result_img[20:30, 20:30, 2])
@@ -478,15 +477,15 @@ def test_equalize_rgb_mask():
 @pytest.mark.parametrize("dtype", ["float32", "uint8"])
 def test_downscale_ones(dtype):
     img = np.ones((100, 100, 3), dtype=dtype)
-    downscaled = F.downscale(img, scale=0.5)
+    downscaled = fmain.downscale(img, scale=0.5)
     np.testing.assert_array_equal(downscaled, img)
 
 
 def test_downscale_random():
     img = np.random.rand(100, 100, 3)
-    downscaled = F.downscale(img, scale=0.5)
+    downscaled = fmain.downscale(img, scale=0.5)
     assert downscaled.shape == img.shape
-    downscaled = F.downscale(img, scale=1)
+    downscaled = fmain.downscale(img, scale=1)
     np.testing.assert_array_equal(img, downscaled)
 
 
@@ -498,7 +497,7 @@ def test_downscale_random():
     ],
 )
 def test_shift_hsv_gray(img):
-    F.shift_hsv(img, 0.5, 0.5, 0.5)
+    fmain.shift_hsv(img, 0.5, 0.5, 0.5)
 
 
 @pytest.mark.parametrize(
@@ -720,7 +719,7 @@ def test_planckian_jitter_blackbody():
         ],
     )
 
-    blackbody_plankian_jitter = F.planckian_jitter(
+    blackbody_plankian_jitter = fmain.planckian_jitter(
         img, temperature=3500, mode="blackbody"
     )
     assert np.allclose(
@@ -786,7 +785,7 @@ def test_planckian_jitter_cied():
             ],
         ],
     )
-    cied_plankian_jitter = F.planckian_jitter(img, temperature=4500, mode="cied")
+    cied_plankian_jitter = fmain.planckian_jitter(img, temperature=4500, mode="cied")
     assert np.allclose(cied_plankian_jitter, expected_cied_plankian_jitter, atol=1e-4)
 
 
@@ -796,8 +795,8 @@ def test_planckian_jitter_edge_cases(mode):
     img = np.ones((10, 10, 3), dtype=np.float32)
 
     # Get min and max temperatures for the mode
-    min_temp = min(F.PLANCKIAN_COEFFS[mode].keys())
-    max_temp = max(F.PLANCKIAN_COEFFS[mode].keys())
+    min_temp = min(fmain.PLANCKIAN_COEFFS[mode].keys())
+    max_temp = max(fmain.PLANCKIAN_COEFFS[mode].keys())
 
     # Test cases
     test_temperatures = [
@@ -811,7 +810,7 @@ def test_planckian_jitter_edge_cases(mode):
     ]
 
     for temp in test_temperatures:
-        result = F.planckian_jitter(img, temp, mode)
+        result = fmain.planckian_jitter(img, temp, mode)
 
         # Check that the output is a valid image
         assert result.shape == img.shape
@@ -823,9 +822,9 @@ def test_planckian_jitter_edge_cases(mode):
 
         # For temperatures outside the range, check if they're clamped correctly
         if temp < min_temp:
-            np.testing.assert_allclose(result, F.planckian_jitter(img, min_temp, mode))
+            np.testing.assert_allclose(result, fmain.planckian_jitter(img, min_temp, mode))
         elif temp > max_temp:
-            np.testing.assert_allclose(result, F.planckian_jitter(img, max_temp, mode))
+            np.testing.assert_allclose(result, fmain.planckian_jitter(img, max_temp, mode))
 
 
 def test_planckian_jitter_interpolation():
@@ -834,9 +833,9 @@ def test_planckian_jitter_interpolation():
 
     # Test interpolation between two known temperatures
     temp1, temp2 = 4000, 4500
-    result1 = F.planckian_jitter(img, temp1, mode)
-    result2 = F.planckian_jitter(img, temp2, mode)
-    result_mid = F.planckian_jitter(img, (temp1 + temp2) // 2, mode)
+    result1 = fmain.planckian_jitter(img, temp1, mode)
+    result2 = fmain.planckian_jitter(img, temp2, mode)
+    result_mid = fmain.planckian_jitter(img, (temp1 + temp2) // 2, mode)
 
     # The mid-temperature result should be between the two extremes
     assert np.all(
@@ -851,8 +850,8 @@ def test_planckian_jitter_consistency(mode):
 
     # Test consistency of results for the same temperature
     temp = 5000
-    result1 = F.planckian_jitter(img, temp, mode)
-    result2 = F.planckian_jitter(img, temp, mode)
+    result1 = fmain.planckian_jitter(img, temp, mode)
+    result2 = fmain.planckian_jitter(img, temp, mode)
     np.testing.assert_allclose(result1, result2)
 
 
@@ -860,7 +859,7 @@ def test_planckian_jitter_invalid_mode():
     img = np.ones((10, 10, 3), dtype=np.float32)
 
     with pytest.raises(KeyError):
-        F.planckian_jitter(img, 5000, "invalid_mode")
+        fmain.planckian_jitter(img, 5000, "invalid_mode")
 
 
 @pytest.mark.parametrize("image", IMAGES)
@@ -870,8 +869,8 @@ def test_random_tone_curve(image):
 
     num_channels = get_num_channels(image)
 
-    result_float_value = F.move_tone_curve(image, low_y, high_y)
-    result_array_value = F.move_tone_curve(
+    result_float_value = fmain.move_tone_curve(image, low_y, high_y)
+    result_array_value = fmain.move_tone_curve(
         image, np.array([low_y] * num_channels), np.array([high_y] * num_channels)
     )
 
@@ -897,17 +896,17 @@ def test_iso_noise(image, color_shift, intensity):
 
     # Generate noise using the same random state instance
     rng = np.random.default_rng(42)
-    result_uint8 = F.iso_noise(
+    result_uint8 = fmain.iso_noise(
         image, color_shift=color_shift, intensity=intensity, random_generator=rng
     )
 
     rng = np.random.default_rng(42)
-    result_float = F.iso_noise(
+    result_float = fmain.iso_noise(
         float_image, color_shift=color_shift, intensity=intensity, random_generator=rng
     )
 
     # Convert float result back to uint8
-    result_float = F.from_float(result_float, target_dtype=np.uint8)
+    result_float = fmain.from_float(result_float, target_dtype=np.uint8)
 
     # Calculate noise
     noise = result_uint8.astype(np.float32) - image.astype(np.float32)
@@ -933,14 +932,14 @@ def test_iso_noise(image, color_shift, intensity):
     ],
 )
 def test_grayscale_to_multichannel(input_image, num_output_channels, expected_shape):
-    result = F.grayscale_to_multichannel(input_image, num_output_channels)
+    result = fmain.grayscale_to_multichannel(input_image, num_output_channels)
     assert result.shape == expected_shape
     assert np.all(result[..., 0] == result[..., 1])  # All channels should be identical
 
 
 def test_grayscale_to_multichannel_preserves_values():
     input_image = np.random.randint(0, 256, (10, 10), dtype=np.uint8)
-    result = F.grayscale_to_multichannel(input_image, num_output_channels=3)
+    result = fmain.grayscale_to_multichannel(input_image, num_output_channels=3)
     assert np.all(result[..., 0] == input_image)
     assert np.all(result[..., 1] == input_image)
     assert np.all(result[..., 2] == input_image)
@@ -948,7 +947,7 @@ def test_grayscale_to_multichannel_preserves_values():
 
 def test_grayscale_to_multichannel_default_channels():
     input_image = np.zeros((10, 10), dtype=np.uint8)
-    result = F.grayscale_to_multichannel(input_image, num_output_channels=3)
+    result = fmain.grayscale_to_multichannel(input_image, num_output_channels=3)
     assert result.shape == (10, 10, 3)
 
 
@@ -961,7 +960,7 @@ def create_test_image(height, width, channels, dtype):
 @pytest.mark.parametrize("dtype", [np.uint8, np.float32])
 def test_to_gray_weighted_average(dtype):
     img = create_test_image(10, 10, 3, dtype)
-    result = F.to_gray_weighted_average(img)
+    result = fmain.to_gray_weighted_average(img)
     expected = np.dot(img[..., :3], [0.299, 0.587, 0.114])
     if dtype == np.uint8:
         expected = expected.astype(np.uint8)
@@ -971,7 +970,7 @@ def test_to_gray_weighted_average(dtype):
 @pytest.mark.parametrize("dtype", [np.uint8, np.float32])
 def test_to_gray_from_lab(dtype):
     img = create_test_image(10, 10, 3, dtype)
-    result = F.to_gray_from_lab(img)
+    result = fmain.to_gray_from_lab(img)
     expected = clip(cv2.cvtColor(img, cv2.COLOR_RGB2LAB)[..., 0], dtype=dtype)
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
 
@@ -980,7 +979,7 @@ def test_to_gray_from_lab(dtype):
 @pytest.mark.parametrize("channels", [3, 4, 5])
 def test_to_gray_desaturation(dtype, channels):
     img = create_test_image(10, 10, channels, dtype)
-    result = F.to_gray_desaturation(img)
+    result = fmain.to_gray_desaturation(img)
     expected = (
         np.max(img.astype(np.float32), axis=-1)
         + np.min(img.astype(np.float32), axis=-1)
@@ -994,7 +993,7 @@ def test_to_gray_desaturation(dtype, channels):
 @pytest.mark.parametrize("channels", [3, 4, 5])
 def test_to_gray_average(dtype, channels):
     img = create_test_image(10, 10, channels, dtype)
-    result = F.to_gray_average(img)
+    result = fmain.to_gray_average(img)
     expected = np.mean(img, axis=-1)
     if dtype == np.uint8:
         expected = expected.astype(np.uint8)
@@ -1005,7 +1004,7 @@ def test_to_gray_average(dtype, channels):
 @pytest.mark.parametrize("channels", [3, 4, 5])
 def test_to_gray_max(dtype, channels):
     img = create_test_image(10, 10, channels, dtype)
-    result = F.to_gray_max(img)
+    result = fmain.to_gray_max(img)
     expected = np.max(img, axis=-1)
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
 
@@ -1014,7 +1013,7 @@ def test_to_gray_max(dtype, channels):
 @pytest.mark.parametrize("channels", [3, 4, 5])
 def test_to_gray_pca(dtype, channels):
     img = create_test_image(10, 10, channels, dtype)
-    result = F.to_gray_pca(img)
+    result = fmain.to_gray_pca(img)
     assert result.shape == (10, 10)
     assert result.dtype == dtype
     if dtype == np.uint8:
@@ -1026,12 +1025,12 @@ def test_to_gray_pca(dtype, channels):
 @pytest.mark.parametrize(
     "func",
     [
-        F.to_gray_weighted_average,
-        F.to_gray_from_lab,
-        F.to_gray_desaturation,
-        F.to_gray_average,
-        F.to_gray_max,
-        F.to_gray_pca,
+        fmain.to_gray_weighted_average,
+        fmain.to_gray_from_lab,
+        fmain.to_gray_desaturation,
+        fmain.to_gray_average,
+        fmain.to_gray_max,
+        fmain.to_gray_pca,
     ],
 )
 def test_float32_uint8_consistency(func):
@@ -1061,7 +1060,7 @@ def test_clahe(shape, dtype, clip_limit, tile_grid_size):
     else:
         img = np.random.rand(*shape).astype(dtype)
 
-    result = F.clahe(img, clip_limit, tile_grid_size)
+    result = fmain.clahe(img, clip_limit, tile_grid_size)
 
     assert result.shape == img.shape
     assert result.dtype == img.dtype
@@ -1072,7 +1071,7 @@ def test_clahe(shape, dtype, clip_limit, tile_grid_size):
 def test_fancy_pca_mean_preservation(shape):
     image = np.random.rand(*shape).astype(np.float32)
     alpha_vector = np.random.uniform(-0.1, 0.1, shape[-1])
-    result = F.fancy_pca(image, alpha_vector)
+    result = fmain.fancy_pca(image, alpha_vector)
     np.testing.assert_almost_equal(np.mean(image), np.mean(result), decimal=4)
 
 
@@ -1092,7 +1091,7 @@ def test_fancy_pca_zero_alpha(shape, dtype):
         image = image / 255.0
 
     alpha_vector = np.zeros(shape[-1])
-    result = F.fancy_pca(image, alpha_vector)
+    result = fmain.fancy_pca(image, alpha_vector)
 
     np.testing.assert_array_equal(image, result)
 
@@ -1117,7 +1116,7 @@ def test_fancy_pca_zero_alpha(shape, dtype):
 def test_image_compression_shapes(image_type, quality, shape, expected_shape):
     """Test that image_compression preserves input shapes."""
     image = np.random.randint(0, 256, shape, dtype=np.uint8)
-    compressed = F.image_compression(image, quality, image_type)
+    compressed = fmain.image_compression(image, quality, image_type)
     assert compressed.shape == expected_shape
     assert compressed.dtype == np.uint8
 
@@ -1128,7 +1127,7 @@ def test_image_compression_channel_consistency():
     image = np.random.randint(0, 256, (100, 100, 4), dtype=np.uint8)
     image[..., 3] = 128  # Constant alpha channel
 
-    compressed = F.image_compression(image, 80, ".jpg")
+    compressed = fmain.image_compression(image, 80, ".jpg")
 
     # RGB channels should change due to compression
     assert not np.array_equal(image[..., :3], compressed[..., :3])
@@ -1151,7 +1150,7 @@ def test_image_compression_channel_consistency():
 def test_image_compression_supported_shapes(image_type, quality, shape):
     """Test image_compression with supported channel counts."""
     image = np.random.randint(0, 256, shape, dtype=np.uint8)
-    compressed = F.image_compression(image, quality, image_type)
+    compressed = fmain.image_compression(image, quality, image_type)
     assert compressed.shape == shape
     assert compressed.dtype == np.uint8
 
@@ -1166,8 +1165,8 @@ def test_image_compression_quality_with_patterns(image_type):
     image = np.uint8(255 * (np.sin(xx) * np.sin(yy) + 1) / 2)
     image = np.stack([image] * 3, axis=-1)  # Convert to RGB
 
-    high_quality = F.image_compression(image, 100, image_type)
-    low_quality = F.image_compression(image, 10, image_type)
+    high_quality = fmain.image_compression(image, 100, image_type)
+    low_quality = fmain.image_compression(image, 10, image_type)
 
     high_diff = np.abs(image - high_quality).mean()
     low_diff = np.abs(image - low_quality).mean()
@@ -1217,7 +1216,7 @@ def test_image_compression_quality_with_patterns(image_type):
     ],
 )
 def test_auto_contrast(img, expected):
-    result = F.auto_contrast(img)
+    result = fmain.auto_contrast(img)
 
     if expected == "constant":
         (
@@ -1228,3 +1227,299 @@ def test_auto_contrast(img, expected):
         assert not np.all(
             result == img
         ), "The output should change for non-constant input."
+
+
+@pytest.mark.parametrize(
+    ["array", "value", "expected_shape", "expected_dtype", "expected_values"],
+    [
+        # 2D array tests
+        (
+            np.zeros((10, 10), dtype=np.uint8),  # array
+            None,  # value
+            (10, 10),  # expected_shape
+            np.uint8,  # expected_dtype
+            None,  # expected_values - random, can't test exact values
+        ),
+        (
+            np.zeros((10, 10), dtype=np.uint8),
+            128,
+            (10, 10),
+            np.uint8,
+            128,
+        ),
+        (
+            np.zeros((10, 10), dtype=np.float32),
+            0.5,
+            (10, 10),
+            np.float32,
+            0.5,
+        ),
+
+        # 3D array tests
+        (
+            np.zeros((10, 10, 3), dtype=np.uint8),
+            None,
+            (10, 10, 3),
+            np.uint8,
+            None,
+        ),
+        (
+            np.zeros((10, 10, 3), dtype=np.uint8),
+            128,
+            (10, 10, 3),
+            np.uint8,
+            128,
+        ),
+        (
+            np.zeros((10, 10, 3), dtype=np.uint8),
+            [128, 64, 32],
+            (10, 10, 3),
+            np.uint8,
+            [128, 64, 32],
+        ),
+        (
+            np.zeros((10, 10, 3), dtype=np.float32),
+            [0.1, 0.2, 0.3],
+            (10, 10, 3),
+            np.float32,
+            [0.1, 0.2, 0.3],
+        ),
+
+        # Edge cases
+        (
+            np.zeros((10, 10, 1), dtype=np.uint8),
+            [128],
+            (10, 10, 1),
+            np.uint8,
+            [128],
+        ),
+        (
+            np.zeros((10, 10, 3), dtype=np.uint8),
+            np.array([128, 64, 32]),
+            (10, 10, 3),
+            np.uint8,
+            [128, 64, 32],
+        ),
+        # 2-channel tests
+        (
+            np.zeros((10, 10, 2), dtype=np.uint8),
+            None,
+            (10, 10, 2),
+            np.uint8,
+            None,
+        ),
+        (
+            np.zeros((10, 10, 2), dtype=np.uint8),
+            128,
+            (10, 10, 2),
+            np.uint8,
+            128,
+        ),
+        (
+            np.zeros((10, 10, 2), dtype=np.uint8),
+            [128, 64],
+            (10, 10, 2),
+            np.uint8,
+            [128, 64],
+        ),
+        (
+            np.zeros((10, 10, 2), dtype=np.float32),
+            [0.1, 0.2],
+            (10, 10, 2),
+            np.float32,
+            [0.1, 0.2],
+        ),
+    ],
+)
+def test_prepare_drop_values(array, value, expected_shape, expected_dtype, expected_values):
+    rng = np.random.default_rng(42)
+    result = fmain.prepare_drop_values(array, value, rng)
+
+    # Check shape and dtype
+    assert result.shape == expected_shape
+    assert result.dtype == expected_dtype
+
+    # Check values if not random
+    if expected_values is not None:
+        if isinstance(expected_values, (int, float)):
+            assert np.all(result == expected_values)
+        else:
+            # For per-channel values, check each channel separately
+            for i, val in enumerate(expected_values):
+                assert np.all(result[..., i] == val)
+
+
+def test_prepare_drop_values_random():
+    """Test that random values are within expected range."""
+    rng = np.random.default_rng(42)
+
+    # Test uint8 random values
+    array_uint8 = np.zeros((10, 10, 3), dtype=np.uint8)
+    result_uint8 = fmain.prepare_drop_values(array_uint8, None, rng)
+    assert np.all((result_uint8 >= 0) & (result_uint8 <= 255))
+
+    # Test float32 random values
+    array_float32 = np.zeros((10, 10, 3), dtype=np.float32)
+    result_float32 = fmain.prepare_drop_values(array_float32, None, rng)
+    assert np.all((result_float32 >= 0.0) & (result_float32 <= 1.0))
+
+    # Test that different channels get different random values
+    assert not np.all(result_uint8[..., 0] == result_uint8[..., 1])
+
+
+@pytest.mark.parametrize(
+    ["shape", "per_channel", "dropout_prob", "expected_shape", "expected_properties"],
+    [
+        # 2D array tests
+        (
+            (10, 10),  # shape
+            False,  # per_channel
+            0.5,  # dropout_prob
+            (10, 10),  # expected_shape
+            {"is_2d": True, "channels_same": True},  # expected_properties
+        ),
+        (
+            (10, 10),
+            True,  # per_channel doesn't affect 2D
+            0.5,
+            (10, 10),
+            {"is_2d": True, "channels_same": True},
+        ),
+
+        # 3D array tests - shared mask across channels
+        (
+            (10, 10, 3),
+            False,
+            0.5,
+            (10, 10, 3),
+            {"is_2d": False, "channels_same": True},
+        ),
+        (
+            (10, 10, 1),
+            False,
+            0.5,
+            (10, 10, 1),
+            {"is_2d": False, "channels_same": True},
+        ),
+        # 3D array tests - independent masks per channel
+        (
+            (10, 10, 3),
+            True,
+            0.5,
+            (10, 10, 3),
+            {"is_2d": False, "channels_same": False},
+        ),
+        (
+            (10, 10, 1),
+            True,
+            0.5,
+            (10, 10, 1),
+            {"is_2d": False, "channels_same": True},  # single channel is always same
+        ),
+         # 2-channel tests - shared mask across channels
+        (
+            (10, 10, 2),
+            False,
+            0.5,
+            (10, 10, 2),
+            {"is_2d": False, "channels_same": True},
+        ),
+
+        # 2-channel tests - independent masks per channel
+        (
+            (10, 10, 2),
+            True,
+            0.5,
+            (10, 10, 2),
+            {"is_2d": False, "channels_same": False},
+        ),
+    ],
+)
+def test_get_drop_mask_shapes_and_properties(
+    shape,
+    per_channel,
+    dropout_prob,
+    expected_shape,
+    expected_properties
+):
+    rng = np.random.default_rng(42)
+    mask = fmain.get_drop_mask(shape, per_channel, dropout_prob, rng)
+
+    # Check shape
+    assert mask.shape == expected_shape
+
+    # Check dtype
+    assert mask.dtype == bool
+
+    # Check if mask is 2D or 3D
+    assert (mask.ndim == 2) == expected_properties["is_2d"]
+
+    # For 3D masks, check if channels are same or different
+    if not expected_properties["is_2d"]:
+        channels_same = all(
+            np.array_equal(mask[..., 0], mask[..., i])
+            for i in range(1, mask.shape[-1])
+        )
+        assert channels_same == expected_properties["channels_same"]
+
+@pytest.mark.parametrize(
+    "dropout_prob",
+    [0.0, 0.3, 0.7, 1.0],
+)
+def test_get_drop_mask_probabilities(dropout_prob):
+    """Test that the proportion of True values matches dropout_prob."""
+    shape = (100, 100, 3)  # Large shape for better statistics
+    rng = np.random.default_rng(42)
+
+    # Test both per_channel modes
+    for per_channel in [False, True]:
+        mask = fmain.get_drop_mask(shape, per_channel, dropout_prob, rng)
+        true_proportion = np.mean(mask)
+        np.testing.assert_allclose(
+            true_proportion,
+            dropout_prob,
+            rtol=0.1,  # Allow 10% relative tolerance due to randomness
+        )
+
+def test_get_drop_mask_reproducibility():
+    """Test that the same random seed produces the same mask."""
+    shape = (10, 10, 3)
+    per_channel = True
+    dropout_prob = 0.5
+
+    # Generate two masks with same seed
+    rng1 = np.random.default_rng(42)
+    rng2 = np.random.default_rng(42)
+
+    mask1 = fmain.get_drop_mask(shape, per_channel, dropout_prob, rng1)
+    mask2 = fmain.get_drop_mask(shape, per_channel, dropout_prob, rng2)
+
+    # Check they're identical
+    np.testing.assert_array_equal(mask1, mask2)
+
+    # Generate mask with different seed
+    rng3 = np.random.default_rng(43)
+    mask3 = fmain.get_drop_mask(shape, per_channel, dropout_prob, rng3)
+
+    # Check it's different
+    assert not np.array_equal(mask1, mask3)
+
+
+def test_prepare_drop_values_random_two_channels():
+    """Test random value generation for 2-channel images."""
+    rng = np.random.default_rng(42)
+
+    # Test uint8 random values
+    array_uint8 = np.zeros((10, 10, 2), dtype=np.uint8)
+    result_uint8 = fmain.prepare_drop_values(array_uint8, None, rng)
+    assert result_uint8.shape == (10, 10, 2)
+    assert np.all((result_uint8 >= 0) & (result_uint8 <= 255))
+
+    # Test float32 random values
+    array_float32 = np.zeros((10, 10, 2), dtype=np.float32)
+    result_float32 = fmain.prepare_drop_values(array_float32, None, rng)
+    assert result_float32.shape == (10, 10, 2)
+    assert np.all((result_float32 >= 0.0) & (result_float32 <= 1.0))
+
+    # Test that channels get different values
+    assert not np.all(result_uint8[..., 0] == result_uint8[..., 1])

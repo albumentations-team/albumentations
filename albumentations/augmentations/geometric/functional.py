@@ -332,33 +332,33 @@ def perspective(
     keep_size: bool,
     interpolation: int,
 ) -> np.ndarray:
-    height, width = img.shape[:2]
-    perspective_func = maybe_process_in_chunks(
-        cv2.warpPerspective,
-        M=matrix,
-        dsize=(max_width, max_height),
-        borderMode=border_mode,
-        borderValue=border_val,
-        flags=interpolation,
-    )
-    warped = perspective_func(img)
+    if not keep_size:
+        perspective_func = maybe_process_in_chunks(
+            cv2.warpPerspective,
+            M=matrix,
+            dsize=(max_width, max_height),
+            borderMode=border_mode,
+            borderValue=border_val,
+            flags=interpolation,
+        )
+    else:
+        height, width = img.shape[:2]
 
-    if keep_size:
         scale_x = width / max_width
         scale_y = height / max_height
         scale_matrix = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
         adjusted_matrix = np.dot(scale_matrix, matrix)
 
-        warped = cv2.warpPerspective(
-            img,
-            adjusted_matrix,
-            (width, height),
+        perspective_func = maybe_process_in_chunks(
+            cv2.warpPerspective,
+            M=adjusted_matrix,
+            dsize=(width, height),
             borderMode=border_mode,
             borderValue=border_val,
             flags=interpolation,
         )
 
-    return warped
+    return perspective_func(img)
 
 
 @handle_empty_array("bboxes")
@@ -1421,15 +1421,18 @@ def remap(
     # Combine map_x and map_y into a single map array of type CV_32FC2
     map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
 
-    # Call remap with the combined map and empty second map
-    return cv2.remap(
-        img,
-        map_xy,
-        None,
-        interpolation,
+    # Create remap function with chunks processing
+    remap_func = maybe_process_in_chunks(
+        cv2.remap,
+        map1=map_xy,
+        map2=None,
+        interpolation=interpolation,
         borderMode=border_mode,
         borderValue=value,
     )
+
+    # Apply the remapping
+    return remap_func(img)
 
 
 @handle_empty_array("keypoints")

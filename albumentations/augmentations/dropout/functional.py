@@ -518,8 +518,20 @@ def mask_dropout_bboxes(
 
 
 @handle_empty_array("keypoints")
-def mask_dropout_keypoints(keypoints: np.ndarray, dropout_mask: np.ndarray) -> np.ndarray:
-    keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])] for kp in keypoints])
+def mask_dropout_keypoints(
+    keypoints: np.ndarray,
+    dropout_mask: np.ndarray,
+) -> np.ndarray:
+    """Filter keypoints that fall on dropped pixels.
+
+    Args:
+        keypoints: Array of keypoints in [x, y] or [x, y, z] format
+        dropout_mask: 2D or 3D boolean mask indicating dropped pixels
+
+    Returns:
+        Filtered keypoints array. Keeps keypoints where not all channels are dropped.
+    """
+    keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])].all() for kp in keypoints])
     return keypoints[keep_indices]
 
 
@@ -564,3 +576,161 @@ def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> 
     num_labels = next_label - 1
 
     return (labeled, num_labels) if return_num else labeled
+
+
+def get_holes_from_boxes(
+    target_boxes: np.ndarray,
+    num_holes_per_box: int,
+    hole_height_range: tuple[float, float],
+    hole_width_range: tuple[float, float],
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate holes based on bounding boxes."""
+    num_boxes = len(target_boxes)
+
+    # Get box dimensions (N, )
+    box_widths = target_boxes[:, 2] - target_boxes[:, 0]
+    box_heights = target_boxes[:, 3] - target_boxes[:, 1]
+
+    # Sample hole dimensions (N, num_holes)
+    hole_heights = (
+        random_generator.uniform(
+            hole_height_range[0],
+            hole_height_range[1],
+            size=(num_boxes, num_holes_per_box),
+        )
+        * box_heights[:, None]
+    ).astype(np.int32)
+
+    hole_widths = (
+        random_generator.uniform(
+            hole_width_range[0],
+            hole_width_range[1],
+            size=(num_boxes, num_holes_per_box),
+        )
+        * box_widths[:, None]
+    ).astype(np.int32)
+
+    # Sample positions (N, num_holes)
+    x_offsets = random_generator.uniform(0, 1, size=(num_boxes, num_holes_per_box)) * (
+        box_widths[:, None] - hole_widths
+    )
+    y_offsets = random_generator.uniform(0, 1, size=(num_boxes, num_holes_per_box)) * (
+        box_heights[:, None] - hole_heights
+    )
+
+    # Calculate final coordinates (N, num_holes)
+    x_min = target_boxes[:, 0, None] + x_offsets
+    y_min = target_boxes[:, 1, None] + y_offsets
+    x_max = x_min + hole_widths
+    y_max = y_min + hole_heights
+
+    return np.stack([x_min, y_min, x_max, y_max], axis=-1).astype(np.int32).reshape(-1, 4)
+
+
+def sample_points_from_components(
+    mask: np.ndarray,
+    num_points: int,
+    random_generator: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Sample points from connected components and get their sizes.
+
+    Args:
+        mask: Binary mask where non-zero pixels are foreground
+        num_points: Number of points to sample per connected component
+        random_generator: Random generator to use for sampling
+
+    Returns:
+        Tuple of:
+            - Array of shape (N, 2) containing (x, y) coordinates of sampled points
+            - Array of shape (N,) containing sqrt(area) for each point's component
+        or None if no valid regions found
+    """
+    num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
+
+    if num_labels == 1:  # Only background
+        return None
+
+    centers = []
+    obj_sizes = []
+    for label in range(1, num_labels):  # Skip background (0)
+        points = np.argwhere(labels == label)  # Returns (y, x) coordinates
+        if len(points) == 0:
+            continue
+
+        # Calculate object size once per component
+        obj_size = np.sqrt(len(points))
+
+        # Randomly sample points from the component, allowing repeats
+        indices = random_generator.choice(len(points), size=num_points, replace=True)
+        sampled_points = points[indices]
+        # Convert from (y, x) to (x, y)
+        centers.extend(sampled_points[:, ::-1])
+        # Add corresponding object size for each point
+        obj_sizes.extend([obj_size] * num_points)
+
+    return (np.array(centers), np.array(obj_sizes)) if centers else None
+
+
+def get_holes_from_mask(
+    mask: np.ndarray,
+    num_holes_per_obj: int,
+    mask_indices: list[int],
+    hole_height_range: tuple[float, float],
+    hole_width_range: tuple[float, float],
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate holes based on segmentation mask."""
+    # Create binary mask for target indices
+    binary_mask = np.isin(mask, np.array(mask_indices))
+    if not np.any(binary_mask):  # If no target objects found
+        return np.array([], dtype=np.int32).reshape((0, 4))
+
+    result = sample_points_from_components(binary_mask, num_holes_per_obj, random_generator)
+    if result is None:
+        return np.array([], dtype=np.int32).reshape((0, 4))
+
+    centers, obj_sizes = result
+    num_centers = len(centers)
+    height, width = mask.shape[:2]
+
+    # Sample hole dimensions (N,) using per-component object sizes
+    hole_heights = (
+        random_generator.uniform(
+            hole_height_range[0],
+            hole_height_range[1],
+            size=num_centers,
+        )
+        * obj_sizes
+    )
+    hole_widths = (
+        random_generator.uniform(
+            hole_width_range[0],
+            hole_width_range[1],
+            size=num_centers,
+        )
+        * obj_sizes
+    )
+
+    # Calculate hole coordinates around centers
+    half_heights = hole_heights // 2
+    half_widths = hole_widths // 2
+
+    holes = np.column_stack(
+        [
+            centers[:, 0] - half_widths,  # x_min
+            centers[:, 1] - half_heights,  # y_min
+            centers[:, 0] + half_widths,  # x_max
+            centers[:, 1] + half_heights,  # y_max
+        ],
+    ).astype(np.int32)
+
+    # Clip holes to image boundaries
+    holes[:, 0] = np.clip(holes[:, 0], 0, width - 1)  # x_min
+    holes[:, 1] = np.clip(holes[:, 1], 0, height - 1)  # y_min
+    holes[:, 2] = np.clip(holes[:, 2], 0, width)  # x_max
+    holes[:, 3] = np.clip(holes[:, 3], 0, height)  # y_max
+
+    # Filter out holes that became too small after clipping
+    valid_holes = (holes[:, 2] - holes[:, 0] > 0) & (holes[:, 3] - holes[:, 1] > 0)
+    return holes[valid_holes]

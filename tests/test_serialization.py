@@ -151,6 +151,8 @@ def test_augmentations_serialization_with_custom_parameters(
     elif augmentation_cls in transforms3d:
         data["volume"] = np.array([image] * 10)
         data["mask"] = np.array([mask] * 10)
+    elif augmentation_cls in {A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop}:
+        data["bboxes"] = np.array([[10, 20, 40, 50]])
 
     aug_data = aug(**data)
     deserialized_aug_data = deserialized_aug(**data)
@@ -166,7 +168,11 @@ def test_augmentations_serialization_with_custom_parameters(
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT),
+    [
+        (cls, param_set)
+        for cls, params_list in check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT)
+        for param_set in (params_list if isinstance(params_list, list) else [params_list])
+    ]
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -203,6 +209,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             data["textimage_metadata"] = []
         elif augmentation_cls in transforms3d:
             data = {"volume": np.array([image] * 10), "mask3d": np.array([mask] * 10)}
+        elif augmentation_cls in {A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop}:
+            data["bboxes"] = np.array([[10, 20, 40, 50]])
 
         aug_data = aug(**data)
         deserialized_aug_data = deserialized_aug(**data)

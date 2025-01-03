@@ -689,31 +689,6 @@ def test_single_transform_compose(
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"size": (10, 10)},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": 3,
-                "mask_x_length": (10, 20),
-                "mask_y_length": 10,
-                "fill": 0,
-                "fill_mask": 1,
-            },
-            A.PadIfNeeded: {
-                "min_height": 512,
-                "min_width": 512,
-                "border_mode": cv2.BORDER_CONSTANT,
-                "value": [124, 116, 104],
-                "position": "top_left",
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.FDA,
@@ -1067,31 +1042,6 @@ def test_transform_always_apply_warning() -> None:
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"size": (10, 10)},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": 3,
-                "mask_x_length": (10, 20),
-                "mask_y_length": 10,
-                "fill": 0,
-                "fill_mask": 1,
-            },
-            A.PadIfNeeded: {
-                "min_height": 512,
-                "min_width": 512,
-                "border_mode": 0,
-                "value": [124, 116, 104],
-                "position": "top_left",
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
@@ -1109,6 +1059,7 @@ def test_transform_always_apply_warning() -> None:
             A.OverlayElements,
             A.TextImage,
             A.RandomCropNearBBox,
+            A.Pad
         },
     ),
 )
@@ -1193,33 +1144,9 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
                 "templates": SQUARE_UINT8_IMAGE,
             },
-            A.RingingOvershoot: {"blur_limit": (3, 5)},
-            # dual
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
-            A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1297,31 +1224,6 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"size": (10, 10)},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": 3,
-                "mask_x_length": (10, 20),
-                "mask_y_length": 10,
-                "fill": 0,
-                "fill_mask": 1,
-            },
-            A.PadIfNeeded: {
-                "min_height": 512,
-                "min_width": 512,
-                "border_mode": 0,
-                "value": [124, 116, 104],
-                "position": "top_left",
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
@@ -1377,11 +1279,6 @@ def test_masks_as_target(augmentation_cls, params, masks):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.RandomResizedCrop: {"size": (113, 103)},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (113, 103)},
-            A.Resize: {"height": 113, "width": 113},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.CropAndPad: {"px": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1424,8 +1321,13 @@ def test_masks_as_target(augmentation_cls, params, masks):
 def test_mask_interpolation(augmentation_cls, params, interpolation):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
+    params["interpolation"] = interpolation
+    params["mask_interpolation"] = interpolation
+    params["border_mode"] = cv2.BORDER_CONSTANT
+    params["fill"] = 10
+    params["fill_mask"] = 10
 
-    aug = A.Compose([augmentation_cls(p=1, interpolation=interpolation, mask_interpolation=interpolation, **params)], seed=42)
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
     transformed = aug(image=image, mask=mask)
 

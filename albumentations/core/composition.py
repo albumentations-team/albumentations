@@ -317,6 +317,7 @@ class Compose(BaseCompose, HubMixin):
             it overrides the interpolation method specified in individual transforms. Default is None.
         seed (int, optional): Random seed. Default is None.
         save_applied_params (bool): If True, saves the applied parameters of each transform. Default is False.
+            You will need to use the `applied_transforms` key in the output dictionary to access the parameters.
 
     Example:
         >>> import albumentations as A
@@ -324,7 +325,7 @@ class Compose(BaseCompose, HubMixin):
         ...     A.RandomCrop(width=256, height=256),
         ...     A.HorizontalFlip(p=0.5),
         ...     A.RandomBrightnessContrast(p=0.2),
-        ... ])
+        ... ], seed=42)
         >>> transformed = transform(image=image)
 
     Note:

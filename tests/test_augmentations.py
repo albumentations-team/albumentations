@@ -6,6 +6,7 @@ import pytest
 from albucore import to_float
 
 import albumentations as A
+from albumentations.core.bbox_utils import normalize_bboxes
 from tests.conftest import (
     IMAGES,
     RECTANGULAR_UINT8_IMAGE,
@@ -38,7 +39,6 @@ from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transf
             A.TemplateTransform: {
                 "templates": SQUARE_UINT8_IMAGE,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
         },
         except_augmentations={
             A.FromFloat,
@@ -83,12 +83,9 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
                 "templates": SQUARE_FLOAT_IMAGE,
             },
-            A.RingingOvershoot: {"blur_limit": (3, 5)},
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
         },
         except_augmentations={
             A.FromFloat,
@@ -113,24 +110,6 @@ def test_image_only_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill": 0,
-                "fill_mask": 1,
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -156,24 +135,6 @@ def test_dual_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -216,28 +177,9 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": SQUARE_UINT8_IMAGE,
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -246,7 +188,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     ),
 )
 def test_augmentations_wont_change_input(augmentation_cls, params):
-
     image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     image_copy = image.copy()
@@ -288,29 +229,9 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.MedianBlur: {"blur_limit": (3, 5)},
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": SQUARE_FLOAT_IMAGE,
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -358,20 +279,9 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                 "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
                 "read_fn": lambda x: x,
             },
-            A.Normalize: {"mean": 0, "std": 1},
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=255, size=(100, 100), dtype=np.uint8),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 1], dtype=np.uint8)],
                 "read_fn": lambda x: x,
@@ -410,6 +320,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomGravel,
             A.RandomSunFlare,
             A.RandomFog,
+            A.Pad
         },
     ),
 )
@@ -458,16 +369,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             A.TemplateTransform: {
                 "templates": SQUARE_UINT8_IMAGE,
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
@@ -492,7 +393,8 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             A.PadIfNeeded,
             A.RandomScale,
             A.RandomCropFromBorders,
-            A.ConstrainedCoarseDropout
+            A.ConstrainedCoarseDropout,
+            A.Pad
         },
     ),
 )
@@ -556,7 +458,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
-    set_seed(42)
+    set_seed(137)
     aug = augmentation_cls(p=1, **params)
     input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
     output = aug(**input)
@@ -576,33 +478,18 @@ def test_mask_fill_value(augmentation_cls, params):
                 "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": SQUARE_MULTI_UINT8_IMAGE,
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.ToGray: {"method": "desaturation", "num_output_channels": 5},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.ToGray: {
+                "method": "pca",
+                "num_output_channels": 5,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -627,6 +514,8 @@ def test_mask_fill_value(augmentation_cls, params):
             A.PlanckianJitter,
             A.RandomSunFlare,
             A.RandomFog,
+            A.Equalize,
+            A.GridElasticDeform,
         },
     ),
 )
@@ -667,35 +556,18 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                 "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.Normalize: {"mean": 0, "std": 1},
-            A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
                 "templates": SQUARE_MULTI_FLOAT_IMAGE,
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.ToGray: {"method": "max", "num_output_channels": 5},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.ToGray: {
+                "method": "pca",
+                "num_output_channels": 5,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -719,6 +591,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.PlanckianJitter,
             A.RandomSunFlare,
             A.RandomFog,
+            A.GridElasticDeform,
         },
     ),
 )
@@ -751,32 +624,17 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.ToGray: {"method": "pca", "num_output_channels": 5},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
+            },
+            A.ToGray: {
+                "method": "pca",
+                "num_output_channels": 5,
             },
         },
         except_augmentations={
@@ -805,6 +663,8 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.PlanckianJitter,
             A.RandomSunFlare,
             A.RandomFog,
+            A.Equalize,
+            A.GridElasticDeform,
         },
     ),
 )
@@ -839,35 +699,22 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.Normalize: {"mean": 0, "std": 1},
-            A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
                 "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.ToGray: {"method": "pca", "num_output_channels": 5},
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.ToGray: {
+                "method": "pca",
+                "num_output_channels": 5,
+            },
+            A.ToGray: {
+                "method": "pca",
+                "num_output_channels": 5,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -893,6 +740,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.PlanckianJitter,
             A.RandomSunFlare,
             A.RandomFog,
+            A.GridElasticDeform,
         },
     ),
 )
@@ -1083,26 +931,66 @@ def test_pad_if_needed_position(params, image_shape):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
+            A.ShiftScaleRotate: {
+                "fill": 0,
+                "interpolation": cv2.INTER_NEAREST,
+            },
+            A.SafeRotate: {
+                "interpolation": cv2.INTER_NEAREST,
                 "fill": 0,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.MedianBlur: {"blur_limit": (3, 5)},
+            A.Rotate: {
+                "interpolation": cv2.INTER_NEAREST,
+                "fill": 0,
+            },
+            A.RandomScale: {
+                "scale_limit": 0.2,
+                "interpolation": cv2.INTER_NEAREST,
+            },
+            A.Affine: {
+                "interpolation": cv2.INTER_NEAREST,
+                "fill": 0,
+            },
+            A.PixelDropout: {
+                "drop_value": 0,
+            },
+            A.PadIfNeeded: {
+                "border_mode": cv2.BORDER_CONSTANT,
+                "fill": 0,
+            },
+            A.ChannelDropout: {
+                "fill": 0,
+            },
+            A.PiecewiseAffine: {
+                "interpolation": cv2.INTER_NEAREST,
+            },
+            A.Perspective: {
+                "interpolation": cv2.INTER_NEAREST,
+            },
+            A.GridDropout: {
+                "fill": 0,
+            },
+            A.GridDistortion: {
+                "interpolation": cv2.INTER_NEAREST,
+            },
+            A.ElasticTransform: {
+                "interpolation": cv2.INTER_NEAREST,
+            },
+            A.Pad : {
+                "fill": 0,
+            },
+            A.Resize: {
+                "interpolation": cv2.INTER_NEAREST,
+                "height": 50,
+                "width": 50,
+            },
+            A.CropAndPad: {
+                "fill": 0,
+                "px": 10,
+            },
+            A.OpticalDistortion: {
+                "interpolation": cv2.INTER_NEAREST,
+            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1127,7 +1015,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     image_uint8 = RECTANGULAR_UINT8_IMAGE
     image_float32 = to_float(image_uint8)
 
-    transform = A.Compose([augmentation_cls(p=1, **params)], seed=42)
+    transform = A.Compose([augmentation_cls(p=1, **params)], seed=137)
 
     data = {"image": image_uint8}
     if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
@@ -1141,7 +1029,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
 
     data["image"] = image_float32
 
-    transform.set_random_seed(42)
+    transform.set_random_seed(137)
     transformed_float32 = transform(**data)["image"]
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)
@@ -1160,3 +1048,120 @@ def test_solarize_threshold():
     float_image[20:40, 20:40] = 1
     transformed_image = transform(image=float_image)["image"]
     assert (transformed_image[20:40, 20:40] == 0).all()
+
+
+def test_constrained_coarse_dropout_with_mask():
+    """Test ConstrainedCoarseDropout with segmentation mask."""
+    # Create test data
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    mask = np.zeros((100, 100), dtype=np.uint8)
+
+    # Create objects in mask
+    mask[10:30, 10:30] = 1  # First object (class 1)
+    mask[40:60, 40:60] = 2  # Second object (class 2)
+    mask[70:90, 70:90] = 2  # Third object (class 2)
+
+    transform = A.ConstrainedCoarseDropout(
+        num_holes_range=(2, 2),  # Fixed 2 holes per object
+        hole_height_range=(0.3, 0.3),  # Fixed 30% of object height
+        hole_width_range=(0.3, 0.3),  # Fixed 30% of object width
+        mask_indices=[1, 2],
+        p=1.0,
+    )
+    transform.set_random_seed(137)
+
+    # Apply transform
+    _ = transform(image=image, mask=mask)
+
+    # Get holes
+    params = transform.get_params_dependent_on_data({}, {"image": image, "mask": mask})
+    holes = params["holes"]
+
+    # Verify number of holes (2 per object, 3 objects)
+    assert len(holes) == 6, f"Expected 6 holes (2 per object), got {len(holes)}"
+
+    # Verify holes are within image bounds
+    for hole in holes:
+        x1, y1, x2, y2 = hole
+        assert 0 <= x1 < x2 <= 100, f"Invalid hole x coordinates: {x1}, {x2}"
+        assert 0 <= y1 < y2 <= 100, f"Invalid hole y coordinates: {y1}, {y2}"
+
+
+@pytest.mark.parametrize(
+    ["bbox_labels", "bboxes",  "expected_num_objects"],
+    [
+        # Case 1: String labels
+        (
+            ["Billy The Cat", "dog"],
+            [
+                [10, 10, 20, 20, "Billy The Cat"],
+                [30, 30, 40, 40, "dog"],
+                [50, 50, 60, 60, "bird"],  # Should be ignored
+            ],
+            2,  # 2 objects: one cat, one dog
+        ),
+        # Case 2: Numeric labels
+        (
+            [1, 2],
+            [
+                [10, 10, 20, 20, 1],
+                [30, 30, 40, 40, 2],
+                [50, 50, 60, 60, 3],  # Should be ignored
+            ],
+            2,  # 2 objects: class 1 and class 2
+        ),
+    ],
+)
+def test_constrained_coarse_dropout_with_bboxes(bbox_labels, bboxes, expected_num_objects):
+    """Test ConstrainedCoarseDropout with bounding boxes."""
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    transform = A.Compose([
+        A.ConstrainedCoarseDropout(
+            num_holes_range=(2, 2),  # Fixed 2 holes per object
+            hole_height_range=(0.3, 0.3),  # Fixed 30% of object height
+            hole_width_range=(0.3, 0.3),  # Fixed 30% of object width
+            bbox_labels=bbox_labels,
+            p=1.0,
+        )
+    ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']), seed=137, save_applied_params=True)
+
+
+    # Extract labels for bbox_params
+    labels = [bbox[4] for bbox in bboxes]
+    bboxes_without_labels = [bbox[:4] for bbox in bboxes]
+
+    # Apply transform
+    transformed = transform(image=image, bboxes=bboxes_without_labels, class_labels=labels)
+
+    # Get applied parameters
+    applied_params = transformed['applied_transforms'][0][1]  # First transform's params
+    holes = applied_params['holes']
+
+    # Verify number of holes (2 per object)
+    assert len(holes) == expected_num_objects * 2, \
+        f"Expected {expected_num_objects * 2} holes (2 per object), got {len(holes)}"
+
+    # Verify holes are within image bounds
+    for hole in holes:
+        x1, y1, x2, y2 = hole
+        assert 0 <= x1 < x2 <= 100, f"Invalid hole x coordinates: {x1}, {x2}"
+        assert 0 <= y1 < y2 <= 100, f"Invalid hole y coordinates: {y1}, {y2}"
+
+    # Verify holes overlap with target boxes
+    target_boxes = [
+        bbox[:4] for bbox, label in zip(bboxes, labels)
+        if label in bbox_labels
+    ]
+
+    for hole in holes:
+        overlaps_any = False
+        for box in target_boxes:
+            # Check for overlap
+            if not (hole[2] <= box[0] or  # hole right < box left
+                   hole[0] >= box[2] or  # hole left > box right
+                   hole[3] <= box[1] or  # hole bottom < box top
+                   hole[1] >= box[3]):   # hole top > box bottom
+                overlaps_any = True
+                break
+        assert overlaps_any, f"Hole {hole} doesn't overlap with any target box"

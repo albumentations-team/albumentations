@@ -80,7 +80,6 @@ class BaseDropout(DualTransform):
             return bboxes
 
         image_shape = params["shape"][:2]
-
         denormalized_bboxes = denormalize_bboxes(bboxes, image_shape)
 
         return normalize_bboxes(

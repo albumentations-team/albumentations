@@ -70,7 +70,6 @@ from albumentations.core.transforms_interface import (
 from albumentations.core.types import (
     ALL_TARGETS,
     MAX_RAIN_ANGLE,
-    MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
     PAIR,
     SEVEN,
@@ -2218,6 +2217,9 @@ class Equalize(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        1,3
+
     Note:
         - When mode='cv', OpenCV's equalizeHist() function is used.
         - When mode='pil', Pillow's equalize() function is used.
@@ -2289,6 +2291,8 @@ class Equalize(ImageOnlyTransform):
         self.mask_params = mask_params
 
     def apply(self, img: np.ndarray, mask: np.ndarray, **params: Any) -> np.ndarray:
+        if not is_rgb_image(img) and not is_grayscale_image(img):
+            raise ValueError("Equalize transform is only supported for RGB and grayscale images.")
         return fmain.equalize(
             img,
             mode=self.mode,
@@ -4729,9 +4733,6 @@ class PixelDropout(DualTransform):
             Note: Only applicable when per_channel=False.
             Default: None
 
-        always_apply (bool): If True, the transform will always be applied.
-            Default: False
-
         p (float): Probability of applying the transform. Should be in the range [0, 1].
             Default: 0.5
 
@@ -4794,24 +4795,22 @@ class PixelDropout(DualTransform):
         self,
         img: np.ndarray,
         drop_mask: np.ndarray,
-        drop_value: float | Sequence[float],
+        drop_values: float | Sequence[float],
         **params: Any,
     ) -> np.ndarray:
-        return fmain.pixel_dropout(img, drop_mask, drop_value)
+        return fmain.pixel_dropout(img, drop_mask, drop_values)
 
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        drop_mask: np.ndarray,
+        mask_drop_mask: np.ndarray,
+        mask_drop_values: float | np.ndarray,
         **params: Any,
     ) -> np.ndarray:
         if self.mask_drop_value is None:
             return mask
 
-        if mask.ndim == MONO_CHANNEL_DIMENSIONS:
-            drop_mask = np.squeeze(drop_mask)
-
-        return fmain.pixel_dropout(mask, drop_mask, self.mask_drop_value)
+        return fmain.pixel_dropout(mask, mask_drop_mask, mask_drop_values)
 
     def apply_to_bboxes(
         self,
@@ -4861,46 +4860,56 @@ class PixelDropout(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image = data["image"] if "image" in data else data["images"][0]
+        """Generate parameters for pixel dropout based on input data.
 
-        shape = image.shape if self.per_channel else image.shape[:2]
+        Args:
+            params: Transform parameters
+            data: Input data dictionary
 
-        # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
-        drop_mask = self.random_generator.choice(
-            [True, False],
-            shape,
-            p=[self.dropout_prob, 1 - self.dropout_prob],
+        Returns:
+            Dictionary of parameters for applying the transform
+        """
+        reference_array = data["image"] if "image" in data else data["images"][0]
+
+        # Generate drop mask and values for all targets
+        drop_mask = fmain.get_drop_mask(
+            reference_array.shape,
+            self.per_channel,
+            self.dropout_prob,
+            self.random_generator,
+        )
+        drop_values = fmain.prepare_drop_values(
+            reference_array,
+            self.drop_value,
+            self.random_generator,
         )
 
-        drop_value: float | Sequence[float] | np.ndarray
+        # Handle mask drop values if specified
+        mask_drop_mask = None
+        mask_drop_values = None
+        mask = fmain.get_mask_array(data)
+        if self.mask_drop_value is not None and mask is not None:
+            mask_drop_mask = fmain.get_drop_mask(
+                mask.shape,
+                self.per_channel,
+                self.dropout_prob,
+                self.random_generator,
+            )
+            mask_drop_values = fmain.prepare_drop_values(
+                mask,
+                self.mask_drop_value,
+                self.random_generator,
+            )
 
-        if drop_mask.ndim != image.ndim:
-            drop_mask = np.expand_dims(drop_mask, -1)
-        if self.drop_value is None:
-            drop_shape = 1 if is_grayscale_image(image) else int(image.shape[-1])
+        return {
+            "drop_mask": drop_mask,
+            "drop_values": drop_values,
+            "mask_drop_mask": mask_drop_mask if mask_drop_mask is not None else None,
+            "mask_drop_values": mask_drop_values if mask_drop_values is not None else None,
+        }
 
-            if image.dtype == np.uint8:
-                drop_value = self.random_generator.integers(
-                    0,
-                    int(MAX_VALUES_BY_DTYPE[image.dtype]),
-                    size=drop_shape,
-                    dtype=image.dtype,
-                )
-            elif image.dtype == np.float32:
-                drop_value = self.random_generator.uniform(
-                    0,
-                    1,
-                    size=drop_shape,
-                ).astype(image.dtype)
-            else:
-                raise ValueError(f"Unsupported dtype: {image.dtype}")
-        else:
-            drop_value = self.drop_value
-
-        return {"drop_mask": drop_mask, "drop_value": drop_value}
-
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "dropout_prob", "per_channel", "drop_value", "mask_drop_value"
 
 
 class Spatter(ImageOnlyTransform):

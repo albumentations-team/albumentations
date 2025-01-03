@@ -105,10 +105,7 @@ def test_pad_if_needed_3d_fill_values():
     ["augmentation_cls", "params"],
     get_3d_transforms(
         custom_arguments={
-            A.PadIfNeeded3D: {"min_zyx": (4, 250, 230), "position": "center", "fill": 0, "fill_mask": 0},
-            A.Pad3D: {"padding": 10},
-            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
-            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
+             A.PadIfNeeded3D: {"min_zyx": (4, 250, 230), "position": "center", "fill": 0, "fill_mask": 0},
         },
         except_augmentations={
         },
@@ -271,10 +268,6 @@ def test_pad3d_2d_equivalence(pad3d_padding, pad2d_padding):
     ["augmentation_cls", "params"],
     get_3d_transforms(
         custom_arguments={
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
-            A.Pad3D: {"padding": 10},
-            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
-            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
         },
         except_augmentations={
         },
@@ -485,10 +478,6 @@ def test_crop_3d_different_shapes(volume_shape):
     ["augmentation_cls", "params"],
     get_3d_transforms(
         custom_arguments={
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
-            A.Pad3D: {"padding": 10},
-            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
-            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
         },
         except_augmentations={
         },
@@ -522,14 +511,6 @@ def test2d_3d(volume, mask3d):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.RandomCrop: {"height": 50, "width": 50},
-            A.AtLeastOneBBoxRandomCrop: {"height": 50, "width": 50},
-            A.CenterCrop: {"height": 50, "width": 50},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.Resize: {"height": 100, "width": 100},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.RandomResizedCrop: {"size": (10, 10)},
-            A.CropAndPad: {"px": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -566,14 +547,6 @@ def test_image_volume_matching(image,augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.RandomCrop: {"height": 50, "width": 50},
-            A.CenterCrop: {"height": 50, "width": 50},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.RandomResizedCrop: {"size": (30, 30)},
-            A.AtLeastOneBBoxRandomCrop: {"height": 50, "width": 50},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 50, "width": 50},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 50, "width": 50},
         },
         except_augmentations={
             A.MaskDropout,
@@ -581,7 +554,8 @@ def test_image_volume_matching(image,augmentation_cls, params):
             A.RandomCropNearBBox,
             A.OverlayElements,
             A.BBoxSafeRandomCrop,
-            A.RandomSizedBBoxSafeCrop
+            A.RandomSizedBBoxSafeCrop,
+            A.ConstrainedCoarseDropout,
         },
     ),
 )
@@ -607,12 +581,12 @@ def test_keypoints_xy_xyz(augmentation_cls, params):
 
     # Transform both formats
     transformed_xy = aug1(
-        image=np.zeros((100, 100, 3)),
+        image=np.zeros((100, 100, 3), dtype=np.uint8),
         keypoints=keypoints_xy,
     )["keypoints"]
 
     transformed_xyz = aug2(
-        image=np.zeros((100, 100, 3)),
+        image=np.zeros((100, 100, 3), dtype=np.uint8),
         keypoints=keypoints_xyz,
     )["keypoints"]
 

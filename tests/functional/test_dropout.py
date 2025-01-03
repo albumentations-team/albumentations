@@ -18,7 +18,7 @@ from tests.utils import set_seed
     ((35, 35), np.uint8, 2),
 ])
 def test_label_function(shape, dtype, connectivity):
-    set_seed(42)
+    set_seed(137)
     # Generate a random binary mask
     mask = np.random.randint(0, 2, shape).astype(dtype)
 
@@ -106,7 +106,7 @@ def test_label_function_full_mask():
 )
 def test_cutout_with_various_fill_values(img, fill):
     holes = [(2, 2, 5, 5)]
-    generator = np.random.default_rng(42)
+    generator = np.random.default_rng(137)
     result = fdropout.cutout(img, holes, fill, generator)
 
     # Compute expected result
@@ -139,7 +139,7 @@ def test_cutout_with_various_fill_values(img, fill):
 def test_cutout_with_random_fills(img_shape, fill):
     img = np.zeros(img_shape, dtype=np.uint8)
     holes = np.array([[2, 2, 5, 5]])
-    generator = np.random.default_rng(42)
+    generator = np.random.default_rng(137)
 
     result = fdropout.cutout(img, holes, fill, generator)
 
@@ -169,7 +169,7 @@ def test_cutout_with_random_fills(img_shape, fill):
     ],
 )
 def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
-    generator = np.random.default_rng(42)
+    generator = np.random.default_rng(137)
 
     img = np.zeros(shape, dtype=dtype)
     holes = [(10, 10, 50, 50)]
@@ -515,3 +515,180 @@ def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibi
         result, expected,
         err_msg=f"Expected {expected}, but got {result}"
     )
+
+
+@pytest.mark.parametrize(
+    ["mask", "num_points", "expected"],
+    [
+        # Single object in center
+        (np.array([[0] * 100] * 40 +  # Top padding
+                  [[0] * 35 + [1] * 30 + [0] * 35] * 30 +  # Circle
+                  [[0] * 100] * 40,  # Bottom padding
+                  dtype=np.uint8),
+         3,
+         {
+             "points_shape": (3, 2),
+             "sizes_shape": (3,),
+             "approx_size": np.sqrt(30 * 30)  # sqrt of circle area
+         }
+        ),
+
+        # Two separate objects - vertical bars
+        (np.array([[0] * 20 + [1] * 10 + [0] * 40 + [2] * 10 + [0] * 20] * 100,
+                  dtype=np.uint8),
+         2,
+         {
+             "points_shape": (4, 2),  # 2 objects × 2 points each
+             "sizes_shape": (4,),
+             "approx_size": np.sqrt(10 * 100)  # sqrt of bar area
+         }
+        ),
+
+        # Empty mask
+        (np.zeros((128, 128), dtype=np.uint8),
+         1,
+         None
+        ),
+
+        # Large rectangular object
+        (np.array([[0] * 128] * 32 +  # Top padding
+                  [[0] * 32 + [1] * 64 + [0] * 32] * 64 +  # Rectangle
+                  [[0] * 128] * 32,  # Bottom padding
+                  dtype=np.uint8),
+         5,
+         {
+             "points_shape": (5, 2),
+             "sizes_shape": (5,),
+             "approx_size": np.sqrt(64 * 64)  # sqrt of rectangle area
+         }
+        ),
+    ]
+)
+def test_sample_points_from_components(mask, num_points, expected):
+    random_generator = np.random.Generator(np.random.PCG64(137))
+    result = fdropout.sample_points_from_components(mask, num_points, random_generator)
+
+    if expected is None:
+        assert result is None
+    else:
+        points, sizes = result
+        assert points.shape == expected["points_shape"]
+        assert sizes.shape == expected["sizes_shape"]
+
+        # Check points are within bounds
+        assert np.all((points >= 0) & (points < mask.shape[0]))
+
+        # Check points are on foreground pixels
+        for x, y in points:
+            assert mask[y, x] > 0  # Any non-zero value is foreground
+
+        # Check sizes are approximately correct (allowing for small numerical differences)
+        assert np.allclose(sizes, expected["approx_size"], rtol=0.1)
+
+        # Check all sizes for same component are identical
+        if len(sizes) > 1:
+            # For masks with single component, all sizes should be the same
+            if np.sum(np.unique(mask) > 0) == 1:
+                assert np.allclose(sizes, sizes[0])
+
+
+@pytest.mark.parametrize(
+    ["mask", "num_points", "expected"],
+    [
+        # Single large object (circle)
+        (np.array([[0] * 100] * 35 +
+                  [[0] * 30 + [1] * 40 + [0] * 30] * 40 +  # Circle
+                  [[0] * 100] * 35, dtype=np.uint8),
+         3,
+         {
+             "num_points": 3,
+             "component_area": 40 * 40,  # Approximate circle area
+             "num_components": 1
+         }
+        ),
+
+        # Two objects of different sizes
+        (np.array([[0] * 128] * 20 +
+                  [[0] * 20 + [1] * 40 + [0] * 28 + [1] * 20 + [0] * 20] * 60 +  # Two rectangles
+                  [[0] * 128] * 20, dtype=np.uint8),
+         2,
+         {
+             "num_points": 4,  # 2 points × 2 components
+             "component_areas": [40 * 60, 20 * 60],  # Areas of both rectangles
+             "num_components": 2,
+             "expect_different_sizes": True
+         }
+        ),
+
+        # Two objects of same size
+        (np.array([[0] * 100] * 20 +
+                  [[0] * 25 + [1] * 10 + [0] * 30 + [1] * 10 + [0] * 25] * 60 +
+                  [[0] * 100] * 20, dtype=np.uint8),
+         4,
+         {
+             "num_points": 8,  # 4 points × 2 components
+             "component_areas": [10 * 60, 10 * 60],
+             "num_components": 2,
+             "expect_different_sizes": False
+         }
+        ),
+
+        # Empty mask
+        (np.zeros((128, 128), dtype=np.uint8),
+         2,
+         None
+        ),
+    ]
+)
+def test_sample_points_from_components(mask, num_points, expected):
+    """Test sampling points from connected components.
+
+    Verifies:
+    1. Correct number of points sampled
+    2. Points are within component boundaries
+    3. Component sizes are correctly calculated
+    4. Points are properly distributed across components
+    """
+    random_generator = np.random.Generator(np.random.PCG64(42))
+    result = fdropout.sample_points_from_components(mask, num_points, random_generator)
+
+    if expected is None:
+        assert result is None
+        return
+
+    points, sizes = result
+
+    # Check basic shapes
+    assert len(points) == expected["num_points"]
+    assert len(sizes) == expected["num_points"]
+    assert points.shape[1] == 2  # (x, y) coordinates
+
+    # Verify points are within mask bounds
+    assert np.all(points[:, 0] >= 0) and np.all(points[:, 0] < mask.shape[1])  # x coordinates
+    assert np.all(points[:, 1] >= 0) and np.all(points[:, 1] < mask.shape[0])  # y coordinates
+
+    # Verify points are on foreground
+    for x, y in points:
+        assert mask[y, x] > 0, f"Point ({x}, {y}) is not on foreground"
+
+    # Verify component sizes
+    if "component_area" in expected:
+        # Single component case
+        expected_size = np.sqrt(expected["component_area"])
+        assert np.allclose(sizes, expected_size, rtol=0.1)
+    else:
+        # Multiple components case
+        expected_sizes = [np.sqrt(area) for area in expected["component_areas"]]
+        unique_sizes = np.unique(sizes)
+
+        if expected.get("expect_different_sizes", True):
+            # Components should have different sizes
+            assert len(unique_sizes) == expected["num_components"]
+        else:
+            # Components can have the same size
+            assert len(unique_sizes) <= expected["num_components"]
+
+        # Check that sizes match expected values
+        for size in unique_sizes:
+            assert any(np.isclose(size, exp_size, rtol=0.1)
+                      for exp_size in expected_sizes)
