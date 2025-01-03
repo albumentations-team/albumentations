@@ -4869,7 +4869,7 @@ class PixelDropout(DualTransform):
         Returns:
             Dictionary of parameters for applying the transform
         """
-        reference_array = fmain.get_reference_array(data)
+        reference_array = data.get("image", data["images"][0])
 
         # Generate drop mask and values for all targets
         drop_mask = fmain.get_drop_mask(

@@ -2920,15 +2920,8 @@ def prepare_drop_values(
     return np.full(array.shape[:2] + (len(values),), values, dtype=array.dtype)
 
 
-def get_reference_array(data: dict[str, Any]) -> np.ndarray:
-    """Get reference array from input data."""
-    return data["image"] if "image" in data else data["images"][0]
-
-
 def get_mask_array(data: dict[str, Any]) -> np.ndarray | None:
     """Get mask array from input data if it exists."""
     if "mask" in data:
         return data["mask"]
-    if "masks" in data:
-        return data["masks"][0]
-    return None
+    return data["masks"][0] if "masks" in data else None
