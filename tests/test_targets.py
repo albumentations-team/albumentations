@@ -48,7 +48,6 @@ def extract_targets_from_docstring(cls):
 
 DUAL_TARGETS = {
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
-    A.ConstrainedCoarseDropout : (Targets.IMAGE, Targets.MASK)
 }
 
 

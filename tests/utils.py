@@ -8,6 +8,7 @@ from io import StringIO
 import numpy as np
 
 import albumentations
+from tests.aug_definitions import AUGMENTATION_CLS_PARAMS
 
 
 def set_seed(seed: int = 0):
@@ -93,25 +94,45 @@ def get_filtered_transforms(
     except_augmentations = except_augmentations or set()
     exclude_base_classes = exclude_base_classes or ()
 
+    # Create a mapping of transform class to params from AUGMENTATION_CLS_PARAMS
+    default_params = {}
+    for transform_entry in AUGMENTATION_CLS_PARAMS:
+        transform_cls = transform_entry[0]
+        params = transform_entry[1]
+
+        # Convert single dict to list for uniform handling
+        if isinstance(params, dict):
+            params = [params]
+
+        if transform_cls not in default_params:
+            default_params[transform_cls] = []
+        default_params[transform_cls].extend(params)
+
     result = []
     for cls in get_all_valid_transforms():
-        # Skip if class is in except_augmentations
+        # Skip checks...
         if cls in except_augmentations:
             continue
-
-        # Skip if class is one of the base classes
         if any(cls == i for i in base_classes):
             continue
-
-        # Skip if class inherits from any excluded base classes
         if exclude_base_classes and issubclass(cls, exclude_base_classes):
             continue
-
-        # Check if class inherits from any of the required base classes
         if not issubclass(cls, base_classes):
             continue
 
-        result.append((cls, custom_arguments.get(cls, {})))
+        # Get parameters for this transform
+        if cls in custom_arguments:
+            params = custom_arguments[cls]
+            if isinstance(params, dict):
+                params = [params]
+            for param_set in params:
+                result.append((cls, param_set))
+        elif cls in default_params:
+            for param_set in default_params[cls]:
+                result.append((cls, param_set))
+        else:
+            result.append((cls, {}))
+
     return result
 
 
@@ -160,7 +181,7 @@ def get_2d_transforms(
 def check_all_augs_exists(
     augmentations: list[list],
     except_augmentations: set | None = None,
-) -> list[list]:
+) -> list[tuple[type, dict]]:
     existed_augs = {i[0] for i in augmentations}
     except_augmentations = except_augmentations or set()
 
@@ -173,7 +194,18 @@ def check_all_augs_exists(
     if not_existed:
         raise ValueError(f"These augmentations do not exist in augmentations and except_augmentations: {not_existed}")
 
-    return augmentations
+    # Flatten the parameter sets into individual test cases
+    flattened_augmentations = []
+    for aug_cls, params in augmentations:
+        if isinstance(params, list):
+            # If params is a list, create a test case for each parameter set
+            for param_set in params:
+                flattened_augmentations.append((aug_cls, param_set))
+        else:
+            # If params is a single dict, keep as is
+            flattened_augmentations.append((aug_cls, params))
+
+    return flattened_augmentations
 
 
 def get_3d_transforms(

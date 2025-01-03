@@ -17,10 +17,10 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.RGBShift, {"r_shift_limit": 70, "g_shift_limit": 80, "b_shift_limit": 40}],
     [A.RandomBrightnessContrast, {"brightness_limit": 0.5, "contrast_limit": 0.8}],
-    [A.Blur, {"blur_limit": 3}],
-    [A.MotionBlur, {"blur_limit": 3}],
-    [A.MedianBlur, {"blur_limit": 3}],
-    [A.GaussianBlur, {"blur_limit": 3}],
+    [A.Blur, {"blur_limit": (3, 5)}],
+    [A.MotionBlur, {"blur_limit": (3, 5)}],
+    [A.MedianBlur, {"blur_limit": (3, 5)}],
+    [A.GaussianBlur, {"blur_limit": (3, 5)}],
     [
         A.GaussNoise,
         {"std_range": (0.2, 0.44), "mean_range": (0.0, 0.0), "per_channel": False},
@@ -33,23 +33,6 @@ AUGMENTATION_CLS_PARAMS = [
             "num_holes_range": (2, 5),
             "hole_height_range": (3, 4),
             "hole_width_range": (4, 6),
-        },
-    ],
-    [
-        A.ConstrainedCoarseDropout,
-        {
-            "num_holes_range": (2, 5),
-            "hole_height_range": (0.1, 0.2),
-            "hole_width_range": (0.2, 0.3),
-            "class_indices" : [2,3]
-        },
-    ],
-    [
-        A.ConstrainedCoarseDropout,
-        {
-            "num_holes_range": (2, 5),
-            "hole_height_range": (0.1, 0.2),
-            "hole_width_range": (0.2, 0.3)
         },
     ],
     [
@@ -125,7 +108,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [
         A.ShiftScaleRotate,
-        {
+        [{
             "shift_limit": (-0.2, 0.2),
             "scale_limit": (-0.2, 0.2),
             "rotate_limit": (-70, 70),
@@ -133,9 +116,6 @@ AUGMENTATION_CLS_PARAMS = [
             "border_mode": cv2.BORDER_CONSTANT,
             "fill": (10, 10, 10),
         },
-    ],
-    [
-        A.ShiftScaleRotate,
         {
             "shift_limit_x": (-0.3, 0.3),
             "shift_limit_y": (-0.4, 0.4),
@@ -144,7 +124,7 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "fill": (10, 10, 10),
-        },
+        }]
     ],
     [
         A.OpticalDistortion,
@@ -169,11 +149,11 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_CUBIC,
         },
     ],
-    [A.CenterCrop, {"height": 10, "width": 10}],
-    [A.RandomCrop, {"height": 10, "width": 10}],
-    [A.AtLeastOneBBoxRandomCrop, {"height": 10, "width": 10}],
+    [A.CenterCrop, {"height": 90, "width": 95}],
+    [A.RandomCrop, {"height": 90, "width": 95}],
+    [A.AtLeastOneBBoxRandomCrop, {"height": 90, "width": 95}],
     [A.CropNonEmptyMaskIfExists, {"height": 10, "width": 10}],
-    [A.RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
+    [A.RandomSizedCrop, {"min_max_height": (90, 100), "height": 90, "width": 90}],
     [A.Crop, {"x_max": 64, "y_max": 64}],
     [A.ToFloat, {"max_value": 16536}],
     [
@@ -186,8 +166,8 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.RandomScale, {"scale_limit": 0.2, "interpolation": cv2.INTER_CUBIC}],
     [A.Resize, {"height": 64, "width": 64}],
-    [A.SmallestMaxSize, {"max_size": 64, "interpolation": cv2.INTER_CUBIC}],
-    [A.LongestMaxSize, {"max_size": 128, "interpolation": cv2.INTER_CUBIC}],
+    [A.SmallestMaxSize, {"max_size": 64, "interpolation": cv2.INTER_NEAREST}],
+    [A.LongestMaxSize, {"max_size": 128, "interpolation": cv2.INTER_NEAREST}],
     [A.RandomGridShuffle, {"grid": (4, 4)}],
     [A.Solarize, {"threshold": 32}],
     [A.Posterize, {"num_bits": (3, 5)}],
@@ -209,7 +189,7 @@ AUGMENTATION_CLS_PARAMS = [
         A.Perspective,
         {
             "scale": 0.5,
-            "keep_size": False,
+            "keep_size": True,
             "border_mode": cv2.BORDER_REFLECT_101,
             "fill": 10,
             "fill_mask": 100,
@@ -244,33 +224,31 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [
         A.Affine,
-        {
+        [{
             "scale": 0.5,
-            "translate_percent": 0.7,
+            "translate_percent": 0.1,
             "translate_px": None,
             "rotate": 33,
             "shear": 21,
             "interpolation": cv2.INTER_CUBIC,
             "fill": 25,
-            "fill_mask": 1,
+            "fill_mask": 0,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fit_output": True,
+            "fit_output": False,
         },
-    ],
-    [
-        A.Affine,
         {
             "scale": {"x": [0.3, 0.5], "y": [0.1, 0.2]},
             "translate_percent": None,
-            "translate_px": {"x": [10, 200], "y": [5, 101]},
+            "translate_px": {"x": [10, 20], "y": [5, 10]},
             "rotate": [333, 360],
             "shear": {"x": [31, 38], "y": [41, 48]},
             "interpolation": 3,
             "fill": [10, 20, 30],
             "fill_mask": 1,
             "border_mode": cv2.BORDER_REFLECT,
-            "fit_output": True,
-        },
+            "fit_output": False,
+        }
+        ]
     ],
     [
         A.PiecewiseAffine,
@@ -278,8 +256,8 @@ AUGMENTATION_CLS_PARAMS = [
             "scale": 0.33,
             "nb_rows": (10, 20),
             "nb_cols": 33,
-            "interpolation": 2,
-            "mask_interpolation": 1,
+            "interpolation": cv2.INTER_AREA,
+            "mask_interpolation": cv2.INTER_NEAREST,
             "absolute_scale": True,
             "keypoints_threshold": 0.1,
         },
@@ -291,7 +269,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.HorizontalFlip, {}],
     [A.ISONoise, dict(color_shift=(0.2, 0.3), intensity=(0.7, 0.9))],
     [A.InvertImg, {}],
-    [A.MaskDropout, dict(max_objects=2, fill=10, fill_mask=20)],
+    [A.MaskDropout, dict(max_objects=2, fill=0, fill_mask=0)],
     [A.NoOp, {}],
     [
         A.RandomResizedCrop,
@@ -299,7 +277,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.FancyPCA, dict(alpha=0.3)],
     [A.RandomRotate90, {}],
-    [A.ToGray, {}],
+    [A.ToGray, {"method": "pca"}],
     [A.ToRGB, {}],
     [A.ToSepia, {}],
     [A.Transpose, {}],
@@ -310,16 +288,15 @@ AUGMENTATION_CLS_PARAMS = [
         {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15},
     ],
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
-    [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
-    [
-        A.PixelDropout,
-        {
-            "dropout_prob": 0.1,
-            "per_channel": False,
-            "drop_value": None,
-            "mask_drop_value": 15,
+    [A.PixelDropout, [{"dropout_prob": 0.1, "per_channel": True, "drop_value": None},
+                         {
+                            "dropout_prob": 0.1,
+                            "per_channel": False,
+                            "drop_value": None,
+                            "mask_drop_value": 15,
         },
-    ],
+                      ],
+     ],
     [
         A.RandomCropFromBorders,
         dict(crop_left=0.2, crop_right=0.3, crop_top=0.05, crop_bottom=0.5),
@@ -387,7 +364,7 @@ AUGMENTATION_CLS_PARAMS = [
     [
         A.TextImage,
         dict(
-            font_path="./tests/filesLiberationSerif-Bold.ttf",
+            font_path="./tests/files/LiberationSerif-Bold.ttf",
             font_size_range=(0.8, 0.9),
             color="red",
             stopwords=[
@@ -411,7 +388,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.ShotNoise, {"scale_range": (0.1, 0.3)}],
     [A.TimeReverse, {}],
     [A.TimeMasking, {"time_mask_param": 10}],
-    [A.FrequencyMasking, {"freq_mask_param": 10}],
+    [A.FrequencyMasking, {"freq_mask_param": 30}],
     [A.Pad, {"padding": 10}],
     [A.Erasing, {}],
     [A.AdditiveNoise, {}],
@@ -427,5 +404,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomCrop3D, {"size": (2, 30, 30)}],
     [A.CoarseDropout3D, {"num_holes_range": (1, 3), "hole_depth_range": (0.1, 0.2), "hole_height_range": (0.1, 0.2), "hole_width_range": (0.1, 0.2), "fill": 0, "fill_mask": None}],
     [A.CubicSymmetry, {}],
-    [A.AtLeastOneBBoxRandomCrop, {"height": 10, "width": 10, "erosion_factor": 0.2}],
+    [A.AtLeastOneBBoxRandomCrop, {"height": 80, "width": 80, "erosion_factor": 0.2}],
+    [A.ConstrainedCoarseDropout, {"num_holes_range": (1, 3), "hole_height_range": (0.1, 0.2), "hole_width_range": (0.1, 0.2), "fill": 0, "fill_mask": 0, "mask_indices": [1]}],
+    [A.RandomSizedBBoxSafeCrop, {"height": 80, "width": 80, "erosion_factor": 0.2}],
 ]

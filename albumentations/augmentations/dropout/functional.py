@@ -518,8 +518,20 @@ def mask_dropout_bboxes(
 
 
 @handle_empty_array("keypoints")
-def mask_dropout_keypoints(keypoints: np.ndarray, dropout_mask: np.ndarray) -> np.ndarray:
-    keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])] for kp in keypoints])
+def mask_dropout_keypoints(
+    keypoints: np.ndarray,
+    dropout_mask: np.ndarray,
+) -> np.ndarray:
+    """Filter keypoints that fall on dropped pixels.
+
+    Args:
+        keypoints: Array of keypoints in [x, y] or [x, y, z] format
+        dropout_mask: 2D or 3D boolean mask indicating dropped pixels
+
+    Returns:
+        Filtered keypoints array. Keeps keypoints where not all channels are dropped.
+    """
+    keep_indices = np.array([not dropout_mask[int(kp[1]), int(kp[0])].all() for kp in keypoints])
     return keypoints[keep_indices]
 
 
@@ -564,3 +576,45 @@ def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> 
     num_labels = next_label - 1
 
     return (labeled, num_labels) if return_num else labeled
+
+
+def get_boxes_from_binary_mask(mask: np.ndarray) -> np.ndarray | None:
+    """Find bounding boxes for all connected components in binary mask.
+
+    Args:
+        mask: Binary mask where non-zero pixels are foreground
+
+    Returns:
+        Array of shape (N, 4) containing boxes in Pascal VOC format
+        [x_min, y_min, x_max+1, y_max+1] for N objects, or None if no objects found
+    """
+    num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
+
+    if num_labels == 1:  # Only background
+        return None
+
+    boxes = []
+    for label in range(1, num_labels):  # Skip background (0)
+        points = np.argwhere(labels == label)  # Returns (y, x) coordinates
+        y_min, x_min = points.min(axis=0)
+        y_max, x_max = points.max(axis=0)
+        boxes.append([x_min, y_min, x_max + 1, y_max + 1])  # Add 1 for exclusive end
+
+    return np.array(boxes, dtype=np.int32)
+
+
+def get_boxes_from_segmentation_mask(mask: np.ndarray, mask_indices: list[int]) -> np.ndarray | None:
+    """Get bounding boxes from segmentation mask for specified indices.
+
+    Args:
+        mask: Segmentation mask where values correspond to different classes
+        mask_indices: List of indices to extract bounding boxes for
+
+    Returns:
+        Array of shape (N, 4) containing [x_min, y_min, x_max, y_max] boxes
+        for N detected objects, or None if no objects found
+    """
+    # Create binary mask: 1 for target indices, 0 for others
+    foreground_mask = np.isin(mask, np.array(mask_indices))
+    foreground_mask = foreground_mask.astype(np.uint8)
+    return get_boxes_from_binary_mask(foreground_mask)

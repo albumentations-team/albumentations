@@ -515,3 +515,110 @@ def test_filter_bboxes_by_holes(bboxes, holes, image_shape, min_area, min_visibi
         result, expected,
         err_msg=f"Expected {expected}, but got {result}"
     )
+
+@pytest.mark.parametrize(
+    ["mask", "expected_boxes"],
+    [
+        # Empty mask - no objects
+        (
+            np.zeros((10, 10), dtype=np.int32),
+            None,
+        ),
+        # Single object in center
+        (
+            np.array([
+                [0, 0, 0, 0, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0],
+            ], dtype=np.int32),
+            np.array([[1, 1, 4, 4]], dtype=np.int32),  # [x_min, y_min, x_max+1, y_max+1]
+        ),
+        # Multiple objects
+        (
+            np.array([
+                [1, 1, 0, 0, 0],
+                [1, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 1],
+                [0, 0, 0, 1, 1],
+            ], dtype=np.int32),
+            np.array([
+                [0, 0, 2, 2],  # Top-left object
+                [3, 3, 5, 5],  # Bottom-right object
+            ], dtype=np.int32),
+        ),
+        # Single pixel object
+        (
+            np.array([
+                [0, 0, 0],
+                [0, 1, 0],
+                [0, 0, 0],
+            ], dtype=np.int32),
+            np.array([[1, 1, 2, 2]], dtype=np.int32),
+        ),
+    ],
+)
+def test_get_boxes_from_binary_mask(mask, expected_boxes):
+    boxes = fdropout.get_boxes_from_binary_mask(mask)
+    if expected_boxes is None:
+        assert boxes is None
+    else:
+        np.testing.assert_array_equal(boxes, expected_boxes)
+
+
+@pytest.mark.parametrize(
+    ["mask", "mask_indices", "expected_boxes"],
+    [
+        # Empty mask - no objects
+        (
+            np.zeros((10, 10), dtype=np.int32),
+            [1, 2],
+            None,
+        ),
+        # Single class object
+        (
+            np.array([
+                [0, 0, 0, 0, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0],
+            ], dtype=np.int32),
+            [1],
+            np.array([[1, 1, 4, 4]], dtype=np.int32),
+        ),
+        # Multiple classes, select subset
+        (
+            np.array([
+                [1, 1, 0, 2, 2],
+                [1, 1, 0, 2, 2],
+                [0, 0, 0, 0, 0],
+                [3, 3, 0, 4, 4],
+                [3, 3, 0, 4, 4],
+            ], dtype=np.int32),
+            [1, 4],  # Select only classes 1 and 4
+            np.array([
+                [0, 0, 2, 2],  # Class 1 object
+                [3, 3, 5, 5],  # Class 4 object
+            ], dtype=np.int32),
+        ),
+        # No objects of selected classes
+        (
+            np.array([
+                [1, 1, 0],
+                [1, 1, 0],
+                [0, 0, 0],
+            ], dtype=np.int32),
+            [2, 3],
+            None,
+        ),
+    ],
+)
+def test_get_boxes_from_segmentation_mask(mask, mask_indices, expected_boxes):
+    boxes = fdropout.get_boxes_from_segmentation_mask(mask, mask_indices)
+    if expected_boxes is None:
+        assert boxes is None
+    else:
+        np.testing.assert_array_equal(boxes, expected_boxes)

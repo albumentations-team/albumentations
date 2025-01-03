@@ -12,7 +12,7 @@ from albucore import to_float, clip, MAX_VALUES_BY_DTYPE
 from torchvision import transforms as torch_transforms
 
 import albumentations as A
-import albumentations.augmentations.functional as F
+import albumentations.augmentations.functional as fmain
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.transforms_interface import BasicTransform
 from tests.conftest import (
@@ -55,41 +55,21 @@ def test_rotate_crop_border():
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.PixelDropout: {
-                "dropout_prob": 0.5,
-                "mask_drop_value": 10,
-                "drop_value": 20,
-            },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.D4: {},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.GridDropout: {"num_grid_x": 10, "num_grid_y": 10, "drop_prob": 0.5, "fill_mask": 0},
         },
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.PixelDropout,
+            A.Lambda
         },
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
+    params["fill_mask"] = 0
+    params["mask_interpolation"] = cv2.INTER_NEAREST
     aug = augmentation_cls(p=1, **params)
     image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
@@ -105,18 +85,19 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             "mask": mask,
         }
     data = aug(**data)
-    assert np.array_equal(np.unique(data["mask"]), np.array([0, 1]))
+    np.testing.assert_array_equal(np.unique(data["mask"]), np.array([0, 1]))
 
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.RandomResizedCrop: {"size": (113, 103)},
-            A.RandomSizedCrop: {"min_max_height": (99, 99), "size": (113, 103)},
-            A.Resize: {"height": 113, "width": 113},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.CropAndPad: {"px": 10},
+            A.GridDropout: {"num_grid_x": 10, "num_grid_y": 10, "drop_prob": 0.5, "fill_mask": 64},
+            A.TemplateTransform: {
+                "templates": np.random.randint(
+                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
+                ),
+            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -139,17 +120,23 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.FromFloat,
             A.MaskDropout,
             A.XYMasking,
-            A.RandomCropNearBBox
+            A.RandomCropNearBBox,
+            A.PiecewiseAffine,
+            A.Lambda
         },
     ),
 )
-def test_semantic_mask_interpolation(augmentation_cls, params):
+def test_semantic_mask_interpolation(augmentation_cls, params, image):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts."""
-    aug = augmentation_cls(p=1, **params)
-    image = SQUARE_UINT8_IMAGE
+
+    np.random.seed(42)
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
 
-    data = aug(image=image, mask=mask)
+    params["mask_interpolation"] = cv2.INTER_NEAREST
+    params["fill_mask"] = 0
+
+    data = A.Compose([augmentation_cls(p=1, **params)], seed=42)(image=image, mask=mask)
+
     np.testing.assert_array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))
 
 
@@ -162,29 +149,11 @@ def __test_multiprocessing_support_proc(args):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(
                     low=0, high=256, size=(100, 100, 3), dtype=np.uint8
                 ),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -321,8 +290,8 @@ def test_image_invert():
         # test for np.uint8 dtype
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = to_float(image1)
-        r_int = F.invert(F.invert(image1))
-        r_float = F.invert(F.invert(image2))
+        r_int = fmain.invert(fmain.invert(image1))
+        r_float = fmain.invert(fmain.invert(image2))
         r_to_float = to_float(r_int)
         assert np.allclose(r_float, r_to_float, atol=0.01)
 
@@ -393,20 +362,20 @@ def test_equalize():
 
     img = np.random.randint(0, 256, 256 * 256 * 3, np.uint8).reshape((256, 256, 3))
     a = aug(image=img)["image"]
-    b = F.equalize(img)
+    b = fmain.equalize(img)
     assert np.all(a == b)
 
     mask = np.random.randint(0, 2, 256 * 256, np.uint8).reshape((256, 256))
     aug = A.Equalize(mask=mask, p=1)
     a = aug(image=img)["image"]
-    b = F.equalize(img, mask=mask)
+    b = fmain.equalize(img, mask=mask)
     assert np.all(a == b)
 
     def mask_func(image, test):
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
-    assert np.all(aug(image=img, test=mask)["image"] == F.equalize(img, mask=mask))
+    assert np.all(aug(image=img, test=mask)["image"] == fmain.equalize(img, mask=mask))
 
 
 def test_crop_non_empty_mask():
@@ -480,7 +449,7 @@ def test_downscale(interpolation):
 
     for img in (img_float, img_uint):
         transformed = aug(image=img)["image"]
-        func_applied = F.downscale(
+        func_applied = fmain.downscale(
             img,
             scale=0.5,
             down_interpolation=interpolation,
@@ -589,7 +558,7 @@ def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
     )
 
     res = aug(image=img)["image"]
-    assert np.allclose(res, F.unsharp_mask(img, result_blur, result_sigma))
+    assert np.allclose(res, fmain.unsharp_mask(img, result_blur, result_sigma))
 
 
 @pytest.mark.parametrize("val_uint8", [0, 1, 128, 255])
@@ -1357,39 +1326,14 @@ def test_coarse_dropout_invalid_input(params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": clip(SQUARE_UINT8_IMAGE + 2, np.uint8),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.Superpixels: {
-                "p_replace": (1, 1),
-                "n_segments": (10, 10),
-                "max_size": 10,
-            },
-            A.ZoomBlur: {"max_factor": (1.05, 3)},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.FDA: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
@@ -1397,19 +1341,6 @@ def test_coarse_dropout_invalid_input(params):
             A.HistogramMatching: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
-            },
-            A.Affine: {"rotate": 10},
-            A.Pad: {"padding": 10},
-            A.AdditiveNoise: {
-                "noise_type": "uniform",
-                "spatial_mode": "constant",
-                "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
-            },
-            A.AdvancedBlur: {
-                "blur_limit": (7, 9),  # Force larger kernel
-                "sigma_x_limit": (0.5, 1.0),  # Force stronger blur
-                "sigma_y_limit": (0.5, 1.0),  # Force stronger blur
-                "noise_limit": (0.75, 1.25),  # Increase noise variation
             },
         },
         except_augmentations={
@@ -1446,10 +1377,13 @@ def test_change_image(augmentation_cls, params):
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
-    elif augmentation_cls == A.MaskDropout:
+    elif augmentation_cls in {A.MaskDropout, A.ConstrainedCoarseDropout}:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.ConstrainedCoarseDropout:
+        data["mask"] = np.zeros_like(image)[:, :, 0]
+        data["mask"][:20, :20] = 1
 
     transformed = aug(**data)
 
@@ -1461,39 +1395,6 @@ def test_change_image(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.Superpixels: {
-                "p_replace": (1, 1),
-                "n_segments": (10, 10),
-                "max_size": 10,
-            },
-            A.FancyPCA: {"alpha": 1},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.RGBShift: {
-                "r_shift_limit": (10, 10),
-                "g_shift_limit": (10, 10),
-                "b_shift_limit": (10, 10),
-            },
-            A.TimeMasking: {"time_mask_param": 10},
-            A.Affine: {"rotate": 10},
-            A.AdditiveNoise: {
-                "noise_type": "uniform",
-                "spatial_mode": "constant",
-                "noise_params": {"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]},
-            },
-            A.AdvancedBlur: {
-                "blur_limit": (7, 9),  # Force larger kernel
-                "sigma_x_limit": (0.5, 1.0),  # Force stronger blur
-                "sigma_y_limit": (0.5, 1.0),  # Force stronger blur
-                "noise_limit": (0.75, 1.25),  # Increase noise variation
-            },
         },
         except_augmentations={
             A.Crop,
@@ -1530,6 +1431,7 @@ def test_change_image(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.Pad,
+            A.ConstrainedCoarseDropout,
         },
     ),
 )
@@ -1747,35 +1649,16 @@ def test_random_snow_invalid_input(params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(
                     low=0, high=256, size=(100, 100, 3), dtype=np.uint8
                 ),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.PixelDistributionAdaptation: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1786,17 +1669,21 @@ def test_random_snow_invalid_input(params):
             A.HistogramMatching,
             A.OverlayElements,
             A.MaskDropout,
+            A.TextImage
         },
     ),
 )
 def test_dual_transforms_methods(augmentation_cls, params):
     """Checks whether transformations based on DualTransform dont has abstract methods."""
     aug = augmentation_cls(p=1, **params)
+    aug.set_random_seed(42)
+
     image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
 
     arg = {
-        "masks": mask,
+        "images": np.stack([image] * 4),
+        "mask": mask,
         "masks": np.stack([mask] * 2),
         "bboxes": np.array([[0, 0, 0.1, 0.1, 1]]),
         "keypoints": np.array([(0, 0, 1, 0, 0), (1, 1, 1, 0, 0)]),
@@ -1806,7 +1693,7 @@ def test_dual_transforms_methods(augmentation_cls, params):
         if target in arg:
             kwarg = {target: arg[target]}
             try:
-                _ = aug(image=image, **kwarg)
+                _ = aug(image=image.copy(), **kwarg)
             except Exception as e:
                 if isinstance(e, NotImplementedError):
                     raise NotImplementedError(
@@ -2120,29 +2007,11 @@ def test_random_sun_flare_invalid_input(params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(
                     low=0, high=256, size=(100, 100, 3), dtype=np.uint8
                 ),
             },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
             A.PixelDistributionAdaptation: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
@@ -2156,11 +2025,6 @@ def test_random_sun_flare_invalid_input(params):
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.PadIfNeeded3D: {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20},
-            A.Pad3D: {"padding": 10},
-            A.RandomCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
-            A.CenterCrop3D: {"size": (2, 30, 30), "pad_if_needed": True},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -2262,30 +2126,6 @@ def test_padding_color(transform, num_channels):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.PixelDropout: {
-                "dropout_prob": 0.5,
-                "mask_drop_value": 10,
-                "drop_value": 20,
-            },
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
-                "mask_y_length": 10,
-                "fill_mask": 1,
-                "fill": 0,
-            },
-            A.D4: {},
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -2356,27 +2196,6 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 5, "y_max": 95, "x_min": 7, "x_max": 93},
-            A.CenterCrop: {"height": 90, "width": 95},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 90, "width": 95},
-            A.AtLeastOneBBoxRandomCrop: {"height": 90, "width": 95},
-            A.RandomResizedCrop: {
-                "height": 90,
-                "width": 100,
-                "scale": (0.08, 1),
-                "ratio": (0.75, 1.33),
-                "interpolation": cv2.INTER_NEAREST,
-            },
-            A.RandomSizedCrop: {"min_max_height": (90, 100), "height": 90, "width": 90},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 90, "width": 90},
-            A.PadIfNeeded: {
-                "min_height": 256,
-                "min_width": 256,
-                "value": 0,
-                "border_mode": cv2.BORDER_CONSTANT,
-            },
         },
         except_augmentations={
             A.XYMasking,
@@ -2404,7 +2223,9 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.Perspective,
             A.RandomGridShuffle,
             A.TimeReverse,
-            A.Erasing
+            A.Erasing,
+            A.ConstrainedCoarseDropout,
+            A.PixelDropout,
         },
     ),
 )

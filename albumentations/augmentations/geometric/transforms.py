@@ -7,7 +7,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore import hflip, vflip
+from albucore import hflip, is_grayscale_image, is_rgb_image, vflip
 from pydantic import (
     AfterValidator,
     Field,
@@ -82,11 +82,10 @@ class BaseDistortion(DualTransform):
     Args:
         interpolation (int): Interpolation method to be used for image transformation.
             Should be one of the OpenCV interpolation types (e.g., cv2.INTER_LINEAR,
-            cv2.INTER_CUBIC). Default: cv2.INTER_LINEAR
+            cv2.INTER_CUBIC).
         mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_NEAREST.
-        p (float): Probability of applying the transform. Default: 0.5
+        p (float): Probability of applying the transform.
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
@@ -123,9 +122,9 @@ class BaseDistortion(DualTransform):
 
     def __init__(
         self,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
-        p: float = 0.5,
+        interpolation: int,
+        mask_interpolation: int,
+        p: float,
         always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -1856,6 +1855,9 @@ class GridElasticDeform(DualTransform):
     Image types:
         uint8, float32
 
+    Number of channels:
+        1, 3
+
     Example:
         >>> transform = GridElasticDeform(num_grid_xy=(4, 4), magnitude=10, p=1.0)
         >>> result = transform(image=image, mask=mask)
@@ -1938,6 +1940,8 @@ class GridElasticDeform(DualTransform):
         generated_mesh: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        if not is_rgb_image(img) and not is_grayscale_image(img):
+            raise ValueError("GridElasticDeform transform is only supported for RGB and grayscale images.")
         return fgeometric.distort_image(img, generated_mesh, self.interpolation)
 
     def apply_to_mask(
@@ -2482,6 +2486,10 @@ class ThinPlateSpline(BaseDistortion):
         interpolation (int): OpenCV interpolation flag. Used for image sampling.
             See also: cv2.INTER_*
             Default: cv2.INTER_LINEAR
+
+        mask_interpolation (int): OpenCV interpolation flag. Used for mask sampling.
+            See also: cv2.INTER_*
+            Default: cv2.INTER_NEAREST
 
         p (float): Probability of applying the transform. Default: 0.5
 

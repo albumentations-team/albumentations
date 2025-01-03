@@ -1732,12 +1732,18 @@ def unsharp_mask(
 def pixel_dropout(
     image: np.ndarray,
     drop_mask: np.ndarray,
-    drop_value: float | Sequence[float],
+    drop_values: np.ndarray,
 ) -> np.ndarray:
-    if isinstance(drop_value, (int, float)) and drop_value == 0:
-        drop_values = np.zeros_like(image)
-    else:
-        drop_values = np.full_like(image, drop_value)
+    """Apply pixel dropout to an image.
+
+    Args:
+        image: Input image
+        drop_mask: Boolean mask of same shape as image indicating pixels to drop
+        drop_values: Values to use for dropped pixels, same shape as image
+
+    Returns:
+        Image with pixels dropped according to mask
+    """
     return np.where(drop_mask, drop_values, image)
 
 
@@ -2814,3 +2820,115 @@ def auto_contrast(img: np.ndarray) -> np.ndarray:
             result = sz_lut(channel, lut)
 
     return result
+
+
+def get_drop_mask(
+    shape: tuple[int, ...],
+    per_channel: bool,
+    dropout_prob: float,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate a boolean mask for pixel dropout.
+
+    Args:
+        shape: Shape of the input array
+        per_channel: Whether to generate independent masks per channel
+        dropout_prob: Probability of dropping a pixel
+        random_generator: Random number generator
+
+    Returns:
+        Boolean mask matching input shape
+    """
+    if per_channel or len(shape) == 2:
+        return random_generator.choice(
+            [True, False],
+            shape,
+            p=[dropout_prob, 1 - dropout_prob],
+        )
+
+    # Generate 2D mask and expand to match channels
+    mask_2d = random_generator.choice(
+        [True, False],
+        shape[:2],
+        p=[dropout_prob, 1 - dropout_prob],
+    )
+
+    # If input is 2D, return 2D mask
+    if len(shape) == 2:
+        return mask_2d
+
+    # For 3D input, expand and repeat across channels
+    return np.repeat(mask_2d[..., None], shape[2], axis=2)
+
+
+def generate_random_values(
+    channels: int,
+    dtype: np.dtype,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Generate random values for dropped pixels.
+
+    Args:
+        channels: Number of channels in the image
+        dtype: Data type of the image
+        random_generator: Random number generator
+
+    Returns:
+        Array of random values
+    """
+    if dtype == np.uint8:
+        return random_generator.integers(
+            0,
+            int(MAX_VALUES_BY_DTYPE[dtype]),
+            size=channels,
+            dtype=dtype,
+        )
+    if dtype == np.float32:
+        return random_generator.uniform(0, 1, size=channels).astype(dtype)
+
+    raise ValueError(f"Unsupported dtype: {dtype}")
+
+
+def prepare_drop_values(
+    array: np.ndarray,
+    value: float | Sequence[float] | np.ndarray | None,
+    random_generator: np.random.Generator,
+) -> np.ndarray:
+    """Prepare values to fill dropped pixels.
+
+    Args:
+        array: Input array to determine shape and dtype
+        value: User-specified drop values or None for random
+        random_generator: Random number generator
+
+    Returns:
+        Array of values matching input shape
+    """
+    if value is None:
+        channels = get_num_channels(array)
+        values = generate_random_values(channels, array.dtype, random_generator)
+    elif isinstance(value, (int, float)):
+        return np.full(array.shape, value, dtype=array.dtype)
+    else:
+        values = np.array(value, dtype=array.dtype).reshape(-1)
+
+    # For 2D input, return single value
+    if array.ndim == 2:
+        return np.full(array.shape, values[0], dtype=array.dtype)
+
+    # For 3D input, broadcast values to full shape
+    return np.full(array.shape[:2] + (len(values),), values, dtype=array.dtype)
+
+
+def get_reference_array(data: dict[str, Any]) -> np.ndarray:
+    """Get reference array from input data."""
+    return data["image"] if "image" in data else data["images"][0]
+
+
+def get_mask_array(data: dict[str, Any]) -> np.ndarray | None:
+    """Get mask array from input data if it exists."""
+    if "mask" in data:
+        return data["mask"]
+    if "masks" in data:
+        return data["masks"][0]
+    return None

@@ -2111,8 +2111,9 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
             )
 
         if len(bboxes) > 0:
-            # Pick a bbox amongst all possible as our reference bbox.
             bboxes = denormalize_bboxes(bboxes, shape=(image_height, image_width))
+
+            # Pick a bbox amongst all possible as our reference bbox.
             reference_bbox = self.py_random.choice(bboxes)
 
             bbox_x1, bbox_y1, bbox_x2, bbox_y2 = reference_bbox[:4]
