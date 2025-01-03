@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
+from albumentations.core.bbox_utils import denormalize_bboxes
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.types import ColorType, DropoutFillValue, Number, ScalarType
 
@@ -425,6 +426,8 @@ class ConstrainedCoarseDropout(BaseDropout):
             Only objects of these classes will be considered for hole placement.
         bbox_labels (List[str | int | float], optional): List of object labels in bbox
             annotations to target. String labels will be automatically encoded.
+            When multiple label fields are specified in BboxParams, only the first
+            label field is used for filtering.
 
 
     Targets:
@@ -456,20 +459,25 @@ class ConstrainedCoarseDropout(BaseDropout):
         >>> # Apply to image and its segmentation mask
         >>> transformed = transform(image=image, mask=mask)
 
-        >>> # Using bounding boxes
-        >>> transform = ConstrainedCoarseDropout(
-        ...     num_holes_range=(1, 3),
-        ...     hole_height_range=(0.3, 0.5),
-        ...     hole_width_range=(0.3, 0.5),
-        ...     bbox_labels=['car', 'person'],  # Target cars and people
-        ...     fill=127,                       # Fill holes with gray
-        ... )
+        >>> # Using bounding boxes with Compose
+        >>> transform = A.Compose([
+        ...     ConstrainedCoarseDropout(
+        ...         num_holes_range=(1, 3),
+        ...         hole_height_range=(0.3, 0.5),
+        ...         hole_width_range=(0.3, 0.5),
+        ...         bbox_labels=['car', 'person'],  # Target cars and people
+        ...         fill=127,                       # Fill holes with gray
+        ...     )
+        ... ], bbox_params=A.BboxParams(
+        ...     format='pascal_voc',  # [x_min, y_min, x_max, y_max]
+        ...     label_fields=['labels']  # Specify field containing labels
+        ... ))
         >>> # Apply to image and its bounding boxes
         >>> transformed = transform(
         ...     image=image,
-        ...     bboxes=[[0, 0, 100, 100, 'car'], [150, 150, 300, 300, 'person']]
+        ...     bboxes=[[0, 0, 100, 100, 'car'], [150, 150, 300, 300, 'person']],
+        ...     labels=['car', 'person']
         ... )
-
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -531,7 +539,11 @@ class ConstrainedCoarseDropout(BaseDropout):
             return None
 
         if not all(isinstance(label, (int, float)) for label in self.bbox_labels):
-            label_encoder = bbox_processor.label_encoders["bboxes"]["labels"]
+            label_fields = bbox_processor.params.label_fields
+            if label_fields is None:
+                raise ValueError("BboxParams.label_fields must be specified when using string labels")
+            first_class_label = label_fields[0]
+            label_encoder = bbox_processor.label_encoders["bboxes"][first_class_label]
             target_labels = label_encoder.transform(self.bbox_labels)
         else:
             target_labels = np.array(self.bbox_labels)
@@ -550,7 +562,7 @@ class ConstrainedCoarseDropout(BaseDropout):
         if self.mask_indices is not None and "mask" in data:
             target_boxes = fdropout.get_boxes_from_segmentation_mask(data["mask"], self.mask_indices)
         elif self.bbox_labels is not None and "bboxes" in data:
-            target_boxes = self.get_boxes_from_bboxes(data["bboxes"])
+            target_boxes = denormalize_bboxes(self.get_boxes_from_bboxes(data["bboxes"]), data["image"].shape[:2])
         else:
             warn("Neither valid mask nor bboxes provided, do not apply Constrained Coarse Dropout", stacklevel=2)
             return {

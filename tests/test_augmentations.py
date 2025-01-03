@@ -6,6 +6,7 @@ import pytest
 from albucore import to_float
 
 import albumentations as A
+from albumentations.core.bbox_utils import normalize_bboxes
 from tests.conftest import (
     IMAGES,
     RECTANGULAR_UINT8_IMAGE,
@@ -457,7 +458,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
-    set_seed(42)
+    set_seed(137)
     aug = augmentation_cls(p=1, **params)
     input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
     output = aug(**input)
@@ -1014,7 +1015,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     image_uint8 = RECTANGULAR_UINT8_IMAGE
     image_float32 = to_float(image_uint8)
 
-    transform = A.Compose([augmentation_cls(p=1, **params)], seed=42)
+    transform = A.Compose([augmentation_cls(p=1, **params)], seed=137)
 
     data = {"image": image_uint8}
     if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
@@ -1028,7 +1029,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
 
     data["image"] = image_float32
 
-    transform.set_random_seed(42)
+    transform.set_random_seed(137)
     transformed_float32 = transform(**data)["image"]
 
     np.testing.assert_array_almost_equal(to_float(transformed_uint8), transformed_float32, decimal=2)
@@ -1047,3 +1048,122 @@ def test_solarize_threshold():
     float_image[20:40, 20:40] = 1
     transformed_image = transform(image=float_image)["image"]
     assert (transformed_image[20:40, 20:40] == 0).all()
+
+
+def test_constrained_coarse_dropout_with_mask():
+    """Test ConstrainedCoarseDropout with segmentation mask."""
+    # Create test data
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+    mask = np.zeros((100, 100), dtype=np.uint8)
+
+    # Create objects in mask
+    mask[10:30, 10:30] = 1  # First object (class 1)
+    mask[40:60, 40:60] = 2  # Second object (class 2)
+    mask[70:90, 70:90] = 2  # Third object (class 2)
+
+    transform = A.ConstrainedCoarseDropout(
+        num_holes_range=(2, 2),  # Fixed 2 holes per object
+        hole_height_range=(0.3, 0.3),  # Fixed 30% of object height
+        hole_width_range=(0.3, 0.3),  # Fixed 30% of object width
+        mask_indices=[1, 2],
+        p=1.0,
+    )
+    transform.set_random_seed(137)
+
+    # Apply transform
+    _ = transform(image=image, mask=mask)
+
+    # Get holes
+    params = transform.get_params_dependent_on_data({}, {"image": image, "mask": mask})
+    holes = params["holes"]
+
+    # Verify number of holes (2 per object, 3 objects)
+    assert len(holes) == 6, f"Expected 6 holes (2 per object), got {len(holes)}"
+
+    # Verify holes are within image bounds
+    for hole in holes:
+        x1, y1, x2, y2 = hole
+        assert 0 <= x1 < x2 <= 100, f"Invalid hole x coordinates: {x1}, {x2}"
+        assert 0 <= y1 < y2 <= 100, f"Invalid hole y coordinates: {y1}, {y2}"
+
+
+@pytest.mark.parametrize(
+    ["bbox_labels", "bboxes",  "expected_num_objects"],
+    [
+        # Case 1: String labels
+        (
+            ["Billy The Cat", "dog"],
+            [
+                [10, 10, 20, 20, "Billy The Cat"],
+                [30, 30, 40, 40, "dog"],
+                [50, 50, 60, 60, "bird"],  # Should be ignored
+            ],
+            2,  # 2 objects: one cat, one dog
+        ),
+        # Case 2: Numeric labels
+        (
+            [1, 2],
+            [
+                [10, 10, 20, 20, 1],
+                [30, 30, 40, 40, 2],
+                [50, 50, 60, 60, 3],  # Should be ignored
+            ],
+            2,  # 2 objects: class 1 and class 2
+        ),
+    ],
+)
+def test_constrained_coarse_dropout_with_bboxes(bbox_labels, bboxes, expected_num_objects):
+    """Test ConstrainedCoarseDropout with bounding boxes."""
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    transform = A.Compose([
+        A.ConstrainedCoarseDropout(
+            num_holes_range=(2, 2),  # Fixed 2 holes per object
+            hole_height_range=(0.3, 0.3),  # Fixed 30% of object height
+            hole_width_range=(0.3, 0.3),  # Fixed 30% of object width
+            bbox_labels=bbox_labels,
+            p=1.0,
+        )
+    ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']), seed=137, save_applied_params=True)
+
+
+    # Extract labels for bbox_params
+    labels = [bbox[4] for bbox in bboxes]
+    bboxes_without_labels = [bbox[:4] for bbox in bboxes]
+
+    # Apply transform
+    transformed = transform(image=image, bboxes=bboxes_without_labels, class_labels=labels)
+
+    print("T = ", transformed["applied_transforms"][0])
+
+    # Get applied parameters
+    applied_params = transformed['applied_transforms'][0][1]  # First transform's params
+    holes = applied_params['holes']
+
+    # Verify number of holes (2 per object)
+    assert len(holes) == expected_num_objects * 2, \
+        f"Expected {expected_num_objects * 2} holes (2 per object), got {len(holes)}"
+
+    # Verify holes are within image bounds
+    for hole in holes:
+        x1, y1, x2, y2 = hole
+        assert 0 <= x1 < x2 <= 100, f"Invalid hole x coordinates: {x1}, {x2}"
+        assert 0 <= y1 < y2 <= 100, f"Invalid hole y coordinates: {y1}, {y2}"
+
+    # Verify holes overlap with target boxes
+    target_boxes = [
+        bbox[:4] for bbox, label in zip(bboxes, labels)
+        if label in bbox_labels
+    ]
+
+    for hole in holes:
+        overlaps_any = False
+        for box in target_boxes:
+            # Check for overlap
+            if not (hole[2] <= box[0] or  # hole right < box left
+                   hole[0] >= box[2] or  # hole left > box right
+                   hole[3] <= box[1] or  # hole bottom < box top
+                   hole[1] >= box[3]):   # hole top > box bottom
+                overlaps_any = True
+                break
+        assert overlaps_any, f"Hole {hole} doesn't overlap with any target box"
