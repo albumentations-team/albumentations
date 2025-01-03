@@ -29,11 +29,16 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
     [
         A.CoarseDropout,
-        {
+        [{
             "num_holes_range": (2, 5),
             "hole_height_range": (3, 4),
             "hole_width_range": (4, 6),
         },
+        {
+            "num_holes_range": (2, 5),
+            "hole_height_range": (0.1, 0.2),
+            "hole_width_range": (0.2, 0.3),
+        }]
     ],
     [
         A.RandomSnow,

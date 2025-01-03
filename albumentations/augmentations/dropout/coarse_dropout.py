@@ -104,7 +104,7 @@ class CoarseDropout(BaseDropout):
         hole_height_range: Annotated[
             tuple[ScalarType, ScalarType],
             AfterValidator(nondecreasing),
-            AfterValidator(check_range_bounds(1, None)),
+            AfterValidator(check_range_bounds(0, None)),
         ]
 
         min_width: ScalarType | None = Field(ge=0)
@@ -112,7 +112,7 @@ class CoarseDropout(BaseDropout):
         hole_width_range: Annotated[
             tuple[ScalarType, ScalarType],
             AfterValidator(nondecreasing),
-            AfterValidator(check_range_bounds(1, None)),
+            AfterValidator(check_range_bounds(0, None)),
         ]
 
         @staticmethod
@@ -401,12 +401,15 @@ class Erasing(BaseDropout):
 class ConstrainedCoarseDropout(BaseDropout):
     """Applies coarse dropout to regions containing specific objects in the image.
 
-    This augmentation creates holes (dropout regions) that overlap with target objects.
+    This augmentation creates holes (dropout regions) for each target object in the image.
     Objects can be specified either by their class indices in a segmentation mask or
-    by their labels in bounding box annotations. Each hole is:
-    1. Mapped to a random target object
-    2. Sized as a proportion of that object's dimensions
-    3. Positioned randomly within the object's bounding box
+    by their labels in bounding box annotations. For each target object:
+    1. A fixed number of holes is created (sampled once from num_holes_range)
+    2. Each hole is sized as a proportion of the object's dimensions
+    3. Each hole is positioned randomly within the object's bounding box
+
+    For example, if num_holes_range=(2,4) and there are 3 target objects, and 3 is sampled,
+    then each object will get exactly 3 holes, for a total of 9 holes in the image.
 
     Args:
         num_holes_range (tuple[int, int]): Range for number of holes per object (min, max)
@@ -422,6 +425,13 @@ class ConstrainedCoarseDropout(BaseDropout):
             Only objects of these classes will be considered for hole placement.
         bbox_labels (List[str | int | float], optional): List of object labels in bbox
             annotations to target. String labels will be automatically encoded.
+
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
 
     Requires one of:
         - 'mask' key with segmentation mask where:
@@ -460,11 +470,6 @@ class ConstrainedCoarseDropout(BaseDropout):
         ...     bboxes=[[0, 0, 100, 100, 'car'], [150, 150, 300, 300, 'person']]
         ... )
 
-    Targets:
-        image, mask, bboxes, keypoints, volume, mask3d
-
-    Image types:
-        uint8, float32
     """
 
     class InitSchema(BaseDropout.InitSchema):
