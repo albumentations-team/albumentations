@@ -1681,21 +1681,18 @@ class CropAndPad(DualTransform):
             raise ValueError(msg)
 
         if isinstance(self.px, int):
-            params = [self.px] * 4
-        elif len(self.px) == PAIR:
+            return [self.px] * 4
+        if len(self.px) == PAIR:
             if self.sample_independently:
-                params = [self.py_random.randrange(*self.px) for _ in range(4)]
-            else:
-                px = self.py_random.randrange(*self.px)
-                params = [px] * 4
-        elif isinstance(self.px[0], int):
-            params = self.px
-        elif len(self.px[0]) == PAIR:
-            params = [self.py_random.randrange(*i) for i in self.px]
-        else:
-            params = [self.py_random.choice(i) for i in self.px]
+                return [self.py_random.randrange(*self.px) for _ in range(4)]
+            px = self.py_random.randrange(*self.px)
+            return [px] * 4
+        if isinstance(self.px[0], int):
+            return self.px
+        if len(self.px[0]) == PAIR:
+            return [self.py_random.randrange(*i) for i in self.px]
 
-        return params
+        return [self.py_random.choice(i) for i in self.px]
 
     def _get_percent_params(self) -> list[float]:
         if self.percent is None:

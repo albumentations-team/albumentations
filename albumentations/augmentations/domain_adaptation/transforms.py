@@ -6,7 +6,7 @@ from typing import Annotated, Any, Callable, Literal, cast
 import cv2
 import numpy as np
 from albucore import add_weighted, get_num_channels
-from pydantic import AfterValidator, Field, field_validator
+from pydantic import AfterValidator, field_validator
 
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.domain_adaptation.functional import (
@@ -439,9 +439,6 @@ class TemplateTransform(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         templates: np.ndarray | Sequence[np.ndarray]
         img_weight: ZeroOneRangeType
-        template_weight: ZeroOneRangeType | None = Field(
-            deprecated="Template_weight is deprecated. Computed automatically as (1 - img_weight)",
-        )
         template_transform: Compose | BasicTransform | None = None
         name: str | None
 
@@ -462,7 +459,6 @@ class TemplateTransform(ImageOnlyTransform):
         self,
         templates: np.ndarray | list[np.ndarray],
         img_weight: ScaleFloatType = (0.5, 0.5),
-        template_weight: None = None,
         template_transform: Compose | BasicTransform | None = None,
         name: str | None = None,
         p: float = 0.5,
