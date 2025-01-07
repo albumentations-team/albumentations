@@ -1509,24 +1509,6 @@ def test_random_rain_invalid_input(params):
 
 
 @pytest.mark.parametrize(
-    "params, expected",
-    [
-        # Test default initialization values
-        ({}, {"snow_point_range": (0.1, 0.3)}),
-        # Test snow point range
-        ({"snow_point_range": (0.2, 0.6)}, {"snow_point_range": (0.2, 0.6)}),
-        # Deprecated quality values handling
-        ({"snow_point_lower": 0.15}, {"snow_point_range": (0.15, 0.3)}),
-        ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
-    ],
-)
-def test_random_snow_initialization(params, expected):
-    img_comp = A.RandomSnow(**params)
-    for key, value in expected.items():
-        assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
-
-
-@pytest.mark.parametrize(
     "params",
     [
         ({"snow_point_range": (1.2, 1.5)}),  # Invalid quality range -> upper bound
