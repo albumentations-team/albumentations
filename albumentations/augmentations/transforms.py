@@ -762,9 +762,11 @@ class RandomRain(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        slant_lower: int | None = Field(default=None)
-        slant_upper: int | None = Field(default=None)
-        slant_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)]
+        slant_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(-MAX_RAIN_ANGLE, MAX_RAIN_ANGLE)),
+        ]
         drop_length: int = Field(ge=1)
         drop_width: int = Field(ge=1)
         drop_color: tuple[int, int, int]
@@ -772,38 +774,8 @@ class RandomRain(ImageOnlyTransform):
         brightness_coefficient: float = Field(gt=0, le=1)
         rain_type: RainMode
 
-        @model_validator(mode="after")
-        def validate_ranges(self) -> Self:
-            if self.slant_lower is not None or self.slant_upper is not None:
-                if self.slant_lower is not None:
-                    warn(
-                        "`slant_lower` deprecated. Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                if self.slant_upper is not None:
-                    warn(
-                        "`slant_upper` deprecated. Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                lower = self.slant_lower if self.slant_lower is not None else self.slant_range[0]
-                upper = self.slant_upper if self.slant_upper is not None else self.slant_range[1]
-                self.slant_range = (lower, upper)
-                self.slant_lower = None
-                self.slant_upper = None
-
-            # Validate the slant_range
-            if not (-MAX_RAIN_ANGLE <= self.slant_range[0] <= self.slant_range[1] <= MAX_RAIN_ANGLE):
-                raise ValueError(
-                    f"slant_range values should be increasing within [-{MAX_RAIN_ANGLE}, {MAX_RAIN_ANGLE}] range.",
-                )
-            return self
-
     def __init__(
         self,
-        slant_lower: int | None = None,
-        slant_upper: int | None = None,
         slant_range: tuple[int, int] = (-10, 10),
         drop_length: int = 20,
         drop_width: int = 1,
