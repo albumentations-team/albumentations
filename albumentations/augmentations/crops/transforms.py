@@ -527,9 +527,6 @@ class Crop(BaseCropAndPad):
         border_mode: BorderModeType
         fill: ColorType
         fill_mask: ColorType
-        pad_mode: BorderModeType | None
-        pad_cval: ColorType | None
-        pad_cval_mask: ColorType | None
 
         @model_validator(mode="after")
         def validate_coordinates(self) -> Self:
@@ -540,16 +537,6 @@ class Crop(BaseCropAndPad):
                 msg = "y_max must be greater than y_min"
                 raise ValueError(msg)
 
-            if self.pad_mode is not None:
-                warn("pad_mode is deprecated, use border_mode instead", DeprecationWarning, stacklevel=2)
-                self.border_mode = self.pad_mode
-            if self.pad_cval is not None:
-                warn("pad_cval is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.pad_cval
-            if self.pad_cval_mask is not None:
-                warn("pad_cval_mask is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.pad_cval_mask
-
             return self
 
     def __init__(
@@ -559,9 +546,6 @@ class Crop(BaseCropAndPad):
         x_max: int = 1024,
         y_max: int = 1024,
         pad_if_needed: bool = False,
-        pad_mode: int | None = None,
-        pad_cval: ColorType | None = None,
-        pad_cval_mask: ColorType | None = None,
         pad_position: PositionType = "center",
         border_mode: int = cv2.BORDER_CONSTANT,
         fill: ColorType = 0,
