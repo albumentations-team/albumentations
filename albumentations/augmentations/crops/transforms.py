@@ -4,7 +4,6 @@ import math
 from collections.abc import Sequence
 from numbers import Real
 from typing import Annotated, Any, cast
-from warnings import warn
 
 import cv2
 import numpy as np
@@ -1490,9 +1489,6 @@ class CropAndPad(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         px: PxType | None
         percent: PercentType | None
-        pad_mode: BorderModeType | None
-        pad_cval: ColorType | None
-        pad_cval_mask: ColorType | None
         keep_size: bool
         sample_independently: bool
         interpolation: InterpolationType
@@ -1509,15 +1505,6 @@ class CropAndPad(DualTransform):
             if self.px is not None and self.percent is not None:
                 msg = "Only px or percent may be set!"
                 raise ValueError(msg)
-            if self.pad_mode is not None:
-                warn("pad_mode is deprecated, use border_mode instead", DeprecationWarning, stacklevel=2)
-                self.border_mode = self.pad_mode
-            if self.pad_cval is not None:
-                warn("pad_cval is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.pad_cval
-            if self.pad_cval_mask is not None:
-                warn("pad_cval_mask is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.pad_cval_mask
 
             return self
 
@@ -1525,9 +1512,6 @@ class CropAndPad(DualTransform):
         self,
         px: int | list[int] | None = None,
         percent: float | list[float] | None = None,
-        pad_mode: int | None = None,
-        pad_cval: ColorType | None = None,
-        pad_cval_mask: ColorType | None = None,
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
