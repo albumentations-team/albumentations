@@ -62,15 +62,15 @@ jobs:
       run: pytest --cov . --cov-report=xml
 
     - name: Upload coverage reports to Codecov
-          if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.12'
-          uses: codecov/codecov-action@v4.3.0
-          with:
-            token: ${{ secrets.CODECOV_TOKEN }}
-            slug: albumentations-team/albumentations
-            files: ./coverage.xml
-            flags: ubuntu-py3.12
-            fail_ci_if_error: true  # Optional: fails CI if upload fails
-            verbose: true  # Optional: helps with debugging
+      if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.12'
+      uses: codecov/codecov-action@v4.3.0
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: albumentations-team/albumentations
+        files: ./coverage.xml
+        flags: ubuntu-py3.12
+        fail_ci_if_error: true  # Optional: fails CI if upload fails
+        verbose: true  # Optional: helps with debugging
 
   check_code_formatting_types:
     name: Check code formatting with ruff and mypy
