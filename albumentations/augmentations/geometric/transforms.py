@@ -378,9 +378,6 @@ class Perspective(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType
         keep_size: bool
-        pad_mode: BorderModeType | None
-        pad_val: ColorType | None
-        mask_pad_val: ColorType | None
         fit_output: bool
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
@@ -388,26 +385,10 @@ class Perspective(DualTransform):
         fill_mask: ColorType
         border_mode: BorderModeType
 
-        @model_validator(mode="after")
-        def validate_deprecated_fields(self) -> Self:
-            if self.pad_mode is not None:
-                warn("pad_mode is deprecated, use border_mode instead", DeprecationWarning, stacklevel=2)
-                self.border_mode = self.pad_mode
-            if self.pad_val is not None:
-                warn("pad_val is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.pad_val
-            if self.mask_pad_val is not None:
-                warn("mask_pad_val is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.mask_pad_val
-            return self
-
     def __init__(
         self,
         scale: ScaleFloatType = (0.05, 0.1),
         keep_size: bool = True,
-        pad_mode: int | None = None,
-        pad_val: ColorType | None = None,
-        mask_pad_val: ColorType | None = None,
         fit_output: bool = False,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
