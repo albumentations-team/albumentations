@@ -925,14 +925,6 @@ class RandomFog(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        fog_coef_lower: float | None = Field(
-            ge=0,
-            le=1,
-        )
-        fog_coef_upper: float | None = Field(
-            ge=0,
-            le=1,
-        )
         fog_coef_range: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, 1)),
@@ -941,34 +933,8 @@ class RandomFog(ImageOnlyTransform):
 
         alpha_coef: float = Field(ge=0, le=1)
 
-        @model_validator(mode="after")
-        def validate_fog_coefficients(self) -> Self:
-            if self.fog_coef_lower is not None:
-                warn(
-                    "`fog_coef_lower` is deprecated, use `fog_coef_range` instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            if self.fog_coef_upper is not None:
-                warn(
-                    "`fog_coef_upper` is deprecated, use `fog_coef_range` instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-            lower = self.fog_coef_lower if self.fog_coef_lower is not None else self.fog_coef_range[0]
-            upper = self.fog_coef_upper if self.fog_coef_upper is not None else self.fog_coef_range[1]
-            self.fog_coef_range = (lower, upper)
-
-            self.fog_coef_lower = None
-            self.fog_coef_upper = None
-
-            return self
-
     def __init__(
         self,
-        fog_coef_lower: float | None = None,
-        fog_coef_upper: float | None = None,
         alpha_coef: float = 0.08,
         fog_coef_range: tuple[float, float] = (0.3, 1),
         p: float = 0.5,
