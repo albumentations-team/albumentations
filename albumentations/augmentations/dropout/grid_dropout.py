@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from typing import Annotated, Any
-from warnings import warn
 
-from pydantic import AfterValidator, Field, model_validator
-from typing_extensions import Self
+from pydantic import AfterValidator, Field
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
-from albumentations.core.types import MIN_UNIT_SIZE, ColorType, DropoutFillValue
+from albumentations.core.types import ColorType, DropoutFillValue
 
 __all__ = ["GridDropout"]
 
@@ -97,66 +95,20 @@ class GridDropout(BaseDropout):
     class InitSchema(BaseDropout.InitSchema):
         ratio: float = Field(gt=0, le=1)
 
-        unit_size_min: int | None = Field(ge=2)
-        unit_size_max: int | None = Field(ge=2)
-
-        holes_number_x: int | None = Field(ge=1)
-        holes_number_y: int | None = Field(ge=1)
-
-        shift_x: int | None = Field(ge=0)
-        shift_y: int | None = Field(ge=0)
-
         random_offset: bool
-        fill_value: DropoutFillValue | None = Field(deprecated="Deprecated use fill instead")
-        mask_fill_value: ColorType | None = Field(deprecated="Deprecated use fill_mask instead")
 
         unit_size_range: (
-            Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None)), AfterValidator(nondecreasing)]
+            Annotated[tuple[int, int], AfterValidator(check_range_bounds(2, None)), AfterValidator(nondecreasing)]
             | None
         )
         shift_xy: Annotated[tuple[int, int], AfterValidator(check_range_bounds(0, None))]
 
         holes_number_xy: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))] | None
 
-        @model_validator(mode="after")
-        def validate_normalization(self) -> Self:
-            if self.unit_size_min is not None and self.unit_size_max is not None:
-                self.unit_size_range = self.unit_size_min, self.unit_size_max
-                warn(
-                    "unit_size_min and unit_size_max are deprecated. Use unit_size_range instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-            if self.shift_x is not None and self.shift_y is not None:
-                self.shift_xy = self.shift_x, self.shift_y
-                warn("shift_x and shift_y are deprecated. Use shift_xy instead.", DeprecationWarning, stacklevel=2)
-
-            if self.holes_number_x is not None and self.holes_number_y is not None:
-                self.holes_number_xy = self.holes_number_x, self.holes_number_y
-                warn(
-                    "holes_number_x and holes_number_y are deprecated. Use holes_number_xy instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-            if self.unit_size_range and not MIN_UNIT_SIZE <= self.unit_size_range[0] <= self.unit_size_range[1]:
-                raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
-
-            return self
-
     def __init__(
         self,
         ratio: float = 0.5,
-        unit_size_min: int | None = None,
-        unit_size_max: int | None = None,
-        holes_number_x: int | None = None,
-        holes_number_y: int | None = None,
-        shift_x: int | None = None,
-        shift_y: int | None = None,
         random_offset: bool = True,
-        fill_value: DropoutFillValue | None = None,
-        mask_fill_value: ColorType | None = None,
         unit_size_range: tuple[int, int] | None = None,
         holes_number_xy: tuple[int, int] | None = None,
         shift_xy: tuple[int, int] = (0, 0),
