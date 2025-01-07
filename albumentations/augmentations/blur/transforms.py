@@ -710,30 +710,12 @@ class AdvancedBlur(ImageOnlyTransform):
         blur_limit: ScaleIntType = (3, 7),
         sigma_x_limit: ScaleFloatType = (0.2, 1.0),
         sigma_y_limit: ScaleFloatType = (0.2, 1.0),
-        sigmaX_limit: ScaleFloatType | None = None,  # noqa: N803
-        sigmaY_limit: ScaleFloatType | None = None,  # noqa: N803
         rotate_limit: ScaleIntType = (-90, 90),
         beta_limit: ScaleFloatType = (0.5, 8.0),
         noise_limit: ScaleFloatType = (0.9, 1.1),
         p: float = 0.5,
     ):
         super().__init__(p=p)
-
-        if sigmaX_limit is not None:
-            warnings.warn(
-                "sigmaX_limit is deprecated; use sigma_x_limit instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sigma_x_limit = sigmaX_limit
-
-        if sigmaY_limit is not None:
-            warnings.warn(
-                "sigmaY_limit is deprecated; use sigma_y_limit instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sigma_y_limit = sigmaY_limit
 
         self.blur_limit = cast(tuple[int, int], blur_limit)
         self.sigma_x_limit = cast(tuple[float, float], sigma_x_limit)
