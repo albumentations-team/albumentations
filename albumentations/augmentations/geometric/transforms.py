@@ -970,7 +970,7 @@ class ShiftScaleRotate(Affine):
             Default: cv2.INTER_LINEAR.
         border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
+            Default: cv2.BORDER_CONSTANT
         fill (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT.
         fill_mask (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         shift_limit_x ((float, float) or float): shift factor range for width. If it is set then this value
@@ -1005,9 +1005,6 @@ class ShiftScaleRotate(Affine):
         interpolation: InterpolationType
         border_mode: BorderModeType
 
-        value: ColorType | None
-        mask_value: ColorType | None
-
         fill: ColorType = 0
         fill_mask: ColorType = 0
 
@@ -1028,12 +1025,6 @@ class ShiftScaleRotate(Affine):
             )
             check_range(self.shift_limit_y, *bounds, "shift_limit_y")
 
-            if self.value is not None:
-                warn("value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.value
-            if self.mask_value is not None:
-                warn("mask_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.mask_value
             return self
 
         @field_validator("scale_limit")
@@ -1054,9 +1045,7 @@ class ShiftScaleRotate(Affine):
         scale_limit: ScaleFloatType = (-0.1, 0.1),
         rotate_limit: ScaleFloatType = (-45, 45),
         interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
+        border_mode: int = cv2.BORDER_CONSTANT,
         shift_limit_x: ScaleFloatType | None = None,
         shift_limit_y: ScaleFloatType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
@@ -1083,8 +1072,8 @@ class ShiftScaleRotate(Affine):
             p=p,
         )
         warn(
-            "ShiftScaleRotate is deprecated. Please use Affine transform instead.",
-            DeprecationWarning,
+            "ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.",
+            UserWarning,
             stacklevel=2,
         )
         self.shift_limit_x = shift_limit_x
