@@ -1162,19 +1162,7 @@ class PiecewiseAffine(BaseDistortion):
         nb_cols: ScaleIntType
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
-        cval: int | None = Field(deprecated="Deprecated. Does not have any effect.")
-        cval_mask: int | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
-
-        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] | None = Field(
-            deprecated="Deprecated. Does not have any effects.",
-        )
-
         absolute_scale: bool
-        keypoints_threshold: float = Field(
-            deprecated="This parameter is not used anymore",
-        )
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
@@ -1195,12 +1183,8 @@ class PiecewiseAffine(BaseDistortion):
         nb_cols: ScaleIntType = (4, 4),
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        cval: int | None = None,
-        cval_mask: int | None = None,
-        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] | None = None,
         absolute_scale: bool = False,
         p: float = 0.5,
-        keypoints_threshold: float = 0.01,
     ):
         super().__init__(
             p=p,
