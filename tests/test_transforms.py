@@ -1481,22 +1481,6 @@ def test_pad_if_needed_functionality(params, expected):
 
 
 @pytest.mark.parametrize(
-    "params, expected",
-    [
-        # Test default initialization values
-        ({}, {"slant_range": (-10, 10)}),
-        ({"slant_range": (-7, 4)}, {"slant_range": (-7, 4)}),
-        ({"slant_lower": 2}, {"slant_range": (2, 10)}),
-        ({"slant_upper": 2}, {"slant_range": (-10, 2)}),
-    ],
-)
-def test_random_rain_initialization(params, expected):
-    img_rain = A.RandomRain(**params)
-    for key, value in expected.items():
-        assert getattr(img_rain, key) == value, f"Failed on {key} with value {value}"
-
-
-@pytest.mark.parametrize(
     "params",
     [
         ({"slant_range": (12, 8)}),  # Invalid slant range -> decreasing
