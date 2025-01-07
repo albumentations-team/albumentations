@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any, cast
-from warnings import warn
 
 import numpy as np
 from pydantic import model_validator
@@ -46,7 +45,7 @@ class XYMasking(BaseDropout):
             - 'inpaint_telea': uses OpenCV Telea inpainting method
             - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        mask_fill_value (ColorType | None): Fill value for dropout regions in the mask.
+        fill_mask (ColorType | None): Fill value for dropout regions in the mask.
             If None, mask regions corresponding to image dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Defaults to 0.5.
 
@@ -65,9 +64,6 @@ class XYMasking(BaseDropout):
         mask_x_length: NonNegativeIntRangeType
         mask_y_length: NonNegativeIntRangeType
 
-        fill_value: DropoutFillValue | None
-        mask_fill_value: ColorType | None
-
         fill: DropoutFillValue
         fill_mask: ColorType | None
 
@@ -82,14 +78,6 @@ class XYMasking(BaseDropout):
                 msg = "At least one of `mask_x_length` or `mask_y_length` Should be a positive number."
                 raise ValueError(msg)
 
-            if self.fill_value is not None:
-                warn("fill_value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.fill_value
-
-            if self.mask_fill_value is not None:
-                warn("mask_fill_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.mask_fill_value
-
             return self
 
     def __init__(
@@ -98,8 +86,6 @@ class XYMasking(BaseDropout):
         num_masks_y: ScaleIntType = 0,
         mask_x_length: ScaleIntType = 0,
         mask_y_length: ScaleIntType = 0,
-        fill_value: DropoutFillValue | None = None,
-        mask_fill_value: ColorType | None = None,
         fill: DropoutFillValue = 0,
         fill_mask: ColorType | None = None,
         p: float = 0.5,
