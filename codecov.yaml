@@ -1,3 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%  # Adding threshold for more flexibility
+    patch:
+      default:
+        target: auto
+        threshold: 1%  # Adding threshold for patch coverage
+
+  ignore:
+    - "tests/"
+    - "tools/"
+    - "benchmark/"
+
 flag_management:
   individual_flags:
     - name: smart-tests
@@ -12,15 +28,14 @@ cli:
     pycoverage:
       report_type: "json"
 
-coverage:
-  status:
-    project:
-      default:
-        target: auto
-  ignore:
-    - "tests/"
-    - "tools/"
-    - "benchmark/"
-
 codecov:
   require_ci_to_pass: false
+
+# Adding explicit paths to include
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no

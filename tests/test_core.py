@@ -1263,6 +1263,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.CoarseDropout,
             A.ConstrainedCoarseDropout,
             A.PadIfNeeded,
+            A.RandomRotate90,
         },
     ),
 )

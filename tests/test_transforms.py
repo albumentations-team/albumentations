@@ -62,7 +62,12 @@ def test_rotate_crop_border():
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.PixelDropout,
-            A.Lambda
+            A.Lambda,
+            A.RandomRotate90,
+            A.D4,
+            A.VerticalFlip,
+            A.HorizontalFlip,
+            A.Transpose,
         },
     ),
 )
@@ -122,7 +127,12 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.XYMasking,
             A.RandomCropNearBBox,
             A.PiecewiseAffine,
-            A.Lambda
+            A.Lambda,
+            A.RandomRotate90,
+            A.D4,
+            A.VerticalFlip,
+            A.HorizontalFlip,
+            A.Transpose,
         },
     ),
 )

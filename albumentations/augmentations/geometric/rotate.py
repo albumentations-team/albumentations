@@ -34,18 +34,57 @@ SMALL_NUMBER = 1e-10
 class RandomRotate90(DualTransform):
     """Randomly rotate the input by 90 degrees zero or more times.
 
+    Even with p=1.0, the transform has a 1/4 probability of being identity:
+    - With probability p * 1/4: no rotation (0 degrees)
+    - With probability p * 1/4: rotate 90 degrees
+    - With probability p * 1/4: rotate 180 degrees
+    - With probability p * 1/4: rotate 270 degrees
+
+    For example:
+    - With p=1.0: Each rotation angle (including 0°) has 0.25 probability
+    - With p=0.8: Each rotation angle has 0.2 probability, and no transform has 0.2 probability
+    - With p=0.5: Each rotation angle has 0.125 probability, and no transform has 0.5 probability
+
+    Common applications:
+    - Aerial/satellite imagery: Objects can appear in any orientation
+    - Medical imaging: Scans/slides may not have a consistent orientation
+    - Document analysis: Pages or symbols might be rotated
+    - Microscopy: Cell orientation is often arbitrary
+    - Game development: Sprites/textures that should work in multiple orientations
+
+    Not recommended for:
+    - Natural scene images where gravity matters (e.g., landscape photography)
+    - Face detection/recognition tasks
+    - Text recognition (unless text can appear rotated)
+    - Tasks where object orientation is important for classification
+
+    Note:
+        If your domain has both 90-degree rotation AND flip symmetries
+        (e.g., satellite imagery, microscopy), consider using `D4` transform instead.
+        `D4` is more efficient and mathematically correct as it:
+        - Samples uniformly from all 8 possible combinations of rotations and flips
+        - Properly represents the dihedral group D4 symmetries
+        - Avoids potential correlation between separate rotation and flip augmentations
+
     Args:
-        p: probability of applying the transform. Default: 0.5.
+        p (float): probability of applying the transform. Default: 1.0.
+            Note that even with p=1.0, there's still a 0.25 probability
+            of getting a 0-degree rotation (identity transform).
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
 
     Image types:
         uint8, float32
-
     """
 
     _targets = ALL_TARGETS
+
+    def __init__(
+        self,
+        p: float = 1,
+    ):
+        super().__init__(p=p)
 
     def apply(self, img: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
         return fgeometric.rot90(img, factor)
