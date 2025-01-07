@@ -696,7 +696,6 @@ def test_smallest_max_size_list():
 @pytest.mark.parametrize(
     [
         "img_weight",
-        "template_weight",
         "template_transform",
         "image_size",
         "template_size",
@@ -704,20 +703,18 @@ def test_smallest_max_size_list():
     [
         (
             0.5,
-            0.5,
             A.RandomSizedCrop((50, 200), size=(513, 450), p=1.0),
             (513, 450),
             (224, 224),
         ),
-        (0.3, 0.5, A.RandomResizedCrop(size=(513, 450), p=1.0), (513, 450), (224, 224)),
-        (1.0, 0.5, A.CenterCrop(500, 450, p=1.0), (500, 450, 3), (512, 512, 3)),
-        (0.5, 0.8, A.Resize(513, 450, p=1.0), (513, 450), (512, 512)),
-        (0.5, 0.2, A.NoOp(), (224, 224), (224, 224)),
-        (0.5, 0.9, A.NoOp(), (512, 512, 3), (512, 512, 3)),
-        (0.5, 0.5, None, (512, 512), (512, 512)),
-        (0.8, 0.7, None, (512, 512, 3), (512, 512, 3)),
+        (0.3, A.RandomResizedCrop(size=(513, 450), p=1.0), (513, 450), (224, 224)),
+        (1.0, A.CenterCrop(500, 450, p=1.0), (500, 450, 3), (512, 512, 3)),
+        (0.5, A.Resize(513, 450, p=1.0), (513, 450), (512, 512)),
+        (0.5, A.NoOp(), (224, 224), (224, 224)),
+        (0.5, A.NoOp(), (512, 512, 3), (512, 512, 3)),
+        (0.5, None, (512, 512), (512, 512)),
+        (0.8, None, (512, 512, 3), (512, 512, 3)),
         (
-            0.5,
             0.5,
             A.Compose(
                 [
@@ -732,12 +729,12 @@ def test_smallest_max_size_list():
     ],
 )
 def test_template_transform(
-    img_weight, template_weight, template_transform, image_size, template_size
+    img_weight, template_transform, image_size, template_size
 ):
     img = np.random.randint(0, 256, image_size, np.uint8)
     template = np.random.randint(0, 256, template_size, np.uint8)
 
-    aug = A.TemplateTransform(template, img_weight, template_weight, template_transform)
+    aug = A.TemplateTransform(template, img_weight, template_transform)
     result = aug(image=img)["image"]
 
     assert result.shape == img.shape
