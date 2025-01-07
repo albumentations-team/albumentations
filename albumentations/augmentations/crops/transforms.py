@@ -886,47 +886,19 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         mask_interpolation: InterpolationType
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
-        width: int | None
-        height: int | None
-        size: ScaleIntType | None
-
-        @model_validator(mode="after")
-        def process(self) -> Self:
-            if isinstance(self.size, int):
-                if isinstance(self.width, int):
-                    warn(
-                        "Initializing with 'size' as an integer and a separate 'width', `height` are deprecated. "
-                        "Please use a tuple (height, width) for the 'size' argument.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                    self.size = (self.size, self.width)
-                else:
-                    msg = "If size is an integer, width as integer must be specified."
-                    raise TypeError(msg)
-
-            if self.size is None:
-                if self.height is None or self.width is None:
-                    message = "If 'size' is not provided, both 'height' and 'width' must be specified."
-                    raise ValueError(message)
-                self.size = (self.height, self.width)
-            return self
+        size: tuple[int, int]
 
     def __init__(
         self,
         min_max_height: tuple[int, int],
-        # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: ScaleIntType | None = None,
-        width: int | None = None,
-        height: int | None = None,
-        *,
+        size: tuple[int, int],
         w2h_ratio: float = 1.0,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(
-            size=cast(tuple[int, int], size),
+            size=size,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
             p=p,

@@ -189,20 +189,18 @@ def test_force_apply():
                 A.Compose(
                     [
                         A.RandomSizedCrop(
-                            min_max_height=(256, 1025), height=512, width=512, p=1
+                            min_max_height=(256, 1025), size=(512, 512), p=1
                         ),
                         A.OneOf(
                             [
                                 A.RandomSizedCrop(
                                     min_max_height=(256, 512),
-                                    height=384,
-                                    width=384,
+                                    size=(384, 384),
                                     p=0.5,
                                 ),
                                 A.RandomSizedCrop(
                                     min_max_height=(256, 512),
-                                    height=512,
-                                    width=512,
+                                    size=(512, 512),
                                     p=0.5,
                                 ),
                             ],
@@ -212,7 +210,7 @@ def test_force_apply():
                 A.Compose(
                     [
                         A.RandomSizedCrop(
-                            min_max_height=(256, 1025), height=256, width=256, p=1
+                            min_max_height=(256, 1025), size=(256, 256), p=1
                         ),
                         A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1),
                     ],
@@ -1078,54 +1076,6 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
 
     message = "This transformation expects 3-channel images"
     assert str(exc_info.value).startswith(message)
-
-
-@pytest.mark.parametrize("height, width", [(100, 200), (200, 100)])
-@pytest.mark.parametrize("scale", [(0.08, 1.0), (0.5, 1.0)])
-@pytest.mark.parametrize("ratio", [(0.75, 1.33), (1.0, 1.0)])
-def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
-    # NOTE: below will fail when height, width is no longer expected as first two positional arguments
-    transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
-    transform_albu_new = A.RandomResizedCrop(
-        size=(height, width), scale=scale, ratio=ratio, p=1
-    )
-
-    image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
-    transformed_image_albu = transform_albu(image=image)["image"]
-    transformed_image_albu_new = transform_albu_new(image=image)["image"]
-
-    # PyTorch equivalent operation
-    transform_pt = torch_transforms.RandomResizedCrop(
-        size=(height, width), scale=scale, ratio=ratio
-    )
-    image_pil = torch_transforms.functional.to_pil_image(image)
-    transformed_image_pt = transform_pt(image_pil)
-
-    transformed_image_pt_np = np.array(transformed_image_pt)
-    assert transformed_image_albu.shape == transformed_image_pt_np.shape
-    assert transformed_image_albu_new.shape == transformed_image_pt_np.shape
-
-    # NOTE: below will fail when height, width is no longer expected as second and third positional arguments
-    transform_albu = A.RandomSizedCrop((128, 224), height, width, p=1.0)
-    transform_albu_new = A.RandomSizedCrop(
-        min_max_height=(128, 224), size=(height, width), p=1.0
-    )
-    transformed_image_albu = transform_albu(image=image)["image"]
-    transformed_image_albu_new = transform_albu_new(image=image)["image"]
-    assert transformed_image_albu.shape == transformed_image_pt_np.shape
-    assert transformed_image_albu_new.shape == transformed_image_pt_np.shape
-
-    # NOTE: below will fail when height, width is no longer expected as first two positional arguments
-    transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
-    transform_albu_height_is_size = A.RandomResizedCrop(
-        size=height, width=width, scale=scale, ratio=ratio, p=1
-    )
-
-    image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
-    transformed_image_albu = transform_albu(image=image)["image"]
-    transform_albu_height_is_size = transform_albu_new(image=image)["image"]
-    assert transformed_image_albu.shape == transformed_image_pt_np.shape
-    assert transform_albu_height_is_size.shape == transformed_image_pt_np.shape
 
 
 @pytest.mark.parametrize(
