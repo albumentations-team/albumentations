@@ -1378,8 +1378,6 @@ class RandomShadow(ImageOnlyTransform):
             AfterValidator(check_range_bounds(1, None)),
             AfterValidator(nondecreasing),
         ]
-        num_shadows_lower: int | None
-        num_shadows_upper: int | None
         shadow_dimension: int = Field(ge=3)
 
         shadow_intensity_range: Annotated[
@@ -1390,53 +1388,10 @@ class RandomShadow(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
-            if self.num_shadows_lower is not None:
-                warn(
-                    "`num_shadows_lower` is deprecated. Use `num_shadows_limit` instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-            if self.num_shadows_upper is not None:
-                warn(
-                    "`num_shadows_upper` is deprecated. Use `num_shadows_limit` instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-            if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
-                num_shadows_lower = (
-                    self.num_shadows_lower if self.num_shadows_lower is not None else self.num_shadows_limit[0]
-                )
-                num_shadows_upper = (
-                    self.num_shadows_upper if self.num_shadows_upper is not None else self.num_shadows_limit[1]
-                )
-
-                self.num_shadows_limit = (num_shadows_lower, num_shadows_upper)
-                self.num_shadows_lower = None
-                self.num_shadows_upper = None
-
             shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y = self.shadow_roi
 
             if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
                 raise ValueError(f"Invalid shadow_roi. Got: {self.shadow_roi}")
-
-            if isinstance(self.shadow_intensity_range, float):
-                if not (0 <= self.shadow_intensity_range <= 1):
-                    raise ValueError(
-                        f"shadow_intensity_range value should be within [0, 1] range. "
-                        f"Got: {self.shadow_intensity_range}",
-                    )
-            elif isinstance(self.shadow_intensity_range, tuple):
-                if not (0 <= self.shadow_intensity_range[0] <= self.shadow_intensity_range[1] <= 1):
-                    raise ValueError(
-                        f"shadow_intensity_range values should be within [0, 1] range and increasing. "
-                        f"Got: {self.shadow_intensity_range}",
-                    )
-            else:
-                raise TypeError(
-                    "shadow_intensity_range should be an float or a tuple of floats.",
-                )
 
             return self
 
@@ -1444,8 +1399,6 @@ class RandomShadow(ImageOnlyTransform):
         self,
         shadow_roi: tuple[float, float, float, float] = (0, 0.5, 1, 1),
         num_shadows_limit: tuple[int, int] = (1, 2),
-        num_shadows_lower: int | None = None,
-        num_shadows_upper: int | None = None,
         shadow_dimension: int = 5,
         shadow_intensity_range: tuple[float, float] = (0.5, 0.5),
         p: float = 0.5,
