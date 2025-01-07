@@ -1153,15 +1153,6 @@ class RandomSunFlare(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         flare_roi: tuple[float, float, float, float]
-        angle_lower: float | None = Field(ge=0, le=1)
-        angle_upper: float | None = Field(ge=0, le=1)
-
-        num_flare_circles_lower: int | None = Field(
-            ge=0,
-        )
-        num_flare_circles_upper: int | None = Field(
-            gt=0,
-        )
         src_radius: int = Field(gt=1)
         src_color: tuple[int, ...]
 
@@ -1192,59 +1183,11 @@ class RandomSunFlare(ImageOnlyTransform):
             ):
                 raise ValueError(f"Invalid flare_roi. Got: {self.flare_roi}")
 
-            if self.angle_lower is not None or self.angle_upper is not None:
-                if self.angle_lower is not None:
-                    warn(
-                        "`angle_lower` deprecated. Use `angle_range` as tuple (angle_lower, angle_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                if self.angle_upper is not None:
-                    warn(
-                        "`angle_upper` deprecated. Use `angle_range` as tuple(angle_lower, angle_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                lower = self.angle_lower if self.angle_lower is not None else self.angle_range[0]
-                upper = self.angle_upper if self.angle_upper is not None else self.angle_range[1]
-                self.angle_range = (lower, upper)
-
-            if self.num_flare_circles_lower is not None or self.num_flare_circles_upper is not None:
-                if self.num_flare_circles_lower is not None:
-                    warn(
-                        "`num_flare_circles_lower` deprecated. Use `num_flare_circles_range` as tuple"
-                        " (num_flare_circles_lower, num_flare_circles_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                if self.num_flare_circles_upper is not None:
-                    warn(
-                        "`num_flare_circles_upper` deprecated. Use `num_flare_circles_range` as tuple"
-                        " (num_flare_circles_lower, num_flare_circles_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                lower = (
-                    self.num_flare_circles_lower
-                    if self.num_flare_circles_lower is not None
-                    else self.num_flare_circles_range[0]
-                )
-                upper = (
-                    self.num_flare_circles_upper
-                    if self.num_flare_circles_upper is not None
-                    else self.num_flare_circles_range[1]
-                )
-                self.num_flare_circles_range = (lower, upper)
-
             return self
 
     def __init__(
         self,
         flare_roi: tuple[float, float, float, float] = (0, 0, 1, 0.5),
-        angle_lower: float | None = None,
-        angle_upper: float | None = None,
-        num_flare_circles_lower: int | None = None,
-        num_flare_circles_upper: int | None = None,
         src_radius: int = 400,
         src_color: tuple[int, ...] = (255, 255, 255),
         angle_range: tuple[float, float] = (0, 1),
