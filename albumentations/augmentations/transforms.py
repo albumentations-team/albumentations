@@ -138,7 +138,6 @@ __all__ = [
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
-MAX_JPEG_QUALITY = 100
 TWENTY = 20
 
 
