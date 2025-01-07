@@ -643,10 +643,6 @@ class Affine(DualTransform):
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
 
-        cval: ColorType | None
-        cval_mask: ColorType | None
-        mode: BorderModeType | None
-
         fill: ColorType
         fill_mask: ColorType
         border_mode: BorderModeType
@@ -717,19 +713,6 @@ class Affine(DualTransform):
                 return {"x": to_tuple(x, x), "y": to_tuple(y, y)}  # type: ignore[arg-type]
             return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
-        @model_validator(mode="after")
-        def validate_fill_types(self) -> Self:
-            if self.cval is not None:
-                self.fill = self.cval
-                warn("cval is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-            if self.cval_mask is not None:
-                self.fill_mask = self.cval_mask
-                warn("cval_mask is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-            if self.mode is not None:
-                self.border_mode = self.mode
-                warn("mode is deprecated, use border_mode instead", DeprecationWarning, stacklevel=2)
-            return self
-
     def __init__(
         self,
         scale: ScaleFloatType | fgeometric.XYFloatScale = 1,
@@ -739,9 +722,6 @@ class Affine(DualTransform):
         shear: ScaleFloatType | fgeometric.XYFloatScale = 0,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        cval: ColorType | None = None,
-        cval_mask: ColorType | None = None,
-        mode: int | None = None,
         fit_output: bool = False,
         keep_ratio: bool = False,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
