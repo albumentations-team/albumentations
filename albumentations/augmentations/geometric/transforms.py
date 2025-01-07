@@ -1475,7 +1475,6 @@ class OpticalDistortion(BaseDistortion):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         image_shape = params["shape"][:2]
-        height, width = image_shape
 
         # Get distortion coefficient
         k = self.py_random.uniform(*self.distort_limit)
