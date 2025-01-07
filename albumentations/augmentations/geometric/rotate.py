@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import math
 from typing import Any, cast
-from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import model_validator
-from typing_extensions import Literal, Self
+from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
 from albumentations.augmentations.geometric.transforms import Affine
@@ -157,26 +155,11 @@ class Rotate(DualTransform):
         fill: ColorType
         fill_mask: ColorType
 
-        value: ColorType | None
-        mask_value: ColorType | None
-
-        @model_validator(mode="after")
-        def validate_value(self) -> Self:
-            if self.value is not None:
-                warn("value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.value
-            if self.mask_value is not None:
-                warn("mask_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.mask_value
-            return self
-
     def __init__(
         self,
         limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
+        border_mode: int = cv2.BORDER_CONSTANT,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
