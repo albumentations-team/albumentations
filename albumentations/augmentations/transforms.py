@@ -456,52 +456,11 @@ class RandomSnow(ImageOnlyTransform):
             AfterValidator(nondecreasing),
         ]
 
-        snow_point_lower: float | None = Field(
-            gt=0,
-            lt=1,
-        )
-        snow_point_upper: float | None = Field(
-            gt=0,
-            lt=1,
-        )
         brightness_coeff: float = Field(gt=0)
         method: Literal["bleach", "texture"]
 
-        @model_validator(mode="after")
-        def validate_ranges(self) -> Self:
-            if self.snow_point_lower is not None or self.snow_point_upper is not None:
-                if self.snow_point_lower is not None:
-                    warn(
-                        "`snow_point_lower` deprecated. Use `snow_point_range` as tuple"
-                        " (snow_point_lower, snow_point_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                if self.snow_point_upper is not None:
-                    warn(
-                        "`snow_point_upper` deprecated. Use `snow_point_range` as tuple"
-                        "(snow_point_lower, snow_point_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                lower = self.snow_point_lower if self.snow_point_lower is not None else self.snow_point_range[0]
-                upper = self.snow_point_upper if self.snow_point_upper is not None else self.snow_point_range[1]
-                self.snow_point_range = (lower, upper)
-                self.snow_point_lower = None
-                self.snow_point_upper = None
-
-            # Validate the snow_point_range
-            if not (0 < self.snow_point_range[0] <= self.snow_point_range[1] < 1):
-                raise ValueError(
-                    "snow_point_range values should be increasing within (0, 1) range.",
-                )
-
-            return self
-
     def __init__(
         self,
-        snow_point_lower: float | None = None,
-        snow_point_upper: float | None = None,
         brightness_coeff: float = 2.5,
         snow_point_range: tuple[float, float] = (0.1, 0.3),
         method: Literal["bleach", "texture"] = "bleach",
