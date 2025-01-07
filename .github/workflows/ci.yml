@@ -68,6 +68,8 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: albumentations-team/albumentations
         files: ./coverage.xml
+        flags: ubuntu-py3.12
+        fail_ci_if_error: true  # Optional: fails CI if upload fails
         verbose: true  # Optional: helps with debugging
 
   check_code_formatting_types:
