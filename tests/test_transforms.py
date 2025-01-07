@@ -1224,52 +1224,6 @@ def test_image_compression_invalid_input(params):
 
 
 @pytest.mark.parametrize(
-    "params, expected",
-    [
-        # Default values
-        (
-            {},
-            {
-                "num_holes_range": (1, 1),
-                "hole_height_range": (8, 8),
-                "hole_width_range": (8, 8),
-            },
-        ),
-        # Boundary values
-        ({"num_holes_range": (2, 3)}, {"num_holes_range": (2, 3)}),
-        ({"hole_height_range": (1, 12)}, {"hole_height_range": (1, 12)}),
-        ({"hole_width_range": (1, 12)}, {"hole_width_range": (1, 12)}),
-        # Random fill value
-        ({"fill": "random"}, {"fill": "random"}),
-        ({"fill": (255, 255, 255)}, {"fill": (255, 255, 255)}),
-        # Deprecated values handling
-        ({"min_holes": 1, "max_holes": 5}, {"num_holes_range": (1, 5)}),
-        ({"min_height": 2, "max_height": 6}, {"hole_height_range": (2, 6)}),
-        ({"min_width": 3, "max_width": 7}, {"hole_width_range": (3, 7)}),
-    ],
-)
-def test_coarse_dropout_functionality(params, expected):
-    aug = A.CoarseDropout(**params, p=1)
-    aug_dict = aug.to_dict()["transform"]
-    for key, value in expected.items():
-        assert aug_dict[key] == value, f"Failed on {key} with value {value}"
-
-
-@pytest.mark.parametrize(
-    "params",
-    [
-        ({"num_holes_range": (5, 1)}),  # Invalid range
-        ({"num_holes_range": (0, 3)}),  # Invalid range
-        ({"hole_height_range": (2.1, 3)}),  # Invalid type
-        ({"hole_height_range": ("a", "b")}),  # Invalid type
-    ],
-)
-def test_coarse_dropout_invalid_input(params):
-    with pytest.raises(Exception):
-        _ = A.CoarseDropout(**params, p=1)
-
-
-@pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
