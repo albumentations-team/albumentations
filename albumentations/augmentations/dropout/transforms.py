@@ -47,9 +47,8 @@ class BaseDropout(DualTransform):
         fill: DropoutFillValue,
         fill_mask: ColorType | None,
         p: float,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.fill = fill
         self.fill_mask = fill_mask
 

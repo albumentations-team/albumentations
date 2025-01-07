@@ -125,9 +125,8 @@ class BaseDistortion(DualTransform):
         interpolation: int,
         mask_interpolation: int,
         p: float,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
 
@@ -276,7 +275,6 @@ class ElasticTransform(BaseDistortion):
         mask_interpolation: int = cv2.INTER_NEAREST,
         noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             interpolation=interpolation,
@@ -375,7 +373,7 @@ class Perspective(DualTransform):
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> transform = A.Compose([
-        ...     A.Perspective(scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5),
+        ...     A.Perspective(scale=(0.05, 0.1), keep_size=True, p=0.5),
         ... ])
         >>> result = transform(image=image)
         >>> transformed_image = result['image']
@@ -423,9 +421,8 @@ class Perspective(DualTransform):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p, always_apply=always_apply)
+        super().__init__(p)
         self.scale = cast(tuple[float, float], scale)
         self.keep_size = keep_size
         self.border_mode = border_mode
@@ -778,9 +775,8 @@ class Affine(DualTransform):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
@@ -1113,7 +1109,6 @@ class ShiftScaleRotate(Affine):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         shift_limit_x = cast(tuple[float, float], shift_limit_x)
         shift_limit_y = cast(tuple[float, float], shift_limit_y)
@@ -1130,7 +1125,6 @@ class ShiftScaleRotate(Affine):
             fit_output=False,
             keep_ratio=False,
             rotate_method=rotate_method,
-            always_apply=always_apply,
             p=p,
         )
         warn(
@@ -1262,7 +1256,6 @@ class PiecewiseAffine(BaseDistortion):
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] | None = None,
         absolute_scale: bool = False,
         p: float = 0.5,
-        always_apply: bool | None = None,
         keypoints_threshold: float = 0.01,
     ):
         super().__init__(
@@ -1555,7 +1548,6 @@ class OpticalDistortion(BaseDistortion):
         mask_interpolation: int = cv2.INTER_NEAREST,
         mode: Literal["camera", "fisheye"] = "camera",
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             interpolation=interpolation,
@@ -1688,7 +1680,6 @@ class GridDistortion(BaseDistortion):
         normalized: bool = True,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             interpolation=interpolation,
@@ -1794,9 +1785,8 @@ class D4(DualTransform):
     def __init__(
         self,
         p: float = 1,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
     def apply(
         self,
@@ -1883,9 +1873,8 @@ class GridElasticDeform(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.num_grid_xy = num_grid_xy
         self.magnitude = magnitude
         self.interpolation = interpolation
@@ -2054,9 +2043,8 @@ class RandomGridShuffle(DualTransform):
         self,
         grid: tuple[int, int] = (3, 3),
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.grid = grid
 
     def apply(
@@ -2161,9 +2149,8 @@ class Pad(DualTransform):
         fill_mask: ColorType = 0,
         border_mode: BorderModeType = cv2.BORDER_CONSTANT,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.padding = padding
         self.fill = fill
         self.fill_mask = fill_mask
@@ -2390,7 +2377,6 @@ class PadIfNeeded(Pad):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         # Initialize with dummy padding that will be calculated later
         super().__init__(
@@ -2550,7 +2536,6 @@ class ThinPlateSpline(BaseDistortion):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             interpolation=interpolation,

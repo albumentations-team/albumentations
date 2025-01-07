@@ -183,9 +183,8 @@ class Rotate(DualTransform):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.limit = cast(tuple[float, float], limit)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
@@ -467,7 +466,6 @@ class SafeRotate(Affine):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             rotate=limit,

@@ -163,7 +163,6 @@ class GridDropout(BaseDropout):
         fill: DropoutFillValue = 0,
         fill_mask: ColorType | None = None,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.ratio = ratio

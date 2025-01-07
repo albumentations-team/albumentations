@@ -35,7 +35,6 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    always_apply: bool | None
     p: ProbabilityType
 
 
@@ -63,23 +62,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     class InitSchema(BaseTransformInitSchema):
         pass
 
-    def __init__(self, p: float = 0.5, always_apply: bool | None = None):
+    def __init__(self, p: float = 0.5):
         self.p = p
-        if always_apply is not None:
-            if always_apply:
-                warn(
-                    "always_apply is deprecated. Use `p=1` if you want to always apply the transform."
-                    " self.p will be set to 1.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                self.p = 1.0
-            else:
-                warn(
-                    "always_apply is deprecated.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
         self._additional_targets: dict[str, str] = {}
         # replay mode params
         self.params: dict[Any, Any] = {}

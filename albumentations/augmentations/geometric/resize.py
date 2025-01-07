@@ -82,9 +82,8 @@ class RandomScale(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.scale_limit = cast(tuple[float, float], scale_limit)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
@@ -154,9 +153,8 @@ class MaxSizeTransform(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.max_size = max_size
         self.max_size_hw = max_size_hw
         self.interpolation = interpolation
@@ -464,9 +462,8 @@ class Resize(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
