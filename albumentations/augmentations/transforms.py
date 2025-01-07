@@ -138,7 +138,6 @@ __all__ = [
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
-MAX_JPEG_QUALITY = 100
 TWENTY = 20
 
 
@@ -342,53 +341,10 @@ class ImageCompression(ImageOnlyTransform):
             AfterValidator(nondecreasing),
         ]
 
-        quality_lower: int | None = Field(
-            ge=1,
-            le=100,
-        )
-        quality_upper: int | None = Field(
-            ge=1,
-            le=100,
-        )
         compression_type: Literal["jpeg", "webp"]
-
-        @model_validator(mode="after")
-        def validate_ranges(self) -> Self:
-            # Update the quality_range based on the non-None values of quality_lower and quality_upper
-            if self.quality_lower is not None or self.quality_upper is not None:
-                if self.quality_lower is not None:
-                    warn(
-                        "`quality_lower` is deprecated. Use `quality_range` as tuple"
-                        " (quality_lower, quality_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                if self.quality_upper is not None:
-                    warn(
-                        "`quality_upper` is deprecated. Use `quality_range` as tuple"
-                        " (quality_lower, quality_upper) instead.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                lower = self.quality_lower if self.quality_lower is not None else self.quality_range[0]
-                upper = self.quality_upper if self.quality_upper is not None else self.quality_range[1]
-                self.quality_range = (lower, upper)
-                # Clear the deprecated individual quality settings
-                self.quality_lower = None
-                self.quality_upper = None
-
-            # Validate the quality_range
-            if not (1 <= self.quality_range[0] <= MAX_JPEG_QUALITY and 1 <= self.quality_range[1] <= MAX_JPEG_QUALITY):
-                raise ValueError(
-                    f"Quality range values should be within [1, {MAX_JPEG_QUALITY}] range.",
-                )
-
-            return self
 
     def __init__(
         self,
-        quality_lower: int | None = None,
-        quality_upper: int | None = None,
         compression_type: Literal["jpeg", "webp"] = "jpeg",
         quality_range: tuple[int, int] = (99, 100),
         p: float = 0.5,
@@ -407,12 +363,7 @@ class ImageCompression(ImageOnlyTransform):
         return fmain.image_compression(img, quality, image_type)
 
     def get_params(self) -> dict[str, int | str]:
-        if self.compression_type == "jpeg":
-            image_type = ".jpg"
-        elif self.compression_type == "webp":
-            image_type = ".webp"
-        else:
-            raise ValueError(f"Unknown image compression type: {self.compression_type}")
+        image_type = ".jpg" if self.compression_type == "jpeg" else ".webp"
 
         return {
             "quality": self.py_random.randint(*self.quality_range),

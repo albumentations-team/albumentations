@@ -1201,26 +1201,6 @@ def test_random_crop_from_borders(
 
 
 @pytest.mark.parametrize(
-    "params, expected",
-    [
-        # Test default initialization values
-        ({}, {"quality_range": (99, 100), "compression_type": "jpeg"}),
-        # Test custom quality range and compression type
-        (
-            {"quality_range": (10, 90), "compression_type": "webp"},
-            {"quality_range": (10, 90), "compression_type": "webp"},
-        ),
-        # Deprecated quality values handling
-        ({"quality_lower": 75}, {"quality_range": (75, 100)}),
-    ],
-)
-def test_image_compression_initialization(params, expected):
-    img_comp = A.ImageCompression(**params)
-    for key, value in expected.items():
-        assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
-
-
-@pytest.mark.parametrize(
     "params",
     [
         ({"quality_range": (101, 105)}),  # Invalid quality range
