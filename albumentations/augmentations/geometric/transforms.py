@@ -1560,13 +1560,6 @@ class GridDistortion(BaseDistortion):
         num_steps: Annotated[int, Field(ge=1)]
         distort_limit: SymmetricRangeType
         normalized: bool
-        value: ColorType | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
-        mask_value: ColorType | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
-        border_mode: int = Field(deprecated="Deprecated. Does not have any effect.")
 
         @field_validator("distort_limit")
         @classmethod
@@ -1585,9 +1578,6 @@ class GridDistortion(BaseDistortion):
         num_steps: int = 5,
         distort_limit: ScaleFloatType = (-0.3, 0.3),
         interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
         normalized: bool = True,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
