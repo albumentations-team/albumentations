@@ -1451,7 +1451,9 @@ def test_downscale_invalid_input(params):
                 "min_height": 1024,
                 "min_width": 1024,
                 "position": "center",
-                "border_mode": cv2.BORDER_REFLECT_101,
+                "border_mode": cv2.BORDER_CONSTANT,
+                "fill": 0,
+                "fill_mask": 0,
             },
         ),
         # Boundary values

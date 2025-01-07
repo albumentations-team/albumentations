@@ -2197,7 +2197,7 @@ class PadIfNeeded(Pad):
         position (Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]):
             Position where the image is to be placed after padding. Default is 'center'.
         border_mode (int): Specifies the border mode to use if padding is required.
-            The default is `cv2.BORDER_REFLECT_101`.
+            The default is `cv2.BORDER_CONSTANT`.
         fill (ColorType | None): Value to fill the border pixels if the border mode is `cv2.BORDER_CONSTANT`.
             Default is None.
         fill_mask (ColorType | None): Similar to `fill` but used for padding masks. Default is None.
@@ -2236,8 +2236,6 @@ class PadIfNeeded(Pad):
         pad_width_divisor: int | None = Field(ge=1)
         position: PositionType
         border_mode: BorderModeType
-        value: ColorType | None
-        mask_value: ColorType | None
 
         fill: ColorType
         fill_mask: ColorType
@@ -2255,14 +2253,6 @@ class PadIfNeeded(Pad):
                 msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'fill' must be provided."
                 raise ValueError(msg)
 
-            if self.mask_value is not None:
-                warn("mask_value is deprecated, use fill_mask instead", DeprecationWarning, stacklevel=2)
-                self.fill_mask = self.mask_value
-
-            if self.value is not None:
-                warn("value is deprecated, use fill instead", DeprecationWarning, stacklevel=2)
-                self.fill = self.value
-
             return self
 
     def __init__(
@@ -2272,9 +2262,7 @@ class PadIfNeeded(Pad):
         pad_height_divisor: int | None = None,
         pad_width_divisor: int | None = None,
         position: PositionType = "center",
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
+        border_mode: int = cv2.BORDER_CONSTANT,
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
