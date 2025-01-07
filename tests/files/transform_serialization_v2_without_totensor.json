@@ -6,7 +6,6 @@
         "transforms": [
             {
                 "__class_fullname__": "Blur",
-                "always_apply": false,
                 "p": 0.5,
                 "blur_limit": [
                     3,
@@ -15,7 +14,6 @@
             },
             {
                 "__class_fullname__": "CLAHE",
-                "always_apply": false,
                 "p": 0.5,
                 "clip_limit": [
                     1,
@@ -28,7 +26,6 @@
             },
             {
                 "__class_fullname__": "ChannelDropout",
-                "always_apply": false,
                 "p": 0.5,
                 "channel_drop_range": [
                     1,
@@ -38,12 +35,10 @@
             },
             {
                 "__class_fullname__": "ChannelShuffle",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "CoarseDropout",
-                "always_apply": false,
                 "p": 0.5,
                 "max_holes": 8,
                 "max_height": 8,
@@ -56,7 +51,6 @@
             },
             {
                 "__class_fullname__": "Downscale",
-                "always_apply": false,
                 "p": 0.5,
                 "scale_min": 0.25,
                 "scale_max": 0.25,
@@ -64,7 +58,6 @@
             },
             {
                 "__class_fullname__": "ElasticTransform",
-                "always_apply": false,
                 "p": 0.5,
                 "alpha": 1,
                 "sigma": 50,
@@ -76,20 +69,17 @@
             },
             {
                 "__class_fullname__": "Equalize",
-                "always_apply": false,
                 "p": 0.5,
                 "mode": "cv",
                 "by_channels": true
             },
             {
                 "__class_fullname__": "FancyPCA",
-                "always_apply": false,
                 "p": 0.5,
                 "alpha": 0.1
             },
             {
                 "__class_fullname__": "GaussNoise",
-                "always_apply": false,
                 "p": 0.5,
                 "var_limit": [
                     10.0,
@@ -100,7 +90,6 @@
             },
             {
                 "__class_fullname__": "GaussianBlur",
-                "always_apply": false,
                 "p": 0.5,
                 "blur_limit": [
                     3,
@@ -113,7 +102,6 @@
             },
             {
                 "__class_fullname__": "GlassBlur",
-                "always_apply": false,
                 "p": 0.5,
                 "sigma": 0.7,
                 "max_delta": 4,
@@ -121,7 +109,6 @@
             },
             {
                 "__class_fullname__": "GridDistortion",
-                "always_apply": false,
                 "p": 0.5,
                 "num_steps": 5,
                 "distort_limit": [
@@ -135,12 +122,10 @@
             },
             {
                 "__class_fullname__": "HorizontalFlip",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "HueSaturationValue",
-                "always_apply": false,
                 "p": 0.5,
                 "hue_shift_limit": [
                     -20,
@@ -157,7 +142,6 @@
             },
             {
                 "__class_fullname__": "ISONoise",
-                "always_apply": false,
                 "p": 0.5,
                 "intensity": [
                     0.1,
@@ -170,7 +154,6 @@
             },
             {
                 "__class_fullname__": "ImageCompression",
-                "always_apply": false,
                 "p": 0.5,
                 "quality_lower": 99,
                 "quality_upper": 100,
@@ -178,19 +161,16 @@
             },
             {
                 "__class_fullname__": "InvertImg",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "LongestMaxSize",
-                "always_apply": false,
                 "p": 1,
                 "max_size": 1024,
                 "interpolation": 1
             },
             {
                 "__class_fullname__": "MedianBlur",
-                "always_apply": false,
                 "p": 0.5,
                 "blur_limit": [
                     3,
@@ -199,7 +179,6 @@
             },
             {
                 "__class_fullname__": "MotionBlur",
-                "always_apply": false,
                 "p": 0.5,
                 "blur_limit": [
                     3,
@@ -208,7 +187,6 @@
             },
             {
                 "__class_fullname__": "MultiplicativeNoise",
-                "always_apply": false,
                 "p": 0.5,
                 "multiplier": [
                     0.9,
@@ -219,12 +197,10 @@
             },
             {
                 "__class_fullname__": "NoOp",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "OpticalDistortion",
-                "always_apply": false,
                 "p": 0.5,
                 "distort_limit": [
                     -0.05,
@@ -235,7 +211,6 @@
             },
             {
                 "__class_fullname__": "PadIfNeeded",
-                "always_apply": false,
                 "p": 1.0,
                 "min_height": 1024,
                 "min_width": 1024,
@@ -247,7 +222,6 @@
             },
             {
                 "__class_fullname__": "Posterize",
-                "always_apply": false,
                 "p": 0.5,
                 "num_bits": [
                     4,
@@ -256,7 +230,6 @@
             },
             {
                 "__class_fullname__": "RGBShift",
-                "always_apply": false,
                 "p": 0.5,
                 "r_shift_limit": [
                     -20,
@@ -273,7 +246,6 @@
             },
             {
                 "__class_fullname__": "RandomBrightnessContrast",
-                "always_apply": false,
                 "p": 0.5,
                 "brightness_limit": [
                     -0.2,
@@ -287,7 +259,6 @@
             },
             {
                 "__class_fullname__": "RandomFog",
-                "always_apply": false,
                 "p": 0.5,
                 "fog_coef_lower": 0.3,
                 "fog_coef_upper": 1,
@@ -295,7 +266,6 @@
             },
             {
                 "__class_fullname__": "RandomGamma",
-                "always_apply": false,
                 "p": 0.5,
                 "gamma_limit": [
                     80,
@@ -304,7 +274,6 @@
             },
             {
                 "__class_fullname__": "RandomGridShuffle",
-                "always_apply": false,
                 "p": 0.5,
                 "grid": [
                     2,
@@ -313,7 +282,6 @@
             },
             {
                 "__class_fullname__": "RandomRain",
-                "always_apply": false,
                 "p": 0.5,
                 "slant_lower": -10,
                 "slant_upper": 10,
@@ -330,12 +298,10 @@
             },
             {
                 "__class_fullname__": "RandomRotate90",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "RandomScale",
-                "always_apply": false,
                 "p": 0.5,
                 "interpolation": 1,
                 "scale_limit": [
@@ -345,7 +311,6 @@
             },
             {
                 "__class_fullname__": "RandomShadow",
-                "always_apply": false,
                 "p": 0.5,
                 "shadow_roi": [
                     0,
@@ -361,7 +326,6 @@
             },
             {
                 "__class_fullname__": "RandomSnow",
-                "always_apply": false,
                 "p": 0.5,
                 "snow_point_lower": 0.1,
                 "snow_point_upper": 0.3,
@@ -369,7 +333,6 @@
             },
             {
                 "__class_fullname__": "RandomSunFlare",
-                "always_apply": false,
                 "p": 0.5,
                 "flare_roi": [
                     0,
@@ -390,7 +353,6 @@
             },
             {
                 "__class_fullname__": "Rotate",
-                "always_apply": false,
                 "p": 0.5,
                 "limit": [
                     -90,
@@ -403,7 +365,6 @@
             },
             {
                 "__class_fullname__": "ShiftScaleRotate",
-                "always_apply": false,
                 "p": 0.5,
                 "shift_limit_x": [
                     -0.0625,
@@ -428,14 +389,12 @@
             },
             {
                 "__class_fullname__": "SmallestMaxSize",
-                "always_apply": false,
                 "p": 1,
                 "max_size": 1024,
                 "interpolation": 1
             },
             {
                 "__class_fullname__": "Solarize",
-                "always_apply": false,
                 "p": 0.5,
                 "threshold": [
                     128,
@@ -444,34 +403,28 @@
             },
             {
                 "__class_fullname__": "ToGray",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "ToSepia",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "Transpose",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "VerticalFlip",
-                "always_apply": false,
                 "p": 0.5
             },
             {
                 "__class_fullname__": "RandomCrop",
-                "always_apply": false,
                 "p": 1.0,
                 "height": 32,
                 "width": 32
             },
             {
                 "__class_fullname__": "Normalize",
-                "always_apply": false,
                 "p": 1.0,
                 "mean": [
                     0.485,

@@ -103,9 +103,8 @@ class HistogramMatching(ImageOnlyTransform):
         blend_ratio: tuple[float, float] = (0.5, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -203,9 +202,8 @@ class FDA(ImageOnlyTransform):
         beta_limit: ScaleFloatType = (0, 0.1),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.beta_limit = cast(tuple[float, float], beta_limit)
@@ -320,9 +318,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         transform_type: Literal["pca", "standard", "minmax"] = "pca",
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -469,9 +466,8 @@ class TemplateTransform(ImageOnlyTransform):
         template_transform: Compose | BasicTransform | None = None,
         name: str | None = None,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.templates = templates
         self.img_weight = cast(tuple[float, float], img_weight)
         self.template_transform = template_transform

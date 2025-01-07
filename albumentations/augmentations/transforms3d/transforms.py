@@ -32,9 +32,8 @@ class BasePad3D(Transform3D):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.fill = fill
         self.fill_mask = fill_mask
 
@@ -120,7 +119,6 @@ class Pad3D(BasePad3D):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.padding = padding
@@ -192,7 +190,6 @@ class PadIfNeeded3D(BasePad3D):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.min_zyx = min_zyx
@@ -252,9 +249,8 @@ class BaseCropAndPad3D(Transform3D):
         fill_mask: ColorType,
         pad_position: Literal["center", "random"],
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.pad_if_needed = pad_if_needed
         self.fill = fill
         self.fill_mask = fill_mask
@@ -439,7 +435,6 @@ class CenterCrop3D(BaseCropAndPad3D):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
@@ -537,7 +532,6 @@ class RandomCrop3D(BaseCropAndPad3D):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
@@ -695,9 +689,8 @@ class CoarseDropout3D(Transform3D):
         fill: ColorType = 0,
         fill_mask: ColorType | None = None,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.num_holes_range = num_holes_range
         self.hole_depth_range = hole_depth_range
         self.hole_height_range = hole_height_range
@@ -845,9 +838,8 @@ class CubicSymmetry(Transform3D):
     def __init__(
         self,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
     def get_params_dependent_on_data(
         self,

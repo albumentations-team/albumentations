@@ -30,8 +30,8 @@ class ToTensorV2(BasicTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
-    def __init__(self, transpose_mask: bool = False, p: float = 1.0, always_apply: bool | None = None):
-        super().__init__(p=p, always_apply=always_apply)
+    def __init__(self, transpose_mask: bool = False, p: float = 1.0):
+        super().__init__(p=p)
         self.transpose_mask = transpose_mask
 
     @property
@@ -116,8 +116,8 @@ class ToTensor3D(BasicTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
-    def __init__(self, p: float = 1.0, always_apply: bool | None = None):
-        super().__init__(p=p, always_apply=always_apply)
+    def __init__(self, p: float = 1.0):
+        super().__init__(p=p)
 
     @property
     def targets(self) -> dict[str, Any]:

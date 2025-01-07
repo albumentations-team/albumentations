@@ -883,7 +883,7 @@ def test_augmentations_serialization(
 
     model_fields = get_all_init_schema_fields(augmentation_cls)
     # Note: You might want to adjust this based on how you handle default fields in your models
-    expected_args = model_fields - {"__class_fullname__", "always_apply"}
+    expected_args = model_fields - {"__class_fullname__"}
 
     achieved_args = set(instance.to_dict()["transform"].keys())
     reported_args = achieved_args - {"__class_fullname__"}

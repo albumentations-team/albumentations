@@ -103,7 +103,6 @@ class XYMasking(BaseDropout):
         fill: DropoutFillValue = 0,
         fill_mask: ColorType | None = None,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(p=p, fill=fill, fill_mask=fill_mask)
         self.num_masks_x = cast(tuple[int, int], num_masks_x)

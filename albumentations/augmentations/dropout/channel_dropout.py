@@ -96,9 +96,8 @@ class ChannelDropout(ImageOnlyTransform):
         fill_value: float | None = None,
         fill: float = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
         self.channel_drop_range = channel_drop_range
         self.fill = fill

@@ -180,7 +180,6 @@ class CoarseDropout(BaseDropout):
         fill: DropoutFillValue = 0,
         fill_mask: ColorType | None = None,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.num_holes_range = num_holes_range
@@ -320,7 +319,6 @@ class Erasing(BaseDropout):
         ratio: tuple[float, float] = (0.3, 3.3),
         fill: DropoutFillValue = 0,
         fill_mask: ColorType | None = None,
-        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
@@ -539,7 +537,6 @@ class ConstrainedCoarseDropout(BaseDropout):
         p: float = 0.5,
         mask_indices: list[int] | None = None,
         bbox_labels: list[str | int | float] | None = None,
-        always_apply: bool | None = None,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
         self.num_holes_range = num_holes_range

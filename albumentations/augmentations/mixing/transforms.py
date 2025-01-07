@@ -55,9 +55,8 @@ class OverlayElements(DualTransform):
         self,
         metadata_key: str = "overlay_metadata",
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.metadata_key = metadata_key
 
     @property

@@ -95,10 +95,9 @@ class TextImage(ImageOnlyTransform):
         font_color: list[ColorType | str] | ColorType | str = "black",
         clear_bg: bool = False,
         metadata_key: str = "textimage_metadata",
-        always_apply: bool | None = None,
         p: float = 0.5,
     ) -> None:
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.metadata_key = metadata_key
         self.font_path = font_path
         self.fraction_range = fraction_range

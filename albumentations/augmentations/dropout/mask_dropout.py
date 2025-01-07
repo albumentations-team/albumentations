@@ -88,9 +88,8 @@ class MaskDropout(DualTransform):
         fill: float | Literal["inpaint"] = 0,
         fill_mask: float = 0,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.max_objects = cast(tuple[int, int], max_objects)
         self.fill = fill  # type: ignore[assignment]
         self.fill_mask = fill_mask

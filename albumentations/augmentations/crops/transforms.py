@@ -116,7 +116,6 @@ class BaseCropAndPad(BaseCrop):
         fill_mask: ColorType,
         pad_position: PositionType,
         p: float,
-        always_apply: bool | None = None,
     ):
         super().__init__(p=p)
         self.pad_if_needed = pad_if_needed
@@ -328,7 +327,6 @@ class RandomCrop(BaseCropAndPad):
         fill: ColorType = 0.0,
         fill_mask: ColorType = 0.0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
@@ -463,7 +461,6 @@ class CenterCrop(BaseCropAndPad):
         fill: ColorType = 0.0,
         fill_mask: ColorType = 0.0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
@@ -608,7 +605,6 @@ class Crop(BaseCropAndPad):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             pad_if_needed=pad_if_needed,
@@ -736,7 +732,6 @@ class CropNonEmptyMaskIfExists(BaseCrop):
         ignore_values: list[int] | None = None,
         ignore_channels: list[int] | None = None,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(p=p)
 
@@ -823,10 +818,9 @@ class _BaseRandomSizedCrop(DualTransform):
         size: tuple[int, int],
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        always_apply: bool | None = None,
         p: float = 1.0,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.size = size
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
@@ -984,7 +978,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             size=cast(tuple[int, int], size),
@@ -1129,7 +1122,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
         super().__init__(
             size=cast(tuple[int, int], size),
@@ -1235,7 +1227,6 @@ class RandomCropNearBBox(BaseCrop):
         max_part_shift: ScaleFloatType = (0, 0.3),
         cropping_bbox_key: str = "cropping_bbox",
         cropping_box_key: str | None = None,  # Deprecated
-        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -1355,7 +1346,7 @@ class BBoxSafeRandomCrop(BaseCrop):
             le=1.0,
         )
 
-    def __init__(self, erosion_rate: float = 0.0, p: float = 1.0, always_apply: bool | None = None):
+    def __init__(self, erosion_rate: float = 0.0, p: float = 1.0):
         super().__init__(p=p)
         self.erosion_rate = erosion_rate
 
@@ -1493,7 +1484,6 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         erosion_rate: float = 0.0,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(erosion_rate=erosion_rate, p=p)
@@ -1671,9 +1661,8 @@ class CropAndPad(DualTransform):
         fill: ColorType = 0,
         fill_mask: ColorType = 0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
 
         self.px = px
         self.percent = percent
@@ -1987,7 +1976,6 @@ class RandomCropFromBorders(BaseCrop):
         crop_right: float = 0.1,
         crop_top: float = 0.1,
         crop_bottom: float = 0.1,
-        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -2089,9 +2077,8 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
         width: int,
         erosion_factor: float = 0.0,
         p: float = 1.0,
-        always_apply: bool | None = None,
     ):
-        super().__init__(p=p, always_apply=always_apply)
+        super().__init__(p=p)
         self.height = height
         self.width = width
         self.erosion_factor = erosion_factor

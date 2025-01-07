@@ -58,7 +58,6 @@ class TimeReverse(HorizontalFlip):
     def __init__(
         self,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         warn(
             "TimeReverse is an alias for HorizontalFlip transform. "
@@ -121,7 +120,6 @@ class TimeMasking(XYMasking):
         self,
         time_mask_param: int = 40,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         warn(
             "TimeMasking is a specialized version of XYMasking. "
@@ -196,7 +194,6 @@ class FrequencyMasking(XYMasking):
         self,
         freq_mask_param: int = 30,
         p: float = 0.5,
-        always_apply: bool | None = None,
     ):
         warn(
             "FrequencyMasking is a specialized version of XYMasking. "
