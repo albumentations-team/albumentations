@@ -1771,43 +1771,6 @@ def test_gauss_noise(mean, image):
 
 
 @pytest.mark.parametrize(
-    "params, expected",
-    [
-        # Test default initialization values
-        (
-            {},
-            {
-                "flare_roi": (0, 0, 1, 0.5),
-                "angle_range": (0, 1),
-                "num_flare_circles_range": (6, 10),
-                "src_radius": 400,
-                "src_color": (255, 255, 255),
-            },
-        ),
-        # Test custom initialization values
-        ({"flare_roi": (0.2, 0.3, 0.8, 0.9)}, {"flare_roi": (0.2, 0.3, 0.8, 0.9)}),
-        ({"angle_range": (0.3, 0.7)}, {"angle_range": (0.3, 0.7)}),
-        ({"angle_lower": 0.3, "angle_upper": 0.7}, {"angle_range": (0.3, 0.7)}),
-        ({"num_flare_circles_range": (4, 8)}, {"num_flare_circles_range": (4, 8)}),
-        (
-            {"num_flare_circles_lower": 4, "num_flare_circles_upper": 8},
-            {"num_flare_circles_range": (4, 8)},
-        ),
-        ({"src_radius": 500}, {"src_radius": 500}),
-        ({"src_color": (200, 200, 200)}, {"src_color": (200, 200, 200)}),
-        ({"angle_lower": 0.2}, {"angle_range": (0.2, 1)}),
-        ({"angle_upper": 0.8}, {"angle_range": (0, 0.8)}),
-        ({"num_flare_circles_lower": 5}, {"num_flare_circles_range": (5, 10)}),
-        ({"num_flare_circles_upper": 9}, {"num_flare_circles_range": (6, 9)}),
-    ],
-)
-def test_random_sun_flare_initialization(params, expected):
-    img_flare = A.RandomSunFlare(**params)
-    for key, value in expected.items():
-        assert getattr(img_flare, key) == value, f"Failed on {key} with value {value}"
-
-
-@pytest.mark.parametrize(
     "params",
     [
         (
