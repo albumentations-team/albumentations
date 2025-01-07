@@ -1452,27 +1452,11 @@ class OpticalDistortion(BaseDistortion):
     class InitSchema(BaseDistortion.InitSchema):
         distort_limit: SymmetricRangeType
         mode: Literal["camera", "fisheye"]
-        shift_limit: SymmetricRangeType | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
-        value: ColorType | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
-        mask_value: ColorType | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
-        border_mode: int | None = Field(
-            deprecated="Deprecated. Does not have any effect.",
-        )
 
     def __init__(
         self,
         distort_limit: ScaleFloatType = (-0.05, 0.05),
-        shift_limit: ScaleFloatType | None = None,
         interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int | None = None,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
         mask_interpolation: int = cv2.INTER_NEAREST,
         mode: Literal["camera", "fisheye"] = "camera",
         p: float = 0.5,
