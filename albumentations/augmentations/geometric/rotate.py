@@ -60,8 +60,8 @@ class RandomRotate90(DualTransform):
 
     Note:
         If your domain has both 90-degree rotation AND flip symmetries
-        (e.g., satellite imagery, microscopy), consider using D4 transform instead.
-        D4 is more efficient and mathematically correct as it:
+        (e.g., satellite imagery, microscopy), consider using `D4` transform instead.
+        `D4` is more efficient and mathematically correct as it:
         - Samples uniformly from all 8 possible combinations of rotations and flips
         - Properly represents the dihedral group D4 symmetries
         - Avoids potential correlation between separate rotation and flip augmentations
@@ -79,6 +79,12 @@ class RandomRotate90(DualTransform):
     """
 
     _targets = ALL_TARGETS
+
+    def __init__(
+        self,
+        p: float = 1,
+    ):
+        super().__init__(p=p)
 
     def apply(self, img: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
         return fgeometric.rot90(img, factor)
