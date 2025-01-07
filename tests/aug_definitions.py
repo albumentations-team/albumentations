@@ -278,7 +278,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.NoOp, {}],
     [
         A.RandomResizedCrop,
-        dict(height=20, width=30, scale=(0.5, 0.6), ratio=(0.8, 0.9)),
+        dict(size=(20, 30), scale=(0.5, 0.6), ratio=(0.8, 0.9)),
     ],
     [A.FancyPCA, dict(alpha=0.3)],
     [A.RandomRotate90, {}],
