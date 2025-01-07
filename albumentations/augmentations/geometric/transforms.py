@@ -258,18 +258,12 @@ class ElasticTransform(BaseDistortion):
         approximate: bool
         same_dxdy: bool
         noise_distribution: Literal["gaussian", "uniform"]
-        border_mode: BorderModeType = Field(deprecated="Deprecated")
-        value: ColorType | None = Field(deprecated="Deprecated")
-        mask_value: ColorType | None = Field(deprecated="Deprecated")
 
     def __init__(
         self,
         alpha: float = 1,
         sigma: float = 50,
         interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_REFLECT_101,
-        value: ColorType | None = None,
-        mask_value: ColorType | None = None,
         approximate: bool = False,
         same_dxdy: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
