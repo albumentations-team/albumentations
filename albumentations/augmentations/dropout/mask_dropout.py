@@ -4,7 +4,6 @@ from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
-from pydantic import Field
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
@@ -74,17 +73,12 @@ class MaskDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_objects: OnePlusIntRangeType
 
-        image_fill_value: float | Literal["inpaint"] | None = Field(deprecated="Deprecated use fill instead")
-        mask_fill_value: float | None = Field(deprecated="Deprecated use fill_mask instead")
-
         fill: float | Literal["inpaint"]
         fill_mask: float
 
     def __init__(
         self,
         max_objects: ScaleIntType = (1, 1),
-        image_fill_value: float | Literal["inpaint"] | None = None,
-        mask_fill_value: float | None = None,
         fill: float | Literal["inpaint"] = 0,
         fill_mask: float = 0,
         p: float = 0.5,
