@@ -1085,56 +1085,6 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
     assert str(exc_info.value).startswith(message)
 
 
-@pytest.mark.parametrize(
-    "num_shadows_limit, num_shadows_lower, num_shadows_upper, expected_warning",
-    [
-        ((1, 1), None, None, None),
-        ((1, 2), None, None, None),
-        ((2, 3), None, None, None),
-        ((1, 2), 1, None, DeprecationWarning),
-        ((1, 2), None, 2, DeprecationWarning),
-        ((1, 2), 1, 2, DeprecationWarning),
-        ((2, 1), None, None, ValueError),
-    ],
-)
-def test_deprecation_warnings_random_shadow(
-    num_shadows_limit: tuple[int, int],
-    num_shadows_lower: int | None,
-    num_shadows_upper: int | None,
-    expected_warning: Type[Warning] | None,
-) -> None:
-    """Test deprecation warnings for RandomShadow"""
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")  # Change the filter to capture all warnings
-        if expected_warning == ValueError:
-            with pytest.raises(ValueError):
-                A.RandomShadow(
-                    num_shadows_limit=num_shadows_limit,
-                    num_shadows_lower=num_shadows_lower,
-                    num_shadows_upper=num_shadows_upper,
-                    p=1,
-                )
-        elif expected_warning is DeprecationWarning:
-            A.RandomShadow(
-                num_shadows_limit=num_shadows_limit,
-                num_shadows_lower=num_shadows_lower,
-                num_shadows_upper=num_shadows_upper,
-                p=1,
-            )
-            for warning in w:
-                print(
-                    f"Warning captured: {warning.category.__name__}, Message: '{warning.message}'"
-                )
-
-                if warning.category is DeprecationWarning:
-                    print(f"Deprecation Warning: {warning.message}")
-            assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "No DeprecationWarning found"
-        else:
-            assert not w, "Unexpected warnings raised"
-
-
 @pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize(
     "grid",
