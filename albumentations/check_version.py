@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import json
+import re
 import urllib.request
 from urllib.request import OpenerDirector
 from warnings import warn
-
-from packaging import version
 
 from albumentations import __version__ as current_version
 
@@ -48,28 +49,77 @@ def parse_version(data: str) -> str:
     return ""
 
 
+def compare_versions(v1: tuple[int | str, ...], v2: tuple[int | str, ...]) -> bool:
+    """Compare two version tuples.
+    Returns True if v1 > v2, False otherwise.
+
+    Special rules:
+    1. Release version > pre-release version (e.g., (1, 4) > (1, 4, 'beta'))
+    2. Numeric parts are compared numerically
+    3. String parts are compared lexicographically
+    """
+    # First compare common parts
+    for p1, p2 in zip(v1, v2):
+        if p1 != p2:
+            # If both are same type, direct comparison works
+            if isinstance(p1, int) and isinstance(p2, int):
+                return p1 > p2
+            if isinstance(p1, str) and isinstance(p2, str):
+                return p1 > p2
+            # If types differ, numbers are greater (release > pre-release)
+            return isinstance(p1, int)
+
+    # If we get here, all common parts are equal
+    # Longer version is greater only if next element is a number
+    if len(v1) > len(v2):
+        return isinstance(v1[len(v2)], int)
+    if len(v2) > len(v1):
+        # v2 is longer, so v1 is greater only if v2's next part is a string (pre-release)
+        return isinstance(v2[len(v1)], str)
+
+    return False  # Versions are equal
+
+
+def parse_version_parts(version_str: str) -> tuple[int | str, ...]:
+    """Convert version string to tuple of (int | str) parts following PEP 440 conventions.
+
+    Examples:
+        "1.4.24" -> (1, 4, 24)
+        "1.4beta" -> (1, 4, "beta")
+        "1.4.beta2" -> (1, 4, "beta", 2)
+        "1.4.alpha2" -> (1, 4, "alpha", 2)
+    """
+    parts = []
+    # First split by dots
+    for part in version_str.split("."):
+        # Then parse each part for numbers and letters
+        segments = re.findall(r"([0-9]+|[a-zA-Z]+)", part)
+        for segment in segments:
+            if segment.isdigit():
+                parts.append(int(segment))
+            else:
+                parts.append(segment.lower())
+    return tuple(parts)
+
+
 def check_for_updates() -> None:
     try:
         data = fetch_version_info()
         latest_version = parse_version(data)
-        # Validate version strings
-        if (
-            latest_version
-            and version.parse(latest_version).is_valid
-            and version.parse(current_version).is_valid
-            and version.parse(latest_version) > version.parse(current_version)
-        ):
-            # Use repr() to safely display version strings
-            warn(
-                f"A new version of Albumentations is available: {latest_version!r} (you have {current_version!r}). "
-                "Upgrade using: pip install -U albumentations. "
-                "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
-                UserWarning,
-                stacklevel=2,
-            )
-    except Exception as e:  # General exception catch to ensure silent failure  # noqa: BLE001
+        if latest_version:
+            latest_parts = parse_version_parts(latest_version)
+            current_parts = parse_version_parts(current_version)
+            if compare_versions(latest_parts, current_parts):
+                warn(
+                    f"A new version of Albumentations is available: {latest_version!r} (you have {current_version!r}). "
+                    "Upgrade using: pip install -U albumentations. "
+                    "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+    except (ValueError, AttributeError, urllib.error.URLError, Exception) as e:  # Include Exception for test
         warn(
-            f"Failed to check for updates due to an unexpected error: {e}. "
+            f"Failed to check for updates due to error: {e}. "
             "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
             UserWarning,
             stacklevel=2,
