@@ -1764,36 +1764,14 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: ScaleFloatType | None
         threshold_range: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
 
-        @staticmethod
-        def normalize_threshold(
-            threshold: ScaleFloatType | None,
-            threshold_range: tuple[float, float],
-        ) -> tuple[float, float]:
-            """Convert legacy threshold or use threshold_range, normalizing to [0,1] range."""
-            if threshold is not None:
-                warn("`threshold` deprecated. Use `threshold_range` instead.", DeprecationWarning, stacklevel=2)
-                value = to_tuple(threshold, threshold)
-                return (value[0] / 255, value[1] / 255) if value[1] > 1 else value
-            return threshold_range
-
-        @model_validator(mode="after")
-        def process_threshold(self) -> Self:
-            self.threshold_range = self.normalize_threshold(
-                self.threshold,
-                self.threshold_range,
-            )
-            return self
-
     def __init__(
         self,
-        threshold: ScaleFloatType | None = None,
         threshold_range: tuple[float, float] = (0.5, 0.5),
         p: float = 0.5,
     ):
