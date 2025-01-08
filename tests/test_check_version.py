@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +9,8 @@ from albumentations.check_version import (
     fetch_version_info,
     get_opener,
     parse_version,
+    parse_version_parts,
+    compare_versions,
 )
 
 
@@ -127,3 +131,47 @@ def test_check_for_updates_with_update():
             with patch("albumentations.check_version.warn") as mock_warn:  # Patch the imported warn
                 check_for_updates()
                 mock_warn.assert_called_once()
+
+
+
+@pytest.mark.parametrize("version_str, expected", [
+    # Standard versions
+    ("1.4.24", (1, 4, 24)),
+    ("0.0.1", (0, 0, 1)),
+    ("10.20.30", (10, 20, 30)),
+
+    # Pre-release versions
+    ("1.4beta", (1, 4, "beta")),
+    ("1.4beta2", (1, 4, "beta", 2)),
+    ("1.4.beta2", (1, 4, "beta", 2)),
+    ("1.4.alpha2", (1, 4, "alpha", 2)),
+    ("1.4rc1", (1, 4, "rc", 1)),
+    ("1.4.rc.1", (1, 4, "rc", 1)),
+
+    # Mixed case handling
+    ("1.4Beta2", (1, 4, "beta", 2)),
+    ("1.4ALPHA2", (1, 4, "alpha", 2)),
+])
+def test_parse_version_parts(version_str: str, expected: tuple[int | str, ...]) -> None:
+    assert parse_version_parts(version_str) == expected
+
+# Update the test to use the new comparison function
+@pytest.mark.parametrize("version1, version2, expected", [
+    # Pre-release ordering
+    ("1.4beta2", "1.4beta1", True),
+    ("1.4", "1.4beta", True),
+    ("1.4beta", "1.4alpha", True),
+    ("1.4alpha2", "1.4alpha1", True),
+    ("1.4rc", "1.4beta", True),
+    ("2.0", "2.0rc1", True),
+
+    # Standard version ordering
+    ("1.5", "1.4", True),
+    ("1.4.1", "1.4", True),
+    ("1.4.24", "1.4.23", True),
+])
+def test_version_comparison(version1: str, version2: str, expected: bool) -> None:
+    """Test that version1 > version2 matches expected result."""
+    v1 = parse_version_parts(version1)
+    v2 = parse_version_parts(version2)
+    assert compare_versions(v1, v2) == expected

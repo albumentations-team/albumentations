@@ -6,7 +6,7 @@ requires = [ "setuptools>=45", "wheel" ]
 [project]
 name = "albumentations"
 
-version = "1.5.0"
+version = "2.0.0"
 
 description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks) data, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
@@ -225,6 +225,7 @@ lint.ignore = [
   "PLR2004",
   "PTH123",
   "S311",
+  "S608",
   "TC001",
   "TC002",
   "TC003",
