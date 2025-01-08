@@ -3,6 +3,8 @@ import urllib.request
 from urllib.request import OpenerDirector
 from warnings import warn
 
+from packaging import version
+
 from albumentations import __version__ as current_version
 
 __version__: str = current_version  # type: ignore[has-type, unused-ignore]
@@ -50,9 +52,16 @@ def check_for_updates() -> None:
     try:
         data = fetch_version_info()
         latest_version = parse_version(data)
-        if latest_version and latest_version != current_version:
+        # Validate version strings
+        if (
+            latest_version
+            and version.parse(latest_version).is_valid
+            and version.parse(current_version).is_valid
+            and version.parse(latest_version) > version.parse(current_version)
+        ):
+            # Use repr() to safely display version strings
             warn(
-                f"A new version of Albumentations is available: {latest_version} (you have {current_version}). "  # noqa: S608
+                f"A new version of Albumentations is available: {latest_version!r} (you have {current_version!r}). "
                 "Upgrade using: pip install -U albumentations. "
                 "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
                 UserWarning,
@@ -60,7 +69,7 @@ def check_for_updates() -> None:
             )
     except Exception as e:  # General exception catch to ensure silent failure  # noqa: BLE001
         warn(
-            f"Failed to check for updates due to an unexpected error: {e}. "  # noqa: S608
+            f"Failed to check for updates due to an unexpected error: {e}. "
             "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
             UserWarning,
             stacklevel=2,
