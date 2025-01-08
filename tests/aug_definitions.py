@@ -47,8 +47,7 @@ AUGMENTATION_CLS_PARAMS = [
     [
         A.RandomRain,
         {
-            "slant_lower": -5,
-            "slant_upper": 5,
+            "slant_range": (-5, 5),
             "drop_length": 15,
             "drop_width": 2,
             "drop_color": (100, 100, 100),
@@ -57,7 +56,7 @@ AUGMENTATION_CLS_PARAMS = [
             "rain_type": "heavy",
         },
     ],
-    [A.RandomFog, {"fog_coef_lower": 0.2, "fog_coef_upper": 0.8, "alpha_coef": 0.11}],
+    [A.RandomFog, {"fog_coef_range": (0.2, 0.8), "alpha_coef": 0.11}],
     [
         A.RandomSunFlare,
         {
@@ -174,7 +173,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.SmallestMaxSize, {"max_size": 64, "interpolation": cv2.INTER_NEAREST}],
     [A.LongestMaxSize, {"max_size": 128, "interpolation": cv2.INTER_NEAREST}],
     [A.RandomGridShuffle, {"grid": (4, 4)}],
-    [A.Solarize, {"threshold": 32}],
+    [A.Solarize, {"threshold_range": [0.5, 0.5]}],
     [A.Posterize, {"num_bits": (3, 5)}],
     [A.Equalize, {"mode": "pil", "by_channels": False}],
     [
@@ -264,12 +263,14 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_AREA,
             "mask_interpolation": cv2.INTER_NEAREST,
             "absolute_scale": True,
-            "keypoints_threshold": 0.1,
         },
     ],
     [A.ChannelDropout, dict(channel_drop_range=(1, 2), fill=1)],
     [A.ChannelShuffle, {}],
-    [A.Downscale, dict(scale_min=0.5, scale_max=0.75, interpolation=cv2.INTER_LINEAR)],
+    [A.Downscale, dict(scale_range=[0.5, 0.75], interpolation_pair={
+        "downscale": cv2.INTER_LINEAR,
+        "upscale": cv2.INTER_LINEAR,
+    })],
     [A.FromFloat, dict(dtype="uint8", max_value=1)],
     [A.HorizontalFlip, {}],
     [A.ISONoise, dict(color_shift=(0.2, 0.3), intensity=(0.7, 0.9))],
@@ -354,7 +355,7 @@ AUGMENTATION_CLS_PARAMS = [
         A.GridDropout,
         dict(
             ratio=0.75,
-            unit_size_range=(2, 10),
+            holes_number_xy=(2, 10),
             shift_xy=(10, 20),
             random_offset=True,
             fill=10,
@@ -370,8 +371,8 @@ AUGMENTATION_CLS_PARAMS = [
         A.TextImage,
         dict(
             font_path="./tests/files/LiberationSerif-Bold.ttf",
-            font_size_range=(0.8, 0.9),
-            color="red",
+            font_size_fraction_range=(0.8, 0.9),
+            font_color="red",
             stopwords=[
                 "a",
                 "the",

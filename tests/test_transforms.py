@@ -55,7 +55,7 @@ def test_rotate_crop_border():
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.GridDropout: {"num_grid_x": 10, "num_grid_y": 10, "drop_prob": 0.5, "fill_mask": 0},
+            A.GridDropout: {"fill_mask": 0},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -97,7 +97,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.GridDropout: {"num_grid_x": 10, "num_grid_y": 10, "drop_prob": 0.5, "fill_mask": 64},
+            A.GridDropout: {"num_grid_xy": (10, 10), "fill_mask": 64},
             A.TemplateTransform: {
                 "templates": np.random.randint(
                     low=0, high=256, size=(100, 100, 3), dtype=np.uint8
