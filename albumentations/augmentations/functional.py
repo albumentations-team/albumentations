@@ -42,7 +42,6 @@ from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
-    ImageMode,
     SpatterMode,
 )
 
@@ -301,7 +300,7 @@ def _handle_mask(
 def equalize(
     img: np.ndarray,
     mask: np.ndarray | None = None,
-    mode: ImageMode = "cv",
+    mode: Literal["cv", "pil"] = "cv",
     by_channels: bool = True,
 ) -> np.ndarray:
     """Apply histogram equalization to the input image.

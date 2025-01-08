@@ -24,7 +24,6 @@ ScaleType = Union[ScaleIntType, ScaleFloatType]
 IntNumType = Union[np.integer, NDArray[np.integer]]
 FloatNumType = Union[np.floating, NDArray[np.floating]]
 
-ImageMode = Literal["cv", "pil"]
 SpatterMode = Literal["rain", "mud"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
 RainMode = Literal["drizzle", "heavy", "torrential", "default"]
