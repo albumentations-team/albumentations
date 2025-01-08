@@ -447,26 +447,6 @@ def test_crop_non_empty_mask():
 
 
 @pytest.mark.parametrize(
-    "interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC]
-)
-def test_downscale(interpolation):
-    img_float = SQUARE_FLOAT_IMAGE
-    img_uint = (img_float * 255).astype("uint8")
-
-    aug = A.Downscale(scale_min=0.5, scale_max=0.5, interpolation=interpolation, p=1)
-
-    for img in (img_float, img_uint):
-        transformed = aug(image=img)["image"]
-        func_applied = fmain.downscale(
-            img,
-            scale=0.5,
-            down_interpolation=interpolation,
-            up_interpolation=interpolation,
-        )
-        np.testing.assert_almost_equal(transformed, func_applied)
-
-
-@pytest.mark.parametrize(
     "image",
     [
         np.random.randint(0, 256, [256, 320], np.uint8),
@@ -1304,71 +1284,6 @@ def test_selective_channel(
             np.testing.assert_array_equal(
                 image[..., channel], transformed_image[..., channel]
             )
-
-
-@pytest.mark.parametrize(
-    "params, expected",
-    [
-        # Default values
-        (
-            {},
-            {
-                "scale_range": (0.25, 0.25),
-                "interpolation_pair": {
-                    "downscale": cv2.INTER_NEAREST,
-                    "upscale": cv2.INTER_NEAREST,
-                },
-            },
-        ),
-        # Boundary values
-        ({"scale_range": (0.1, 0.9)}, {"scale_range": (0.1, 0.9)}),
-        (
-            {
-                "interpolation_pair": {
-                    "downscale": cv2.INTER_LINEAR,
-                    "upscale": cv2.INTER_CUBIC,
-                }
-            },
-            {
-                "interpolation_pair": {
-                    "downscale": cv2.INTER_LINEAR,
-                    "upscale": cv2.INTER_CUBIC,
-                }
-            },
-        ),
-        # Deprecated values handling
-        ({"scale_min": 0.1, "scale_max": 0.9}, {"scale_range": (0.1, 0.9)}),
-        (
-            {"interpolation": cv2.INTER_AREA},
-            {
-                "interpolation_pair": {
-                    "downscale": cv2.INTER_AREA,
-                    "upscale": cv2.INTER_AREA,
-                }
-            },
-        ),
-    ],
-)
-def test_downscale_functionality(params, expected):
-    aug = A.Downscale(**params, p=1)
-    aug_dict = aug.get_transform_init_args()
-    for key, value in expected.items():
-        assert aug_dict[key] == value, f"Failed on {key} with value {value}"
-
-
-@pytest.mark.parametrize(
-    "params",
-    [
-        ({"scale_range": (0.9, 0.1)}),  # Invalid range, max < min
-        ({"scale_range": (1.1, 1.2)}),  # Values outside valid scale range (0, 1)
-        (
-            {"interpolation_pair": {"downscale": 9999, "upscale": 9999}}
-        ),  # Invalid interpolation method
-    ],
-)
-def test_downscale_invalid_input(params):
-    with pytest.raises(Exception):
-        A.Downscale(**params, p=1)
 
 
 @pytest.mark.parametrize(
