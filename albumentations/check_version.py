@@ -117,7 +117,7 @@ def check_for_updates() -> None:
                     UserWarning,
                     stacklevel=2,
                 )
-    except (ValueError, AttributeError, urllib.error.URLError, Exception) as e:  # Include Exception for test
+    except Exception as e:  # General exception catch to ensure silent failure # noqa: BLE001
         warn(
             f"Failed to check for updates due to error: {e}. "
             "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
