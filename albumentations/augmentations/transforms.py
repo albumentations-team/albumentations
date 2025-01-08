@@ -2199,10 +2199,6 @@ class GaussNoise(ImageOnlyTransform):
         mean_range (tuple[float, float]): Range for noise mean as a fraction
             of the maximum value (255 for uint8 images or 1.0 for float images).
             Values should be in range [-1, 1]. Default: (0.0, 0.0).
-        var_limit (tuple[float, float] | float): [Deprecated] Variance range for noise.
-            If var_limit is a single float value, the range will be (0, var_limit).
-            Default: (10.0, 50.0).
-        mean (float): [Deprecated] Mean of the noise. Default: 0.
         per_channel (bool): If True, noise will be sampled for each channel independently.
             Otherwise, the noise will be sampled once for all channels. Default: True.
         noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
