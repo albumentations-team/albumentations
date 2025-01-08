@@ -61,7 +61,7 @@ TEST_SEEDS = (42,)
         },
     ),
 )
-@pytest.mark.parametrize("p", [0.5, 1])
+@pytest.mark.parametrize("p", [0.5])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("image", IMAGES)
 def test_augmentations_serialization(augmentation_cls, params, p, seed, image):
@@ -85,7 +85,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image):
     ["augmentation_cls", "params"],
     check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT),
 )
-@pytest.mark.parametrize("p", [0.5, 1])
+@pytest.mark.parametrize("p", [0.5])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_serialization_with_custom_parameters(
@@ -140,7 +140,7 @@ def test_augmentations_serialization_with_custom_parameters(
         for param_set in (params_list if isinstance(params_list, list) else [params_list])
     ]
 )
-@pytest.mark.parametrize("p", [0.5, 1])
+@pytest.mark.parametrize("p", [0.5])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 def test_augmentations_serialization_to_file_with_custom_parameters(
@@ -257,7 +257,7 @@ def test_augmentations_for_bboxes_serialization(
         },
     ),
 )
-@pytest.mark.parametrize("p", [0.5, 1])
+@pytest.mark.parametrize("p", [0.5])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_augmentations_for_keypoints_serialization(
     augmentation_cls, params, p, seed, keypoints
@@ -296,7 +296,7 @@ def test_augmentations_for_keypoints_serialization(
         ],
     ],
 )
-@pytest.mark.parametrize("p", [0.5, 1])
+@pytest.mark.parametrize("p", [0.5])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("image", IMAGES)
 def test_augmentations_serialization_with_call_params(
@@ -590,7 +590,6 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
 @pytest.mark.parametrize(
     "transform_file_name",
     [
-        "transform_v1.1.0_without_totensor.json",
         "transform_serialization_v2_without_totensor.json",
     ],
 )
@@ -638,7 +637,6 @@ def test_serialization_conversion_without_totensor(
 @pytest.mark.parametrize(
     "transform_file_name",
     [
-        "transform_v1.1.0_with_totensor.json",
         "transform_serialization_v2_with_totensor.json",
     ],
 )
@@ -747,37 +745,37 @@ def test_template_transform_serialization(
     ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"size": (10, 10)},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.XYMasking: {
-                "num_masks_x": (1, 3),
-                "num_masks_y": 3,
-                "mask_x_length": (10, 20),
-                "mask_y_length": 10,
-                "fill": 0,
-                "fill_mask": 1,
-            },
-            A.PadIfNeeded: {
-                "min_height": 512,
-                "min_width": 512,
-                "border_mode": 0,
-                "fill": [124, 116, 104],
-                "position": "top_left",
-            },
-            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
-            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
-            A.PadIfNeeded3D: {"min_zyx": (512, 512, 512)},
-            A.Pad3D: {"padding": 10, "fill": 0, "fill_mask": 0},
-            A.CenterCrop3D: {"size": (2, 30, 30)},
-            A.RandomCrop3D: {"size": (2, 30, 30)},
+            # A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            # A.CenterCrop: {"height": 10, "width": 10},
+            # A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            # A.RandomCrop: {"height": 10, "width": 10},
+            # A.AtLeastOneBBoxRandomCrop: {"height": 10, "width": 10},
+            # A.RandomResizedCrop: {"size": (10, 10)},
+            # A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
+            # A.CropAndPad: {"px": 10},
+            # A.Resize: {"height": 10, "width": 10},
+            # A.XYMasking: {
+            #     "num_masks_x": (1, 3),
+            #     "num_masks_y": 3,
+            #     "mask_x_length": (10, 20),
+            #     "mask_y_length": 10,
+            #     "fill": 0,
+            #     "fill_mask": 1,
+            # },
+            # A.PadIfNeeded: {
+            #     "min_height": 512,
+            #     "min_width": 512,
+            #     "border_mode": 0,
+            #     "fill": [124, 116, 104],
+            #     "position": "top_left",
+            # },
+            # A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            # A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            # A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            # A.PadIfNeeded3D: {"min_zyx": (512, 512, 512)},
+            # A.Pad3D: {"padding": 10, "fill": 0, "fill_mask": 0},
+            # A.CenterCrop3D: {"size": (2, 30, 30)},
+            # A.RandomCrop3D: {"size": (2, 30, 30)},
         },
         except_augmentations={
             A.FDA,

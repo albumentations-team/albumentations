@@ -48,7 +48,6 @@ from albumentations.core.bbox_utils import (
     denormalize_bboxes,
     normalize_bboxes,
 )
-from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
@@ -3208,9 +3207,7 @@ class Lambda(NoOp):
         super().__init__(p=p)
 
         self.name = name
-        self.custom_apply_fns = {
-            target_name: fmain.noop for target_name in ("image", "mask", "keypoints", "bboxes", "global_label")
-        }
+        self.custom_apply_fns = {target_name: fmain.noop for target_name in ("image", "mask", "keypoints", "bboxes")}
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
@@ -4165,18 +4162,11 @@ class RingingOvershoot(ImageOnlyTransform):
 
     class InitSchema(BlurInitSchema):
         blur_limit: ScaleIntType
-        cutoff: Annotated[tuple[float, float], nondecreasing]
-
-        @field_validator("cutoff")
-        @classmethod
-        def check_cutoff(
-            cls,
-            v: tuple[float, float],
-            info: ValidationInfo,
-        ) -> tuple[float, float]:
-            bounds = 0, np.pi
-            check_range(v, *bounds, info.field_name)
-            return v
+        cutoff: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, np.pi)),
+            AfterValidator(nondecreasing),
+        ]
 
     def __init__(
         self,
@@ -4482,15 +4472,7 @@ class PixelDropout(DualTransform):
         drop_mask: np.ndarray | None,
         **params: Any,
     ) -> np.ndarray:
-        if drop_mask is None or self.per_channel:
-            return keypoints
-
-        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
-
-        if processor is None or not processor.params.remove_invisible:
-            return keypoints
-
-        return fdropout.mask_dropout_keypoints(keypoints, drop_mask)
+        return keypoints
 
     def get_params_dependent_on_data(
         self,
@@ -4600,11 +4582,11 @@ class Spatter(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ZeroOneRangeType = (0.65, 0.65)
-        std: ZeroOneRangeType = (0.3, 0.3)
-        gauss_sigma: NonNegativeFloatRangeType = (2, 2)
-        cutout_threshold: ZeroOneRangeType = (0.68, 0.68)
-        intensity: ZeroOneRangeType = (0.6, 0.6)
+        mean: ZeroOneRangeType
+        std: ZeroOneRangeType
+        gauss_sigma: NonNegativeFloatRangeType
+        cutout_threshold: ZeroOneRangeType
+        intensity: ZeroOneRangeType
         mode: SpatterMode | Sequence[SpatterMode]
         color: Sequence[int] | dict[str, Sequence[int]] | None = None
 
@@ -6426,9 +6408,6 @@ class AutoContrast(ImageOnlyTransform):
     Image types:
         uint8, float32
     """
-
-    class InitSchema(BaseTransformInitSchema):
-        pass
 
     def __init__(
         self,

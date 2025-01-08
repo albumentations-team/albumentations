@@ -40,21 +40,20 @@
             {
                 "__class_fullname__": "CoarseDropout",
                 "p": 0.5,
-                "max_holes": 8,
-                "max_height": 8,
-                "max_width": 8,
-                "min_holes": 8,
-                "min_height": 8,
-                "min_width": 8,
+                "num_holes_range": [8, 8],
+                "hole_height_range": [0.1, 0.3],
+                "hole_width_range": [0.1, 0.3],
                 "fill": 0,
                 "fill_mask": null
             },
             {
                 "__class_fullname__": "Downscale",
                 "p": 0.5,
-                "scale_min": 0.25,
-                "scale_max": 0.25,
-                "interpolation": 0
+                "scale_range": [0.25, 0.25],
+                "interpolation_pair": {
+                    "downscale": 0,
+                    "upscale": 0
+                }
             },
             {
                 "__class_fullname__": "ElasticTransform",
@@ -62,9 +61,6 @@
                 "alpha": 1,
                 "sigma": 50,
                 "interpolation": 1,
-                "border_mode": 4,
-                "fill": null,
-                "fill_mask": null,
                 "approximate": false
             },
             {
@@ -81,9 +77,9 @@
             {
                 "__class_fullname__": "GaussNoise",
                 "p": 0.5,
-                "var_limit": [
-                    10.0,
-                    50.0
+                "std_range": [
+                    0.2,
+                    0.44
                 ]
             },
             {
@@ -113,10 +109,7 @@
                     -0.3,
                     0.3
                 ],
-                "interpolation": 1,
-                "border_mode": 4,
-                "fill": null,
-                "fill_mask": null
+                "interpolation": 1
             },
             {
                 "__class_fullname__": "HorizontalFlip",
@@ -153,8 +146,7 @@
             {
                 "__class_fullname__": "ImageCompression",
                 "p": 0.5,
-                "quality_lower": 99,
-                "quality_upper": 100,
+                "quality_range": [99, 100],
                 "compression_type": "jpeg"
             },
             {
@@ -258,8 +250,7 @@
             {
                 "__class_fullname__": "RandomFog",
                 "p": 0.5,
-                "fog_coef_lower": 0.3,
-                "fog_coef_upper": 1,
+                "fog_coef_range": [0.3, 1],
                 "alpha_coef": 0.08
             },
             {
@@ -281,8 +272,7 @@
             {
                 "__class_fullname__": "RandomRain",
                 "p": 0.5,
-                "slant_lower": -10,
-                "slant_upper": 10,
+                "slant_range": [-10, 10],
                 "drop_length": 20,
                 "drop_width": 1,
                 "drop_color": [
@@ -325,8 +315,7 @@
             {
                 "__class_fullname__": "RandomSnow",
                 "p": 0.5,
-                "snow_point_lower": 0.1,
-                "snow_point_upper": 0.3,
+                "snow_point_range": [0.1, 0.3],
                 "brightness_coeff": 2.5
             },
             {
@@ -338,10 +327,8 @@
                     1,
                     0.5
                 ],
-                "angle_lower": 0,
-                "angle_upper": 1,
-                "num_flare_circles_lower": 6,
-                "num_flare_circles_upper": 10,
+                "angle_range": [0, 1],
+                "num_flare_circles_range": [6, 10],
                 "src_radius": 400,
                 "src_color": [
                     255,
@@ -394,9 +381,9 @@
             {
                 "__class_fullname__": "Solarize",
                 "p": 0.5,
-                "threshold": [
-                    128,
-                    128
+                "threshold_range": [
+                    0.5,
+                    0.5
                 ]
             },
             {

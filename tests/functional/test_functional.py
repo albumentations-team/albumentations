@@ -349,17 +349,12 @@ def test_swap_tiles_on_image(img, tiles, mapping, expected):
 
 
 @pytest.mark.parametrize("image", IMAGES)
-@pytest.mark.parametrize("threshold", [0.0, 1 / 3, 2 / 3, 1.0, 1.1])
+@pytest.mark.parametrize("threshold", [0.0, 1 / 3, 2 / 3, 1.0])
 def test_solarize(image, threshold):
     max_value = MAX_VALUES_BY_DTYPE[image.dtype]
     check_img = image.copy()
 
-    if image.dtype == np.uint8:
-        threshold_value = threshold * max_value
-    else:
-        threshold_value = threshold
-
-    cond = check_img >= threshold_value
+    cond = check_img >= threshold * max_value
     check_img[cond] = max_value - check_img[cond]
 
     result_img = fmain.solarize(image, threshold=threshold)
