@@ -131,7 +131,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         if self.should_apply(force_apply=force_apply):
             params = self.get_params()
-            params = self.update_params_shape(params=params, data=kwargs)
+            params = self.update_transform_params(params=params, data=kwargs)
 
             if self.targets_as_params:  # check if all required targets are in kwargs.
                 missing_keys = set(self.targets_as_params).difference(kwargs.keys())
@@ -173,7 +173,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
-        params = self.update_params(params, **kwargs)  # remove after move parameters like interpolation
         res = {}
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
@@ -248,8 +247,16 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns parameters independent of input."""
         return {}
 
-    def update_params_shape(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Updates parameters with input shape."""
+    def update_transform_params(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Updates parameters with input shape and transform-specific params.
+
+        Args:
+            params: Parameters to be updated
+            data: Input data dictionary containing images/volumes
+
+        Returns:
+            Updated parameters dictionary with shape and transform-specific params
+        """
         # Extract shape from volume, volumes, image, or images
         if "volume" in data:
             shape = data["volume"][0].shape  # Take first slice of volume
@@ -262,6 +269,15 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         # For volumes/images, shape will be either (H, W) or (H, W, C)
         params["shape"] = shape
+
+        # Add transform-specific params
+        if hasattr(self, "interpolation"):
+            params["interpolation"] = self.interpolation
+        if hasattr(self, "fill"):
+            params["fill"] = self.fill
+        if hasattr(self, "fill_mask"):
+            params["fill_mask"] = self.fill_mask
+
         return params
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -292,22 +308,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def available_keys(self) -> set[str]:
         """Returns set of available keys."""
         return self._available_keys
-
-    def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-        """Update parameters with transform specific params.
-        This method is deprecated, use:
-        - `get_params` for transform specific params like interpolation and
-        - `update_params_shape` for data like shape.
-        """
-        if hasattr(self, "interpolation"):
-            params["interpolation"] = self.interpolation
-        if hasattr(self, "fill"):
-            params["fill"] = self.fill
-        if hasattr(self, "fill_mask"):
-            params["fill_mask"] = self.fill_mask
-
-        # Use update_params_shape to get shape consistently
-        return self.update_params_shape(params, kwargs)
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets.

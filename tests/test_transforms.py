@@ -770,7 +770,7 @@ def test_affine_scale_ratio(params):
 
     data = {"image": image}
     call_params = aug.get_params()
-    call_params = aug.update_params_shape(call_params, data)
+    call_params = aug.update_transform_params(call_params, data)
 
     apply_params = aug.get_params_dependent_on_data(params=call_params, data=data)
 
