@@ -142,13 +142,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params_dependent_on_data = self.get_params_dependent_on_data(params=params, data=kwargs)
             params.update(params_dependent_on_data)
 
-            if self.targets_as_params:  # this block will be removed after removing `get_params_dependent_on_targets`
-                targets_as_params = {k: kwargs.get(k) for k in self.targets_as_params}
-                if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
-                    targets_as_params["image"] = kwargs["images"][0]
-                params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
-                params.update(params_dependent_on_targets)
-
             # Store the final params
             self.params = params
 
@@ -336,14 +329,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         This is used to check input has all required targets.
         """
         return []
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        """This method is deprecated.
-        Use `get_params_dependent_on_data` instead.
-        Returns parameters dependent on targets.
-        Dependent target is defined in `self.targets_as_params`
-        """
-        return {}
 
     @classmethod
     def get_class_fullname(cls) -> str:
