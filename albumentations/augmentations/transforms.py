@@ -64,7 +64,7 @@ from albumentations.core.transforms_interface import (
     ImageOnlyTransform,
     NoOp,
 )
-from albumentations.core.types import (
+from albumentations.core.type_definitions import (
     ALL_TARGETS,
     MAX_RAIN_ANGLE,
     NUM_RGB_CHANNELS,
@@ -1866,7 +1866,7 @@ class Posterize(ImageOnlyTransform):
                 return (num_bits, num_bits)
             if isinstance(num_bits, Sequence) and len(num_bits) > PAIR:
                 return [to_tuple(i, i) for i in num_bits]
-            return cast(tuple[int, int], to_tuple(num_bits, num_bits))
+            return to_tuple(num_bits, num_bits)
 
     def __init__(
         self,
@@ -5453,7 +5453,10 @@ class AdditiveNoise(ImageOnlyTransform):
             # Use default params if none provided
             params_dict = self.noise_params if self.noise_params is not None else default_params[self.noise_type]
 
-            # Convert dict to appropriate NoiseParams object
+            # Add noise_type to params if not present
+            params_dict = {**params_dict, "noise_type": self.noise_type}  # type: ignore[dict-item]
+
+            # Convert dict to appropriate NoiseParams object and validate
             params_class = {
                 "uniform": UniformParams,
                 "gaussian": GaussianParams,
@@ -5461,9 +5464,11 @@ class AdditiveNoise(ImageOnlyTransform):
                 "beta": BetaParams,
             }[self.noise_type]
 
-            # Add noise_type to params if not present
-            params_dict = {**params_dict, "noise_type": self.noise_type}  # type: ignore[dict-item]
-            self.noise_params = params_class(**params_dict)
+            # Validate using the appropriate NoiseParams class
+            validated_params = params_class(**params_dict)
+
+            # Store the validated parameters as a dict
+            self.noise_params = validated_params.model_dump()
 
             return self
 

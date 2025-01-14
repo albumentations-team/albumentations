@@ -6,7 +6,7 @@ from typing import Any, Literal
 import numpy as np
 
 from albumentations.augmentations.utils import handle_empty_array
-from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
+from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS
 
 from .utils import DataProcessor, Params, ShapeType
 

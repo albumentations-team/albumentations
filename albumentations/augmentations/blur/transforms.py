@@ -26,7 +26,7 @@ from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     ImageOnlyTransform,
 )
-from albumentations.core.types import ScaleFloatType, ScaleIntType
+from albumentations.core.type_definitions import ScaleFloatType, ScaleIntType
 from albumentations.core.utils import to_tuple
 
 from . import functional as fblur

@@ -9,7 +9,7 @@ from typing_extensions import Self
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.types import ColorType, DropoutFillValue, ScaleIntType
+from albumentations.core.type_definitions import ColorType, DropoutFillValue, ScaleIntType
 
 __all__ = ["XYMasking"]
 

@@ -9,7 +9,7 @@ from albucore import maybe_process_in_chunks, preserve_channel_dim
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
-from albumentations.core.types import ColorType
+from albumentations.core.type_definitions import ColorType
 
 __all__ = [
     "crop",

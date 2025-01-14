@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast, overload
 import numpy as np
 
 from .serialization import Serializable
-from .types import PAIR, Number, ScaleFloatType, ScaleIntType, ScaleType
+from .type_definitions import PAIR, Number
 
 if TYPE_CHECKING:
     import torch
@@ -328,7 +328,10 @@ class DataProcessor(ABC):
         raise ValueError(f"Label encoder for {label_field} not found")
 
 
-def validate_args(low: ScaleType | None, bias: Number | None) -> None:
+def validate_args(
+    low: float | Sequence[int] | Sequence[float] | None,
+    bias: float | None,
+) -> None:
     if low is not None and bias is not None:
         raise ValueError("Arguments 'low' and 'bias' cannot be used together.")
 
@@ -366,21 +369,25 @@ def ensure_contiguous_output(arg: np.ndarray | Sequence[np.ndarray]) -> np.ndarr
 
 
 @overload
-def to_tuple(param: ScaleIntType, low: ScaleType | None = None, bias: Number | None = None) -> tuple[int, int]: ...
+def to_tuple(
+    param: int | Sequence[int],
+    low: int | Sequence[int] | None = None,
+    bias: float | None = None,
+) -> tuple[int, int]: ...
 
 
 @overload
 def to_tuple(
-    param: ScaleFloatType,
-    low: ScaleType | None = None,
-    bias: Number | None = None,
+    param: float | Sequence[float],
+    low: float | Sequence[float] | None = None,
+    bias: float | None = None,
 ) -> tuple[float, float]: ...
 
 
 def to_tuple(
-    param: ScaleType,
-    low: ScaleType | None = None,
-    bias: Number | None = None,
+    param: float | Sequence[int] | Sequence[float],
+    low: float | Sequence[int] | Sequence[float] | None = None,
+    bias: float | None = None,
 ) -> tuple[int, int] | tuple[float, float]:
     """Convert input argument to a min-max tuple.
 

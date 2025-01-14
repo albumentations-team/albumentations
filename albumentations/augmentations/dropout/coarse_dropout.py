@@ -10,7 +10,7 @@ import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.bbox_utils import denormalize_bboxes
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
-from albumentations.core.types import ColorType, DropoutFillValue, ScalarType
+from albumentations.core.type_definitions import ColorType, DropoutFillValue, ScalarType
 
 __all__ = ["CoarseDropout", "ConstrainedCoarseDropout", "Erasing"]
 

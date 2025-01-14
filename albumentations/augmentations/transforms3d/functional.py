@@ -4,7 +4,7 @@ from typing import Literal
 import numpy as np
 
 from albumentations.augmentations.utils import handle_empty_array
-from albumentations.core.types import NUM_VOLUME_DIMENSIONS, ColorType
+from albumentations.core.type_definitions import NUM_VOLUME_DIMENSIONS, ColorType
 
 
 def adjust_padding_by_position3d(

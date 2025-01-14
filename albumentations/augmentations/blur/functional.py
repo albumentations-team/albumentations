@@ -14,7 +14,7 @@ from pydantic import ValidationInfo
 
 from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
-from albumentations.core.types import EIGHT, ScaleIntType
+from albumentations.core.type_definitions import EIGHT, ScaleIntType
 
 __all__ = ["blur", "central_zoom", "defocus", "gaussian_blur", "glass_blur", "median_blur", "zoom_blur"]
 
@@ -133,8 +133,7 @@ def _ensure_odd_values(result: tuple[int, int], field_name: str | None = None) -
     )
     if new_result != result:
         warn(
-            f"{field_name}: Non-zero kernel sizes must be odd. "
-            f"Range {result} automatically adjusted to {new_result}.",
+            f"{field_name}: Non-zero kernel sizes must be odd. Range {result} automatically adjusted to {new_result}.",
             UserWarning,
             stacklevel=2,
         )
@@ -143,7 +142,13 @@ def _ensure_odd_values(result: tuple[int, int], field_name: str | None = None) -
 
 def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int = 0) -> tuple[int, int]:
     """Process blur limit to ensure valid kernel sizes."""
-    result = value if isinstance(value, Sequence) else (min_value, value)
+    # Convert value to tuple[int, int]
+    if isinstance(value, Sequence):
+        if len(value) != 2:
+            raise ValueError("Sequence must contain exactly 2 elements")
+        result = (int(value[0]), int(value[1]))
+    else:
+        result = (min_value, int(value))
 
     result = _ensure_min_value(result, min_value, info.field_name)
     result = _ensure_odd_values(result, info.field_name)
@@ -151,8 +156,7 @@ def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int
     if result[0] > result[1]:
         final_result = (result[1], result[1])
         warn(
-            f"{info.field_name}: Invalid range {result} (min > max). "
-            f"Range automatically adjusted to {final_result}.",
+            f"{info.field_name}: Invalid range {result} (min > max). Range automatically adjusted to {final_result}.",
             UserWarning,
             stacklevel=2,
         )

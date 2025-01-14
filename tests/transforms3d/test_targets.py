@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.core.types import Targets
+from albumentations.core.type_definitions import Targets
 from tests.utils import get_3d_transforms
 
 

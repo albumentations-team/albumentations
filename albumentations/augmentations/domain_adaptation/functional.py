@@ -11,7 +11,7 @@ from typing_extensions import Protocol
 
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.utils import PCA
-from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
+from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS
 
 __all__ = [
     "adapt_pixel_distribution",

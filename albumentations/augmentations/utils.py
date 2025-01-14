@@ -162,8 +162,7 @@ class PCA:
     def explained_variance_ratio(self) -> np.ndarray:
         if self.explained_variance_ is None:
             raise ValueError(
-                "This PCA instance is not fitted yet. "
-                "Call 'fit' with appropriate arguments before using this method.",
+                "This PCA instance is not fitted yet. Call 'fit' with appropriate arguments before using this method.",
             )
         total_variance = np.sum(self.explained_variance_)
         return self.explained_variance_ / total_variance

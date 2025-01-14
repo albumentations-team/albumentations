@@ -21,7 +21,7 @@ from albumentations.core.pydantic import (
     nondecreasing,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import (
+from albumentations.core.type_definitions import (
     ALL_TARGETS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     PAIR,

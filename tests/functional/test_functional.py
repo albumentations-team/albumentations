@@ -13,7 +13,7 @@ from albucore import (
 
 import albumentations.augmentations.functional as fmain
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.core.types import d4_group_elements
+from albumentations.core.type_definitions import d4_group_elements
 from tests.conftest import (
     IMAGES,
     RECTANGULAR_IMAGES,

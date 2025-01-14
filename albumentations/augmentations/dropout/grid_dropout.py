@@ -7,7 +7,7 @@ from pydantic import AfterValidator, Field
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
-from albumentations.core.types import ColorType, DropoutFillValue
+from albumentations.core.type_definitions import ColorType, DropoutFillValue
 
 __all__ = ["GridDropout"]
 

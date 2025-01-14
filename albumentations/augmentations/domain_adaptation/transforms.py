@@ -18,7 +18,7 @@ from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.composition import Compose
 from albumentations.core.pydantic import ZeroOneRangeType, check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, BasicTransform, ImageOnlyTransform
-from albumentations.core.types import ScaleFloatType
+from albumentations.core.type_definitions import ScaleFloatType
 
 __all__ = [
     "FDA",

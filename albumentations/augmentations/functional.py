@@ -38,7 +38,7 @@ from albumentations.augmentations.utils import (
     non_rgb_error,
 )
 from albumentations.core.bbox_utils import bboxes_from_masks, masks_from_bboxes
-from albumentations.core.types import (
+from albumentations.core.type_definitions import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,

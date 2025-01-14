@@ -10,7 +10,7 @@ from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, no
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ALL_TARGETS, ScaleIntType
+from albumentations.core.type_definitions import ALL_TARGETS, ScaleIntType
 
 __all__ = ["MaskDropout"]
 

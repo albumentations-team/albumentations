@@ -24,7 +24,7 @@ from albumentations.core.bbox_utils import (
     masks_from_bboxes,
     normalize_bboxes,
 )
-from albumentations.core.types import (
+from albumentations.core.type_definitions import (
     NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS,
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
