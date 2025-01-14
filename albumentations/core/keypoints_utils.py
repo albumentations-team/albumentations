@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-from albumentations.core.types import NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS
+from albumentations.core.type_definitions import NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS
 
 from .utils import DataProcessor, Params, ShapeType
 
