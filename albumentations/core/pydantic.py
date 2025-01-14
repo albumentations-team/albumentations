@@ -7,7 +7,7 @@ import cv2
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 
-from albumentations.core.types import Number, ScaleFloatType, ScaleIntType, ScaleType
+from albumentations.core.type_definitions import Number, ScaleFloatType, ScaleIntType, ScaleType
 from albumentations.core.utils import to_tuple
 
 valid_interpolations = {

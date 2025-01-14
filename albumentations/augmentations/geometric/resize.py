@@ -11,7 +11,7 @@ from typing_extensions import Self
 
 from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ALL_TARGETS, ScaleFloatType
+from albumentations.core.type_definitions import ALL_TARGETS, ScaleFloatType
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric

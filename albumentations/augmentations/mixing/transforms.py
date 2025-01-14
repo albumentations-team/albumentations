@@ -9,7 +9,7 @@ import numpy as np
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import LENGTH_RAW_BBOX, Targets
+from albumentations.core.type_definitions import LENGTH_RAW_BBOX, Targets
 
 __all__ = ["OverlayElements"]
 

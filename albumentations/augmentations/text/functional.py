@@ -14,7 +14,7 @@ from albucore import (
     uint8_io,
 )
 
-from albumentations.core.types import PAIR
+from albumentations.core.type_definitions import PAIR
 
 # Importing wordnet and other dependencies only for type checking
 if TYPE_CHECKING:

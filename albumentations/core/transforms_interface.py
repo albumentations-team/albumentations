@@ -16,7 +16,7 @@ from albumentations.core.pydantic import ProbabilityType
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
-from .types import (
+from .type_definitions import (
     ALL_TARGETS,
     ColorType,
     DropoutFillValue,

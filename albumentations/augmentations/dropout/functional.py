@@ -15,7 +15,7 @@ from albucore import (
 
 from albumentations.augmentations.geometric.functional import split_uniform_grid
 from albumentations.augmentations.utils import handle_empty_array
-from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType, DropoutFillValue, InpaintMethod
+from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS, ColorType, DropoutFillValue, InpaintMethod
 
 __all__ = [
     "calculate_grid_dimensions",

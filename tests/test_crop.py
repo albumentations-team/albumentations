@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.core.types import PositionType
+from albumentations.core.type_definitions import PositionType
 import cv2
 
 from .conftest import IMAGES, RECTANGULAR_UINT8_IMAGE

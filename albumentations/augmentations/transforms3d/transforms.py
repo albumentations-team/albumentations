@@ -11,7 +11,7 @@ from albumentations.augmentations.transforms3d import functional as f3d
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, Transform3D
-from albumentations.core.types import ColorType, Targets
+from albumentations.core.type_definitions import ColorType, Targets
 
 __all__ = ["CenterCrop3D", "CoarseDropout3D", "CubicSymmetry", "Pad3D", "PadIfNeeded3D", "RandomCrop3D"]
 

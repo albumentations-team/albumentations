@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.core.types import ALL_TARGETS, Targets
+from albumentations.core.type_definitions import ALL_TARGETS, Targets
 
 from .utils import get_dual_transforms, get_image_only_transforms
 

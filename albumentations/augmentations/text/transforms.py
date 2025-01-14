@@ -11,7 +11,7 @@ import albumentations.augmentations.text.functional as ftext
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import ColorType
+from albumentations.core.type_definitions import ColorType
 
 __all__ = ["TextImage"]
 

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from albumentations.core.transforms_interface import BasicTransform
-from albumentations.core.types import (
+from albumentations.core.type_definitions import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_VOLUME_DIMENSIONS,
