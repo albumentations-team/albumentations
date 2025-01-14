@@ -8,7 +8,7 @@ import re
 sys.path.append("..")
 import albumentations
 
-from albumentations.core.types import Targets
+from albumentations.core.type_definitions import Targets
 
 IGNORED_CLASSES = {
     "BasicTransform",
