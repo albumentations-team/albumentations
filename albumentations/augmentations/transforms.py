@@ -64,7 +64,7 @@ from albumentations.core.transforms_interface import (
     ImageOnlyTransform,
     NoOp,
 )
-from albumentations.core.types import (
+from albumentations.core.type_definitions import (
     ALL_TARGETS,
     MAX_RAIN_ANGLE,
     NUM_RGB_CHANNELS,
@@ -1866,7 +1866,7 @@ class Posterize(ImageOnlyTransform):
                 return (num_bits, num_bits)
             if isinstance(num_bits, Sequence) and len(num_bits) > PAIR:
                 return [to_tuple(i, i) for i in num_bits]
-            return cast(tuple[int, int], to_tuple(num_bits, num_bits))
+            return to_tuple(num_bits, num_bits)
 
     def __init__(
         self,
