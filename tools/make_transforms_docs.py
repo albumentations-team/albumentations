@@ -19,7 +19,6 @@ IGNORED_CLASSES = {
 
 
 def make_augmentation_docs_link(cls) -> str:
-    module_parts = cls.__module__.split(".")
     return (
         f"[{cls.__name__}](https://explore.albumentations.ai/transform/{cls.__name__})"
     )

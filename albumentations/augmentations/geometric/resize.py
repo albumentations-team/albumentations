@@ -148,7 +148,7 @@ class MaxSizeTransform(DualTransform):
 
     def __init__(
         self,
-        max_size: int | Sequence[int] | None = 1024,
+        max_size: int | Sequence[int] | None = None,
         max_size_hw: tuple[int | None, int | None] | None = None,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
@@ -222,7 +222,7 @@ class LongestMaxSize(MaxSizeTransform):
 
     Args:
         max_size (int, Sequence[int], optional): Maximum size of the longest side after the transformation.
-            When using a list or tuple, the max size will be randomly selected from the values provided. Default: 1024.
+            When using a list or tuple, the max size will be randomly selected from the values provided. Default: None.
         max_size_hw (tuple[int | None, int | None], optional): Maximum (height, width) constraints. Supports:
             - (height, width): Both dimensions must fit within these bounds
             - (height, None): Only height is constrained, width scales proportionally
@@ -329,7 +329,7 @@ class SmallestMaxSize(MaxSizeTransform):
 
     Args:
         max_size (int, list of int, optional): Maximum size of smallest side of the image after the transformation.
-            When using a list, max size will be randomly selected from the values in the list. Default: 1024.
+            When using a list, max size will be randomly selected from the values in the list. Default: None.
         max_size_hw (tuple[int | None, int | None], optional): Maximum (height, width) constraints. Supports:
             - (height, width): Both dimensions must be at least these values
             - (height, None): Only height is constrained, width scales proportionally
