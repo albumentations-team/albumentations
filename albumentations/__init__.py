@@ -15,6 +15,7 @@ import os
 from albumentations.check_version import check_for_updates
 
 from .augmentations import *
+from .pytorch import *
 from .core.composition import *
 from .core.serialization import *
 from .core.transforms_interface import *
