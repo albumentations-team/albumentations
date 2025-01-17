@@ -2,7 +2,6 @@ import pytest
 import numpy as np
 import torch
 import albumentations as A
-from albumentations.pytorch.transforms import ToTensor3D
 
 test_cases = [
     pytest.param(
@@ -38,7 +37,7 @@ def test_to_tensor_3d_shapes(
     expected_volume_shape,
     expected_mask_shape
 ):
-    transform = A.Compose([ToTensor3D(p=1)])
+    transform = A.Compose([A.ToTensor3D(p=1)])
     volume = np.random.randint(0, 256, volume_shape, dtype=np.uint8)
     mask3d = np.random.randint(0, 2, mask_shape, dtype=np.uint8)
 
@@ -70,7 +69,7 @@ error_test_cases = [
     error_test_cases
 )
 def test_to_tensor_3d_errors(volume_shape, expected_error, expected_message):
-    transform = A.Compose([ToTensor3D(p=1)])
+    transform = A.Compose([A.ToTensor3D(p=1)])
     volume = np.random.rand(*volume_shape)
 
     with pytest.raises(expected_error, match=expected_message):

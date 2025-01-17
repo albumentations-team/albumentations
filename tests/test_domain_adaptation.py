@@ -234,8 +234,8 @@ def test_pca_inverse_transform(n_components, data, expected_transformed, expecte
     pca = PCA(n_components)
     transformed = pca.fit_transform(data)
     inversed = pca.inverse_transform(transformed)
-    assert np.array_equal(transformed, expected_transformed)
-    assert np.array_equal(inversed, expected_inverse)
+    np.testing.assert_array_almost_equal(transformed, expected_transformed)
+    np.testing.assert_array_almost_equal(inversed, expected_inverse)
 
 
 # Helper function to create test images

@@ -149,13 +149,13 @@ POSITIONS: list[PositionType] = ["center", "top_left", "top_right", "bottom_left
     ]
 )
 @pytest.mark.parametrize("pad_position", POSITIONS)
-@pytest.mark.parametrize("pad_mode", [cv2.BORDER_CONSTANT, cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT])
+@pytest.mark.parametrize("border_mode", [cv2.BORDER_CONSTANT, cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT])
 def test_pad_position_equivalence(
     image: np.ndarray,
     crop_cls: type[A.DualTransform],
     crop_params: dict[str, int],
     pad_position: PositionType,
-    pad_mode: int,
+    border_mode: int,
     mask: np.ndarray,
     bboxes: np.ndarray,
     keypoints: np.ndarray,
@@ -167,7 +167,7 @@ def test_pad_position_equivalence(
         crop_cls(
             **crop_params,
             pad_if_needed=True,
-            border_mode=pad_mode,
+            border_mode=border_mode,
             fill=0,
             pad_position=pad_position,
         )
@@ -178,7 +178,7 @@ def test_pad_position_equivalence(
         A.PadIfNeeded(
             min_height=crop_params["height"],
             min_width=crop_params["width"],
-            border_mode=pad_mode,
+            border_mode=border_mode,
             fill=0,
             position=pad_position,
         ),
