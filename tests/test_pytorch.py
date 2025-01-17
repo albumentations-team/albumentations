@@ -5,14 +5,13 @@ from PIL import Image
 from torchvision.transforms import ColorJitter
 
 import albumentations as A
-from albumentations.pytorch.transforms import ToTensorV2
 from tests.conftest import RECTANGULAR_UINT8_IMAGE, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 
 
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations(image):
     mask = image.copy()
-    aug = ToTensorV2()
+    aug = A.ToTensorV2()
     data = aug(image=image, mask=mask, force_apply=True)
     height, width, num_channels = image.shape
     assert isinstance(data["image"], torch.Tensor) and data["image"].shape == (num_channels, height, width)
@@ -25,7 +24,7 @@ def test_torch_to_tensor_v2_augmentations(image):
 def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image):
     mask = image[:, :, 0].copy()
 
-    aug = ToTensorV2(transpose_mask=True)
+    aug = A.ToTensorV2(transpose_mask=True)
 
     data = aug(image=image, mask=mask, force_apply=True)
     image_height, image_width, image_num_channels = image.shape
@@ -43,7 +42,7 @@ def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image):
 
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations_with_transpose_3d_mask(image):
-    aug = ToTensorV2(transpose_mask=True)
+    aug = A.ToTensorV2(transpose_mask=True)
     mask_shape = image.shape[:2] + (4,)
     mask = np.random.randint(low=0, high=256, size=mask_shape, dtype=np.uint8)
     data = aug(image=image, mask=mask, force_apply=True)
@@ -64,7 +63,7 @@ def test_torch_to_tensor_v2_augmentations_with_transpose_3d_mask(image):
 
 
 def test_additional_targets_for_totensorv2():
-    aug = A.Compose([ToTensorV2()], additional_targets={"image2": "image", "mask2": "mask"})
+    aug = A.Compose([A.ToTensorV2()], additional_targets={"image2": "image", "mask2": "mask"})
     for _i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = image1.copy()
@@ -89,7 +88,7 @@ def test_additional_targets_for_totensorv2():
         assert np.array_equal(res["image"], res["image2"])
         assert np.array_equal(res["mask"], res["mask2"])
 
-    aug = A.Compose([ToTensorV2()])
+    aug = A.Compose([A.ToTensorV2()])
     aug.add_targets(additional_targets={"image2": "image", "mask2": "mask"})
     for _i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
@@ -117,7 +116,7 @@ def test_additional_targets_for_totensorv2():
 
 
 def test_torch_to_tensor_v2_on_gray_scale_images():
-    aug = ToTensorV2()
+    aug = A.ToTensorV2()
     grayscale_image = np.random.randint(low=0, high=256, size=(100, 100), dtype=np.uint8)
     data = aug(image=grayscale_image)
     assert isinstance(data["image"], torch.Tensor)
@@ -127,7 +126,7 @@ def test_torch_to_tensor_v2_on_gray_scale_images():
 
 
 def test_with_replaycompose() -> None:
-    aug = A.ReplayCompose([ToTensorV2()])
+    aug = A.ReplayCompose([A.ToTensorV2()])
     kwargs = {
         "image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
         "mask": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
@@ -199,7 +198,7 @@ def test_post_data_check():
         [
             A.Resize(50, 50, p=1),
             A.Normalize(p=1),
-            ToTensorV2(p=1),
+            A.ToTensorV2(p=1),
         ],
         keypoint_params=A.KeypointParams("xy"),
         bbox_params=A.BboxParams("pascal_voc"),
@@ -221,7 +220,7 @@ def test_to_tensor_v2_on_non_contiguous_array():
     non_contiguous_img = img[::2, ::2, :]
     assert not non_contiguous_img.flags["C_CONTIGUOUS"]
 
-    transform = A.Compose([ToTensorV2()])
+    transform = A.Compose([A.ToTensorV2()])
     transformed = transform(image=non_contiguous_img, masks=[non_contiguous_img] * 2)
 
     # Additional checks to ensure the transformation worked correctly
@@ -239,7 +238,7 @@ def test_to_tensor_v2_on_non_contiguous_array_with_horizontal_flip():
         [
             A.HorizontalFlip(p=1),
             A.ToFloat(max_value=255),
-            ToTensorV2(),
+            A.ToTensorV2(),
         ],
         is_check_shapes=False,
     )
@@ -255,7 +254,7 @@ def test_to_tensor_v2_on_non_contiguous_array_with_random_rotate90():
     transforms = A.Compose(
         [
             A.RandomRotate90(p=1.0),
-            ToTensorV2(),
+            A.ToTensorV2(),
         ],
     )
 
@@ -270,7 +269,7 @@ def test_to_tensor_v2_on_non_contiguous_array_with_random_rotate90():
 
 
 def test_to_tensor_v2_images_masks():
-    transform = A.Compose([ToTensorV2(p=1)])
+    transform = A.Compose([A.ToTensorV2(p=1)])
     image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
 
