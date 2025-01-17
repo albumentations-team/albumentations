@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import Annotated, Any, Literal, cast
 
 import numpy as np
@@ -20,7 +19,9 @@ from albumentations.core.pydantic import (
     OnePlusIntRangeType,
     SymmetricRangeType,
     check_range_bounds,
+    convert_to_0plus_range,
     nondecreasing,
+    process_non_negative_range,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -364,28 +365,25 @@ class GaussianBlur(ImageOnlyTransform):
     image noise and detail, creating a smoothing effect.
 
     Args:
-        blur_limit (tuple[int, int] | int): Controls the range of the Gaussian kernel size.
-            - If a single int is provided, the kernel size will be randomly chosen
-              between 0 and that value.
-            - If a tuple of two ints is provided, it defines the inclusive range
-              of possible kernel sizes.
-            Must be zero or odd and in range [0, inf). If set to 0, it will be computed
-            from sigma as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
-            Larger kernel sizes produce stronger blur effects.
-            Default: (3, 7)
-
         sigma_limit (tuple[float, float] | float): Range for the Gaussian kernel standard
             deviation (sigma). Must be in range [0, inf).
             - If a single float is provided, sigma will be randomly chosen
               between 0 and that value.
             - If a tuple of two floats is provided, it defines the inclusive range
               of possible sigma values.
-            If set to 0, sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`.
-            Larger sigma values produce stronger blur effects.
+            Default: (0.5, 3.0)
+
+        blur_limit (tuple[int, int] | int): Controls the range of the Gaussian kernel size.
+            - If a single int is provided, the kernel size will be randomly chosen
+              between 0 and that value.
+            - If a tuple of two ints is provided, it defines the inclusive range
+              of possible kernel sizes.
+            Must be zero or odd and in range [0, inf). If set to 0 (default), the kernel size
+            will be computed from sigma as `int(6 * sigma + 1)` and adjusted to be odd if needed.
             Default: 0
 
-        p (float): Probability of applying the transform. Should be in the range [0, 1].
-            Default: 0.5
+
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
@@ -397,54 +395,40 @@ class GaussianBlur(ImageOnlyTransform):
         Any
 
     Note:
-        - The relationship between kernel size and sigma affects the blur strength:
-          larger kernel sizes allow for stronger blurring effects.
-        - When both blur_limit and sigma_limit are set to ranges starting from 0,
-          the blur_limit minimum is automatically set to 3 to ensure a valid kernel size.
-        - For uint8 images, the computation might be faster than for floating-point images.
+        - When blur_limit=0 (default), the kernel size is computed as int(4 * sigma + 1)
+          to ensure smooth transitions in blur strength as sigma increases.
+        - When blur_limit is specified, the kernel size is randomly sampled from that range
+          regardless of sigma, which might result in inconsistent blur effects.
+        - The default sigma range (0.5, 3.0) provides a good balance between subtle
+          and strong blur effects, resulting in kernel sizes from 4 to 19 pixels.
+        - While this implementation uses OpenCV's GaussianBlur under the hood, the default
+          behavior (blur_limit=0) is designed to provide similar blur strength progression
+          to PIL.ImageFilter.GaussianBlur, making it easier to migrate between the libraries.
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.1, 2), p=1)
+        >>> # Default behavior: smooth blur with kernel size computed from sigma
+        >>> transform = A.GaussianBlur(p=1.0, sigma_limit=(0.5, 3.0))
+        >>> # Or manual kernel size range: might result in less smooth transitions
+        >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.5, 3.0), p=1.0)
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
     """
 
-    class InitSchema(BlurInitSchema):
-        sigma_limit: NonNegativeFloatRangeType
-
-        @field_validator("blur_limit")
-        @classmethod
-        def process_blur(
-            cls,
-            value: ScaleIntType,
-            info: ValidationInfo,
-        ) -> tuple[int, int]:
-            return fblur.process_blur_limit(value, info, min_value=0)
-
-        @model_validator(mode="after")
-        def validate_limits(self) -> Self:
-            if (
-                isinstance(self.blur_limit, (tuple, list))
-                and self.blur_limit[0] == 0
-                and isinstance(self.sigma_limit, (tuple, list))
-                and self.sigma_limit[0] == 0
-            ):
-                self.blur_limit = 3, max(3, self.blur_limit[1])
-                warnings.warn(
-                    "blur_limit and sigma_limit minimum value can not be both equal to 0. "
-                    "blur_limit minimum value changed to 3.",
-                    stacklevel=2,
-                )
-
-            return self
+    class InitSchema(BaseTransformInitSchema):
+        sigma_limit: Annotated[
+            ScaleFloatType,
+            AfterValidator(process_non_negative_range),
+            AfterValidator(nondecreasing),
+        ]
+        blur_limit: Annotated[ScaleIntType, AfterValidator(convert_to_0plus_range), AfterValidator(nondecreasing)]
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (3, 7),
-        sigma_limit: ScaleFloatType = 0,
+        blur_limit: ScaleIntType = 0,
+        sigma_limit: ScaleFloatType = (0.5, 3.0),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -460,14 +444,24 @@ class GaussianBlur(ImageOnlyTransform):
     ) -> np.ndarray:
         return fblur.gaussian_blur(img, ksize, sigma=sigma)
 
-    def get_params(self) -> dict[str, float]:
-        ksize = fblur.sample_odd_from_range(
-            self.py_random,
-            self.blur_limit[0],
-            self.blur_limit[1],
-        )
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
+        """Get parameters for Gaussian blur.
 
-        return {"ksize": ksize, "sigma": self.py_random.uniform(*self.sigma_limit)}
+        Two modes of operation:
+        1. If blur_limit == 0:
+           - Use sigma directly from sigma_limit range
+           - Compute kernel size as int(6 * sigma + 1) for smooth blur transitions
+        2. If blur_limit != 0:
+           - Use sigma directly from sigma_limit range
+           - Sample kernel size from blur_limit range
+        """
+        sigma = self.py_random.uniform(*self.sigma_limit)
+
+        ksize = int(4 * sigma + 1) if self.blur_limit[0] == 0 else self.py_random.randint(*self.blur_limit)
+
+        ksize = ksize + 1 if ksize % 2 == 0 else ksize
+
+        return {"ksize": ksize, "sigma": sigma}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "blur_limit", "sigma_limit"

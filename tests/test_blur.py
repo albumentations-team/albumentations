@@ -4,6 +4,9 @@ import warnings
 import numpy as np
 import pytest
 
+from PIL import Image, ImageFilter
+import cv2
+
 import albumentations as A
 from albumentations.augmentations.blur import functional as fblur
 
@@ -216,3 +219,51 @@ def test_process_blur_limit_sequence_check() -> None:
     result = fblur.process_blur_limit(5.0, info, min_value=0)
     assert isinstance(result, tuple)
     assert result == (0, 5)
+
+
+def compute_sharpness(image: np.ndarray) -> float:
+    kernel = np.array([
+        [-1, -1, -1],
+        [-1,  8, -1],
+        [-1, -1, -1]
+    ])
+    edges = cv2.filter2D(image.astype(np.float32), -1, kernel)
+    return np.std(edges)
+
+def test_gaussian_blur_matches_pil():
+    # Create a test image with high-frequency details
+    image = np.zeros((100, 100), dtype=np.uint8)
+    image[::10, :] = 255  # horizontal lines
+    image[:, ::10] = 255  # vertical lines
+
+    # Test points
+    sigmas = np.linspace(0.2, 10, 50)
+
+    # Get blur progression for PIL
+    pil_sharpness = []
+    alb_sharpness = []
+
+    pil_image = Image.fromarray(image)
+
+    for sigma in sigmas:
+        # PIL blur
+        pil_blurred = pil_image.filter(ImageFilter.GaussianBlur(radius=sigma))
+        pil_sharpness.append(compute_sharpness(np.array(pil_blurred)))
+
+        # Albumentations blur
+        alb_blurred = A.GaussianBlur(blur_limit=0, sigma_limit=(sigma, sigma), p=1.0)(image=image)['image']
+        alb_sharpness.append(compute_sharpness(alb_blurred))
+
+    # Convert to numpy arrays for easier comparison
+    pil_sharpness = np.array(pil_sharpness)
+    alb_sharpness = np.array(alb_sharpness)
+
+    # Compare curves directly using absolute differences
+    abs_diff = np.abs(pil_sharpness - alb_sharpness)
+    mean_diff = np.mean(abs_diff)
+    max_diff = np.max(abs_diff)
+
+
+    # Assert reasonable absolute differences
+    assert mean_diff < 10, f"Average absolute difference too high: {mean_diff:.2f}"
+    assert max_diff < 83, f"Maximum absolute difference too high: {max_diff:.2f}"
