@@ -33,8 +33,7 @@ def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
 
 
 @preserve_channel_dim
-def gaussian_blur(img: np.ndarray, ksize: int, sigma: float = 0) -> np.ndarray:
-    # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
+def gaussian_blur(img: np.ndarray, ksize: int, sigma: float) -> np.ndarray:
     blur_fn = maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
     return blur_fn(img)
 
