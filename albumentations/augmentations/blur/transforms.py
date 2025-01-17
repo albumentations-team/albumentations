@@ -379,7 +379,7 @@ class GaussianBlur(ImageOnlyTransform):
             - If a tuple of two ints is provided, it defines the inclusive range
               of possible kernel sizes.
             Must be zero or odd and in range [0, inf). If set to 0 (default), the kernel size
-            will be computed from sigma as `int(6 * sigma + 1)` and adjusted to be odd if needed.
+            will be computed from sigma as `int(4 * sigma + 1)` and adjusted to be odd if needed.
             Default: 0
 
 
