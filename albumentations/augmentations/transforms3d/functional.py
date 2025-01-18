@@ -151,7 +151,7 @@ def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
         9: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=1, axes=(0, 1)),
         10: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=2, axes=(0, 1)),
         11: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=3, axes=(0, 1)),
-        12: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=0, axes=(0, 1)),
+        12: lambda x: np.rot90(x, k=-1, axes=(0, 2)),
         13: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=1, axes=(0, 1)),
         14: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=2, axes=(0, 1)),
         15: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=3, axes=(0, 1)),
