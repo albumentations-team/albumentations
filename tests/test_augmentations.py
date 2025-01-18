@@ -1165,3 +1165,62 @@ def test_constrained_coarse_dropout_with_bboxes(bbox_labels, bboxes, expected_nu
                 overlaps_any = True
                 break
         assert overlaps_any, f"Hole {hole} doesn't overlap with any target box"
+
+
+
+@pytest.mark.parametrize(
+    ["drop_value", "expected_values"],
+    [
+        (None, None),  # Random values will be generated
+        (0, 0),  # Single value
+        ((1, 2, 3), np.array([1, 2, 3])),  # Sequence of values
+    ],
+)
+def test_pixel_dropout_drop_values(drop_value, expected_values):
+    image = np.ones((10, 10, 3), dtype=np.uint8) * 255
+    transform = A.PixelDropout(dropout_prob=1.0, drop_value=drop_value, p=1.0)
+
+    result = transform(image=image)["image"]
+
+    if drop_value is None:
+        # For None, we just verify values are within valid range
+        assert result.dtype == np.uint8
+        assert np.all((result >= 0) & (result <= 255))
+    else:
+        if isinstance(drop_value, (int, float)):
+            # For single value, all channels should have same value
+            assert np.all(result == expected_values)
+        else:
+            # For sequence, each channel should have corresponding value
+            for channel_idx, expected_value in enumerate(expected_values):
+                assert np.all(result[:, :, channel_idx] == expected_value)
+
+
+def test_pixel_dropout_per_channel():
+    """Test that per_channel=True works correctly with different drop_values"""
+    image = np.ones((10, 10, 3), dtype=np.uint8) * 255
+
+    # Test with single value
+    transform = A.PixelDropout(
+        dropout_prob=0.5,
+        drop_value=0,
+        per_channel=True,
+        p=1.0
+    )
+    result = transform(image=image)["image"]
+    assert np.any(result == 0)  # Should have some dropped pixels
+
+    # Test with sequence
+    transform = A.PixelDropout(
+        dropout_prob=0.5,
+        drop_value=(1, 2, 3),
+        per_channel=True,
+        p=1.0
+    )
+    result = transform(image=image)["image"]
+    # Each channel should only contain original values or its drop value
+    for channel_idx, drop_val in enumerate((1, 2, 3)):
+        unique_values = np.unique(result[:, :, channel_idx])
+        assert len(unique_values) == 2  # Should only have original value and drop value
+        assert drop_val in unique_values
+        assert 255 in unique_values
