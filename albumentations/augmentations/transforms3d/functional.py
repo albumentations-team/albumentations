@@ -137,7 +137,7 @@ def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
 
     transformations = {
         # First 4: rotate around axis 0 (indices 0-3)
-        0: lambda x: np.rot90(x, k=0, axes=(1, 2)),
+        0: lambda x: x,
         1: lambda x: np.rot90(x, k=1, axes=(1, 2)),
         2: lambda x: np.rot90(x, k=2, axes=(1, 2)),
         3: lambda x: np.rot90(x, k=3, axes=(1, 2)),
