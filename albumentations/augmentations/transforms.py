@@ -2624,6 +2624,15 @@ class RandomGamma(ImageOnlyTransform):
     def apply(self, img: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
         return fmain.gamma_transform(img, gamma=gamma)
 
+    def apply_to_volume(self, volume: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
+        return self.apply(volume, gamma=gamma)
+
+    def apply_to_volumes(self, volumes: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
+        return self.apply(volumes, gamma=gamma)
+
+    def apply_to_images(self, images: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
+        return self.apply(images, gamma=gamma)
+
     def get_params(self) -> dict[str, float]:
         return {
             "gamma": self.py_random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0,
