@@ -135,35 +135,63 @@ def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
     if not (0 <= index < 48):
         raise ValueError("Index must be between 0 and 47")
 
-    # First determine if we need reflection (indices 24-47)
-    needs_reflection = index >= 24
-    working_cube = cube[:, :, ::-1].copy() if needs_reflection else cube.copy()
-    rotation_index = index % 24
+    transformations = {
+        # First 4: rotate around axis 0 (indices 0-3)
+        0: lambda x: np.rot90(x, k=0, axes=(1, 2)),
+        1: lambda x: np.rot90(x, k=1, axes=(1, 2)),
+        2: lambda x: np.rot90(x, k=2, axes=(1, 2)),
+        3: lambda x: np.rot90(x, k=3, axes=(1, 2)),
+        # Next 4: flip 180° about axis 1, then rotate around axis 0 (indices 4-7)
+        4: lambda x: np.rot90(np.rot90(x, k=2, axes=(0, 2)), k=0, axes=(1, 2)),
+        5: lambda x: np.rot90(np.rot90(x, k=2, axes=(0, 2)), k=1, axes=(1, 2)),
+        6: lambda x: np.rot90(np.rot90(x, k=2, axes=(0, 2)), k=2, axes=(1, 2)),
+        7: lambda x: np.rot90(np.rot90(x, k=2, axes=(0, 2)), k=3, axes=(1, 2)),
+        # Next 8: split between 90° and 270° about axis 1, then rotate around axis 2 (indices 8-15)
+        8: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=0, axes=(0, 1)),
+        9: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=1, axes=(0, 1)),
+        10: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=2, axes=(0, 1)),
+        11: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 2)), k=3, axes=(0, 1)),
+        12: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=0, axes=(0, 1)),
+        13: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=1, axes=(0, 1)),
+        14: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=2, axes=(0, 1)),
+        15: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 2)), k=3, axes=(0, 1)),
+        # Final 8: split between rotations about axis 2, then rotate around axis 1 (indices 16-23)
+        16: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 1)), k=0, axes=(0, 2)),
+        17: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 1)), k=1, axes=(0, 2)),
+        18: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 1)), k=2, axes=(0, 2)),
+        19: lambda x: np.rot90(np.rot90(x, k=1, axes=(0, 1)), k=3, axes=(0, 2)),
+        20: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 1)), k=0, axes=(0, 2)),
+        21: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 1)), k=1, axes=(0, 2)),
+        22: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 1)), k=2, axes=(0, 2)),
+        23: lambda x: np.rot90(np.rot90(x, k=-1, axes=(0, 1)), k=3, axes=(0, 2)),
+        # Reflected versions (24-47) - same as above but with initial reflection
+        24: lambda x: np.rot90(x[:, :, ::-1], k=0, axes=(1, 2)),
+        25: lambda x: np.rot90(x[:, :, ::-1], k=1, axes=(1, 2)),
+        26: lambda x: np.rot90(x[:, :, ::-1], k=2, axes=(1, 2)),
+        27: lambda x: np.rot90(x[:, :, ::-1], k=3, axes=(1, 2)),
+        28: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=2, axes=(0, 2)), k=0, axes=(1, 2)),
+        29: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=2, axes=(0, 2)), k=1, axes=(1, 2)),
+        30: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=2, axes=(0, 2)), k=2, axes=(1, 2)),
+        31: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=2, axes=(0, 2)), k=3, axes=(1, 2)),
+        32: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 2)), k=0, axes=(0, 1)),
+        33: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 2)), k=1, axes=(0, 1)),
+        34: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 2)), k=2, axes=(0, 1)),
+        35: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 2)), k=3, axes=(0, 1)),
+        36: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 2)), k=0, axes=(0, 1)),
+        37: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 2)), k=1, axes=(0, 1)),
+        38: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 2)), k=2, axes=(0, 1)),
+        39: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 2)), k=3, axes=(0, 1)),
+        40: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 1)), k=0, axes=(0, 2)),
+        41: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 1)), k=1, axes=(0, 2)),
+        42: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 1)), k=2, axes=(0, 2)),
+        43: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=1, axes=(0, 1)), k=3, axes=(0, 2)),
+        44: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 1)), k=0, axes=(0, 2)),
+        45: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 1)), k=1, axes=(0, 2)),
+        46: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 1)), k=2, axes=(0, 2)),
+        47: lambda x: np.rot90(np.rot90(x[:, :, ::-1], k=-1, axes=(0, 1)), k=3, axes=(0, 2)),
+    }
 
-    # Map rotation_index (0-23) to specific rotations
-    if rotation_index < 4:
-        # First 4: rotate around axis 0
-        return np.rot90(working_cube, rotation_index, axes=(1, 2))
-
-    if rotation_index < 8:
-        # Next 4: flip 180° about axis 1, then rotate around axis 0
-        temp = np.rot90(working_cube, 2, axes=(0, 2))
-        return np.rot90(temp, rotation_index - 4, axes=(1, 2))
-
-    if rotation_index < 16:
-        # Next 8: split between 90° and 270° about axis 1, then rotate around axis 2
-        if rotation_index < 12:
-            temp = np.rot90(working_cube, axes=(0, 2))
-            return np.rot90(temp, rotation_index - 8, axes=(0, 1))
-        temp = np.rot90(working_cube, -1, axes=(0, 2))
-        return np.rot90(temp, rotation_index - 12, axes=(0, 1))
-
-    # Final 8: split between rotations about axis 2, then rotate around axis 1
-    if rotation_index < 20:
-        temp = np.rot90(working_cube, axes=(0, 1))
-        return np.rot90(temp, rotation_index - 16, axes=(0, 2))
-    temp = np.rot90(working_cube, -1, axes=(0, 1))
-    return np.rot90(temp, rotation_index - 20, axes=(0, 2))
+    return transformations[index](cube.copy())
 
 
 @handle_empty_array("keypoints")
