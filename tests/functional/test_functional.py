@@ -1500,6 +1500,34 @@ def test_get_drop_mask_reproducibility():
     assert not np.array_equal(mask1, mask3)
 
 
+def test_pixel_dropout_sequence_per_channel():
+    """Test pixel dropout with sequence values and per_channel=True"""
+    # Setup
+    image = np.ones((10, 10, 3), dtype=np.uint8) * 255
+    drop_values = (1, 2, 3)
+
+    # With dropout_prob=1.0, drop_mask will be all True
+    drop_mask = np.ones((10, 10, 3), dtype=bool)
+
+    # Verify drop_mask is all True
+    assert np.all(drop_mask)
+    assert drop_mask.shape == image.shape
+
+    # Prepare drop values
+    prepared_values = fmain.prepare_drop_values(image, drop_values, np.random.default_rng(42))
+
+    # Verify prepared_values shape matches image
+    assert prepared_values.shape == image.shape
+
+    # Apply dropout
+    result = fmain.pixel_dropout(image, drop_mask, prepared_values)
+
+    # Each channel should be entirely filled with its corresponding value
+    for channel_idx, expected_value in enumerate(drop_values):
+        assert np.all(result[:, :, channel_idx] == expected_value), \
+            f"Channel {channel_idx} should be filled with value {expected_value}"
+
+
 def test_prepare_drop_values_random_two_channels():
     """Test random value generation for 2-channel images."""
     rng = np.random.default_rng(42)

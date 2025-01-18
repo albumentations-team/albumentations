@@ -4307,8 +4307,7 @@ class PixelDropout(DualTransform):
         mask_drop_value (float | Sequence[float] | None): Value to assign to dropped pixels in the mask.
             If None, the mask will remain unchanged.
             If a single number, that value will be used for all dropped pixels in the mask.
-            If a sequence, it should contain one value per channel of the mask.
-            Note: Only applicable when per_channel=False.
+            If a sequence, it should contain one value per channel.
             Default: None
 
         p (float): Probability of applying the transform. Should be in the range [0, 1].
@@ -4325,9 +4324,6 @@ class PixelDropout(DualTransform):
           if all pixels within the box are dropped. Such boxes will be removed.
         - When applied to keypoints, keypoints that fall on dropped pixels will be removed if
           the keypoint processor is configured to remove invisible keypoints.
-        - The 'per_channel' option is not supported for mask dropout. If you need to drop pixels
-          in a multi-channel mask independently, consider applying this transform multiple times
-          with per_channel=False.
 
     Example:
         >>> import numpy as np
@@ -4342,15 +4338,8 @@ class PixelDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         dropout_prob: ProbabilityType
         per_channel: bool
-        drop_value: ScaleFloatType | None
-        mask_drop_value: ScaleFloatType | None
-
-        @model_validator(mode="after")
-        def validate_mask_drop_value(self) -> Self:
-            if self.mask_drop_value is not None and self.per_channel:
-                msg = "PixelDropout supports mask only with per_channel=False."
-                raise ValueError(msg)
-            return self
+        drop_value: ColorType | None
+        mask_drop_value: ColorType | None
 
     _targets = ALL_TARGETS
 
@@ -4358,8 +4347,8 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: ScaleFloatType | None = 0,
-        mask_drop_value: ScaleFloatType | None = None,
+        drop_value: ColorType | None = 0,
+        mask_drop_value: ColorType | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4372,7 +4361,7 @@ class PixelDropout(DualTransform):
         self,
         img: np.ndarray,
         drop_mask: np.ndarray,
-        drop_values: float | Sequence[float],
+        drop_values: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
         return fmain.pixel_dropout(img, drop_mask, drop_values)

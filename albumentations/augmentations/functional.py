@@ -2911,11 +2911,11 @@ def prepare_drop_values(
     else:
         values = np.array(value, dtype=array.dtype).reshape(-1)
 
-    # For 2D input, return single value
+    # For monochannel input, return single value
     if array.ndim == 2:
         return np.full(array.shape, values[0], dtype=array.dtype)
 
-    # For 3D input, broadcast values to full shape
+    # For multichannel input, broadcast values to full shape
     return np.full(array.shape[:2] + (len(values),), values, dtype=array.dtype)
 
 
