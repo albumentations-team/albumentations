@@ -3015,7 +3015,7 @@ class FromFloat(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dtype: Literal["uint8", "uint16", "float32"]
+        dtype: Literal["uint8", "uint16", "uint32"]
         max_value: float | None
 
         @model_validator(mode="after")
@@ -3032,7 +3032,7 @@ class FromFloat(ImageOnlyTransform):
 
     def __init__(
         self,
-        dtype: Literal["uint8", "uint16", "float32"] = "uint8",
+        dtype: Literal["uint8", "uint16", "uint32"] = "uint8",
         max_value: float | None = None,
         p: float = 1.0,
     ):
