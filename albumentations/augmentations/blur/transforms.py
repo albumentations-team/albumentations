@@ -379,9 +379,9 @@ class GaussianBlur(ImageOnlyTransform):
             - If a tuple of two ints is provided, it defines the inclusive range
               of possible kernel sizes.
             Must be zero or odd and in range [0, inf). If set to 0 (default), the kernel size
-            will be computed from sigma as `int(4 * sigma + 1)` and adjusted to be odd if needed.
+            will be computed from sigma as `int(sigma * 3.5) * 2 + 1` to exactly match PIL's
+            implementation.
             Default: 0
-
 
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -395,23 +395,27 @@ class GaussianBlur(ImageOnlyTransform):
         Any
 
     Note:
-        - When blur_limit=0 (default), the kernel size is computed as int(4 * sigma + 1)
-          to ensure smooth transitions in blur strength as sigma increases.
+        - When blur_limit=0 (default), this implementation exactly matches PIL's
+          GaussianBlur behavior:
+          * Kernel size is computed as int(sigma * 3.5) * 2 + 1
+          * Gaussian values are computed using the standard formula
+          * Kernel is normalized to preserve image luminance
         - When blur_limit is specified, the kernel size is randomly sampled from that range
           regardless of sigma, which might result in inconsistent blur effects.
         - The default sigma range (0.5, 3.0) provides a good balance between subtle
-          and strong blur effects, resulting in kernel sizes from 4 to 19 pixels.
-        - While this implementation uses OpenCV's GaussianBlur under the hood, the default
-          behavior (blur_limit=0) is designed to provide similar blur strength progression
-          to PIL.ImageFilter.GaussianBlur, making it easier to migrate between the libraries.
+          and strong blur effects:
+          * sigma=0.5 results in a 3x3 kernel
+          * sigma=1.0 results in a 7x7 kernel
+          * sigma=2.0 results in a 15x15 kernel
+          * sigma=3.0 results in a 21x21 kernel
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> # Default behavior: smooth blur with kernel size computed from sigma
+        >>> # Default behavior: matches PIL's GaussianBlur
         >>> transform = A.GaussianBlur(p=1.0, sigma_limit=(0.5, 3.0))
-        >>> # Or manual kernel size range: might result in less smooth transitions
+        >>> # Or manual kernel size range
         >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.5, 3.0), p=1.0)
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
