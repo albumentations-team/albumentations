@@ -438,30 +438,16 @@ class GaussianBlur(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        ksize: int,
-        sigma: float,
+        kernel: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fblur.gaussian_blur(img, ksize, sigma=sigma)
+        return fmain.convolve(img, kernel=kernel)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
-        """Get parameters for Gaussian blur.
-
-        Two modes of operation:
-        1. If blur_limit == 0:
-           - Use sigma directly from sigma_limit range
-           - Compute kernel size as int(6 * sigma + 1) for smooth blur transitions
-        2. If blur_limit != 0:
-           - Use sigma directly from sigma_limit range
-           - Sample kernel size from blur_limit range
-        """
         sigma = self.py_random.uniform(*self.sigma_limit)
+        ksize = self.py_random.randint(*self.blur_limit)
 
-        ksize = int(4 * sigma + 1) if self.blur_limit[0] == 0 else self.py_random.randint(*self.blur_limit)
-
-        ksize = ksize + 1 if ksize % 2 == 0 else ksize
-
-        return {"ksize": ksize, "sigma": sigma}
+        return {"kernel": fblur.create_gaussian_kernel(sigma, ksize)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "blur_limit", "sigma_limit"

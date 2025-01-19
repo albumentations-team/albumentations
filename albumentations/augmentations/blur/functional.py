@@ -16,7 +16,7 @@ from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
 from albumentations.core.type_definitions import EIGHT, ScaleIntType
 
-__all__ = ["blur", "central_zoom", "defocus", "gaussian_blur", "glass_blur", "median_blur", "zoom_blur"]
+__all__ = ["blur", "central_zoom", "defocus", "glass_blur", "median_blur", "zoom_blur"]
 
 
 @preserve_channel_dim
@@ -29,36 +29,6 @@ def blur(img: np.ndarray, ksize: int) -> np.ndarray:
 @uint8_io
 def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
     blur_fn = maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
-    return blur_fn(img)
-
-
-@preserve_channel_dim
-def gaussian_blur(img: np.ndarray, ksize: int, sigma: float) -> np.ndarray:
-    """Apply Gaussian blur to an image with explicit kernel creation and normalization.
-
-    This implementation creates and applies the Gaussian kernel manually instead of using
-    cv2.GaussianBlur directly for a reason:
-    1. Luminance preservation: By explicitly normalizing the kernel, we ensure the sum
-       equals 1.0, which preserves the image's overall luminance. This matches PIL's
-       behavior better than cv2.GaussianBlur.
-
-    Args:
-        img: The image to blur. Can be either grayscale or color.
-        ksize: Gaussian kernel size. Must be positive and odd.
-        sigma: Gaussian kernel standard deviation.
-
-    Returns:
-        np.ndarray: The blurred image.
-    """
-    # Create the Gaussian kernel
-    kernel = cv2.getGaussianKernel(ksize, sigma)
-    kernel = kernel @ kernel.T  # Create 2D kernel
-
-    # Normalize the kernel to preserve luminance
-    kernel = kernel / kernel.sum()
-
-    # Apply the blur - cv2.filter2D handles multiple channels automatically
-    blur_fn = maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
     return blur_fn(img)
 
 
@@ -110,7 +80,8 @@ def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
     aliased_disk = np.array((x**2 + y**2) <= radius**2, dtype=np.float32)
     aliased_disk /= np.sum(aliased_disk)
 
-    kernel = gaussian_blur(aliased_disk, ksize, sigma=alias_blur)
+    kernel = cv2.GaussianBlur(aliased_disk, (ksize, ksize), sigmaX=alias_blur)
+
     return convolve(img, kernel=kernel)
 
 
@@ -286,3 +257,31 @@ def sample_odd_from_range(random_state: Random, low: int, high: int) -> int:
     # Generate random index and convert to corresponding odd number
     rand_idx = random_state.randint(0, num_odd_values - 1)
     return low + (2 * rand_idx)
+
+
+def create_gaussian_kernel(sigma: float, ksize: int = 0) -> np.ndarray:
+    """Create a Gaussian kernel following PIL's approach.
+
+    Args:
+        sigma: Standard deviation for Gaussian kernel.
+        ksize: Kernel size. If 0, size is computed as int(sigma * 3.5) * 2 + 1
+               to match PIL's implementation. Otherwise, must be positive and odd.
+
+    Returns:
+        np.ndarray: 2D normalized Gaussian kernel.
+    """
+    # PIL's kernel creation approach
+    size = int(sigma * 3.5) * 2 + 1 if ksize == 0 else ksize
+
+    # Ensure odd size
+    size = size + 1 if size % 2 == 0 else size
+
+    # Create x coordinates
+    x = np.linspace(-(size // 2), size // 2, size)
+
+    # Compute 1D kernel using vectorized operations
+    kernel_1d = np.exp(-0.5 * (x / sigma) ** 2)
+    kernel_1d = kernel_1d / kernel_1d.sum()
+
+    # Create 2D kernel
+    return kernel_1d[:, np.newaxis] @ kernel_1d[np.newaxis, :]
