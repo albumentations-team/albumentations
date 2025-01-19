@@ -2633,9 +2633,9 @@ class RandomGamma(ImageOnlyTransform):
     def apply_to_images(self, images: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
         return self.apply(images, gamma=gamma)
 
-    def get_params(self) -> dict[str, float]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         return {
-            "gamma": self.py_random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0,
+            "gamma": self.py_random.uniform(*self.gamma_limit) / 100.0,
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
