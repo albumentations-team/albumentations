@@ -3020,13 +3020,8 @@ class FromFloat(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def update_max_value(self) -> Self:
-            dtype2npdtype = {
-                "uint8": np.uint8,
-                "uint16": np.uint16,
-                "uint32": np.uint32,
-            }
             if self.max_value is None:
-                self.max_value = get_max_value(dtype2npdtype[self.dtype])
+                self.max_value = get_max_value(np.dtype(self.dtype))
 
             return self
 
