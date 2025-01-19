@@ -16,6 +16,7 @@ from albucore import (
     batch_transform,
     clip,
     from_float,
+    get_max_value,
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
@@ -3014,12 +3015,19 @@ class FromFloat(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dtype: Literal["uint8", "uint16", "float32", "float64"]
+        dtype: Literal["uint8", "uint16", "uint32"]
         max_value: float | None
+
+        @model_validator(mode="after")
+        def update_max_value(self) -> Self:
+            if self.max_value is None:
+                self.max_value = get_max_value(np.dtype(self.dtype))
+
+            return self
 
     def __init__(
         self,
-        dtype: Literal["uint8", "uint16", "float32", "float64"] = "uint8",
+        dtype: Literal["uint8", "uint16", "uint32"] = "uint8",
         max_value: float | None = None,
         p: float = 1.0,
     ):
@@ -3029,6 +3037,15 @@ class FromFloat(ImageOnlyTransform):
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return from_float(img, self.dtype, self.max_value)
+
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return clip(np.rint(images * self.max_value), self.dtype, inplace=True)
+
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_images(volume, **params)
+
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_images(volumes, **params)
 
     def get_transform_init_args(self) -> dict[str, Any]:
         return {"dtype": self.dtype.name, "max_value": self.max_value}
