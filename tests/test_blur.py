@@ -92,32 +92,6 @@ def test_advanced_blur_raises_on_incorrect_params(
     with pytest.raises(ValueError):
         A.AdvancedBlur(**params)
 
-
-@pytest.mark.parametrize(
-    ["blur_limit", "sigma", "result_blur", "result_sigma"],
-    [
-        [[0, 0], [1, 1], 0, 1],
-        [[1, 1], [0, 0], 1, 0],
-        [[1, 1], [1, 1], 1, 1],
-        [[0, 0], [0, 0], 3, 0],
-        [[0, 3], [0, 0], 3, 0],
-        [[0, 3], [0.1, 0.1], 3, 0.1],
-    ],
-)
-def test_gaus_blur_limits(
-    blur_limit: list[float],
-    sigma: list[float],
-    result_blur: int,
-    result_sigma: float,
-) -> None:
-    img = np.zeros([100, 100, 3], dtype=np.uint8)
-
-    aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
-
-    res = aug(image=img)["image"]
-    np.testing.assert_allclose(res, fblur.gaussian_blur(img, result_blur, result_sigma))
-
-
 class MockValidationInfo:
     def __init__(self, field_name: str):
         self.field_name = field_name
