@@ -34,7 +34,31 @@ def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
 
 @preserve_channel_dim
 def gaussian_blur(img: np.ndarray, ksize: int, sigma: float) -> np.ndarray:
-    blur_fn = maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+    """Apply Gaussian blur to an image with explicit kernel creation and normalization.
+
+    This implementation creates and applies the Gaussian kernel manually instead of using
+    cv2.GaussianBlur directly for a reason:
+    1. Luminance preservation: By explicitly normalizing the kernel, we ensure the sum
+       equals 1.0, which preserves the image's overall luminance. This matches PIL's
+       behavior better than cv2.GaussianBlur.
+
+    Args:
+        img: The image to blur. Can be either grayscale or color.
+        ksize: Gaussian kernel size. Must be positive and odd.
+        sigma: Gaussian kernel standard deviation.
+
+    Returns:
+        np.ndarray: The blurred image.
+    """
+    # Create the Gaussian kernel
+    kernel = cv2.getGaussianKernel(ksize, sigma)
+    kernel = kernel @ kernel.T  # Create 2D kernel
+
+    # Normalize the kernel to preserve luminance
+    kernel = kernel / kernel.sum()
+
+    # Apply the blur - cv2.filter2D handles multiple channels automatically
+    blur_fn = maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
     return blur_fn(img)
 
 
