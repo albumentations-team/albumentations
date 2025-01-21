@@ -185,7 +185,7 @@ def denormalize_bboxes(
     bboxes: np.ndarray,
     shape: ShapeType | tuple[int, int],
 ) -> np.ndarray:
-    """Denormalize  array of bounding boxes.
+    """Denormalize array of bounding boxes.
 
     Args:
         bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
@@ -196,13 +196,13 @@ def denormalize_bboxes(
 
     """
     if isinstance(shape, tuple):
-        rows, cols = shape[:2]
+        scale_factors = shape[1], shape[0]  # cols, rows
     else:
-        rows, cols = shape["height"], shape["width"]
+        scale_factors = shape["width"], shape["height"]
 
-    denormalized = bboxes.copy().astype(float)
-    denormalized[:, [0, 2]] *= cols
-    denormalized[:, [1, 3]] *= rows
+    # Vectorized scaling of bbox coordinates
+    denormalized = bboxes * np.array([*scale_factors, *scale_factors, *[1]*(bboxes.shape[1]-4)], dtype=float)
+
     return denormalized
 
 
