@@ -22,6 +22,8 @@ from albumentations.core.bbox_utils import (
     masks_from_bboxes,
     normalize_bboxes,
     union_of_bboxes,
+    bboxes_to_mask,
+    mask_to_bboxes,
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import BasicTransform, NoOp
@@ -1727,3 +1729,130 @@ def test_bboxes_grid_shuffle_multiple_components():
     assert np.all(result >= 0)  # All coordinates should be valid
     assert np.all(result[:, [0, 2]] <= image_shape[1])  # x coordinates within image width
     assert np.all(result[:, [1, 3]] <= image_shape[0])  # y coordinates within image height
+
+
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "single_bbox",
+        "bboxes": np.array([[10, 20, 30, 40]]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 1),
+        "expected_nonzero": [(20, 10, 0), (20, 30, 0), (40, 10, 0), (40, 30, 0)]  # y, x, channel
+    },
+    {
+        "name": "multiple_bboxes",
+        "bboxes": np.array([
+            [10, 20, 30, 40],
+            [50, 60, 70, 80]
+        ]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 2),
+        "expected_nonzero": [(20, 10, 0), (60, 50, 1)]  # y, x, channel
+    },
+    {
+        "name": "bbox_with_extra_fields",
+        "bboxes": np.array([[10, 20, 30, 40, 1, 0.8]]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 1),
+        "expected_nonzero": [(20, 10, 0)]
+    },
+    {
+        "name": "bbox_at_edges",
+        "bboxes": np.array([[0, 0, 99, 99]]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 1),
+        "expected_nonzero": [(0, 0, 0), (99, 99, 0)]
+    }
+])
+def test_bboxes_to_mask(test_case):
+    bboxes = test_case["bboxes"]
+    image_shape = test_case["image_shape"]
+    expected_shape = test_case["expected_mask_shape"]
+    expected_nonzero = test_case["expected_nonzero"]
+
+    masks = bboxes_to_mask(bboxes, image_shape)
+
+    # Check shape
+    assert masks.shape == expected_shape
+
+    # Check dtype
+    assert masks.dtype == np.uint8
+
+    # Check if masks are binary
+    assert np.all(np.isin(masks, [0, 1]))
+
+    # Check specific points
+    for y, x, c in expected_nonzero:
+        assert masks[y, x, c] == 1, f"Expected 1 at position ({y}, {x}, {c})"
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "single_mask",
+        "masks": np.array([  # (3, 3, 1) mask
+            [[0], [0], [0]],
+            [[0], [1], [0]],
+            [[0], [0], [0]]
+        ], dtype=np.uint8),
+        "original_bboxes": np.array([[0, 0, 2, 2]]),
+        "expected_bboxes": np.array([[1, 1, 1, 1]])
+    },
+    {
+        "name": "multiple_masks",
+        "masks": np.array([  # (3, 3, 2) mask
+            [[0, 0], [0, 1], [0, 0]],
+            [[0, 1], [1, 1], [0, 1]],
+            [[0, 0], [0, 1], [0, 0]]
+        ], dtype=np.uint8),
+        "original_bboxes": np.array([
+            [0, 0, 2, 2],
+            [0, 0, 2, 2]
+        ]),
+        "expected_bboxes": np.array([
+            [1, 1, 1, 1],
+            [0, 0, 2, 2]
+        ])
+    },
+    {
+        "name": "mask_with_extra_fields",
+        "masks": np.array([  # (3, 3, 1) mask
+            [[0], [0], [0]],
+            [[0], [1], [0]],
+            [[0], [0], [0]]
+        ], dtype=np.uint8),
+        "original_bboxes": np.array([[0, 0, 2, 2, 1, 0.8]]),
+        "expected_bboxes": np.array([[1, 1, 1, 1, 1, 0.8]])
+    },
+    {
+        "name": "empty_mask",
+        "masks": np.zeros((3, 3, 1), dtype=np.uint8),
+        "original_bboxes": np.array([[10, 20, 30, 40]]),
+        "expected_bboxes": np.array([[10, 20, 30, 40]])  # Should preserve original bbox
+    }
+])
+def test_mask_to_bboxes(test_case):
+    masks = test_case["masks"]
+    original_bboxes = test_case["original_bboxes"]
+    expected_bboxes = test_case["expected_bboxes"]
+
+    result = mask_to_bboxes(masks, original_bboxes)
+
+    # Check shape and values
+    assert result.shape == expected_bboxes.shape
+    np.testing.assert_array_equal(result, expected_bboxes)
+
+    # Check extra fields preservation
+    if original_bboxes.shape[1] > 4:
+        assert np.all(result[:, 4:] == original_bboxes[:, 4:])
+
+def test_empty_bboxes():
+    empty_bboxes = np.zeros((0, 4))
+    image_shape = (100, 100)
+
+    # Test bboxes_to_mask with empty input
+    masks = bboxes_to_mask(empty_bboxes, image_shape)
+    assert masks.shape == (100, 100, 0)
+
+    # Test mask_to_bboxes with empty input
+    result = mask_to_bboxes(masks, empty_bboxes)
+    assert result.shape == (0, 4)
