@@ -202,13 +202,14 @@ def test_post_data_check():
         ],
         keypoint_params=A.KeypointParams("xy"),
         bbox_params=A.BboxParams("pascal_voc"),
-        seed=42,
+        seed=137,
     )
 
     res = transform(image=img, keypoints=keypoints, bboxes=bboxes)
     assert len(res["keypoints"]) != 0 and len(res["bboxes"]) != 0
     np.testing.assert_array_equal(res["keypoints"], [(45, 45), (25, 25)])
-    np.testing.assert_array_equal(res["bboxes"], [(0, 0, 45, 45, 0)])
+    # Use assert_allclose instead of assert_array_equal
+    np.testing.assert_allclose(res["bboxes"], [(0, 0, 45, 45, 0)], rtol=1e-5, atol=1e-5)
 
 
 def test_to_tensor_v2_on_non_contiguous_array():

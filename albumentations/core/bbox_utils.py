@@ -26,35 +26,62 @@ BBOX_WITH_LABEL_SHAPE = 5
 
 
 class BboxParams(Params):
-    """Parameters of bounding boxes
+    """Parameters for bounding box transforms.
 
     Args:
-        format Literal["coco", "pascal_voc", "albumentations", "yolo"]: format of bounding boxes.
+        format (str): Format of bounding boxes. Should be one of:
+            - 'coco': [x_min, y_min, width, height], e.g. [97, 12, 150, 200].
+            - 'pascal_voc': [x_min, y_min, x_max, y_max], e.g. [97, 12, 247, 212].
+            - 'albumentations': like pascal_voc but normalized in [0, 1] range, e.g. [0.2, 0.3, 0.4, 0.5].
+            - 'yolo': [x_center, y_center, width, height] normalized in [0, 1] range, e.g. [0.1, 0.2, 0.3, 0.4].
 
-            The `coco` format
-                `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
-            The `pascal_voc` format
-                `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-            The `albumentations` format
-                is like `pascal_voc`, but normalized,
-                in other words: `[x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
-            The `yolo` format
-                `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
-                `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
+        label_fields (Sequence[str] | None): List of fields that are joined with boxes,
+            e.g., ['class_labels', 'scores']. Default: None.
 
-        label_fields (list): List of fields joined with boxes, e.g., labels.
-        min_area (float): Minimum area of a bounding box in pixels or normalized units.
-            Bounding boxes with an area less than this value will be removed. Default: 0.0.
-        min_visibility (float): Minimum fraction of area for a bounding box to remain in the list.
-            Bounding boxes with a visible area less than this fraction will be removed. Default: 0.0.
-        min_width (float): Minimum width of a bounding box in pixels or normalized units.
-            Bounding boxes with a width less than this value will be removed. Default: 0.0.
-        min_height (float): Minimum height of a bounding box in pixels or normalized units.
-            Bounding boxes with a height less than this value will be removed. Default: 0.0.
-        check_each_transform (bool): If True, bounding boxes will be checked after each dual transform. Default: True.
-        clip (bool): If True, bounding boxes will be clipped to the image borders before applying any transform.
-            Default: False.
+        min_area (float): Minimum area of a bounding box. All bounding boxes whose visible area in pixels is less than
+            this value will be removed. Default: 0.0.
 
+        min_visibility (float): Minimum fraction of area for a bounding box to remain this box in the result.
+            Should be in [0.0, 1.0] range. Default: 0.0.
+
+        min_width (float): Minimum width of a bounding box in pixels or normalized units. Bounding boxes with width
+            less than this value will be removed. Default: 0.0.
+
+        min_height (float): Minimum height of a bounding box in pixels or normalized units. Bounding boxes with height
+            less than this value will be removed. Default: 0.0.
+
+        check_each_transform (bool): If True, performs checks for each dual transform. Default: True.
+
+        clip (bool): If True, clips bounding boxes to image boundaries before applying any transform. Default: False.
+
+        filter_invalid_bboxes (bool): If True, filters out invalid bounding boxes (e.g., boxes with negative dimensions
+            or boxes where x_max < x_min or y_max < y_min) at the beginning of the pipeline. If clip=True, filtering
+            is applied after clipping. Default: False.
+
+    Note:
+        The processing order for bounding boxes is:
+        1. Convert to albumentations format (normalized pascal_voc)
+        2. Clip boxes to image boundaries (if clip=True)
+        3. Filter invalid boxes (if filter_invalid_bboxes=True)
+        4. Apply transformations
+        5. Filter boxes based on min_area, min_visibility, min_width, min_height
+        6. Convert back to the original format
+
+    Examples:
+        >>> # Create BboxParams for COCO format with class labels
+        >>> bbox_params = BboxParams(
+        ...     format='coco',
+        ...     label_fields=['class_labels'],
+        ...     min_area=1024,
+        ...     min_visibility=0.1
+        ... )
+
+        >>> # Create BboxParams that clips and filters invalid boxes
+        >>> bbox_params = BboxParams(
+        ...     format='pascal_voc',
+        ...     clip=True,
+        ...     filter_invalid_bboxes=True
+        ... )
     """
 
     def __init__(
@@ -67,6 +94,7 @@ class BboxParams(Params):
         min_height: float = 0.0,
         check_each_transform: bool = True,
         clip: bool = False,
+        filter_invalid_bboxes: bool = False,
     ):
         super().__init__(format, label_fields)
         self.min_area = min_area
@@ -75,6 +103,7 @@ class BboxParams(Params):
         self.min_height = min_height
         self.check_each_transform = check_each_transform
         self.clip = clip
+        self.filter_invalid_bboxes = filter_invalid_bboxes
 
     def to_dict_private(self) -> dict[str, Any]:
         data = super().to_dict_private()
@@ -107,14 +136,72 @@ class BboxParams(Params):
 
 
 class BboxProcessor(DataProcessor):
+    """Processor for bounding box transformations.
+
+    This class handles the preprocessing and postprocessing of bounding boxes during augmentation pipeline,
+    including format conversion, validation, clipping, and filtering.
+
+    Args:
+        params (BboxParams): Parameters that control bounding box processing.
+            See BboxParams class for details.
+        additional_targets (dict[str, str] | None): Dictionary with additional targets to process.
+            Keys are names of additional targets, values are their types.
+            For example: {'bbox2': 'bboxes'} will handle 'bbox2' as another bounding box target.
+            Default: None.
+
+    Note:
+        The processing order for bounding boxes is:
+        1. Convert to albumentations format (normalized pascal_voc)
+        2. Clip boxes to image boundaries (if params.clip=True)
+        3. Filter invalid boxes (if params.filter_invalid_bboxes=True)
+        4. Apply transformations
+        5. Filter boxes based on min_area, min_visibility, min_width, min_height
+        6. Convert back to the original format
+
+    Examples:
+        >>> import albumentations as A
+        >>> # Process COCO format bboxes with class labels
+        >>> params = A.BboxParams(
+        ...     format='coco',
+        ...     label_fields=['class_labels'],
+        ...     min_area=1024,
+        ...     min_visibility=0.1
+        ... )
+        >>> processor = BboxProcessor(params)
+        >>>
+        >>> # Process multiple bbox fields
+        >>> params = A.BboxParams('pascal_voc')
+        >>> processor = BboxProcessor(
+        ...     params,
+        ...     additional_targets={'bbox2': 'bboxes'}
+        ... )
+    """
+
     def __init__(self, params: BboxParams, additional_targets: dict[str, str] | None = None):
         super().__init__(params, additional_targets)
 
     @property
     def default_data_name(self) -> str:
+        """Returns the default key for bounding box data in transformations.
+
+        Returns:
+            str: The string 'bboxes'.
+        """
         return "bboxes"
 
     def ensure_data_valid(self, data: dict[str, Any]) -> None:
+        """Validates the input bounding box data.
+
+        Checks that:
+        - Bounding boxes have labels (either in the bbox array or in label_fields)
+        - All specified label_fields exist in the data
+
+        Args:
+            data: Dict with bounding boxes and optional label fields.
+
+        Raises:
+            ValueError: If bounding boxes don't have labels or if label_fields are invalid.
+        """
         for data_name in self.data_fields:
             data_exists = data_name in data and len(data[data_name])
             if data_exists and len(data[data_name][0]) < BBOX_WITH_LABEL_SHAPE and self.params.label_fields is None:
@@ -137,6 +224,71 @@ class BboxProcessor(DataProcessor):
             min_width=self.params.min_width,
             min_height=self.params.min_height,
         )
+
+    def check_and_convert(
+        self,
+        data: np.ndarray,
+        shape: ShapeType,
+        direction: Literal["to", "from"] = "to",
+    ) -> np.ndarray:
+        """Converts bounding boxes between formats and applies preprocessing/postprocessing.
+
+        Args:
+            data: Array of bounding boxes to process.
+            shape: Image shape as dict with height and width keys.
+            direction: Direction of conversion:
+                - "to": Convert from original format to albumentations format
+                - "from": Convert from albumentations format to original format
+                Default: "to".
+
+        Returns:
+            np.ndarray: Processed bounding boxes.
+
+        Note:
+            When direction="to":
+            1. Converts to albumentations format
+            2. Clips boxes if params.clip=True
+            3. Filters invalid boxes if params.filter_invalid_bboxes=True
+            4. Validates remaining boxes
+
+            When direction="from":
+            1. Validates boxes
+            2. Converts back to original format
+        """
+        if direction == "to":
+            # First convert to albumentations format
+            if self.params.format == "albumentations":
+                converted_data = data
+            else:
+                converted_data = convert_bboxes_to_albumentations(
+                    data,
+                    self.params.format,
+                    shape,
+                    check_validity=False,  # Don't check validity yet
+                )
+
+            # Then clip if requested
+            if self.params.clip:
+                converted_data = np.clip(converted_data, 0, 1)
+
+            # Then filter invalid boxes if requested
+            if self.params.filter_invalid_bboxes:
+                converted_data = filter_bboxes(
+                    converted_data,
+                    shape,
+                    min_area=0,
+                    min_visibility=0,
+                    min_width=0,
+                    min_height=0,
+                )
+
+            # Finally check the remaining boxes
+            self.check(converted_data, shape)
+            return converted_data
+        self.check(data, shape)
+        if self.params.format == "albumentations":
+            return data
+        return convert_bboxes_from_albumentations(data, self.params.format, shape)
 
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
         check_bboxes(data)

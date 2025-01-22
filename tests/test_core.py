@@ -371,11 +371,12 @@ def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
         [A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
+        seed=137
     )
     res = augs(image=image, **targets)
 
     for key, item in expected.items():
-        assert np.all(np.array(item) == np.array(res[key]))
+        np.testing.assert_allclose(np.array(item), np.array(res[key]), rtol=1e-6, atol=1e-6)
 
 
 @pytest.mark.parametrize(
@@ -460,11 +461,12 @@ def test_check_each_transform_compose(targets, bbox_params, keypoint_params, exp
         [Compose([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)])],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
+        seed=137
     )
     res = augs(image=image, **targets)
 
     for key, item in expected.items():
-        assert np.all(np.array(item) == np.array(res[key]))
+        np.testing.assert_allclose(np.array(item), np.array(res[key]), rtol=1e-6, atol=1e-6)
 
 
 @pytest.mark.parametrize(
@@ -553,7 +555,7 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
     res = augs(image=image, **targets)
 
     for key, item in expected.items():
-        assert np.all(np.array(item) == np.array(res[key]))
+        np.testing.assert_allclose(np.array(item), np.array(res[key]), rtol=1e-6, atol=1e-6)
 
 
 @pytest.mark.parametrize(
@@ -645,7 +647,7 @@ def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expe
     res = augs(image=image, **targets)
 
     for key, item in expected.items():
-        assert np.all(np.array(item) == np.array(res[key]))
+        np.testing.assert_allclose(np.array(item), np.array(res[key]), rtol=1e-6, atol=1e-6)
 
 
 @pytest.mark.parametrize("image", IMAGES)

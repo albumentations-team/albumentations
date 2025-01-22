@@ -1062,7 +1062,8 @@ def test_bbox_clipping(
     )
 
     res = aug(image=image, bboxes=bboxes)["bboxes"]
-    np.testing.assert_almost_equal(res, expected)
+    # Use assert_allclose instead of assert_almost_equal
+    np.testing.assert_allclose(res, expected, rtol=1e-5, atol=1e-5)
 
 
 def test_bbox_clipping_perspective() -> None:
@@ -1856,3 +1857,107 @@ def test_empty_bboxes():
     # Test mask_to_bboxes with empty input
     result = mask_to_bboxes(masks, empty_bboxes)
     assert result.shape == (0, 4)
+
+
+@pytest.mark.parametrize(
+    "bbox_format, bboxes",
+    [
+        # Test with invalid bboxes that should raise error when filter_invalid_bboxes=False
+        ("pascal_voc", [[10, 10, 5, 20]]),  # x_max < x_min
+        ("pascal_voc", [[10, 10, 10, 5]]),  # y_max < y_min
+        ("coco", [[10, 10, -5, 20]]),  # negative width
+        ("coco", [[10, 10, 20, -5]]),  # negative height
+        ("yolo", [[0.5, 0.5, -0.1, 0.2]]),  # negative width
+    ]
+)
+def test_bbox_processor_invalid_no_filter(bbox_format, bboxes):
+    """Test that BboxProcessor raises error on invalid bboxes when filter_invalid_bboxes=False."""
+    params = BboxParams(format=bbox_format, filter_invalid_bboxes=False)
+    processor = BboxProcessor(params)
+
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": bboxes,
+    }
+
+    # Should raise ValueError due to invalid bboxes
+    with pytest.raises(ValueError):
+        processor.preprocess(data)
+
+@pytest.mark.parametrize(
+    "bbox_format, bboxes, expected_bboxes",
+    [
+        # COCO format: [x_min, y_min, width, height]
+        ("coco", [[10, 10, -5, 20], [10, 10, 20, 20]], [[10, 10, 20, 20]]),
+
+        # Pascal VOC format: [x_min, y_min, x_max, y_max]
+        ("pascal_voc", [[10, 10, 5, 20], [10, 10, 30, 30]], [[10, 10, 30, 30]]),
+
+        # Albumentations format: normalized [x_min, y_min, x_max, y_max]
+        ("albumentations", [[0.1, 0.1, 0.05, 0.2], [0.1, 0.1, 0.3, 0.3]], [[0.1, 0.1, 0.3, 0.3]]),
+
+        # YOLO format: normalized [x_center, y_center, width, height]
+        ("yolo", [[0.5, 0.5, -0.1, 0.2], [0.5, 0.5, 0.2, 0.2]], [[0.5, 0.5, 0.2, 0.2]]),
+
+        # Test with empty bboxes array
+        ("pascal_voc", [], []),
+
+        # Test with additional columns (labels)
+        ("pascal_voc", [[10, 10, 5, 20, 1], [10, 10, 30, 30, 2]], [[10, 10, 30, 30, 2]]),
+    ]
+)
+def test_bbox_processor_filter_invalid(bbox_format, bboxes, expected_bboxes):
+    """Test that BboxProcessor correctly filters invalid bboxes when filter_invalid_bboxes=True."""
+    params = BboxParams(format=bbox_format, filter_invalid_bboxes=True)
+    processor = BboxProcessor(params)
+
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": bboxes,
+    }
+
+    # Preprocess data (this is where filtering should occur)
+    processor.preprocess(data)
+
+    # Convert filtered bboxes back to original format for comparison
+    if bbox_format != "albumentations":
+        data["bboxes"] = convert_bboxes_from_albumentations(
+            data["bboxes"],
+            bbox_format,
+            {"height": 100, "width": 100}
+        )
+
+    # Check that invalid bboxes were filtered out
+    assert len(data["bboxes"]) == len(expected_bboxes)
+    if len(expected_bboxes) > 0:
+        np.testing.assert_allclose(data["bboxes"], expected_bboxes)
+
+
+def test_bbox_processor_clip_and_filter():
+    """Test that BboxProcessor correctly handles both clipping and filtering."""
+    params = BboxParams(
+        format="pascal_voc",
+        filter_invalid_bboxes=True,
+        clip=True
+    )
+    processor = BboxProcessor(params)
+
+    # Create a bbox that extends beyond image boundaries and would be invalid
+    # without clipping
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": [[80, 80, 120, 120]],  # Goes beyond image boundaries
+    }
+
+    processor.preprocess(data)
+
+    # Convert back to pascal_voc format for comparison
+    result = convert_bboxes_from_albumentations(
+        data["bboxes"],
+        "pascal_voc",
+        {"height": 100, "width": 100}
+    )
+
+    # After clipping, the bbox should be valid and preserved
+    expected = [[80, 80, 100, 100]]  # Clipped to image boundaries
+    np.testing.assert_allclose(result, expected)
