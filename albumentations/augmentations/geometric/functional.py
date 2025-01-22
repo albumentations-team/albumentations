@@ -20,7 +20,9 @@ from typing_extensions import NotRequired, TypedDict
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import (
     bboxes_from_masks,
+    bboxes_to_mask,
     denormalize_bboxes,
+    mask_to_bboxes,
     masks_from_bboxes,
     normalize_bboxes,
 )
@@ -1444,30 +1446,25 @@ def remap_keypoints(
 ) -> np.ndarray:
     height, width = image_shape[:2]
 
-    # Create inverse mappings
-    x_inv = np.arange(width).reshape(1, -1).repeat(height, axis=0)
-    y_inv = np.arange(height).reshape(-1, 1).repeat(width, axis=1)
+    # Create mask where each keypoint has unique index
+    kp_mask = np.zeros((height, width), dtype=np.int16)
+    for idx, kp in enumerate(keypoints, start=1):
+        x, y = round(kp[0]), round(kp[1])
+        if 0 <= x < width and 0 <= y < height:
+            cv2.circle(kp_mask, (x, y), 1, idx, -1)
 
-    # Extract x and y coordinates
-    x, y = keypoints[:, 0], keypoints[:, 1]
+    # Remap the mask
+    transformed_kp_mask = cv2.remap(kp_mask, map_x, map_y, cv2.INTER_NEAREST)
 
-    # Clip coordinates to image boundaries
-    x = np.clip(x, 0, width - 1, out=x)
-    y = np.clip(y, 0, height - 1, out=y)
+    # Extract transformed keypoints
+    new_points = []
+    for idx, kp in enumerate(keypoints, start=1):
+        y_coords, x_coords = np.where(transformed_kp_mask == idx)
+        if len(y_coords) > 0:
+            # Take first occurrence of the point
+            new_points.append(np.concatenate([[x_coords[0], y_coords[0]], kp[2:]]))
 
-    # Convert to integer indices
-    x_idx, y_idx = x.astype(int), y.astype(int)
-
-    # Apply the inverse mapping
-    new_x = x_inv[y_idx, x_idx] + (x - map_x[y_idx, x_idx])
-    new_y = y_inv[y_idx, x_idx] + (y - map_y[y_idx, x_idx])
-
-    # Clip the new coordinates to ensure they're within the image bounds
-    new_x = np.clip(new_x, 0, width - 1, out=new_x)
-    new_y = np.clip(new_y, 0, height - 1, out=new_y)
-
-    # Create the transformed keypoints array
-    return np.column_stack([new_x, new_y, keypoints[:, 2:]])
+    return np.array(new_points) if new_points else np.zeros((0, keypoints.shape[1]))
 
 
 @handle_empty_array("bboxes")
@@ -1477,53 +1474,18 @@ def remap_bboxes(
     map_y: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    # Number of points to sample per dimension
-    grid_size = 5
+    """Remap bounding boxes using displacement maps."""
+    # Convert bboxes to mask
+    bbox_masks = bboxes_to_mask(bboxes, image_shape)
 
-    num_boxes = len(bboxes)
-    all_points = []
+    # Ensure maps are float32
+    map_x = map_x.astype(np.float32)
+    map_y = map_y.astype(np.float32)
 
-    for box in bboxes:
-        x_min, y_min, x_max, y_max = box[:4]
+    transformed_masks = remap(bbox_masks, map_x, map_y, cv2.INTER_NEAREST, cv2.BORDER_CONSTANT, value=0)
 
-        # Create grid of points inside and on edges of box
-        x_points = np.linspace(x_min, x_max, grid_size)
-        y_points = np.linspace(y_min, y_max, grid_size)
-        xx, yy = np.meshgrid(x_points, y_points)
-
-        points = np.column_stack([xx.ravel(), yy.ravel()])
-        all_points.append(points)
-
-    # Transform all points
-    all_points = np.vstack(all_points)
-    transformed_points = remap_keypoints(
-        np.column_stack(
-            [all_points, np.zeros(len(all_points)), np.zeros(len(all_points))],
-        ),
-        map_x,
-        map_y,
-        image_shape,
-    )[:, :2]
-
-    # Reshape back to per-box points
-    points_per_box = grid_size * grid_size
-    transformed_points = transformed_points.reshape(num_boxes, points_per_box, 2)
-
-    # Get min/max coordinates for each box
-    new_bboxes = np.column_stack(
-        [
-            np.min(transformed_points[:, :, 0], axis=1),  # x_min
-            np.min(transformed_points[:, :, 1], axis=1),  # y_min
-            np.max(transformed_points[:, :, 0], axis=1),  # x_max
-            np.max(transformed_points[:, :, 1], axis=1),  # y_max
-        ],
-    )
-
-    return (
-        np.column_stack([new_bboxes, bboxes[:, 4:]])
-        if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS
-        else new_bboxes
-    )
+    # Convert masks back to bboxes
+    return mask_to_bboxes(transformed_masks, bboxes)
 
 
 def generate_displacement_fields(
@@ -3270,7 +3232,6 @@ def tps_transform(
 def get_camera_matrix_distortion_maps(
     image_shape: tuple[int, int],
     k: float,
-    center_xy: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate distortion maps using camera matrix model.
 
@@ -3284,8 +3245,11 @@ def get_camera_matrix_distortion_maps(
         - map_y: Vertical displacement map
     """
     height, width = image_shape[:2]
+
+    center_x, center_y = width / 2, height / 2
+
     camera_matrix = np.array(
-        [[width, 0, center_xy[0]], [0, height, center_xy[1]], [0, 0, 1]],
+        [[width, 0, center_x], [0, height, center_y], [0, 0, 1]],
         dtype=np.float32,
     )
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
@@ -3302,7 +3266,6 @@ def get_camera_matrix_distortion_maps(
 def get_fisheye_distortion_maps(
     image_shape: tuple[int, int],
     k: float,
-    center_xy: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate distortion maps using fisheye model.
 
@@ -3317,8 +3280,7 @@ def get_fisheye_distortion_maps(
     """
     height, width = image_shape[:2]
 
-    center_x, center_y = center_xy
-
+    center_x, center_y = width / 2, height / 2
     # Create coordinate grid
     y, x = np.mgrid[:height, :width].astype(np.float32)
 

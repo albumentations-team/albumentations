@@ -6,7 +6,7 @@ from typing import Any, Literal
 import numpy as np
 
 from albumentations.augmentations.utils import handle_empty_array
-from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS
+from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS, NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS
 
 from .utils import DataProcessor, Params, ShapeType
 
@@ -593,3 +593,76 @@ def masks_from_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) ->
         masks[i] = (x_min <= x) & (x < x_max) & (y_min <= y) & (y < y_max)
 
     return masks
+
+
+def bboxes_to_mask(
+    bboxes: np.ndarray,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    """Convert bounding boxes to multi-channel binary mask.
+
+    Args:
+        bboxes: Array of bboxes in format [x_min, y_min, x_max, y_max, ...]
+        image_shape: (height, width) of the target mask
+
+    Returns:
+        Binary mask of shape (height, width, num_boxes)
+    """
+    height, width = image_shape[:2]
+    num_boxes = len(bboxes)
+
+    # Create multi-channel mask where each channel represents one bbox
+    bbox_masks = np.zeros((height, width, num_boxes), dtype=np.uint8)
+
+    # Fill each bbox in its channel
+    for idx, box in enumerate(bboxes):
+        x_min, y_min, x_max, y_max = map(round, box[:4])
+        x_min = max(0, min(width - 1, x_min))
+        x_max = max(0, min(width - 1, x_max))
+        y_min = max(0, min(height - 1, y_min))
+        y_max = max(0, min(height - 1, y_max))
+        bbox_masks[y_min : y_max + 1, x_min : x_max + 1, idx] = 1
+
+    return bbox_masks
+
+
+def mask_to_bboxes(
+    masks: np.ndarray,
+    original_bboxes: np.ndarray,
+) -> np.ndarray:
+    """Convert multi-channel binary mask back to bounding boxes.
+
+    Args:
+        masks: Binary mask of shape (height, width, num_boxes)
+        original_bboxes: Original bboxes array to preserve extra columns
+
+    Returns:
+        Array of bboxes in format [x_min, y_min, x_max, y_max, ...]
+    """
+    num_boxes = masks.shape[-1]
+    new_bboxes = []
+
+    num_boxes = masks.shape[-1]
+
+    if num_boxes == 0:
+        # Return empty array with correct shape
+        return np.zeros((0, original_bboxes.shape[1]), dtype=original_bboxes.dtype)
+
+    for idx in range(num_boxes):
+        mask = masks[..., idx]
+        if np.any(mask):
+            y_coords, x_coords = np.where(mask)
+            x_min, x_max = x_coords.min(), x_coords.max()
+            y_min, y_max = y_coords.min(), y_coords.max()
+            new_bboxes.append([x_min, y_min, x_max, y_max])
+        else:
+            # If bbox disappeared, use original coords
+            new_bboxes.append(original_bboxes[idx, :4])
+
+    new_bboxes = np.array(new_bboxes)
+
+    return (
+        np.column_stack([new_bboxes, original_bboxes[:, 4:]])
+        if original_bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS
+        else new_bboxes
+    )
