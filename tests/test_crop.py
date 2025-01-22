@@ -137,7 +137,8 @@ def test_bbox_params_edges(
     )
     res = aug(image=image, bboxes=bboxes)["bboxes"]
 
-    np.testing.assert_array_equal(res, expected_bboxes)
+    # Use assert_allclose instead of assert_array_equal to handle floating point precision
+    np.testing.assert_allclose(res, expected_bboxes, rtol=1e-6, atol=1e-6)
 
 POSITIONS: list[PositionType] = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
 
