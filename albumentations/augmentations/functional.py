@@ -221,8 +221,8 @@ def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal
 
 def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
-    h = [_f for _f in histogram if _f]
-
+    h = np.array([_f for _f in histogram if _f])
+    
     if len(h) <= 1:
         return img.copy()
 
@@ -230,13 +230,9 @@ def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray
     if not step:
         return img.copy()
 
-    lut = np.empty(256, dtype=np.uint8)
-    n = step // 2
-    for i in range(256):
-        lut[i] = min(n // step, 255)
-        n += histogram[i]
+    lut = np.minimum((np.cumsum(histogram) + step // 2) // step, 255).astype(np.uint8)
 
-    return sz_lut(img, np.array(lut), inplace=True)
+    return sz_lut(img, lut, inplace=True)
 
 
 def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
@@ -244,25 +240,16 @@ def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
         return cv2.equalizeHist(img)
 
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
-    i = 0
-    for val in histogram:
-        if val > 0:
-            break
-        i += 1
-    i = min(i, 255)
-
     total = np.sum(histogram)
-    if histogram[i] == total:
-        return np.full_like(img, i)
 
-    scale = 255.0 / (total - histogram[i])
-    _sum = 0
-
+    first_nonzero = np.argmax(histogram > 0)
+    if histogram[first_nonzero] == total:
+        return np.full_like(img, first_nonzero)
+    
+    scale = 255.0 / (total - histogram[first_nonzero])
     lut = np.zeros(256, dtype=np.uint8)
-
-    for idx in range(i + 1, len(histogram)):
-        _sum += histogram[idx]
-        lut[idx] = clip(round(_sum * scale), np.uint8)
+    cumsum = np.cumsum(histogram[first_nonzero+1:])
+    lut[first_nonzero+1:] = np.clip((cumsum * scale).round(), 0, 255).astype(np.uint8)
 
     return sz_lut(img, lut, inplace=True)
 
@@ -288,11 +275,10 @@ def _handle_mask(
 ) -> np.ndarray | None:
     if mask is None:
         return None
-    mask = mask.astype(np.uint8)
     if is_grayscale_image(mask) or i is None:
-        return mask
+        return mask.astype(np.uint8)
 
-    return mask[..., i]
+    return mask[..., i].astype(np.uint8)
 
 
 @uint8_io
@@ -341,7 +327,6 @@ def equalize(
         >>> assert equalized.dtype == image.dtype
     """
     _check_preconditions(img, mask, by_channels)
-
     function = _equalize_pil if mode == "pil" else _equalize_cv
 
     if is_grayscale_image(img):
