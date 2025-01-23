@@ -586,19 +586,25 @@ def add_snow_bleach(
         - Original implementation: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
+    
+    # Precompute snow_point threshold
+    snow_point = (snow_point * max_value / 2) + (max_value / 3)
 
-    snow_point *= max_value / 2
-    snow_point += max_value / 3
-
+    # Convert image to HLS color space once and avoid repeated dtype casting
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    image_hls = np.array(image_hls, dtype=np.float32)
+    lightness_channel = image_hls[:, :, 1].astype(np.float32)
 
-    image_hls[:, :, 1][image_hls[:, :, 1] < snow_point] *= brightness_coeff
+    # Utilize boolean indexing for efficient lightness adjustment
+    mask = lightness_channel < snow_point
+    lightness_channel[mask] *= brightness_coeff
 
-    image_hls[:, :, 1] = clip(image_hls[:, :, 1], np.uint8, inplace=True)
+    # Clip the lightness values in place
+    lightness_channel = clip(lightness_channel, np.uint8, inplace=True)
 
-    image_hls = np.array(image_hls, dtype=np.uint8)
+    # Update the lightness channel in the original image
+    image_hls[:, :, 1] = lightness_channel
 
+    # Convert back to RGB
     return cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
 
