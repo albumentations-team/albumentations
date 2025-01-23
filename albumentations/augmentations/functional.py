@@ -288,11 +288,13 @@ def _handle_mask(
 ) -> np.ndarray | None:
     if mask is None:
         return None
-    mask = mask.astype(np.uint8)
-    if is_grayscale_image(mask) or i is None:
-        return mask
 
-    return mask[..., i]
+    mask = mask.astype(np.uint8, copy=False)  # Use copy=False to avoid unnecessary copying
+    # Check for grayscale image and avoid slicing if i is None
+    if i is not None and not is_grayscale_image(mask):
+        mask = mask[..., i]
+
+    return mask
 
 
 @uint8_io
