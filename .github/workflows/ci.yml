@@ -69,8 +69,8 @@ jobs:
         slug: albumentations-team/albumentations
         files: ./coverage.xml
         flags: ubuntu-py3.12
-        fail_ci_if_error: false  # Optional: fails CI if upload fails
-        verbose: true  # Optional: helps with debugging
+        fail_ci_if_error: true
+        verbose: true
 
   check_code_formatting_types:
     name: Check code formatting with ruff and mypy

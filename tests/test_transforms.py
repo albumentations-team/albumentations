@@ -1896,6 +1896,10 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.ConstrainedCoarseDropout,
             A.PixelDropout,
             A.CoarseDropout,
+            A.ElasticTransform,
+            A.GridDistortion,
+            A.OpticalDistortion,
+            A.ThinPlateSpline
         },
     ),
 )
@@ -1923,12 +1927,12 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
         transformed["bboxes"][0]
     )
 
-    # np.testing.assert_allclose(
-    #     transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1
-    # )
-    # np.testing.assert_allclose(
-    #     transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1.5
-    # )
+    np.testing.assert_allclose(
+        transformed["keypoints"][0], [x_min_transformed, y_min_transformed], atol=1
+    )
+    np.testing.assert_allclose(
+        transformed["keypoints"][1], [x_max_transformed, y_max_transformed], atol=1.5
+    )
 
 
 @pytest.mark.parametrize(
