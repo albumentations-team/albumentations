@@ -15,6 +15,7 @@ from albucore import (
     preserve_channel_dim,
     vflip,
 )
+from scipy.interpolate import griddata
 from typing_extensions import NotRequired, TypedDict
 
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
@@ -1446,25 +1447,60 @@ def remap_keypoints(
 ) -> np.ndarray:
     height, width = image_shape[:2]
 
-    # Create mask where each keypoint has unique index
-    kp_mask = np.zeros((height, width), dtype=np.int16)
-    for idx, kp in enumerate(keypoints, start=1):
-        x, y = round(kp[0]), round(kp[1])
-        if 0 <= x < width and 0 <= y < height:
-            cv2.circle(kp_mask, (x, y), 1, idx, -1)
+    # Extract x and y coordinates
+    x, y = keypoints[:, 0], keypoints[:, 1]
 
-    # Remap the mask
-    transformed_kp_mask = cv2.remap(kp_mask, map_x, map_y, cv2.INTER_NEAREST)
+    # Clip coordinates to image boundaries
+    x = np.clip(x, 0, width - 1)
+    y = np.clip(y, 0, height - 1)
 
-    # Extract transformed keypoints
-    new_points = []
-    for idx, kp in enumerate(keypoints, start=1):
-        y_coords, x_coords = np.where(transformed_kp_mask == idx)
-        if len(y_coords) > 0:
-            # Take first occurrence of the point
-            new_points.append(np.concatenate([[x_coords[0], y_coords[0]], kp[2:]]))
+    # Convert to integer indices
+    x_idx, y_idx = x.astype(int), y.astype(int)
+    inv_map_x, inv_map_y = generate_inverse_distortion_map(map_x, map_y, image_shape[:2])
+    # Apply the inverse mapping
+    new_x = inv_map_x[y_idx, x_idx]
+    new_y = inv_map_y[y_idx, x_idx]
 
-    return np.array(new_points) if new_points else np.zeros((0, keypoints.shape[1]))
+    # Clip the new coordinates to ensure they're within the image bounds
+    new_x = np.clip(new_x, 0, width - 1)
+    new_y = np.clip(new_y, 0, height - 1)
+
+    # Create the transformed keypoints array
+    return np.column_stack([new_x, new_y, keypoints[:, 2:]])
+
+
+def generate_inverse_distortion_map(map_x: np.ndarray, map_y: np.ndarray, shape: np.ndarray) -> np.ndarray:
+    """Inverts the remap arrays (map_x and map_y) to allow for manual remapping of
+    points with comparable performance to the inverse operation in opencv remap.
+
+    Parameters:
+    - map_x, map_y: Forward mapping arrays (destination to source).
+    - shape: Shape of the output map (typically same as map_x.shape).
+
+    Returns:
+    - inv_map_x, inv_map_y: Inverted mapping arrays (source to destination).
+    """
+    h, w = shape
+
+    # Create a grid of destination coordinates
+    dest_coords = np.indices((h, w), dtype=np.float32).transpose(1, 2, 0).reshape(-1, 2)
+    src_coords = np.column_stack((map_x.flatten(), map_y.flatten()))
+
+    # Mask for valid source points (remove NaNs or out-of-bounds values)
+    valid_mask = (src_coords[:, 0] >= 0) & (src_coords[:, 0] < w) & (src_coords[:, 1] >= 0) & (src_coords[:, 1] < h)
+    src_coords = src_coords[valid_mask]
+    dest_coords = dest_coords[valid_mask]
+
+    # Use griddata to interpolate the inverse mapping
+    grid_x, grid_y = np.meshgrid(np.arange(w), np.arange(h))
+    inv_map_x = griddata(src_coords, dest_coords[:, 0], (grid_x, grid_y), method="linear", fill_value=-1)
+    inv_map_y = griddata(src_coords, dest_coords[:, 1], (grid_x, grid_y), method="linear", fill_value=-1)
+
+    # Replace invalid mappings with 0 or other appropriate value
+    inv_map_x = np.clip(inv_map_x, 0, w - 1)
+    inv_map_y = np.clip(inv_map_y, 0, h - 1)
+
+    return np.array([inv_map_x.astype(np.float32), inv_map_y.astype(np.float32)])
 
 
 @handle_empty_array("bboxes")
