@@ -2489,6 +2489,9 @@ class ChannelShuffle(ImageOnlyTransform):
     Targets:
         image
 
+    Number of channels:
+        Any
+
     Image types:
         uint8, float32
 
@@ -2510,7 +2513,7 @@ class ChannelShuffle(ImageOnlyTransform):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         shape = params["shape"]
-        if len(shape) == 2:
+        if len(shape) == 2 or shape[-1] == 1:
             return {"channels_shuffled": None}
         ch_arr = list(range(shape[-1]))
         self.py_random.shuffle(ch_arr)
