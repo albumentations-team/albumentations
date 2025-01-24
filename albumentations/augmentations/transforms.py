@@ -2497,9 +2497,11 @@ class ChannelShuffle(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        channels_shuffled: tuple[int, ...],
+        channels_shuffled: tuple[int, ...] | None,
         **params: Any,
     ) -> np.ndarray:
+        if channels_shuffled is None:
+            return img
         return fmain.channel_shuffle(img, channels_shuffled)
 
     def get_params_dependent_on_data(
@@ -2507,8 +2509,11 @@ class ChannelShuffle(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        ch_arr = list(range(params["shape"][2]))
-        self.random_generator.shuffle(ch_arr)
+        shape = params["shape"]
+        if len(shape) == 2:
+            return {"channels_shuffled": None}
+        ch_arr = list(range(shape[-1]))
+        self.py_random.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
     def get_transform_init_args_names(self) -> tuple[()]:

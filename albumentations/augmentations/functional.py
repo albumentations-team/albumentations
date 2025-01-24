@@ -1145,7 +1145,12 @@ def invert(img: np.ndarray) -> np.ndarray:
 
 
 def channel_shuffle(img: np.ndarray, channels_shuffled: np.ndarray) -> np.ndarray:
-    return img[..., channels_shuffled]
+    img = img.copy()
+    from_to = []
+    for i, j in enumerate(channels_shuffled):
+        from_to.extend([i, j])
+    cv2.mixChannels([img], [img], from_to)
+    return img
 
 
 def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
