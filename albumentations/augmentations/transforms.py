@@ -5801,9 +5801,8 @@ class SaltAndPepper(ImageOnlyTransform):
 class PlasmaBrightnessContrast(ImageOnlyTransform):
     """Apply plasma fractal pattern to modify image brightness and contrast.
 
-    This transform uses the Diamond-Square algorithm to generate organic-looking fractal patterns
-    that are then used to create spatially-varying brightness and contrast adjustments.
-    The result is a natural-looking, non-uniform modification of the image.
+    Uses Diamond-Square algorithm to generate organic-looking fractal patterns
+    that create spatially-varying brightness and contrast adjustments.
 
     Args:
         brightness_range ((float, float)): Range for brightness adjustment strength.
@@ -5820,15 +5819,14 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             - 0 means no contrast change
             Default: (-0.3, 0.3)
 
-        plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
-            Larger values create more detailed patterns. Default: 256
+        roughness (float): Controls how quickly the noise amplitude decreases at each iteration.
+            Must be greater than 0:
+            - Low values (< 0.5): Very rough, noisy pattern
+            - Medium values (~0.5): Natural-looking pattern
+            - High values (> 0.5): Smoother, more gradual pattern
+            Default: 0.5
 
-        roughness (float): Controls the roughness of the plasma pattern.
-            Higher values create more rough/sharp transitions.
-            Must be greater than 0.
-            Typical values are between 1.0 and 5.0. Default: 3.0
-
-            p (float): Probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -5836,41 +5834,45 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Number of channels:
-        Any
+    Note:
+        - Works with any number of channels (grayscale, RGB, multispectral)
+        - The same plasma pattern is applied to all channels
+        - Operations are performed in float32 precision
+        - Final values are clipped to valid range [0, max_value]
 
     Mathematical Formulation:
-        1. Plasma Pattern Generation:
-           The Diamond-Square algorithm generates a pattern P(x,y) ∈ [0,1] by:
-           - Starting with random corner values
-           - Recursively computing midpoints using:
-             M = (V1 + V2 + V3 + V4)/4 + R(d)
-           where V1..V4 are corner values and R(d) is random noise that
-           decreases with distance d according to the roughness parameter.
+        1. Plasma Pattern Generation (Diamond-Square Algorithm):
+           Starting with a 3x3 grid of random values in [-1, 1], iteratively:
+           a) Diamond Step: For each 2x2 cell, compute center using diamond kernel:
+              [[0.25, 0.0, 0.25],
+               [0.0,  0.0, 0.0 ],
+               [0.25, 0.0, 0.25]]
+
+           b) Square Step: Fill remaining points using square kernel:
+              [[0.0,  0.25, 0.0 ],
+               [0.25, 0.0,  0.25],
+               [0.0,  0.25, 0.0 ]]
+
+           c) Add random noise scaled by roughness^iteration
+
+           d) Normalize final pattern P to [0,1] range using min-max normalization
 
         2. Brightness Adjustment:
            For each pixel (x,y):
-           O(x,y) = I(x,y) + b·P(x,y)·max_value
+           O(x,y) = I(x,y) + b·P(x,y)
            where:
            - I is the input image
            - b is the brightness factor
-           - P is the plasma pattern
-           - max_value is the maximum possible pixel value
+           - P is the normalized plasma pattern
 
         3. Contrast Adjustment:
            For each pixel (x,y):
-           O(x,y) = μ + (I(x,y) - μ)·(1 + c·P(x,y))
+           O(x,y) = I(x,y)·(1 + c·P(x,y)) + μ·(1 - (1 + c·P(x,y)))
            where:
-           - μ is the mean pixel value
+           - I is the input image
            - c is the contrast factor
-           - P is the plasma pattern
-
-    Note:
-        - The plasma pattern creates smooth, organic variations in the adjustments
-        - Brightness and contrast modifications are applied sequentially
-        - Final values are clipped to valid range [0, max_value]
-        - The same plasma pattern is used for both brightness and contrast
-          to maintain coherent spatial variations
+           - P is the normalized plasma pattern
+           - μ is the mean pixel value
 
     Examples:
         >>> import albumentations as A
@@ -5879,12 +5881,11 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         # Default parameters
         >>> transform = A.PlasmaBrightnessContrast(p=1.0)
 
-        # Custom adjustments with fine pattern
+        # Custom adjustments
         >>> transform = A.PlasmaBrightnessContrast(
         ...     brightness_range=(-0.5, 0.5),
         ...     contrast_range=(-0.3, 0.3),
-        ...     plasma_size=512,  # More detailed pattern
-        ...     roughness=2.5,    # Smoother transitions
+        ...     roughness=0.7,    # Smoother transitions
         ...     p=1.0
         ... )
 
@@ -5893,19 +5894,8 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
                Communications of the ACM, 1982.
                Paper introducing the Diamond-Square algorithm.
 
-        .. [2] Miller, "The Diamond-Square Algorithm: A Detailed Analysis,"
-               Journal of Computer Graphics Techniques, 2016.
-               Comprehensive analysis of the algorithm and its properties.
-
-        .. [3] Ebert et al., "Texturing & Modeling: A Procedural Approach,"
-               Chapter 12: Noise, Hypertexture, Antialiasing, and Gesture.
-               Detailed coverage of procedural noise patterns.
-
-        .. [4] Diamond-Square algorithm:
+        .. [2] Diamond-Square algorithm:
                https://en.wikipedia.org/wiki/Diamond-square_algorithm
-
-        .. [5] Plasma effect:
-               https://lodev.org/cgtutor/plasma.html
 
     See Also:
         - RandomBrightnessContrast: For uniform brightness/contrast adjustments
@@ -5923,7 +5913,6 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             tuple[float, float],
             AfterValidator(check_range_bounds(-1, 1)),
         ]
-        plasma_size: int = Field(default=256, gt=0)
         roughness: float = Field(default=3.0, gt=0)
 
     def __init__(
@@ -5945,7 +5934,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image = data["image"] if "image" in data else data["images"][0]
+        shape = params["shape"]
 
         # Sample adjustment strengths
         brightness = self.py_random.uniform(*self.brightness_range)
@@ -5953,8 +5942,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
 
         # Generate plasma pattern
         plasma = fmain.generate_plasma_pattern(
-            target_shape=image.shape[:2],
-            size=self.plasma_size,
+            target_shape=shape[:2],
             roughness=self.roughness,
             random_generator=self.random_generator,
         )
@@ -5980,12 +5968,24 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             plasma_pattern,
         )
 
+    @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "brightness_range", "contrast_range", "plasma_size", "roughness"
+        return "brightness_range", "contrast_range", "roughness"
 
 
 class PlasmaShadow(ImageOnlyTransform):
-    """Apply plasma-based shadow effect to the image.
+    """Apply plasma-based shadow effect to the image using Diamond-Square algorithm.
 
     Creates organic-looking shadows using plasma fractal noise pattern.
     The shadow intensity varies smoothly across the image, creating natural-looking
@@ -5999,20 +5999,12 @@ class PlasmaShadow(ImageOnlyTransform):
             - Values between create partial shadows
             Default: (0.3, 0.7)
 
-        plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
-            Larger values create more detailed shadow patterns:
-            - Small values (~64): Large, smooth shadow regions
-            - Medium values (~256): Balanced detail level
-            - Large values (~512+): Fine shadow details
-            Default: 256
-
-        roughness (float): Controls the roughness of the plasma pattern.
-            Higher values create more rough/sharp shadow transitions.
+        roughness (float): Controls how quickly the noise amplitude decreases at each iteration.
             Must be greater than 0:
-            - Low values (~1.0): Very smooth transitions
-            - Medium values (~3.0): Natural-looking shadows
-            - High values (~5.0): More dramatic, sharp shadows
-            Default: 3.0
+            - Low values (< 0.5): Very rough, noisy shadows
+            - Medium values (~0.5): Natural-looking shadows
+            - High values (> 0.5): Smoother, more gradual shadows
+            Default: 0.5
 
         p (float): Probability of applying the transform. Default: 0.5.
 
@@ -6025,22 +6017,34 @@ class PlasmaShadow(ImageOnlyTransform):
     Note:
         - The transform darkens the image using a plasma pattern
         - Works with any number of channels (grayscale, RGB, multispectral)
-        - Shadow pattern is generated using Diamond-Square algorithm
+        - Shadow pattern is generated using Diamond-Square algorithm with specific kernels
         - The same shadow pattern is applied to all channels
         - Final values are clipped to valid range [0, max_value]
 
     Mathematical Formulation:
-        1. Plasma Pattern Generation:
-           The Diamond-Square algorithm generates a pattern P(x,y) ∈ [0,1]
-           with fractal characteristics controlled by roughness parameter.
+        1. Plasma Pattern Generation (Diamond-Square Algorithm):
+           Starting with a 3x3 grid of random values in [-1, 1], iteratively:
+           a) Diamond Step: For each 2x2 cell, compute center using diamond kernel:
+              [[0.25, 0.0, 0.25],
+               [0.0,  0.0, 0.0 ],
+               [0.25, 0.0, 0.25]]
+
+           b) Square Step: Fill remaining points using square kernel:
+              [[0.0,  0.25, 0.0 ],
+               [0.25, 0.0,  0.25],
+               [0.0,  0.25, 0.0 ]]
+
+           c) Add random noise scaled by roughness^iteration
+
+           d) Normalize final pattern P to [0,1] range using min-max normalization
 
         2. Shadow Application:
            For each pixel (x,y):
-           O(x,y) = I(x,y) * (1 - i·P(x,y))
+           O(x,y) = I(x,y) * (1 - i*P(x,y))
            where:
            - I is the input image
-           - P is the plasma pattern
-           - i is the shadow intensity
+           - P is the normalized plasma pattern
+           - i is the sampled shadow intensity
            - O is the output image
 
     Examples:
@@ -6052,17 +6056,15 @@ class PlasmaShadow(ImageOnlyTransform):
 
         # Subtle, smooth shadows
         >>> transform = A.PlasmaShadow(
-        ...     shadow_intensity=(0.1, 0.3),
-        ...     plasma_size=128,
-        ...     roughness=1.5,
+        ...     shadow_intensity_range=(0.1, 0.3),
+        ...     roughness=0.7,
         ...     p=1.0
         ... )
 
         # Dramatic, detailed shadows
         >>> transform = A.PlasmaShadow(
-        ...     shadow_intensity=(0.5, 0.9),
-        ...     plasma_size=512,
-        ...     roughness=4.0,
+        ...     shadow_intensity_range=(0.5, 0.9),
+        ...     roughness=0.3,
         ...     p=1.0
         ... )
 
@@ -6078,11 +6080,11 @@ class PlasmaShadow(ImageOnlyTransform):
         - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
         - RandomShadow: For geometric shadow effects
         - RandomToneCurve: For global lighting adjustments
+        - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
     """
 
     class InitSchema(BaseTransformInitSchema):
         shadow_intensity_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
-        plasma_size: int = Field(default=256, gt=0)
         roughness: float = Field(default=3.0, gt=0)
 
     def __init__(
@@ -6102,15 +6104,14 @@ class PlasmaShadow(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image = data["image"] if "image" in data else data["images"][0]
+        shape = params["shape"]
 
         # Sample shadow intensity
         intensity = self.py_random.uniform(*self.shadow_intensity_range)
 
         # Generate plasma pattern
         plasma = fmain.generate_plasma_pattern(
-            target_shape=image.shape[:2],
-            size=self.plasma_size,
+            target_shape=shape[:2],
             roughness=self.roughness,
             random_generator=self.random_generator,
         )
@@ -6129,8 +6130,20 @@ class PlasmaShadow(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.apply_plasma_shadow(img, intensity, plasma_pattern)
 
+    @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "shadow_intensity_range", "plasma_size", "roughness"
+        return "shadow_intensity_range", "roughness"
 
 
 class Illumination(ImageOnlyTransform):

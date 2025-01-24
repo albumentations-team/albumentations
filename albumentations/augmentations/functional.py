@@ -2443,190 +2443,117 @@ def apply_salt_and_pepper(
     return result
 
 
-def get_grid_size(size: int, target_shape: tuple[int, int]) -> int:
-    """Round up to nearest power of 2."""
-    return 2 ** int(np.ceil(np.log2(max(size, *target_shape))))
+# Pre-compute constant kernels
+DIAMOND_KERNEL = np.array(
+    [
+        [0.25, 0.0, 0.25],
+        [0.0, 0.0, 0.0],
+        [0.25, 0.0, 0.25],
+    ],
+    dtype=np.float32,
+)
 
+SQUARE_KERNEL = np.array(
+    [
+        [0.0, 0.25, 0.0],
+        [0.25, 0.0, 0.25],
+        [0.0, 0.25, 0.0],
+    ],
+    dtype=np.float32,
+)
 
-def random_offset(
-    current_size: int,
-    total_size: int,
-    roughness: float,
-    random_generator: np.random.Generator,
-) -> float:
-    """Calculate random offset based on current grid size."""
-    return (random_generator.random() - 0.5) * (current_size / total_size) ** (roughness / 2)
-
-
-def initialize_grid(
-    grid_size: int,
-    random_generator: np.random.Generator,
-) -> np.ndarray:
-    """Initialize grid with random corners."""
-    pattern = np.zeros((grid_size + 1, grid_size + 1), dtype=np.float32)
-    for corner in [(0, 0), (0, -1), (-1, 0), (-1, -1)]:
-        pattern[corner] = random_generator.random()
-    return pattern
-
-
-def square_step(
-    pattern: np.ndarray,
-    y: int,
-    x: int,
-    step: int,
-    grid_size: int,
-    roughness: float,
-    random_generator: np.random.Generator,
-) -> float:
-    """Compute center value during square step."""
-    corners = [
-        pattern[y, x],  # top-left
-        pattern[y, x + step],  # top-right
-        pattern[y + step, x],  # bottom-left
-        pattern[y + step, x + step],  # bottom-right
-    ]
-    return sum(corners) / 4.0 + random_offset(
-        step,
-        grid_size,
-        roughness,
-        random_generator,
-    )
-
-
-def diamond_step(
-    pattern: np.ndarray,
-    y: int,
-    x: int,
-    half: int,
-    grid_size: int,
-    roughness: float,
-    random_generator: np.random.Generator,
-) -> float:
-    """Compute edge value during diamond step."""
-    points = []
-    if y >= half:
-        points.append(pattern[y - half, x])
-    if y + half <= grid_size:
-        points.append(pattern[y + half, x])
-    if x >= half:
-        points.append(pattern[y, x - half])
-    if x + half <= grid_size:
-        points.append(pattern[y, x + half])
-
-    return sum(points) / len(points) + random_offset(
-        half * 2,
-        grid_size,
-        roughness,
-        random_generator,
-    )
+# Pre-compute initial grid
+INITIAL_GRID_SIZE = (3, 3)
 
 
 def generate_plasma_pattern(
     target_shape: tuple[int, int],
-    size: int,
-    roughness: float,
-    random_generator: np.random.Generator,
+    roughness: float = 0.5,
+    random_generator: np.random.Generator = np.random.default_rng(),
 ) -> np.ndarray:
-    """Generate a plasma fractal pattern using the Diamond-Square algorithm.
+    """Generate Plasma Fractal with consistent brightness."""
 
-    The Diamond-Square algorithm creates a natural-looking noise pattern by recursively
-    subdividing a grid and adding random displacements at each step. The roughness
-    parameter controls how quickly the random displacements decrease with each iteration.
+    def one_diamond_square_step(current_grid: np.ndarray, noise_scale: float) -> np.ndarray:
+        next_height = (current_grid.shape[0] - 1) * 2 + 1
+        next_width = (current_grid.shape[1] - 1) * 2 + 1
 
-    Args:
-        target_shape: Final shape (height, width) of the pattern
-        size: Initial size of the pattern grid. Will be rounded up to nearest power of 2.
-            Larger values create more detailed patterns.
-        roughness: Controls pattern roughness. Higher values create more rough/sharp transitions.
-            Typical values are between 1.0 and 5.0.
-        random_generator: NumPy random generator.
+        # Pre-allocate expanded grid
+        expanded_grid = np.zeros((next_height, next_width), dtype=np.float32)
 
-    Returns:
-        Normalized plasma pattern array of shape target_shape with values in [0, 1]
-    """
-    # Initialize grid
-    grid_size = get_grid_size(size, target_shape)
-    pattern = initialize_grid(grid_size, random_generator)
+        # Generate all noise at once for both steps (already scaled by noise_scale)
+        all_noise = random_generator.uniform(-noise_scale, noise_scale, (next_height, next_width)).astype(np.float32)
 
-    # Diamond-Square algorithm
-    step_size = grid_size
-    while step_size > 1:
-        half_step = step_size // 2
+        # Copy existing points with noise
+        expanded_grid[::2, ::2] = current_grid + all_noise[::2, ::2]
 
-        # Square step
-        for y in range(0, grid_size, step_size):
-            for x in range(0, grid_size, step_size):
-                if half_step > 0:
-                    pattern[y + half_step, x + half_step] = square_step(
-                        pattern,
-                        y,
-                        x,
-                        step_size,
-                        half_step,
-                        roughness,
-                        random_generator,
-                    )
+        # Diamond step - keep separate for natural look
+        diamond_interpolation = cv2.filter2D(expanded_grid, -1, DIAMOND_KERNEL, borderType=cv2.BORDER_CONSTANT)
+        diamond_mask = diamond_interpolation > 0
+        expanded_grid += (diamond_interpolation + all_noise) * diamond_mask
 
-        # Diamond step
-        for y in range(0, grid_size + 1, half_step):
-            for x in range((y + half_step) % step_size, grid_size + 1, step_size):
-                pattern[y, x] = diamond_step(
-                    pattern,
-                    y,
-                    x,
-                    half_step,
-                    grid_size,
-                    roughness,
-                    random_generator,
-                )
+        # Square step - keep separate for natural look
+        square_interpolation = cv2.filter2D(expanded_grid, -1, SQUARE_KERNEL, borderType=cv2.BORDER_CONSTANT)
+        square_mask = square_interpolation > 0
+        expanded_grid += (square_interpolation + all_noise) * square_mask
 
-        step_size = half_step
+        # Normalize after each step to prevent value drift
+        return cv2.normalize(expanded_grid, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
-    min_pattern = pattern.min()
+    # Pre-compute noise scales
+    max_dimension = max(target_shape)
+    power_of_two_size = 2 ** np.ceil(np.log2(max_dimension - 1)) + 1
+    total_steps = int(np.log2(power_of_two_size - 1) - 1)
+    noise_scales = np.float32([roughness**i for i in range(total_steps)])
 
-    # Normalize to [0, 1] range
-    pattern = (pattern - min_pattern) / (pattern.max() - min_pattern)
+    # Initialize with small random grid
+    plasma_grid = random_generator.uniform(-1, 1, (3, 3)).astype(np.float32)
 
-    return (
-        fgeometric.resize(pattern, target_shape, interpolation=cv2.INTER_LINEAR)
-        if pattern.shape != target_shape
-        else pattern
+    # Recursively apply diamond-square steps
+    for noise_scale in noise_scales:
+        plasma_grid = one_diamond_square_step(plasma_grid, noise_scale)
+
+    return np.clip(
+        cv2.normalize(plasma_grid[: target_shape[0], : target_shape[1]], None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F),
+        0,
+        1,
     )
 
 
 @clipped
+@float32_io
 def apply_plasma_brightness_contrast(
     img: np.ndarray,
     brightness_factor: float,
     contrast_factor: float,
     plasma_pattern: np.ndarray,
 ) -> np.ndarray:
-    """Apply plasma-based brightness and contrast adjustments.
+    """Apply plasma-based brightness and contrast adjustments."""
+    # Early return if no adjustments needed
+    if brightness_factor == 0 and contrast_factor == 0:
+        return img
 
-    The plasma pattern is used to create spatially-varying adjustments:
-    1. Brightness is modified by adding the pattern * brightness_factor
-    2. Contrast is modified by interpolating between mean and original
-       using the pattern * contrast_factor
-    """
-    result = img.copy()
+    img = img.copy()
 
-    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
-
-    # Expand plasma pattern to match image dimensions
-    plasma_pattern = plasma_pattern[..., np.newaxis] if img.ndim > MONO_CHANNEL_DIMENSIONS else plasma_pattern
+    # Expand plasma pattern once if needed
+    if img.ndim > MONO_CHANNEL_DIMENSIONS:
+        plasma_pattern = np.tile(plasma_pattern[..., np.newaxis], (1, 1, img.shape[-1]))
 
     # Apply brightness adjustment
     if brightness_factor != 0:
-        brightness_adjustment = plasma_pattern * brightness_factor * max_value
-        result = np.clip(result + brightness_adjustment, 0, max_value)
+        brightness_adjustment = multiply(plasma_pattern, brightness_factor, inplace=False)
+        img = add(img, brightness_adjustment, inplace=True)
 
     # Apply contrast adjustment
     if contrast_factor != 0:
-        mean = result.mean()
-        contrast_weights = plasma_pattern * contrast_factor + 1
-        result = np.clip(mean + (result - mean) * contrast_weights, 0, max_value)
+        mean = img.mean()
+        contrast_weights = multiply(plasma_pattern, contrast_factor, inplace=False) + 1
 
-    return result
+        img = multiply(img, contrast_weights, inplace=True)
+
+        mean_factor = mean * (1.0 - contrast_weights)
+        return add(img, mean_factor, inplace=True)
+
+    return img
 
 
 @clipped
@@ -2645,15 +2572,15 @@ def apply_plasma_shadow(
     Returns:
         Image with applied shadow effect
     """
-    result = img.copy()
+    # Scale plasma pattern by intensity first (scalar operation)
+    scaled_pattern = plasma_pattern * intensity
 
-    # Expand dimensions to match image
-    plasma_pattern = plasma_pattern[..., np.newaxis] if img.ndim > MONO_CHANNEL_DIMENSIONS else plasma_pattern
+    # Expand dimensions only once if needed
+    if img.ndim > MONO_CHANNEL_DIMENSIONS:
+        scaled_pattern = scaled_pattern[..., np.newaxis]
 
-    # Apply shadow by darkening (multiplying by values < 1)
-    shadow_mask = 1 - plasma_pattern * intensity
-
-    return result * shadow_mask
+    # Single multiply operation
+    return img * (1 - scaled_pattern)
 
 
 def prepare_illumination_input(img: np.ndarray) -> tuple[np.ndarray, int, int]:
