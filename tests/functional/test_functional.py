@@ -1546,3 +1546,65 @@ def test_prepare_drop_values_random_two_channels():
 
     # Test that channels get different values
     assert not np.all(result_uint8[..., 0] == result_uint8[..., 1])
+
+
+@pytest.mark.parametrize(
+    ["shape", "roughness"],
+    [
+        ((100, 100), 0.5),  # Standard square image
+        ((200, 100), 0.5),  # Rectangular image
+        ((50, 75), 0.5),    # Small irregular image
+        ((100, 100), 0.1),  # Low roughness
+        ((100, 100), 0.9),  # High roughness
+    ],
+)
+def test_plasma_pattern_basic_properties(shape, roughness):
+    """Test basic properties of generated plasma patterns."""
+    rng = np.random.default_rng(42)
+    pattern = fmain.generate_plasma_pattern(shape, roughness, rng)
+
+    assert pattern.shape == shape
+    assert pattern.dtype == np.float32
+    assert np.all(pattern >= 0)
+    assert np.all(pattern <= 1)
+    assert not np.allclose(pattern, pattern.mean())
+
+@pytest.mark.parametrize(
+    ["seed1", "seed2", "should_be_different"],
+    [
+        (42, 42, False),     # Same seed should produce same pattern
+        (42, 43, True),      # Different seeds should produce different patterns
+    ],
+)
+def test_plasma_pattern_reproducibility(seed1, seed2, should_be_different):
+    """Test reproducibility of plasma patterns with same/different seeds."""
+    shape = (100, 100)
+    roughness = 0.5
+
+    # Generate two patterns with given seeds
+    pattern1 = fmain.generate_plasma_pattern(shape, roughness, np.random.default_rng(seed1))
+    pattern2 = fmain.generate_plasma_pattern(shape, roughness, np.random.default_rng(seed2))
+
+    if should_be_different:
+        assert not np.allclose(pattern1, pattern2)
+    else:
+        assert np.allclose(pattern1, pattern2)
+
+
+def test_plasma_pattern_statistical_properties():
+    """Test statistical properties of generated plasma patterns."""
+    shape = (200, 200)
+    roughness = 0.5
+    rng = np.random.default_rng(42)
+
+    pattern = fmain.generate_plasma_pattern(shape, roughness, rng)
+
+    # Test mean is approximately 0.5 (center of range)
+    assert 0.3 <= pattern.mean() <= 0.7  # Wider bounds to account for randomness
+
+    # Test standard deviation is reasonable
+    assert 0.05 <= pattern.std() <= 0.35
+
+    # Test distribution is roughly symmetric
+    median = np.median(pattern)
+    assert 0.3 <= median <= 0.7  # Wider bounds to account for randomness
