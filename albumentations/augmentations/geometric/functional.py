@@ -15,7 +15,6 @@ from albucore import (
     preserve_channel_dim,
     vflip,
 )
-from scipy.interpolate import griddata
 from typing_extensions import NotRequired, TypedDict
 
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
@@ -1438,6 +1437,47 @@ def remap(
     return remap_func(img)
 
 
+def remap_keypoints_via_mask(
+    keypoints: np.ndarray,
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    """Remap keypoints using mask and cv2.remap method."""
+    height, width = image_shape[:2]
+
+    # Handle empty keypoints array
+    if len(keypoints) == 0:
+        return np.zeros((0, 2 if keypoints.size == 0 else keypoints.shape[1]))
+
+    # Create mask where each keypoint has unique index
+    kp_mask = np.zeros((height, width), dtype=np.int16)
+    for idx, kp in enumerate(keypoints, start=1):
+        x, y = round(kp[0]), round(kp[1])
+        if 0 <= x < width and 0 <= y < height:
+            # Note: cv2.circle takes (x,y) coordinates
+            cv2.circle(kp_mask, (x, y), 1, idx, -1)
+
+    # Remap the mask
+    transformed_kp_mask = cv2.remap(
+        kp_mask,
+        map_x.astype(np.float32),
+        map_y.astype(np.float32),
+        cv2.INTER_NEAREST,
+    )
+
+    # Extract transformed keypoints
+    new_points = []
+    for idx, kp in enumerate(keypoints, start=1):
+        # Find points with this index
+        points = np.where(transformed_kp_mask == idx)
+        if len(points[0]) > 0:
+            # Convert back to (x,y) coordinates
+            new_points.append(np.concatenate([[points[1][0], points[0][0]], kp[2:]]))
+
+    return np.array(new_points) if new_points else np.zeros((0, keypoints.shape[1]))
+
+
 @handle_empty_array("keypoints")
 def remap_keypoints(
     keypoints: np.ndarray,
@@ -1469,38 +1509,45 @@ def remap_keypoints(
     return np.column_stack([new_x, new_y, keypoints[:, 2:]])
 
 
-def generate_inverse_distortion_map(map_x: np.ndarray, map_y: np.ndarray, shape: np.ndarray) -> np.ndarray:
-    """Inverts the remap arrays (map_x and map_y) to allow for manual remapping of
-    points with comparable performance to the inverse operation in opencv remap.
-
-    Parameters:
-    - map_x, map_y: Forward mapping arrays (destination to source).
-    - shape: Shape of the output map (typically same as map_x.shape).
-
-    Returns:
-    - inv_map_x, inv_map_y: Inverted mapping arrays (source to destination).
-    """
+def generate_inverse_distortion_map(
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    shape: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate inverse mapping for strong distortions."""
     h, w = shape
 
-    # Create a grid of destination coordinates
-    dest_coords = np.indices((h, w), dtype=np.float32).transpose(1, 2, 0).reshape(-1, 2)
-    src_coords = np.column_stack((map_x.flatten(), map_y.flatten()))
+    # Initialize inverse maps
+    inv_map_x = np.zeros((h, w), dtype=np.float32)
+    inv_map_y = np.zeros((h, w), dtype=np.float32)
 
-    # Mask for valid source points (remove NaNs or out-of-bounds values)
-    valid_mask = (src_coords[:, 0] >= 0) & (src_coords[:, 0] < w) & (src_coords[:, 1] >= 0) & (src_coords[:, 1] < h)
-    src_coords = src_coords[valid_mask]
-    dest_coords = dest_coords[valid_mask]
+    # For each source point, record where it maps to
+    for y in range(h):
+        for x in range(w):
+            # Get destination point
+            dst_x = map_x[y, x]
+            dst_y = map_y[y, x]
 
-    # Use griddata to interpolate the inverse mapping
-    grid_x, grid_y = np.meshgrid(np.arange(w), np.arange(h))
-    inv_map_x = griddata(src_coords, dest_coords[:, 0], (grid_x, grid_y), method="linear", fill_value=-1)
-    inv_map_y = griddata(src_coords, dest_coords[:, 1], (grid_x, grid_y), method="linear", fill_value=-1)
+            # If destination is within bounds
+            if 0 <= dst_x < w and 0 <= dst_y < h:
+                # Get neighborhood coordinates
+                dst_x_floor = int(np.floor(dst_x))
+                dst_x_ceil = min(dst_x_floor + 1, w - 1)
+                dst_y_floor = int(np.floor(dst_y))
+                dst_y_ceil = min(dst_y_floor + 1, h - 1)
 
-    # Replace invalid mappings with 0 or other appropriate value
-    inv_map_x = np.clip(inv_map_x, 0, w - 1)
-    inv_map_y = np.clip(inv_map_y, 0, h - 1)
+                # Fill neighborhood
+                for ny in range(dst_y_floor, dst_y_ceil + 1):
+                    for nx in range(dst_x_floor, dst_x_ceil + 1):
+                        # Only update if empty or closer to pixel center
+                        if inv_map_x[ny, nx] == 0 or (
+                            abs(nx - dst_x) + abs(ny - dst_y)
+                            < abs(nx - inv_map_x[ny, nx]) + abs(ny - inv_map_y[ny, nx])
+                        ):
+                            inv_map_x[ny, nx] = x
+                            inv_map_y[ny, nx] = y
 
-    return np.array([inv_map_x.astype(np.float32), inv_map_y.astype(np.float32)])
+    return inv_map_x, inv_map_y
 
 
 @handle_empty_array("bboxes")
@@ -3168,6 +3215,32 @@ def shuffle_tiles_within_shape_groups(
     return mapping
 
 
+def compute_pairwise_distances(
+    points1: np.ndarray,
+    points2: np.ndarray,
+) -> np.ndarray:
+    """Compute pairwise squared Euclidean distances between two point sets.
+
+    Args:
+        points1: First set of points with shape (N, 2)
+        points2: Second set of points with shape (M, 2)
+
+    Returns:
+        Distance matrix with shape (N, M)
+    """
+    points1 = np.ascontiguousarray(points1, dtype=np.float32)
+    points2 = np.ascontiguousarray(points2, dtype=np.float32)
+
+    # Compute squared terms
+    p1_squared = cv2.multiply(points1, points1).sum(axis=1, keepdims=True)
+    p2_squared = cv2.multiply(points2, points2).sum(axis=1)[None, :]
+
+    # Compute dot product
+    dot_product = cv2.gemm(points1, points2.T, 1, None, 0)
+
+    return p1_squared + p2_squared - 2 * dot_product
+
+
 def compute_tps_weights(
     src_points: np.ndarray,
     dst_points: np.ndarray,
@@ -3192,38 +3265,32 @@ def compute_tps_weights(
     num_points = src_points.shape[0]
 
     # Compute pairwise distances
-    distances = np.linalg.norm(src_points[:, None] - src_points, axis=2)
+    distances = compute_pairwise_distances(src_points, src_points)
 
-    # Apply TPS kernel function: U(r) = r² log(r)
-    # Add small epsilon to avoid log(0)
     kernel_matrix = np.where(
         distances > 0,
-        distances * distances * np.log(distances + 1e-6),
+        distances * distances * cv2.log(distances + 1e-6),
         0,
-    )
+    ).astype(np.float32)
 
-    # Construct affine terms matrix [1, x, y]
-    affine_terms = np.ones((num_points, 3))
+    # Build system matrix efficiently
+    affine_terms = np.empty((num_points, 3), dtype=np.float32)
+    affine_terms[:, 0] = 1
     affine_terms[:, 1:] = src_points
 
-    # Build system matrix
-    system_matrix = np.zeros((num_points + 3, num_points + 3))
+    # Construct system matrix
+    system_matrix = np.zeros((num_points + 3, num_points + 3), dtype=np.float32)
     system_matrix[:num_points, :num_points] = kernel_matrix
     system_matrix[:num_points, num_points:] = affine_terms
     system_matrix[num_points:, :num_points] = affine_terms.T
 
-    # Right-hand side of the system
-    target_coords = np.zeros((num_points + 3, 2))
-    target_coords[:num_points] = dst_points
+    # Prepare target coordinates
+    target = np.zeros((num_points + 3, 2), dtype=np.float32)
+    target[:num_points] = dst_points
 
-    # Solve the system for both x and y coordinates
-    all_weights = np.linalg.solve(system_matrix, target_coords)
+    weights = cv2.solve(system_matrix, target, flags=cv2.DECOMP_LU)[1]
 
-    # Split weights into nonlinear and affine components
-    nonlinear_weights = all_weights[:num_points]
-    affine_weights = all_weights[num_points:]
-
-    return nonlinear_weights, affine_weights
+    return weights[:num_points], weights[num_points:]
 
 
 def tps_transform(
@@ -3232,37 +3299,33 @@ def tps_transform(
     nonlinear_weights: np.ndarray,
     affine_weights: np.ndarray,
 ) -> np.ndarray:
-    """Apply Thin Plate Spline transformation to points.
+    """Apply TPS transformation with consistent types."""
+    # Ensure float32 type for all inputs
+    target_points = np.ascontiguousarray(target_points, dtype=np.float32)
+    control_points = np.ascontiguousarray(control_points, dtype=np.float32)
+    nonlinear_weights = np.ascontiguousarray(nonlinear_weights, dtype=np.float32)
+    affine_weights = np.ascontiguousarray(affine_weights, dtype=np.float32)
 
-    Args:
-        target_points: Points to transform with shape (num_targets, 2)
-        control_points: Original control points with shape (num_controls, 2)
-        nonlinear_weights: TPS kernel weights with shape (num_controls, 2)
-        affine_weights: Affine transformation weights with shape (3, 2)
+    distances = compute_pairwise_distances(target_points, control_points)
 
-    Returns:
-        Transformed points with shape (num_targets, 2)
-
-    Note:
-        The transformation combines:
-        1. Nonlinear warping based on distances to control points
-        2. Global affine transformation (scale, rotation, translation)
-    """
-    # Compute all pairwise distances at once: (num_targets, num_controls)
-    distances = np.linalg.norm(target_points[:, None] - control_points, axis=2)
-
-    # Apply TPS kernel function: U(r) = r² log(r)
+    # Ensure kernel matrix is float32
     kernel_matrix = np.where(
         distances > 0,
-        distances * distances * np.log(distances + 1e-6),
+        distances * cv2.log(distances + 1e-6),
         0,
-    )
+    ).astype(np.float32)
 
-    # Prepare affine terms [1, x, y] for each point
-    affine_terms = np.c_[np.ones(len(target_points)), target_points]
+    # Prepare affine terms
+    num_points = len(target_points)
+    affine_terms = np.empty((num_points, 3), dtype=np.float32)
+    affine_terms[:, 0] = 1
+    affine_terms[:, 1:] = target_points
 
-    # Combine nonlinear and affine transformations
-    return kernel_matrix @ nonlinear_weights + affine_terms @ affine_weights
+    # Matrix multiplications with consistent float32 type
+    nonlinear_part = cv2.gemm(kernel_matrix, nonlinear_weights, 1, None, 0)
+    affine_part = cv2.gemm(affine_terms, affine_weights, 1, None, 0)
+
+    return nonlinear_part + affine_part
 
 
 def get_camera_matrix_distortion_maps(
@@ -3339,3 +3402,35 @@ def get_fisheye_distortion_maps(
     map_y = r_dist * np.sin(theta) + center_y
 
     return map_x, map_y
+
+
+def generate_control_points(num_control_points: int) -> np.ndarray:
+    """Generate control points for TPS transformation.
+
+    Args:
+        num_control_points: Number of control points per side.
+            If 2, generates 4 corner points + 1 center point.
+            Otherwise generates a grid of num_control_points x num_control_points.
+
+    Returns:
+        np.ndarray: Control points with shape (N, 2) where N is:
+            - 5 points when num_control_points=2 (4 corners + center)
+            - num_control_points² points otherwise
+    """
+    if num_control_points == 2:
+        # Generate 4 corners + center point similar to Kornia
+        return np.array(
+            [
+                [0, 0],  # top-left
+                [0, 1],  # bottom-left
+                [1, 0],  # top-right
+                [1, 1],  # bottom-right
+                [0.5, 0.5],  # center
+            ],
+            dtype=np.float32,
+        )
+
+        # Generate regular grid
+    x = np.linspace(0, 1, num_control_points)
+    y = np.linspace(0, 1, num_control_points)
+    return np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)

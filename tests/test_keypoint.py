@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+import cv2
 
 import albumentations as A
 import albumentations.augmentations.geometric.functional as fgeometric
@@ -953,3 +954,117 @@ def test_resize_keypoints():
     aug = A.Resize(height=50, width=10, p=1)
     result = aug(image=img, keypoints=keypoints)
     np.testing.assert_array_equal(result["keypoints"], [(9, 5, 1, 0, 0)])
+
+
+
+@pytest.mark.parametrize(
+    "image_shape, keypoints, distortion_type",
+    [
+        # Test case 1: Simple translation
+        (
+            (100, 100),
+            np.array([[50, 50, 1], [25, 75, 1], [75, 25, 1]]),
+            "translation"
+        ),
+        # Test case 2: Single point
+        (
+            (100, 100),
+            np.array([[10, 10, 1]]),
+            "identity"
+        ),
+        # Test case 3: Points with extra attributes
+        (
+            (100, 100),
+            np.array([[50, 50, 1, 0, 2], [25, 75, 1, np.pi/4, 1]]),
+            "wave"
+        ),
+        # Test case 4: Points near borders
+        (
+            (100, 100),
+            np.array([[0, 0, 1], [99, 99, 1], [0, 99, 1], [99, 0, 1]]),
+            "scale"
+        ),
+        # Test case 5: Larger image
+        (
+            (512, 512),
+            np.array([[256, 256, 1], [128, 384, 1], [384, 128, 1]]),
+            "rotation"
+        ),
+    ]
+)
+def test_keypoint_remap_methods(image_shape, keypoints, distortion_type):
+    """Test that both keypoint remapping methods produce similar results."""
+
+    # Generate distortion maps based on type
+    h, w = image_shape
+    map_x = np.zeros(image_shape, dtype=np.float32)
+    map_y = np.zeros(image_shape, dtype=np.float32)
+
+    # Create meshgrid in correct order
+    x, y = np.meshgrid(np.arange(w), np.arange(h))
+
+    if distortion_type == "identity":
+        map_x = x.astype(np.float32)
+        map_y = y.astype(np.float32)
+
+    elif distortion_type == "translation":
+        map_x = x.astype(np.float32) + 10
+        map_y = y.astype(np.float32) + 10
+
+    elif distortion_type == "wave":
+        map_x = x + np.sin(y/10.0) * 5  # y affects x-displacement
+        map_y = y + np.sin(x/10.0) * 5  # x affects y-displacement
+        map_x = map_x.astype(np.float32)
+        map_y = map_y.astype(np.float32)
+
+    elif distortion_type == "scale":
+        scale = 1.5
+        map_x = x.astype(np.float32) * scale
+        map_y = y.astype(np.float32) * scale
+
+    elif distortion_type == "rotation":
+        center = (w/2, h/2)
+        angle = 45
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+        # Apply rotation to meshgrid
+        pts = np.column_stack((x.ravel(), y.ravel(), np.ones_like(x.ravel())))
+        transformed = M.dot(pts.T).T
+        map_x = transformed[:, 0].reshape(h, w).astype(np.float32)
+        map_y = transformed[:, 1].reshape(h, w).astype(np.float32)
+
+    # Get results from both methods
+    result_direct = fgeometric.remap_keypoints(keypoints, map_x, map_y, image_shape)
+    result_mask = fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, image_shape)
+
+    # Compare results
+    assert len(result_direct) == len(result_mask), "Methods returned different numbers of keypoints"
+
+    # Compare coordinates with tolerance
+    np.testing.assert_allclose(
+        result_direct[:, :2],  # only x,y coordinates
+        result_mask[:, :2],
+        rtol=1e-3,  # relative tolerance
+        atol=2.0,   # absolute tolerance (1 pixel)
+        err_msg=f"Methods produced different results for {distortion_type} distortion"
+    )
+
+    # Compare extra attributes if present
+    if keypoints.shape[1] > 2:
+        np.testing.assert_allclose(
+            result_direct[:, 2:],
+            result_mask[:, 2:],
+            rtol=1e-3,
+            atol=1e-3,
+            err_msg="Methods produced different results for extra attributes"
+        )
+
+    # Additional checks for specific distortion types
+    if distortion_type == "identity":
+        np.testing.assert_allclose(
+            result_direct,
+            keypoints,
+            rtol=1e-3,
+            atol=1.0,
+            err_msg="Identity transformation changed keypoint positions"
+        )
