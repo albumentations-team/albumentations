@@ -284,7 +284,7 @@ class ElasticTransform(BaseDistortion):
         same_dxdy: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
         noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
-        keypoint_remapping_method: Literal["direct", "mask"] = "direct",
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
@@ -1208,7 +1208,7 @@ class PiecewiseAffine(BaseDistortion):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         absolute_scale: bool = False,
-        keypoint_remapping_method: Literal["direct", "mask"] = "direct",
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
