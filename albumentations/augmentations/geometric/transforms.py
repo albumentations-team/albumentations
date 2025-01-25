@@ -7,7 +7,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore import hflip, is_grayscale_image, is_rgb_image, vflip
+from albucore import batch_transform, hflip, is_grayscale_image, is_rgb_image, vflip
 from pydantic import (
     AfterValidator,
     Field,
@@ -85,6 +85,11 @@ class BaseDistortion(DualTransform):
             cv2.INTER_CUBIC).
         mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
         p (float): Probability of applying the transform.
 
     Targets:
@@ -119,16 +124,19 @@ class BaseDistortion(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
         interpolation: int,
         mask_interpolation: int,
+        keypoint_remapping_method: Literal["direct", "mask"],
         p: float,
     ):
         super().__init__(p=p)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
+        self.keypoint_remapping_method = keypoint_remapping_method
 
     def apply(
         self,
@@ -145,6 +153,18 @@ class BaseDistortion(DualTransform):
             cv2.BORDER_CONSTANT,
             0,
         )
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
 
     def apply_to_mask(
         self,
@@ -186,10 +206,12 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
+        if self.keypoint_remapping_method == "direct":
+            return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
+        return fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "interpolation", "mask_interpolation"
+        return "interpolation", "mask_interpolation", "keypoint_remapping_method"
 
 
 class ElasticTransform(BaseDistortion):
@@ -222,6 +244,11 @@ class ElasticTransform(BaseDistortion):
             "gaussian" generates fields using normal distribution (more natural deformations).
             "uniform" generates fields using uniform distribution (more mechanical deformations).
             Default: "gaussian".
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
 
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -258,6 +285,7 @@ class ElasticTransform(BaseDistortion):
         approximate: bool
         same_dxdy: bool
         noise_distribution: Literal["gaussian", "uniform"]
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
@@ -268,11 +296,13 @@ class ElasticTransform(BaseDistortion):
         same_dxdy: bool = False,
         mask_interpolation: int = cv2.INTER_NEAREST,
         noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.alpha = alpha
@@ -1131,6 +1161,11 @@ class PiecewiseAffine(BaseDistortion):
         absolute_scale (bool): If set to True, the value of the scale parameter will be treated as an absolute
             pixel value. If set to False, it will be treated as a fraction of the image height and width.
             Default: False.
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1163,6 +1198,7 @@ class PiecewiseAffine(BaseDistortion):
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
         absolute_scale: bool
+        keypoint_remapping_method: Literal["direct", "mask"]
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
@@ -1184,12 +1220,14 @@ class PiecewiseAffine(BaseDistortion):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         absolute_scale: bool = False,
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             p=p,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
         )
 
         warn(
@@ -1209,9 +1247,8 @@ class PiecewiseAffine(BaseDistortion):
             "scale",
             "nb_rows",
             "nb_cols",
-            "interpolation",
-            "mask_interpolation",
             "absolute_scale",
+            *super().get_transform_init_args_names(),
         )
 
     def get_params_dependent_on_data(
@@ -1421,6 +1458,12 @@ class OpticalDistortion(BaseDistortion):
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
 
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
+
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1452,6 +1495,7 @@ class OpticalDistortion(BaseDistortion):
     class InitSchema(BaseDistortion.InitSchema):
         distort_limit: SymmetricRangeType
         mode: Literal["camera", "fisheye"]
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
@@ -1459,11 +1503,13 @@ class OpticalDistortion(BaseDistortion):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         mode: Literal["camera", "fisheye"] = "camera",
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.distort_limit = cast(tuple[float, float], distort_limit)
@@ -1524,6 +1570,11 @@ class GridDistortion(BaseDistortion):
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1555,6 +1606,7 @@ class GridDistortion(BaseDistortion):
         num_steps: Annotated[int, Field(ge=1)]
         distort_limit: SymmetricRangeType
         normalized: bool
+        keypoint_remapping_method: Literal["direct", "mask"]
 
         @field_validator("distort_limit")
         @classmethod
@@ -1575,11 +1627,13 @@ class GridDistortion(BaseDistortion):
         interpolation: int = cv2.INTER_LINEAR,
         normalized: bool = True,
         mask_interpolation: int = cv2.INTER_NEAREST,
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.num_steps = num_steps
@@ -2361,6 +2415,12 @@ class ThinPlateSpline(BaseDistortion):
             See also: cv2.INTER_*
             Default: cv2.INTER_NEAREST
 
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
+
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -2412,6 +2472,7 @@ class ThinPlateSpline(BaseDistortion):
     class InitSchema(BaseDistortion.InitSchema):
         scale_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
         num_control_points: int = Field(ge=2)
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
@@ -2419,11 +2480,13 @@ class ThinPlateSpline(BaseDistortion):
         num_control_points: int = 4,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.scale_range = scale_range
@@ -2436,11 +2499,7 @@ class ThinPlateSpline(BaseDistortion):
     ) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
-        # Create regular grid of control points
-        grid_size = self.num_control_points
-        x = np.linspace(0, 1, grid_size)
-        y = np.linspace(0, 1, grid_size)
-        src_points = np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)
+        src_points = fgeometric.generate_control_points(self.num_control_points)
 
         # Add random displacement to destination points
         scale = self.py_random.uniform(*self.scale_range) / 10
