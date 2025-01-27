@@ -118,6 +118,10 @@ class BboxParams(Params):
         self.check_each_transform = check_each_transform
         self.clip = clip
         self.filter_invalid_bboxes = filter_invalid_bboxes
+        if max_accept_ratio is not None and max_accept_ratio < 1.0:
+            raise ValueError(
+                "max_accept_ratio must be >= 1.0 when provided, as aspect ratio is calculated as max(w/h, h/w)",
+            )
         self.max_accept_ratio = max_accept_ratio  # e.g., 5.0
 
     def to_dict_private(self) -> dict[str, Any]:
