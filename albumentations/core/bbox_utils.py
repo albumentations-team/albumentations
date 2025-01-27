@@ -653,8 +653,10 @@ def filter_bboxes(
 
     # Calculate aspect ratios if needed
     if max_accept_ratio is not None:
-        with np.errstate(divide="ignore", invalid="ignore"):
-            aspect_ratios = np.maximum(clipped_widths / clipped_heights, clipped_heights / clipped_widths)
+        aspect_ratios = np.maximum(
+            clipped_widths / (clipped_heights + epsilon),
+            clipped_heights / (clipped_widths + epsilon),
+        )
         valid_ratios = aspect_ratios <= max_accept_ratio
     else:
         valid_ratios = np.ones_like(denormalized_box_areas, dtype=bool)
