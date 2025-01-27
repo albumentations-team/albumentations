@@ -1001,7 +1001,7 @@ def test_compose_additional_targets_in_available_keys() -> None:
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
-            }
+            },
         },
         except_augmentations={
             A.FDA,
@@ -1031,15 +1031,14 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
 
     image = np.random.uniform(0, 255, shape).astype(np.float32) if augmentation_cls == A.FromFloat else np.random.randint(0, 255, shape, dtype=np.uint8)
 
-    image2 = image.copy()
 
     if as_array:
         # Stack images into a single array
-        images = np.stack([image, image2])
+        images = np.stack([image] * 2)
         data = {"images": images}
     else:
         # Original list format
-        data = {"images": [image, image2]}
+        data = {"images": [image] * 2}
 
     if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
         mask = np.zeros_like(image)[:, :, 0]

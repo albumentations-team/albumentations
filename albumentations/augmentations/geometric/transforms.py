@@ -166,6 +166,10 @@ class BaseDistortion(DualTransform):
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
         return self.apply(volumes, **params)
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, **params)
+
     def apply_to_mask(
         self,
         mask: np.ndarray,
@@ -455,6 +459,22 @@ class Perspective(DualTransform):
             self.keep_size,
             self.interpolation,
         )
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, **params)
 
     def apply_to_mask(
         self,
@@ -863,6 +883,22 @@ class Affine(DualTransform):
             scale,
             self.border_mode,
         )
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, **params)
 
     @staticmethod
     def get_scale(
@@ -1331,6 +1367,22 @@ class VerticalFlip(DualTransform):
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_vflip(keypoints, params["shape"][0])
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
+
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
@@ -1359,6 +1411,22 @@ class HorizontalFlip(DualTransform):
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_hflip(keypoints, params["shape"][1])
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1762,6 +1830,22 @@ class D4(DualTransform):
     ) -> np.ndarray:
         return fgeometric.keypoints_d4(keypoints, group_element, params["shape"])
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
+
     def get_params(self) -> dict[str, D4Type]:
         return {
             "group_element": self.random_generator.choice(d4_group_elements),
@@ -2036,6 +2120,22 @@ class RandomGridShuffle(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
 
     def get_params_dependent_on_data(
         self,
