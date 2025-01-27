@@ -274,14 +274,24 @@ class DataProcessor(ABC):
             )
 
     def _encode_label_field(self, data: dict[str, Any], data_name: str, label_field: str) -> np.ndarray:
-        is_numerical = all(isinstance(label, (int, float)) for label in data[label_field])
+        field_data = data[label_field]
+
+        # Check if input is numpy array or if all elements are numerical
+        is_numerical = (isinstance(field_data, np.ndarray) and np.issubdtype(field_data.dtype, np.number)) or all(
+            isinstance(label, (int, float)) for label in field_data
+        )
+
         self.is_numerical_label[data_name][label_field] = is_numerical
 
         if is_numerical:
-            return np.array(data[label_field], dtype=np.float32).reshape(-1, 1)
+            # For numerical values, preserve numpy arrays or convert to float32
+            if isinstance(field_data, np.ndarray):
+                return field_data.reshape(-1, 1).astype(np.float32)
+            return np.array(field_data, dtype=np.float32).reshape(-1, 1)
 
+        # For non-numerical values, use LabelEncoder
         encoder = LabelEncoder()
-        encoded_labels = encoder.fit_transform(data[label_field]).reshape(-1, 1)
+        encoded_labels = encoder.fit_transform(field_data).reshape(-1, 1)
         self.label_encoders[data_name][label_field] = encoder
         return encoded_labels
 

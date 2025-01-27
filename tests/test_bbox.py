@@ -1961,3 +1961,256 @@ def test_bbox_processor_clip_and_filter():
     # After clipping, the bbox should be valid and preserved
     expected = [[80, 80, 100, 100]]  # Clipped to image boundaries
     np.testing.assert_allclose(result, expected)
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "classes", "scores", "format", "expected_bboxes", "expected_classes", "expected_scores", "clip"],
+    [
+        # YOLO format tests
+        (
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            "yolo",
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[0.9, 0.8, 0.3, 0.3], [-0.1, 0.6, 0.3, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            "yolo",
+            np.array([[0.875, 0.8, 0.25, 0.3], [0.025, 0.6, 0.05, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            True,
+        ),
+
+        # COCO format tests [x_min, y_min, width, height]
+        (
+            np.array([[10, 10, 20, 20], [30, 30, 40, 40]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "coco",
+            np.array([[10, 10, 20, 20], [30, 30, 40, 40]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[-10, -10, 30, 40], [90, 80, 30, 40]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "coco",
+            np.array([[0, 0, 20, 30], [90, 80, 10, 20]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            True,
+        ),
+
+        # Pascal VOC format tests [x_min, y_min, x_max, y_max]
+        (
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "pascal_voc",
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[-10, -10, 30, 30], [80, 80, 120, 120]], dtype=np.float32),
+            np.array([4, 5], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "pascal_voc",
+            np.array([[0, 0, 30, 30], [80, 80, 100, 100]], dtype=np.float32),
+            np.array([4, 5], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            True,
+        ),
+
+        # Empty arrays tests for each format
+        (
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            "yolo",
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            False,
+        ),
+        (
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            "coco",
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            False,
+        ),
+        (
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            "pascal_voc",
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            False,
+        ),
+
+        # Single bbox tests with high class id
+        (
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([100], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([100], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),
+            False,
+        ),
+
+        # Edge cases for each format
+        (
+            np.array([[0.999, 0.999, 0.002, 0.002]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            "yolo",
+            np.array([[0.999, 0.999, 0.002, 0.002]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[98, 98, 4, 4]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            "coco",
+            np.array([[98, 98, 2, 2]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            True,
+        ),
+        (
+            np.array([[98, 98, 102, 102]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            "pascal_voc",
+            np.array([[98, 98, 100, 100]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            True,
+        ),
+(
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),  # Single float in numpy array
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),  # Should preserve float32 type and value
+            False,
+        ),
+        (
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.8, 0.7], dtype=np.float64),  # Test float64 dtype
+            "yolo",
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.8, 0.7], dtype=np.float64),  # Should preserve float64 type
+            False,
+        ),
+        (
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.99999], dtype=np.float32),  # Test very high confidence
+            "pascal_voc",
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.99999], dtype=np.float32),  # Should preserve exact value
+            False,
+        ),
+        (
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.00001], dtype=np.float32),  # Test very low confidence
+            "pascal_voc",
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.00001], dtype=np.float32),  # Should preserve exact value
+            False,
+        ),
+        # Test multiple label fields with different numpy dtypes
+        (
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int64),  # Test int64 class labels
+            np.array([0.95], dtype=np.float16),  # Test float16 scores
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int64),  # Should preserve int64
+            np.array([0.95], dtype=np.float16),  # Should preserve float16
+            False,
+        ),
+        # Test case specifically for class ID clipping bug
+        (
+            np.array([[0.3, 0.8, 0.1, 0.1], [0.1, 0.1, 0.1, 0.1]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),  # Class IDs > 1
+            np.array([0.9, 0.8], dtype=np.float32),
+            "yolo",
+            np.array([[0.3, 0.8, 0.1, 0.1], [0.1, 0.1, 0.1, 0.1]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),  # Should remain [2, 3], not [1, 1]
+            np.array([0.9, 0.8], dtype=np.float32),
+            True,  # This is key - we want clip=True to test the bug
+        ),
+        # Additional test with higher class IDs
+        (
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([10], dtype=np.int32),  # Higher class ID
+            np.array([0.95], dtype=np.float32),
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([10], dtype=np.int32),  # Should remain 10, not 1
+            np.array([0.95], dtype=np.float32),
+            True,  # With clip=True
+        ),
+    ]
+)
+def test_compose_bbox_transform(
+    bboxes, classes, scores, format, expected_bboxes, expected_classes, expected_scores, clip
+):
+    """Test bbox transformations with various formats and configurations."""
+    transform = A.Compose(
+        [A.NoOp()],
+        bbox_params=A.BboxParams(
+            format=format,
+            label_fields=["classes", "scores"],
+            clip=clip,
+        ),
+    )
+
+    transformed = transform(
+        image=np.zeros((100, 100, 3), dtype=np.uint8),
+        bboxes=bboxes,
+        classes=classes,
+        scores=scores,
+    )
+
+    if len(bboxes) > 0:
+        np.testing.assert_array_almost_equal(np.array(transformed["bboxes"]), expected_bboxes, decimal=5)
+        np.testing.assert_array_equal(np.array(transformed["classes"]), expected_classes)
+        np.testing.assert_array_almost_equal(np.array(transformed["scores"]), expected_scores, decimal=5)
+
+        if format == "yolo" and clip:
+            assert np.all(np.array(transformed["bboxes"]) >= 0)
+            assert np.all(np.array(transformed["bboxes"]) <= 1)
+    else:
+        assert len(transformed["bboxes"]) == 0
+        assert len(transformed["classes"]) == 0
+        assert len(transformed["scores"]) == 0
