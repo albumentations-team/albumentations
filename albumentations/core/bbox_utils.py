@@ -29,7 +29,8 @@ class BboxParams(Params):
     """Parameters for bounding box transforms.
 
     Args:
-        format (str): Format of bounding boxes. Should be one of:
+        format (Literal["coco", "pascal_voc", "albumentations", "yolo"]): Format of bounding boxes.
+            Should be one of:
             - 'coco': [x_min, y_min, width, height], e.g. [97, 12, 150, 200].
             - 'pascal_voc': [x_min, y_min, x_max, y_max], e.g. [97, 12, 247, 212].
             - 'albumentations': like pascal_voc but normalized in [0, 1] range, e.g. [0.2, 0.3, 0.4, 0.5].
@@ -58,6 +59,12 @@ class BboxParams(Params):
             or boxes where x_max < x_min or y_max < y_min) at the beginning of the pipeline. If clip=True, filtering
             is applied after clipping. Default: False.
 
+        max_accept_ratio (float | None): Maximum allowed aspect ratio for bounding boxes. The aspect ratio is calculated
+            as max(width/height, height/width), so it's always >= 1. Boxes with aspect ratio greater than this value
+            will be filtered out. For example, if max_accept_ratio=3.0, boxes with width:height or height:width ratios
+            greater than 3:1 will be removed. Set to None to disable aspect ratio filtering. Default: None.
+
+
     Note:
         The processing order for bounding boxes is:
         1. Convert to albumentations format (normalized pascal_voc)
@@ -82,6 +89,12 @@ class BboxParams(Params):
         ...     clip=True,
         ...     filter_invalid_bboxes=True
         ... )
+        >>> # Create BboxParams that filters extremely elongated boxes
+        >>> bbox_params = BboxParams(
+        ...     format='yolo',
+        ...     max_accept_ratio=5.0,  # Filter boxes with aspect ratio > 5:1
+        ...     clip=True
+        ... )
     """
 
     def __init__(
@@ -95,6 +108,7 @@ class BboxParams(Params):
         check_each_transform: bool = True,
         clip: bool = False,
         filter_invalid_bboxes: bool = False,
+        max_accept_ratio: float | None = None,
     ):
         super().__init__(format, label_fields)
         self.min_area = min_area
@@ -104,6 +118,7 @@ class BboxParams(Params):
         self.check_each_transform = check_each_transform
         self.clip = clip
         self.filter_invalid_bboxes = filter_invalid_bboxes
+        self.max_accept_ratio = max_accept_ratio  # e.g., 5.0
 
     def to_dict_private(self) -> dict[str, Any]:
         data = super().to_dict_private()
@@ -115,6 +130,7 @@ class BboxParams(Params):
                 "min_height": self.min_height,
                 "check_each_transform": self.check_each_transform,
                 "clip": self.clip,
+                "max_accept_ratio": self.max_accept_ratio,
             },
         )
         return data
@@ -593,6 +609,7 @@ def filter_bboxes(
     min_visibility: float = 0.0,
     min_width: float = 1.0,
     min_height: float = 1.0,
+    max_accept_ratio: float | None = None,
 ) -> np.ndarray:
     """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also crops boxes to final image size.
@@ -608,6 +625,8 @@ def filter_bboxes(
         min_visibility: Minimum fraction of area for a bounding box to remain. Default: 0.0.
         min_width: Minimum width of a bounding box in pixels. Default: 0.0.
         min_height: Minimum height of a bounding box in pixels. Default: 0.0.
+        max_accept_ratio: Maximum allowed aspect ratio, calculated as max(width/height, height/width).
+            Boxes with higher ratios will be filtered out. Default: None.
 
     Returns:
         numpy array of filtered bounding boxes.
@@ -632,6 +651,14 @@ def filter_bboxes(
     clipped_widths = denormalized_bboxes[:, 2] - denormalized_bboxes[:, 0]
     clipped_heights = denormalized_bboxes[:, 3] - denormalized_bboxes[:, 1]
 
+    # Calculate aspect ratios if needed
+    if max_accept_ratio is not None:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            aspect_ratios = np.maximum(clipped_widths / clipped_heights, clipped_heights / clipped_widths)
+        valid_ratios = aspect_ratios <= max_accept_ratio
+    else:
+        valid_ratios = np.ones_like(denormalized_box_areas, dtype=bool)
+
     # Create a mask for bboxes that meet all criteria
     mask = (
         (denormalized_box_areas >= epsilon)
@@ -639,6 +666,7 @@ def filter_bboxes(
         & (clipped_box_areas / (denormalized_box_areas + epsilon) >= min_visibility)
         & (clipped_widths >= min_width - epsilon)
         & (clipped_heights >= min_height - epsilon)
+        & valid_ratios
     )
 
     # Apply the mask to get the filtered bboxes

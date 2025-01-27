@@ -2214,3 +2214,56 @@ def test_compose_bbox_transform(
         assert len(transformed["bboxes"]) == 0
         assert len(transformed["classes"]) == 0
         assert len(transformed["scores"]) == 0
+
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "shape", "max_accept_ratio", "expected"],
+    [
+        # Normal aspect ratios (should pass)
+        (
+            np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),  # 1:1 ratio
+            {"height": 100, "width": 100},
+            2.0,
+            np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),
+        ),
+        # Too wide box (should be filtered)
+        (
+            np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),  # 8:1 ratio
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # Too tall box (should be filtered)
+        (
+            np.array([[0.1, 0.1, 0.2, 0.9]], dtype=np.float32),  # 1:8 ratio
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # Multiple boxes with mixed ratios
+        (
+            np.array([
+                [0.1, 0.1, 0.2, 0.2],  # 1:1 ratio (keep)
+                [0.3, 0.3, 0.9, 0.4],  # 6:1 ratio (filter)
+                [0.5, 0.5, 0.6, 0.6],  # 1:1 ratio (keep)
+            ], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.array([
+                [0.1, 0.1, 0.2, 0.2],
+                [0.5, 0.5, 0.6, 0.6],
+            ], dtype=np.float32),
+        ),
+        # None max_ratio (should not filter)
+        (
+            np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            None,
+            np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
+        ),
+    ],
+)
+def test_filter_bboxes_aspect_ratio(bboxes, shape, max_accept_ratio, expected):
+    filtered = filter_bboxes(bboxes, shape, max_accept_ratio=max_accept_ratio)
+    np.testing.assert_array_almost_equal(filtered, expected)
