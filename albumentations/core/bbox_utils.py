@@ -267,9 +267,8 @@ class BboxProcessor(DataProcessor):
                     check_validity=False,  # Don't check validity yet
                 )
 
-            # Then clip if requested
-            if self.params.clip:
-                converted_data = np.clip(converted_data, 0, 1)
+            if self.params.clip and converted_data.size > 0:
+                converted_data[:, :4] = np.clip(converted_data[:, :4], 0, 1)
 
             # Then filter invalid boxes if requested
             if self.params.filter_invalid_bboxes:
