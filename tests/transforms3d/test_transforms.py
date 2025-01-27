@@ -528,7 +528,7 @@ def test2d_3d(volume, mask3d):
         },
     ),
 )
-def test_image_volume_matching(image,augmentation_cls, params):
+def test_image_volume_matching(image, augmentation_cls, params):
     aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
 
     volume = np.stack([image.copy()] * 4, axis=0)

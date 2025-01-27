@@ -107,7 +107,7 @@ AUGMENTATION_CLS_PARAMS = [
             "limit": 120,
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fill": (10, 10, 10),
+            "fill": 10,
         },
     ],
     [
@@ -118,7 +118,7 @@ AUGMENTATION_CLS_PARAMS = [
             "rotate_limit": (-70, 70),
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fill": (10, 10, 10),
+            "fill": 10,
         },
         {
             "shift_limit_x": (-0.3, 0.3),
@@ -127,7 +127,7 @@ AUGMENTATION_CLS_PARAMS = [
             "rotate_limit": (-70, 70),
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fill": (10, 10, 10),
+            "fill": 10,
         }]
     ],
     [
