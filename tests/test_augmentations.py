@@ -454,7 +454,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [A.Rotate, {"border_mode": cv2.BORDER_CONSTANT, "fill": 100, "fill_mask": 1}],
         [A.SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "fill": 100, "fill_mask": 1}],
         [A.ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "fill": 100, "fill_mask": 1}],
-        [A.Affine, {"mode": cv2.BORDER_CONSTANT, "fill_mask": 1, "fill": 100}],
+        [A.Affine, {"border_mode": cv2.BORDER_CONSTANT, "fill_mask": 1, "fill": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):

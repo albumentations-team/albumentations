@@ -561,7 +561,7 @@ def test_image_volume_matching(image, augmentation_cls, params):
 )
 def test_keypoints_xy_xyz(augmentation_cls, params):
     """Test that xy and xyz keypoint formats produce identical results for x,y coordinates."""
-    seed = 42
+    seed = 137
     aug1 = A.Compose([augmentation_cls(**params, p=1)], seed=seed, keypoint_params={"format": "xy"})
     aug2 = A.Compose([augmentation_cls(**params, p=1)], seed=seed, keypoint_params={"format": "xyz"})
 

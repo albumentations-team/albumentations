@@ -1,3 +1,4 @@
+from collections.abc import Callable
 import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
@@ -20,7 +21,7 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
 )
-from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
+from albumentations.core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
@@ -458,7 +459,7 @@ def test_check_each_transform_compose(targets, bbox_params, keypoint_params, exp
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Compose([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)])],
+        [Compose([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)])],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
         seed=137
@@ -548,7 +549,7 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Sequential([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], p=1.0)],
+        [Sequential([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)], p=1.0)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -639,7 +640,7 @@ def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expe
     augs = Compose(
         [
             SomeOf([A.Crop(0, 0, 50, 50)], n=1, replace=False, p=1.0),
-            SomeOf([A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], n=1, replace=False, p=1.0),
+            SomeOf([A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)], n=1, replace=False, p=1.0),
         ],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
@@ -1265,6 +1266,31 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.ConstrainedCoarseDropout,
             A.PadIfNeeded,
             A.RandomRotate90,
+            A.D4,
+            A.GridDistortion,
+            A.ElasticTransform,
+            A.GridElasticDeform,
+            A.HorizontalFlip,
+            A.VerticalFlip,
+            A.Transpose,
+            A.LongestMaxSize,
+            A.SmallestMaxSize,
+            A.RandomGridShuffle,
+            A.Morphological,
+            A.NoOp,
+            A.OpticalDistortion,
+            A.Pad,
+            A.PiecewiseAffine,
+            A.RandomScale,
+            A.RandomSizedBBoxSafeCrop,
+            A.RandomSizedCrop,
+            A.RandomResizedCrop,
+            A.RandomRotate90,
+            A.RandomCropFromBorders,
+            A.Resize,
+            A.ThinPlateSpline,
+            A.TimeReverse,
+            A.TimeMasking
         },
     ),
 )
@@ -1550,3 +1576,53 @@ def test_get_shape_empty_arrays(key):
     shape = get_shape(data)
     assert isinstance(shape, dict)
     assert all(isinstance(v, int) for v in shape.values())
+
+@pytest.mark.parametrize(
+    ["strict", "expected_behavior"],
+    [
+        (True, pytest.raises(ValueError, match="Argument 'invalid_arg' is not valid")),
+        (False, pytest.warns(UserWarning, match="Argument 'invalid_arg' is not valid and will be ignored")),
+    ],
+)
+def test_invalid_argument_validation(strict, expected_behavior):
+    """Test how invalid transform arguments are handled based on strict setting."""
+    with expected_behavior:
+        A.Compose([A.HorizontalFlip(p=0.5, invalid_arg=123)], strict=strict)
+
+@pytest.mark.parametrize(
+    ["strict", "expected_behavior"],
+    [
+        (True, pytest.raises(ValueError, match="Argument 'invalid_arg' is not valid")),
+        (False, pytest.warns(UserWarning, match="Argument 'invalid_arg' is not valid and will be ignored")),
+    ],
+)
+def test_invalid_argument_validation_nested(strict, expected_behavior):
+    """Test how invalid transform arguments are handled in nested compositions."""
+    with expected_behavior:
+        A.Compose([
+            A.OneOf([A.HorizontalFlip(p=0.5, invalid_arg=123)], p=1)
+        ], strict=strict)
+
+class DummyTransform(BasicTransform):
+    """Dummy transform for testing."""
+    def apply(self, img, **params):
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("p",)
+
+    @property
+    def targets(self) -> dict[str, Callable[..., typing.Any]]:
+        return {"image": self.apply}
+
+@pytest.mark.parametrize(
+    ["strict", "expected_behavior"],
+    [
+        (True, pytest.raises(ValueError, match="Argument 'invalid_arg' is not valid")),
+        (False, pytest.warns(UserWarning, match="Argument 'invalid_arg' is not valid and will be ignored")),
+    ],
+)
+def test_invalid_argument_validation_custom_transform(strict, expected_behavior):
+    """Test how invalid arguments are handled for custom transforms."""
+    with expected_behavior:
+        A.Compose([DummyTransform(p=0.5, invalid_arg=123)], strict=strict)

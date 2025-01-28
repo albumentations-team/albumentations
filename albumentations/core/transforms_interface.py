@@ -65,7 +65,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def __init__(self, p: float = 0.5):
         self.p = p
         self._additional_targets: dict[str, str] = {}
-        # replay mode params
         self.params: dict[Any, Any] = {}
         self._key2func = {}
         self._set_keys()

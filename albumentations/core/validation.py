@@ -31,10 +31,10 @@ class ValidatedTransformMeta(type):
                     ):
                         full_kwargs[parameter_name] = parameter.default
 
-                # No try-except block needed as we want the exception to propagate naturally
-                config = dct["InitSchema"](**full_kwargs)
-
+                # Configure model validation based on strict setting
+                config = dct["InitSchema"](**{k: v for k, v in full_kwargs.items() if k in param_names})
                 validated_kwargs = config.model_dump()
+
                 for name_arg in kwargs:
                     if name_arg not in validated_kwargs:
                         warn(
@@ -42,13 +42,13 @@ class ValidatedTransformMeta(type):
                             stacklevel=2,
                         )
 
+                # Call original init with validated kwargs
                 original_init(self, **validated_kwargs)
 
             # Preserve the original signature and docstring
             custom_init.__signature__ = original_sig  # type: ignore[attr-defined]
             custom_init.__doc__ = original_init.__doc__
 
-            # Rename __init__ to custom_init to avoid the N807 warning
             dct["__init__"] = custom_init
 
         return super().__new__(cls, name, bases, dct)
