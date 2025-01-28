@@ -5772,13 +5772,24 @@ class SaltAndPepper(ImageOnlyTransform):
         total_amount = self.py_random.uniform(*self.amount)
         salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
 
-        # Calculate individual probabilities
-        prob_salt = total_amount * salt_ratio
-        prob_pepper = total_amount * (1 - salt_ratio)
+        # Calculate number of pixels to affect
+        num_pixels = int(np.prod(image.shape) * total_amount)
+        num_salt = int(num_pixels * salt_ratio)
 
-        # Generate masks
-        salt_mask = self.random_generator.random(image.shape) < prob_salt
-        pepper_mask = self.random_generator.random(image.shape) < prob_pepper
+        # Generate flat indices for salt and pepper
+        total_pixels = np.prod(image.shape)
+        indices = self.random_generator.choice(total_pixels, size=num_pixels, replace=False)
+
+        # Create masks using advanced indexing
+        salt_mask = np.zeros(total_pixels, dtype=bool)
+        pepper_mask = np.zeros(total_pixels, dtype=bool)
+
+        salt_mask[indices[:num_salt]] = True
+        pepper_mask[indices[num_salt:]] = True
+
+        # Reshape masks back to image shape
+        salt_mask = salt_mask.reshape(image.shape)
+        pepper_mask = pepper_mask.reshape(image.shape)
 
         return {
             "salt_mask": salt_mask,
