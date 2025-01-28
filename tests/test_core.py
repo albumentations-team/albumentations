@@ -2,6 +2,7 @@ from collections.abc import Callable
 import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
+import warnings
 import torch
 import cv2
 import numpy as np
@@ -1577,52 +1578,33 @@ def test_get_shape_empty_arrays(key):
     assert isinstance(shape, dict)
     assert all(isinstance(v, int) for v in shape.values())
 
-@pytest.mark.parametrize(
-    ["strict", "expected_behavior"],
-    [
-        (True, pytest.raises(ValueError, match="Argument 'invalid_arg' is not valid")),
-        (False, pytest.warns(UserWarning, match="Argument 'invalid_arg' is not valid and will be ignored")),
-    ],
-)
-def test_invalid_argument_validation(strict, expected_behavior):
-    """Test how invalid transform arguments are handled based on strict setting."""
-    with expected_behavior:
-        A.Compose([A.HorizontalFlip(p=0.5, invalid_arg=123)], strict=strict)
 
-@pytest.mark.parametrize(
-    ["strict", "expected_behavior"],
-    [
-        (True, pytest.raises(ValueError, match="Argument 'invalid_arg' is not valid")),
-        (False, pytest.warns(UserWarning, match="Argument 'invalid_arg' is not valid and will be ignored")),
-    ],
-)
-def test_invalid_argument_validation_nested(strict, expected_behavior):
-    """Test how invalid transform arguments are handled in nested compositions."""
-    with expected_behavior:
-        A.Compose([
-            A.OneOf([A.HorizontalFlip(p=0.5, invalid_arg=123)], p=1)
-        ], strict=strict)
+def test_transform_strict_mode_raises_error():
+    # Test that strict=True raises error for invalid parameters
+    with pytest.raises(ValueError, match="Argument\\(s\\) 'invalid_param' are not valid for transform Blur"):
+       A.Blur(strict=True, invalid_param=123)
 
-class DummyTransform(BasicTransform):
-    """Dummy transform for testing."""
-    def apply(self, img, **params):
-        return img
+def test_transform_non_strict_mode_shows_warning():
+    # Test that strict=False (default) shows warning for invalid parameters
+    with pytest.warns(UserWarning, match="Argument\\(s\\) 'invalid_param' are not valid for transform Blur"):
+        transform = A.Blur(invalid_param=123)
+        assert transform.p == 0.5  # Check that transform was still created with default values
 
-    def get_transform_init_args_names(self):
-        return ("p",)
+def test_transform_valid_params_no_warning():
+    # Test that no warning/error is raised for valid parameters
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # Convert warnings to errors to ensure none are raised
+        transform = A.Blur(p=0.7, blur_limit=(3, 5))
+        assert transform.p == 0.7
+        assert transform.blur_limit == (3, 5)
 
-    @property
-    def targets(self) -> dict[str, Callable[..., typing.Any]]:
-        return {"image": self.apply}
+def test_transform_multiple_invalid_params():
+    # Test handling of multiple invalid parameters
+    with pytest.raises(ValueError, match="Argument\\(s\\) 'invalid1, invalid2' are not valid for transform Blur"):
+        A.Blur(strict=True, invalid1=123, invalid2=456)
 
-@pytest.mark.parametrize(
-    ["strict", "expected_behavior"],
-    [
-        (True, pytest.raises(ValueError, match="Argument 'invalid_arg' is not valid")),
-        (False, pytest.warns(UserWarning, match="Argument 'invalid_arg' is not valid and will be ignored")),
-    ],
-)
-def test_invalid_argument_validation_custom_transform(strict, expected_behavior):
-    """Test how invalid arguments are handled for custom transforms."""
-    with expected_behavior:
-        A.Compose([DummyTransform(p=0.5, invalid_arg=123)], strict=strict)
+def test_transform_strict_with_valid_params():
+    # Test that strict mode doesn't affect valid parameters
+    transform = A.Blur(strict=True, p=0.7, blur_limit=(3, 5))
+    assert transform.p == 0.7
+    assert transform.blur_limit == (3, 5)

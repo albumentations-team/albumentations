@@ -77,10 +77,6 @@ class BaseCompose(Serializable):
         _additional_targets (Dict[str, str]): Additional targets for transforms.
         _available_keys (Set[str]): Set of available keys for data.
         processors (Dict[str, Union[BboxProcessor, KeypointsProcessor]]): Processors for specific data types.
-        strict (bool): Controls two validation behaviors:
-            1. How unknown input keys are handled during transform execution
-            2. How invalid transform arguments are validated during initialization
-            This setting is propagated to all child transforms.
 
     Args:
         transforms (TransformsSeqType): A sequence of transforms to compose.
@@ -108,7 +104,6 @@ class BaseCompose(Serializable):
         mask_interpolation: int | None = None,
         seed: int | None = None,
         save_applied_params: bool = False,
-        strict: bool = False,
     ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -119,7 +114,6 @@ class BaseCompose(Serializable):
 
         self.transforms = transforms
         self.p = p
-        self.strict = strict
 
         self.replay_mode = False
         self._additional_targets: dict[str, str] = {}
@@ -132,14 +126,6 @@ class BaseCompose(Serializable):
         self.py_random = random.Random(seed)
         self.set_random_seed(seed)
         self.save_applied_params = save_applied_params
-
-    def _set_strict_for_transforms(self, transforms: TransformsSeqType) -> None:
-        """Propagate strict parameter to all transforms."""
-        for transform in transforms:
-            if hasattr(transform, "strict"):
-                transform.strict = self.strict
-            if isinstance(transform, BaseCompose):
-                self._set_strict_for_transforms(transform.transforms)
 
     def _track_transform_params(self, transform: TransformType, data: dict[str, Any]) -> None:
         """Track transform parameters if tracking is enabled."""
@@ -326,10 +312,7 @@ class Compose(BaseCompose, HubMixin):
         p (float): Probability of applying all transforms. Should be in range [0, 1]. Default is 1.0.
         is_check_shapes (bool): If True, checks consistency of shapes for image/mask/masks on each call.
             Disable only if you are sure about your data consistency. Default is True.
-        strict (bool): Controls two validation behaviors:
-            1. How unknown input keys are handled during transform execution
-            2. How invalid transform arguments are validated during initialization
-            This setting is propagated to all child transforms.
+        strict (bool): If True, raises an error on unknown input keys. If False, ignores them. Default is True.
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
         seed (int, optional): Random seed. Default is None.
@@ -370,9 +353,7 @@ class Compose(BaseCompose, HubMixin):
             mask_interpolation=mask_interpolation,
             seed=seed,
             save_applied_params=save_applied_params,
-            strict=strict,
         )
-        self._set_strict_for_transforms(self.transforms)
 
         if bbox_params:
             if isinstance(bbox_params, dict):
@@ -547,7 +528,6 @@ class Compose(BaseCompose, HubMixin):
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
-                "strict": self.strict,
             },
         )
         return dictionary

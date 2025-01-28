@@ -23,6 +23,9 @@ class ValidatedTransformMeta(type):
                 full_kwargs: dict[str, Any] = dict(zip(param_names, args))
                 full_kwargs.update(kwargs)
 
+                # Get strict value before validation
+                strict = full_kwargs.pop("strict", False)  # Remove strict from kwargs
+
                 for parameter_name, parameter in init_params.items():
                     if (
                         parameter_name != "self"
@@ -31,18 +34,31 @@ class ValidatedTransformMeta(type):
                     ):
                         full_kwargs[parameter_name] = parameter.default
 
-                # Configure model validation based on strict setting
-                config = dct["InitSchema"](**{k: v for k, v in full_kwargs.items() if k in param_names})
-                validated_kwargs = config.model_dump()
+                # Configure model validation
+                try:
+                    config = dct["InitSchema"](**{k: v for k, v in full_kwargs.items() if k in param_names})
+                    validated_kwargs = config.model_dump()
+                    # Remove strict from validated kwargs to prevent it from being passed to __init__
+                    validated_kwargs.pop("strict", None)
+                except Exception as e:
+                    if strict:
+                        raise
+                    warn(str(e), stacklevel=2)
+                    # Use default values for invalid parameters
+                    config = dct["InitSchema"]()
+                    validated_kwargs = config.model_dump()
+                    validated_kwargs.pop("strict", None)  # Also remove from default values
 
-                for name_arg in kwargs:
-                    if name_arg not in validated_kwargs:
-                        warn(
-                            f"Argument '{name_arg}' is not valid and will be ignored.",
-                            stacklevel=2,
-                        )
+                invalid_args = [
+                    name_arg for name_arg in kwargs if name_arg not in validated_kwargs and name_arg != "strict"
+                ]
+                if invalid_args:
+                    message = f"Argument(s) '{', '.join(invalid_args)}' are not valid for transform {name}"
+                    if strict:
+                        raise ValueError(message)
+                    warn(message, stacklevel=2)
 
-                # Call original init with validated kwargs
+                # Call original init with validated kwargs (strict removed)
                 original_init(self, **validated_kwargs)
 
             # Preserve the original signature and docstring

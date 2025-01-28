@@ -778,3 +778,18 @@ def test_augmentations_serialization(
     assert reported_args.issubset(
         expected_args
     ), f"Mismatch in {augmentation_cls.__name__}: Serialized fields {reported_args} not a subset of schema fields {expected_args}"
+
+
+
+def test_serialization_excludes_strict() -> None:
+    # Test that strict parameter is not included in serialization
+    transform = A.Compose([A.HorizontalFlip()])
+    transform_dict = A.to_dict(transform)["transform"]
+    assert "strict" not in transform_dict
+    # Also check nested transforms
+    assert "strict" not in transform_dict["transforms"][0]
+
+    # Test individual transform serialization
+    transform = A.HorizontalFlip(strict=True)
+    transform_dict = A.to_dict(transform)["transform"]
+    assert "strict" not in transform_dict

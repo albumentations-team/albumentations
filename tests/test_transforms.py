@@ -73,6 +73,9 @@ def test_rotate_crop_border():
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
+    params["mask_interpolation"] = cv2.INTER_NEAREST
+    params["fill_mask"] = 0
+
     aug = augmentation_cls(p=1, **params)
     image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
@@ -138,6 +141,8 @@ def test_semantic_mask_interpolation(augmentation_cls, params, image):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts."""
 
     seed = 137
+    params["mask_interpolation"] = cv2.INTER_NEAREST
+    params["fill_mask"] = 0
 
     np.random.seed(seed)
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
