@@ -73,8 +73,9 @@ def test_rotate_crop_border():
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
-    params["fill_mask"] = 0
     params["mask_interpolation"] = cv2.INTER_NEAREST
+    params["fill_mask"] = 0
+
     aug = augmentation_cls(p=1, **params)
     image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
@@ -97,7 +98,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
-            A.GridDropout: {"num_grid_xy": (10, 10), "fill_mask": 64},
+            A.GridDropout: {"holes_number_xy": (10, 10), "fill_mask": 64},
             A.TemplateTransform: {
                 "templates": np.random.randint(
                     low=0, high=256, size=(100, 100, 3), dtype=np.uint8
@@ -139,13 +140,14 @@ def test_binary_mask_interpolation(augmentation_cls, params):
 def test_semantic_mask_interpolation(augmentation_cls, params, image):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts."""
 
-    np.random.seed(42)
-    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
-
+    seed = 137
     params["mask_interpolation"] = cv2.INTER_NEAREST
     params["fill_mask"] = 0
 
-    data = A.Compose([augmentation_cls(p=1, **params)], seed=42)(image=image, mask=mask)
+    np.random.seed(seed)
+    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
+
+    data = A.Compose([augmentation_cls(p=1, **params)], seed=seed)(image=image, mask=mask)
 
     np.testing.assert_array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))
 

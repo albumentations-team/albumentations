@@ -413,5 +413,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.CubicSymmetry, {}],
     [A.AtLeastOneBBoxRandomCrop, {"height": 80, "width": 80, "erosion_factor": 0.2}],
     [A.ConstrainedCoarseDropout, {"num_holes_range": (1, 3), "hole_height_range": (0.1, 0.2), "hole_width_range": (0.1, 0.2), "fill": 0, "fill_mask": 0, "mask_indices": [1]}],
-    [A.RandomSizedBBoxSafeCrop, {"height": 80, "width": 80, "erosion_factor": 0.2}],
+    [A.RandomSizedBBoxSafeCrop, {"height": 80, "width": 80, "erosion_rate": 0.2}],
 ]

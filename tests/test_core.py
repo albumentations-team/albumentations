@@ -1,6 +1,8 @@
+from collections.abc import Callable
 import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
+import warnings
 import torch
 import cv2
 import numpy as np
@@ -20,7 +22,7 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
 )
-from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
+from albumentations.core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
@@ -458,7 +460,7 @@ def test_check_each_transform_compose(targets, bbox_params, keypoint_params, exp
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Compose([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)])],
+        [Compose([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)])],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
         seed=137
@@ -548,7 +550,7 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Sequential([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], p=1.0)],
+        [Sequential([A.Crop(0, 0, 50, 50), A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)], p=1.0)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -639,7 +641,7 @@ def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expe
     augs = Compose(
         [
             SomeOf([A.Crop(0, 0, 50, 50)], n=1, replace=False, p=1.0),
-            SomeOf([A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], n=1, replace=False, p=1.0),
+            SomeOf([A.PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, fill=0)], n=1, replace=False, p=1.0),
         ],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
@@ -1265,6 +1267,31 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.ConstrainedCoarseDropout,
             A.PadIfNeeded,
             A.RandomRotate90,
+            A.D4,
+            A.GridDistortion,
+            A.ElasticTransform,
+            A.GridElasticDeform,
+            A.HorizontalFlip,
+            A.VerticalFlip,
+            A.Transpose,
+            A.LongestMaxSize,
+            A.SmallestMaxSize,
+            A.RandomGridShuffle,
+            A.Morphological,
+            A.NoOp,
+            A.OpticalDistortion,
+            A.Pad,
+            A.PiecewiseAffine,
+            A.RandomScale,
+            A.RandomSizedBBoxSafeCrop,
+            A.RandomSizedCrop,
+            A.RandomResizedCrop,
+            A.RandomRotate90,
+            A.RandomCropFromBorders,
+            A.Resize,
+            A.ThinPlateSpline,
+            A.TimeReverse,
+            A.TimeMasking
         },
     ),
 )
@@ -1550,3 +1577,34 @@ def test_get_shape_empty_arrays(key):
     shape = get_shape(data)
     assert isinstance(shape, dict)
     assert all(isinstance(v, int) for v in shape.values())
+
+
+def test_transform_strict_mode_raises_error():
+    # Test that strict=True raises error for invalid parameters
+    with pytest.raises(ValueError, match="Argument\\(s\\) 'invalid_param' are not valid for transform Blur"):
+       A.Blur(strict=True, invalid_param=123)
+
+def test_transform_non_strict_mode_shows_warning():
+    # Test that strict=False (default) shows warning for invalid parameters
+    with pytest.warns(UserWarning, match="Argument\\(s\\) 'invalid_param' are not valid for transform Blur"):
+        transform = A.Blur(invalid_param=123)
+        assert transform.p == 0.5  # Check that transform was still created with default values
+
+def test_transform_valid_params_no_warning():
+    # Test that no warning/error is raised for valid parameters
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # Convert warnings to errors to ensure none are raised
+        transform = A.Blur(p=0.7, blur_limit=(3, 5))
+        assert transform.p == 0.7
+        assert transform.blur_limit == (3, 5)
+
+def test_transform_multiple_invalid_params():
+    # Test handling of multiple invalid parameters
+    with pytest.raises(ValueError, match="Argument\\(s\\) 'invalid1, invalid2' are not valid for transform Blur"):
+        A.Blur(strict=True, invalid1=123, invalid2=456)
+
+def test_transform_strict_with_valid_params():
+    # Test that strict mode doesn't affect valid parameters
+    transform = A.Blur(strict=True, p=0.7, blur_limit=(3, 5))
+    assert transform.p == 0.7
+    assert transform.blur_limit == (3, 5)

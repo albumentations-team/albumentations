@@ -36,6 +36,7 @@ class Interpolation:
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     p: ProbabilityType
+    strict: bool = False
 
 
 class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
@@ -65,7 +66,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def __init__(self, p: float = 0.5):
         self.p = p
         self._additional_targets: dict[str, str] = {}
-        # replay mode params
         self.params: dict[Any, Any] = {}
         self._key2func = {}
         self._set_keys()
@@ -349,9 +349,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return args
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Returns a dictionary representation of the transform, excluding internal parameters."""
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
+        # Remove strict from serialization
+        state.pop("strict", None)
         return state
 
 
