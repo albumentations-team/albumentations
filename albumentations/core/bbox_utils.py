@@ -243,6 +243,7 @@ class BboxProcessor(DataProcessor):
             min_visibility=self.params.min_visibility,
             min_width=self.params.min_width,
             min_height=self.params.min_height,
+            max_accept_ratio=self.params.max_accept_ratio,
         )
 
     def check_and_convert(

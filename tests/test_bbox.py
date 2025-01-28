@@ -2216,54 +2216,161 @@ def test_compose_bbox_transform(
         assert len(transformed["scores"]) == 0
 
 
+MAX_ACCEPT_RATIO_TEST_CASES = [
+    # Normal aspect ratios (should pass)
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),  # 1:1 ratio
+        {"height": 100, "width": 100},
+        2.0,
+        np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),
+    ),
+    # Too wide box (should be filtered)
+    (
+        np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),  # 8:1 ratio
+        {"height": 100, "width": 100},
+        2.0,
+        np.zeros((0, 4), dtype=np.float32),
+    ),
+    # Too tall box (should be filtered)
+    (
+        np.array([[0.1, 0.1, 0.2, 0.9]], dtype=np.float32),  # 1:8 ratio
+        {"height": 100, "width": 100},
+        2.0,
+        np.zeros((0, 4), dtype=np.float32),
+    ),
+    # Multiple boxes with mixed ratios
+    (
+        np.array([
+            [0.1, 0.1, 0.2, 0.2],  # 1:1 ratio (keep)
+            [0.3, 0.3, 0.9, 0.4],  # 6:1 ratio (filter)
+            [0.5, 0.5, 0.6, 0.6],  # 1:1 ratio (keep)
+        ], dtype=np.float32),
+        {"height": 100, "width": 100},
+        2.0,
+        np.array([
+            [0.1, 0.1, 0.2, 0.2],
+            [0.5, 0.5, 0.6, 0.6],
+        ], dtype=np.float32),
+    ),
+    # None max_ratio (should not filter)
+    (
+        np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
+        {"height": 100, "width": 100},
+        None,
+        np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
+    ),
+]
 
 @pytest.mark.parametrize(
     ["bboxes", "shape", "max_accept_ratio", "expected"],
-    [
-        # Normal aspect ratios (should pass)
-        (
-            np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),  # 1:1 ratio
-            {"height": 100, "width": 100},
-            2.0,
-            np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),
-        ),
-        # Too wide box (should be filtered)
-        (
-            np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),  # 8:1 ratio
-            {"height": 100, "width": 100},
-            2.0,
-            np.zeros((0, 4), dtype=np.float32),
-        ),
-        # Too tall box (should be filtered)
-        (
-            np.array([[0.1, 0.1, 0.2, 0.9]], dtype=np.float32),  # 1:8 ratio
-            {"height": 100, "width": 100},
-            2.0,
-            np.zeros((0, 4), dtype=np.float32),
-        ),
-        # Multiple boxes with mixed ratios
-        (
-            np.array([
-                [0.1, 0.1, 0.2, 0.2],  # 1:1 ratio (keep)
-                [0.3, 0.3, 0.9, 0.4],  # 6:1 ratio (filter)
-                [0.5, 0.5, 0.6, 0.6],  # 1:1 ratio (keep)
-            ], dtype=np.float32),
-            {"height": 100, "width": 100},
-            2.0,
-            np.array([
-                [0.1, 0.1, 0.2, 0.2],
-                [0.5, 0.5, 0.6, 0.6],
-            ], dtype=np.float32),
-        ),
-        # None max_ratio (should not filter)
-        (
-            np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
-            {"height": 100, "width": 100},
-            None,
-            np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
-        ),
-    ],
+    MAX_ACCEPT_RATIO_TEST_CASES
 )
 def test_filter_bboxes_aspect_ratio(bboxes, shape, max_accept_ratio, expected):
     filtered = filter_bboxes(bboxes, shape, max_accept_ratio=max_accept_ratio)
     np.testing.assert_array_almost_equal(filtered, expected)
+
+@pytest.mark.parametrize(
+    ["bboxes", "shape", "max_accept_ratio", "expected"],
+    MAX_ACCEPT_RATIO_TEST_CASES
+)
+def test_bbox_processor_max_accept_ratio(bboxes, shape, max_accept_ratio, expected):
+    data = {
+        "image": np.zeros((shape["height"], shape["width"], 3), dtype=np.uint8),
+        "bboxes": bboxes,
+    }
+
+    params = BboxParams(
+        format="albumentations",
+        max_accept_ratio=max_accept_ratio,
+    )
+    processor = BboxProcessor(params)
+
+    # Preprocess
+    processor.preprocess(data)
+
+    # Postprocess
+    processed_data = processor.postprocess(data)
+
+    np.testing.assert_array_almost_equal(processed_data["bboxes"], expected, decimal=5)
+
+@pytest.mark.parametrize(
+    ["bboxes", "shape", "max_accept_ratio", "expected"],
+    MAX_ACCEPT_RATIO_TEST_CASES
+)
+def test_compose_with_max_accept_ratio(bboxes, shape, max_accept_ratio, expected):
+
+    transform = A.Compose(
+        [A.NoOp(p=1.0)],
+        bbox_params=BboxParams(
+            format="albumentations",
+            max_accept_ratio=max_accept_ratio,
+            label_fields=[],
+        ),
+    )
+
+    data = {
+        "image": np.zeros((shape["height"], shape["width"], 3), dtype=np.uint8),
+        "bboxes": bboxes,
+    }
+    result = transform(**data)
+
+    np.testing.assert_array_almost_equal(result["bboxes"], expected, decimal=5)
+
+@pytest.mark.parametrize(
+    "bbox_format, bboxes, shape, max_accept_ratio, expected",
+    [
+        # COCO = [x_min, y_min, width, height]
+        # (ratio 5:1 should be filtered)
+        (
+            "coco",
+            np.array([[10, 10, 50, 10]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # Pascal VOC = [x_min, y_min, x_max, y_max]
+        # (ratio 5:1 should be filtered)
+        (
+            "pascal_voc",
+            np.array([[10, 10, 60, 20]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # YOLO = [x_center, y_center, width, height], normalized [0, 1].
+        # (ratio 5:1 should be filtered)
+        (
+            "yolo",
+            np.array([[0.5, 0.5, 0.5, 0.1]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # Albumentations = [x_min, y_min, x_max, y_max], all normalized in [0, 1].
+        # (ratio 5:1 should be filtered)
+        (
+            "albumentations",
+            np.array([[0.1, 0.1, 0.6, 0.2]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+    ],
+)
+def test_compose_max_accept_ratio_all_formats(bbox_format, bboxes, shape, max_accept_ratio, expected):
+    transform = A.Compose(
+        [A.NoOp(p=1.0)],
+        bbox_params=BboxParams(
+            format=bbox_format,
+            max_accept_ratio=max_accept_ratio,
+            label_fields=[],
+        ),
+    )
+
+    data = {
+        "image": np.zeros((shape["height"], shape["width"], 3), dtype=np.uint8),
+        "bboxes": bboxes,
+    }
+
+    result = transform(**data)
+    np.testing.assert_array_almost_equal(result["bboxes"], expected, decimal=5)
