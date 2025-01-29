@@ -2716,7 +2716,7 @@ def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -
 
     # Add channel dimension if needed
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        gradient = np.repeat(gradient[..., None], img.shape[2], axis=2)
+        gradient = cv2.merge([gradient] * img.shape[2])
 
     return albucore.multiply_by_array(img, gradient)
 
