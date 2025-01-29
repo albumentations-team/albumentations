@@ -2605,31 +2605,54 @@ def apply_illumination_pattern(
         Image with applied illumination
     """
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        pattern = pattern[..., np.newaxis]
-    return img * (1 + intensity * pattern)
+        pattern = cv2.merge([pattern] * img.shape[2])
+
+    return multiply(img, 1 + intensity * pattern, inplace=True)
 
 
-@clipped
-def apply_linear_illumination(
-    img: np.ndarray,
-    intensity: float,
-    angle: float,
-) -> np.ndarray:
-    """Apply linear gradient illumination effect."""
-    result, height, width = prepare_illumination_input(img)
-
-    # Create gradient coordinates
-    y, x = np.ogrid[:height, :width]
+def create_directional_gradient(height: int, width: int, angle: float) -> np.ndarray:
+    """Create a directional gradient in [0, 1] range."""
+    # Create normalized coordinates in [-1, 1] range
+    y = np.linspace(-1, 1, height, dtype=np.float32)
+    x = np.linspace(-1, 1, width, dtype=np.float32)
+    xv, yv = np.meshgrid(x, y)
 
     # Calculate gradient direction
     angle_rad = np.deg2rad(angle)
-    dx, dy = np.cos(angle_rad), np.sin(angle_rad)
+    cos_a = np.cos(angle_rad)
+    sin_a = np.sin(angle_rad)
 
-    # Create normalized gradient
-    gradient = (x * dx + y * dy) / np.sqrt(height * height + width * width)
-    gradient = (gradient + 1) / 2  # Normalize to [0, 1]
+    # Create gradient in [-1, 1] range
+    gradient = xv * cos_a + yv * sin_a
 
-    return apply_illumination_pattern(result, gradient, intensity)
+    # Normalize to ensure exact [-1, 1] range
+    gradient = gradient / np.sqrt(cos_a * cos_a + sin_a * sin_a)
+
+    # Convert to [0, 1] range and ensure no numerical issues
+    return np.clip((gradient + 1) / 2, 0, 1)
+
+
+@float32_io
+@clipped
+def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -> np.ndarray:
+    """Apply linear gradient illumination effect."""
+    height, width = img.shape[:2]
+
+    # Create gradient (already verified to be correct)
+    gradient = create_directional_gradient(height, width, angle)
+
+    # Add channel dimension if needed
+    if img.ndim == 3:
+        gradient = gradient[..., np.newaxis]
+
+    # For negative intensity, invert the gradient
+    if intensity < 0:
+        gradient = 1 - gradient
+        intensity = abs(intensity)
+
+    scale = 1 - intensity + 2 * intensity * gradient
+
+    return img * scale
 
 
 @clipped

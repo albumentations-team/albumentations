@@ -1855,3 +1855,266 @@ def test_get_histogram_bounds_numerical_stability():
     # With uniform distribution, should cut 10% from each end
     assert min_intensity == 25  # 256 * 0.10
     assert max_intensity == 230  # 256 * 0.90 - 1
+
+
+@pytest.mark.parametrize(
+    ["img", "pattern", "intensity", "expected"],
+    [
+        # Test grayscale image (2D)
+        (
+            np.array([[100, 200], [150, 50]], dtype=np.uint8),
+            np.array([[0.5, 1.0], [0.0, 0.5]], dtype=np.float32),
+            0.2,
+            np.array([[110, 240], [150, 55]], dtype=np.uint8),
+        ),
+        # Test RGB image (3D)
+        (
+            np.array([[[100, 150, 200]]], dtype=np.uint8),
+            np.array([[0.5]], dtype=np.float32),
+            0.1,
+            np.array([[[105, 158, 210]]], dtype=np.uint8),
+        ),
+        # Test float32 image
+        (
+            np.array([[0.5, 1.0]], dtype=np.float32),
+            np.array([[1.0, 0.0]], dtype=np.float32),
+            0.1,
+            np.array([[0.55, 1.0]], dtype=np.float32),
+        ),
+        # Test negative intensity (darkening)
+        (
+            np.array([[100, 200]], dtype=np.uint8),
+            np.array([[1.0, 1.0]], dtype=np.float32),
+            -0.2,
+            np.array([[80, 160]], dtype=np.uint8),
+        ),
+        # Test zero intensity (no change)
+        (
+            np.array([[100, 200]], dtype=np.uint8),
+            np.array([[1.0, 1.0]], dtype=np.float32),
+            0.0,
+            np.array([[100, 200]], dtype=np.uint8),
+        ),
+    ]
+)
+def test_apply_illumination_pattern(img, pattern, intensity, expected):
+    result = fmain.apply_illumination_pattern(img.copy(), pattern, intensity)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+
+@pytest.mark.parametrize(
+    ["shape", "dtype"],
+    [
+        ((100, 100), np.float32),
+        ((100, 100, 3), np.float32),
+        ((50, 75, 4), np.float32),  # RGBA
+    ]
+)
+def test_apply_illumination_pattern_shapes(shape, dtype):
+    """Test that function works with different image shapes and dtypes."""
+    img = np.random.rand(*shape).astype(dtype)
+    if dtype == np.uint8:
+        img = (img * 255).astype(dtype)
+
+    pattern = np.random.rand(shape[0], shape[1]).astype(np.float32)
+    intensity = 0.1
+
+    result = fmain.apply_illumination_pattern(img.copy(), pattern, intensity)
+
+    assert result.shape == img.shape
+    assert result.dtype == img.dtype
+
+
+def test_apply_illumination_pattern_preserves_input():
+    """Test that the function doesn't modify input arrays."""
+    img = np.array([[100, 200]], dtype=np.uint8)
+    pattern = np.array([[0.5, 1.0]], dtype=np.float32)
+    img_copy = img.copy()
+    pattern_copy = pattern.copy()
+
+    _ = fmain.apply_illumination_pattern(img, pattern, 0.1)
+
+    np.testing.assert_array_equal(img, img_copy)
+    np.testing.assert_array_equal(pattern, pattern_copy)
+
+
+@pytest.mark.parametrize(
+    ["img", "intensity", "angle", "expected"],
+    [
+        # Test horizontal gradient (0 degrees)
+        (
+            np.array([[100, 100], [100, 100]], dtype=np.uint8),
+            0.2,    # ±20% change
+            0,
+            np.array([[80, 120], [80, 120]], dtype=np.uint8),  # Updated
+        ),
+
+        # Test vertical gradient (90 degrees)
+        (
+            np.array([[100, 100], [100, 100]], dtype=np.uint8),
+            0.2,    # ±20% change
+            90,
+            np.array([[80, 80], [120, 120]], dtype=np.uint8),  # Updated
+        ),
+
+        # Test RGB image
+        (
+            np.array([[[100, 150, 200], [100, 150, 200]]], dtype=np.uint8),
+            0.1,    # ±10% change
+            0,
+            np.array([[[90, 135, 180], [110, 165, 220]]], dtype=np.uint8),  # Updated
+        ),
+
+        # Test float32 image
+        (
+            np.array([[0.5, 0.5]], dtype=np.float32),
+            0.2,    # ±20% change
+            0,
+            np.array([[0.4, 0.6]], dtype=np.float32),  # Updated
+        ),
+
+        # Test negative intensity
+        (
+            np.array([[100, 100]], dtype=np.uint8),
+            -0.2,   # ±20% change (inverted)
+            0,
+            np.array([[120, 80]], dtype=np.uint8),  # Updated
+        ),
+
+        # Test 45 degree angle
+        (
+            np.array([[100, 100], [100, 100]], dtype=np.uint8),
+            0.2,    # ±20% change
+            45,
+            np.array([[80, 100], [100, 120]], dtype=np.uint8),
+        ),
+
+        # Test minimal intensity
+        (
+            np.array([[100, 100]], dtype=np.uint8),
+            0.01,   # ±1% change
+            0,
+            np.array([[99, 101]], dtype=np.uint8),  # Correct
+        ),
+
+        # Test small intensity
+        (
+            np.array([[100, 100]], dtype=np.uint8),
+            0.05,   # ±5% change
+            0,
+            np.array([[95, 105]], dtype=np.uint8),  # Correct
+        ),
+
+        # Test medium intensity
+        (
+            np.array([[100, 100]], dtype=np.uint8),
+            0.15,   # ±15% change
+            0,
+            np.array([[85, 115]], dtype=np.uint8),  # Correct
+        ),
+
+        # Test diagonal with small intensity
+        (
+            np.array([[100, 100], [100, 100]], dtype=np.uint8),
+            0.05,   # ±5% change
+            45,
+            np.array([[95, 100], [100, 105]], dtype=np.uint8),
+        ),
+    ]
+)
+def test_apply_linear_illumination(img, intensity, angle, expected):
+    result = fmain.apply_linear_illumination(img.copy(), intensity, angle)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+
+@pytest.mark.parametrize(
+    ["shape", "dtype"],
+    [
+        ((100, 100), np.uint8),
+        ((100, 100), np.float32),
+        ((100, 100, 3), np.uint8),
+        ((100, 100, 3), np.float32),
+        ((50, 75, 4), np.uint8),  # RGBA
+    ]
+)
+def test_apply_linear_illumination_shapes(shape, dtype):
+    """Test that function works with different image shapes and dtypes."""
+    img = np.random.rand(*shape).astype(dtype)
+    if dtype == np.uint8:
+        img = (img * 255).astype(dtype)
+
+    result = fmain.apply_linear_illumination(img.copy(), intensity=0.1, angle=45)
+
+    assert result.shape == img.shape
+    assert result.dtype == img.dtype
+
+@pytest.mark.parametrize("angle", [0, 45, 90, 180, 270, 360])
+def test_apply_linear_illumination_angles(angle):
+    """Test different angles produce expected gradient directions."""
+    img = np.full((50, 50), 100, dtype=np.uint8)
+    result = fmain.apply_linear_illumination(img.copy(), intensity=0.2, angle=angle)
+
+    # Check that the gradient exists (image is not uniform)
+    assert not np.all(result == result[0, 0])
+
+def test_apply_linear_illumination_preserves_range():
+    """Test that the function preserves the valid range of values."""
+    # Test uint8 range
+    img_uint8 = np.array([[0, 128, 255]], dtype=np.uint8)
+    result_uint8 = fmain.apply_linear_illumination(img_uint8.copy(), intensity=0.2, angle=0)
+    assert result_uint8.min() >= 0
+    assert result_uint8.max() <= 255
+
+    # Test float32 range [0, 1]
+    img_float = np.array([[0.0, 0.5, 1.0]], dtype=np.float32)
+    result_float = fmain.apply_linear_illumination(img_float.copy(), intensity=0.2, angle=0)
+    assert result_float.min() >= 0
+    assert result_float.max() <= 1.0
+
+def test_apply_linear_illumination_preserves_input():
+    """Test that the function doesn't modify input array."""
+    img = np.array([[100, 200]], dtype=np.uint8)
+    img_copy = img.copy()
+
+    _ = fmain.apply_linear_illumination(img, intensity=0.1, angle=0)
+
+    np.testing.assert_array_equal(img, img_copy)
+
+def test_apply_linear_illumination_symmetry():
+    """Test that opposite angles produce inverse effects."""
+    img = np.full((10, 10), 100, dtype=np.uint8)
+
+    result1 = fmain.apply_linear_illumination(img.copy(), intensity=0.2, angle=0)
+    result2 = fmain.apply_linear_illumination(img.copy(), intensity=0.2, angle=180)
+
+    # Check if the patterns are inversions of each other
+    np.testing.assert_allclose(result1 + result2, 200, rtol=1e-5, atol=1)
+
+
+@pytest.mark.parametrize(
+    ["height", "width", "angle", "expected"],
+    [
+        # Test horizontal gradient (0 degrees)
+        (2, 2, 0, np.array([[0, 1], [0, 1]], dtype=np.float32)),
+
+        # Test vertical gradient (90 degrees)
+        (2, 2, 90, np.array([[0, 0], [1, 1]], dtype=np.float32)),
+
+        # Test diagonal gradient (45 degrees)
+        (2, 2, 45, np.array([[0, 0.5], [0.5, 1]], dtype=np.float32)),
+
+        # Test diagonal gradient (135 degrees)
+        (2, 2, 135, np.array([[0.5, 0], [1, 0.5]], dtype=np.float32)),
+    ]
+)
+def test_create_directional_gradient(height, width, angle, expected):
+    gradient = fmain.create_directional_gradient(height, width, angle)
+    np.testing.assert_allclose(gradient, expected, rtol=1e-5, atol=1e-15)
+
+
+def test_gradient_range():
+    """Test that gradient values are always in [0, 1] range."""
+    for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
+        gradient = fmain.create_directional_gradient(10, 10, angle)
+        assert gradient.min() >= 0
+        assert gradient.max() <= 1
