@@ -2426,21 +2426,10 @@ def apply_salt_and_pepper(
     salt_mask: np.ndarray,
     pepper_mask: np.ndarray,
 ) -> np.ndarray:
-    """Apply salt and pepper noise to image using pre-computed masks.
-
-    Args:
-        img: Input image
-        salt_mask: Boolean mask for salt (white) noise
-        pepper_mask: Boolean mask for pepper (black) noise
-
-    Returns:
-        Image with applied salt and pepper noise
-    """
-    result = img.copy()
-
-    result[salt_mask] = MAX_VALUES_BY_DTYPE[img.dtype]
-    result[pepper_mask] = 0
-    return result
+    """Apply salt and pepper noise to image using pre-computed masks."""
+    # Avoid copy if possible by using np.where
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+    return np.where(salt_mask, max_value, np.where(pepper_mask, 0, img))
 
 
 # Pre-compute constant kernels

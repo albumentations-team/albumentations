@@ -5672,6 +5672,7 @@ class SaltAndPepper(ImageOnlyTransform):
 
     Salt and pepper noise is a form of impulse noise that randomly sets pixels to either maximum value (salt)
     or minimum value (pepper). The amount and proportion of salt vs pepper noise can be controlled.
+    The same noise mask is applied to all channels of the image to preserve color consistency.
 
     Args:
         amount ((float, float)): Range for total amount of noise (both salt and pepper).
@@ -5698,22 +5699,25 @@ class SaltAndPepper(ImageOnlyTransform):
     Note:
         - Salt noise sets pixels to maximum value (255 for uint8, 1.0 for float32)
         - Pepper noise sets pixels to 0
-        - Salt and pepper masks are generated independently, so a pixel could theoretically
-          be selected for both (in this case, pepper overrides salt)
-        - The actual number of affected pixels might slightly differ from the specified amount
-          due to random sampling and potential overlap of salt and pepper masks
+        - The noise mask is generated once and applied to all channels to maintain
+          color consistency (i.e., if a pixel is set to salt, all its color channels
+          will be set to maximum value)
+        - The exact number of affected pixels matches the specified amount as masks
+          are generated without overlap
 
     Mathematical Formulation:
         For an input image I, the output O is:
-        O[x,y] = max_value,  if salt_mask[x,y] = True
-        O[x,y] = 0,         if pepper_mask[x,y] = True
-        O[x,y] = I[x,y],    otherwise
+        O[c,x,y] = max_value,  if salt_mask[x,y] = True
+        O[c,x,y] = 0,         if pepper_mask[x,y] = True
+        O[c,x,y] = I[c,x,y],  otherwise
 
         where:
-        P(salt_mask[x,y] = True) = amount * salt_ratio
-        P(pepper_mask[x,y] = True) = amount * (1 - salt_ratio)
-        amount ∈ [amount_min, amount_max]
-        salt_ratio ∈ [salt_vs_pepper_min, salt_vs_pepper_max]
+        - c is the channel index
+        - salt_mask and pepper_mask are 2D boolean arrays applied to all channels
+        - Number of True values in salt_mask = floor(H*W * amount * salt_ratio)
+        - Number of True values in pepper_mask = floor(H*W * amount * (1 - salt_ratio))
+        - amount ∈ [amount_min, amount_max]
+        - salt_ratio ∈ [salt_vs_pepper_min, salt_vs_pepper_max]
 
     Examples:
         >>> import albumentations as A
@@ -5767,18 +5771,30 @@ class SaltAndPepper(ImageOnlyTransform):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
+        height, width = image.shape[-2:]  # Get spatial dimensions only
 
         # Sample total amount and salt ratio
         total_amount = self.py_random.uniform(*self.amount)
         salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
 
-        # Calculate individual probabilities
-        prob_salt = total_amount * salt_ratio
-        prob_pepper = total_amount * (1 - salt_ratio)
+        # Calculate number of pixels to affect (only for H x W, not channels)
+        num_pixels = int(height * width * total_amount)
+        num_salt = int(num_pixels * salt_ratio)
 
-        # Generate masks
-        salt_mask = self.random_generator.random(image.shape) < prob_salt
-        pepper_mask = self.random_generator.random(image.shape) < prob_pepper
+        # Generate flat indices for salt and pepper (for H x W only)
+        total_pixels = height * width
+        indices = self.random_generator.choice(total_pixels, size=num_pixels, replace=False)
+
+        # Create 2D masks using advanced indexing
+        salt_mask = np.zeros(total_pixels, dtype=bool)
+        pepper_mask = np.zeros(total_pixels, dtype=bool)
+
+        salt_mask[indices[:num_salt]] = True
+        pepper_mask[indices[num_salt:]] = True
+
+        # Reshape masks to 2D and broadcast to all channels
+        salt_mask = salt_mask.reshape(height, width)
+        pepper_mask = pepper_mask.reshape(height, width)
 
         return {
             "salt_mask": salt_mask,
