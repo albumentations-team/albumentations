@@ -2612,23 +2612,21 @@ def apply_illumination_pattern(
 
 def create_directional_gradient(height: int, width: int, angle: float) -> np.ndarray:
     """Create a directional gradient in [0, 1] range."""
-    # Create normalized coordinates in [-1, 1] range
-    y = np.linspace(-1, 1, height, dtype=np.float32)
-    x = np.linspace(-1, 1, width, dtype=np.float32)
-    xv, yv = np.meshgrid(x, y)
+    # Create single arrays instead of meshgrid
+    y = np.linspace(-1, 1, height, dtype=np.float32)[:, None]  # Column vector
+    x = np.linspace(-1, 1, width, dtype=np.float32)  # Row vector
 
-    # Calculate gradient direction
+    # Pre-compute trig values once
     angle_rad = np.deg2rad(angle)
     cos_a = np.cos(angle_rad)
     sin_a = np.sin(angle_rad)
 
-    # Create gradient in [-1, 1] range
-    gradient = xv * cos_a + yv * sin_a
+    # Create gradient directly without meshgrid
+    # Broadcasting is more efficient than meshgrid
+    gradient = x * cos_a + y * sin_a
 
-    # Normalize to ensure exact [-1, 1] range
-    gradient = gradient / np.sqrt(cos_a * cos_a + sin_a * sin_a)
-
-    # Convert to [0, 1] range and ensure no numerical issues
+    # Normalize and convert to [0, 1] range in one step
+    # No need to normalize by sqrt(cos_a^2 + sin_a^2) since it equals 1 for any angle
     return np.clip((gradient + 1) / 2, 0, 1)
 
 
