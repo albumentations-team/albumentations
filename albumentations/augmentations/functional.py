@@ -2658,7 +2658,7 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
     cv2.multiply(x, cos_a, dst=x)
     cv2.multiply(y, sin_a, dst=y)
 
-    return cv2.normalize(x + y, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    return x + y
 
 
 @float32_io
