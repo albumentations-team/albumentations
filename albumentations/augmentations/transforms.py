@@ -6397,33 +6397,76 @@ class Illumination(ImageOnlyTransform):
 
 
 class AutoContrast(ImageOnlyTransform):
-    """Apply random auto contrast to images.
+    """Automatically adjust image contrast by stretching the intensity range.
 
-    Auto contrast enhances image contrast by stretching the intensity range
-    to use the full range while preserving relative intensities. For each
-    color channel:
-    1. Compute histogram
-    2. Find cumulative percentiles
-    3. Clip and scale intensities to full range
+    This transform provides two methods for contrast enhancement:
+    1. CDF method (default): Uses cumulative distribution function for more gradual adjustment
+    2. PIL method: Uses linear scaling like PIL.ImageOps.autocontrast
+
+    The transform can optionally exclude extreme values from both ends of the
+    intensity range and preserve specific intensity values (e.g., alpha channel).
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        cutoff (float): Percentage of pixels to exclude from both ends of the histogram.
+            Range: [0, 100]. Default: 0 (use full intensity range)
+            - 0 means use the minimum and maximum intensity values found
+            - 20 means exclude darkest and brightest 20% of pixels
+        ignore (int, optional): Intensity value to preserve (e.g., alpha channel).
+            Range: [0, 255]. Default: None
+            - If specified, this intensity value will not be modified
+            - Useful for images with alpha channel or special marker values
+        method (Literal["cdf", "pil"]): Algorithm to use for contrast enhancement.
+            Default: "cdf"
+            - "cdf": Uses cumulative distribution for smoother adjustment
+            - "pil": Uses linear scaling like PIL.ImageOps.autocontrast
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
 
     Image types:
         uint8, float32
+
+    Note:
+        - The transform processes each color channel independently
+        - For grayscale images, only one channel is processed
+        - The output maintains the same dtype as input
+        - Empty or single-color channels remain unchanged
+
+    Examples:
+        >>> import albumentations as A
+        >>> # Basic usage
+        >>> transform = A.AutoContrast(p=1.0)
+        >>>
+        >>> # Exclude extreme values
+        >>> transform = A.AutoContrast(cutoff=20, p=1.0)
+        >>>
+        >>> # Preserve alpha channel
+        >>> transform = A.AutoContrast(ignore=255, p=1.0)
+        >>>
+        >>> # Use PIL-like contrast enhancement
+        >>> transform = A.AutoContrast(method="pil", p=1.0)
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        cutoff: float = Field(ge=0, le=100)
+        ignore: int | None = Field(ge=0, le=255)
+        method: Literal["cdf", "pil"]
 
     def __init__(
         self,
+        cutoff: float = 0,
+        ignore: int | None = None,
+        method: Literal["cdf", "pil"] = "cdf",
         p: float = 0.5,
     ):
         super().__init__(p=p)
+        self.cutoff = cutoff
+        self.ignore = ignore
+        self.method = method
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.auto_contrast(img)
+        return fmain.auto_contrast(img, self.cutoff, self.ignore, self.method)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ()
+        return "cutoff", "ignore", "method"

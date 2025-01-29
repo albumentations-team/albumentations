@@ -404,6 +404,10 @@ AUGMENTATION_CLS_PARAMS = [
     [A.PlasmaShadow, {}],
     [A.Illumination, {}],
     [A.ThinPlateSpline, {}],
+    # [A.AutoContrast, [
+    #     {"cutoff": 0, "ignore": None, "method": "cdf"},
+    #     {"cutoff": 0, "ignore": None, "method": "pil"},
+    # ]],
     [A.AutoContrast, {}],
     [A.PadIfNeeded3D, {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20}],
     [A.Pad3D, {"padding": 10}],

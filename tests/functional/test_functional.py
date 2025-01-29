@@ -1211,7 +1211,7 @@ def test_image_compression_quality_with_patterns(image_type):
     ],
 )
 def test_auto_contrast(img, expected):
-    result = fmain.auto_contrast(img)
+    result = fmain.auto_contrast(img, cutoff=0, ignore=None, method="cdf")
 
     if expected == "constant":
         (
@@ -1608,3 +1608,250 @@ def test_plasma_pattern_statistical_properties():
     # Test distribution is roughly symmetric
     median = np.median(pattern)
     assert 0.3 <= median <= 0.7  # Wider bounds to account for randomness
+
+
+@pytest.mark.parametrize(
+    ["hist", "min_intensity", "max_intensity", "max_value", "method", "expected_output"],
+    [
+        # Test PIL method with simple range
+        (
+            np.array([1, 1, 1]),  # Simple histogram
+            0, 2,  # min/max intensities
+            255,   # max value
+            "pil",
+            np.array([0, 128, 255]),  # Expected LUT for first 3 values
+        ),
+
+        # Test CDF method with simple range
+        (
+            np.array([1, 1, 1]),  # Equal distribution
+            0, 2,  # min/max intensities
+            255,   # max value
+            "cdf",
+            np.array([0, 128, 255]),  # Expected LUT for first 3 values
+        ),
+
+        # Test empty histogram with PIL method
+        (
+            np.zeros(256),  # Empty histogram
+            0, 255,
+            255,
+            "pil",
+            np.arange(256, dtype=np.uint8),  # Should return identity LUT
+        ),
+
+        # Test empty histogram with CDF method
+        (
+            np.zeros(256),
+            0, 255,
+            255,
+            "cdf",
+            np.arange(256, dtype=np.uint8),  # Should return identity LUT
+        ),
+
+        # Test single value histogram with PIL method
+        (
+            np.array([0, 10, 0]),  # Single non-zero value
+            1, 1,
+            255,
+            "pil",
+            np.zeros(256, dtype=np.uint8),  # Should map everything to 0
+        ),
+
+        # Test narrow range with PIL method
+        (
+            np.array([0, 1, 1, 1, 0]),
+            1, 3,
+            255,
+            "pil",
+            np.array([0, 0, 128, 255, 255, *[255]*(256-5)]),  # Linear scaling
+        ),
+    ]
+)
+def test_create_contrast_lut(
+    hist: np.ndarray,
+    min_intensity: int,
+    max_intensity: int,
+    max_value: int,
+    method: str,
+    expected_output: np.ndarray
+):
+    """Test create_contrast_lut function with various inputs."""
+    # If hist is smaller than 256, pad it
+    if len(hist) < 256:
+        hist = np.pad(hist, (0, 256 - len(hist)))
+
+    # Generate LUT
+    lut = fmain.create_contrast_lut(
+        hist=hist,
+        min_intensity=min_intensity,
+        max_intensity=max_intensity,
+        max_value=max_value,
+        method=method
+    )
+
+    # Basic checks
+    assert isinstance(lut, np.ndarray)
+    assert lut.dtype == np.uint8
+    assert lut.shape == (256,)
+    assert np.all(lut >= 0)
+    assert np.all(lut <= max_value)
+
+    # Check if first few values match expected
+    assert np.array_equal(
+        lut[:len(expected_output)],
+        expected_output[:len(expected_output)]
+    )
+
+
+def test_create_contrast_lut_properties():
+    """Test mathematical properties of the lookup tables."""
+    hist = np.random.randint(0, 100, 256)
+    max_value = 255
+
+    # Test monotonicity for PIL method
+    lut_pil = fmain.create_contrast_lut(
+        hist=hist,
+        min_intensity=50,
+        max_intensity=200,
+        max_value=max_value,
+        method="pil"
+    )
+    assert np.all(np.diff(lut_pil) >= 0), "PIL LUT should be monotonically increasing"
+
+    # Test CDF method preserves relative frequencies
+    lut_cdf = fmain.create_contrast_lut(
+        hist=hist,
+        min_intensity=50,
+        max_intensity=200,
+        max_value=max_value,
+        method="cdf"
+    )
+    assert np.all(np.diff(lut_cdf) >= 0), "CDF LUT should be monotonically increasing"
+
+
+
+@pytest.mark.parametrize(
+    ["hist", "cutoff", "expected"],
+    [
+        # Test with no cutoff
+        (
+            np.array([0, 1, 1, 1, 0]),  # Simple histogram
+            0,
+            (1, 3)  # Should return first and last non-zero indices
+        ),
+
+        # Test with empty histogram
+        (
+            np.zeros(256),
+            0,
+            (0, 0)  # Should return (0, 0) for empty histogram
+        ),
+
+        # Test with single value histogram
+        (
+            np.array([0, 10, 0, 0]),
+            0,
+            (1, 1)  # Should return same index for single peak
+        ),
+
+        # Test with 20% cutoff
+        (
+            np.array([10, 10, 10, 10, 10]),  # Uniform histogram
+            20,
+            (1, 4)  # Should cut 20% from each end
+        ),
+
+        # Test with 50% cutoff
+        (
+            np.array([10, 10, 10, 10, 10]),
+            50,
+            (2, 2)  # Should converge to middle
+        ),
+
+        # Test with asymmetric histogram
+        (
+            np.array([50, 10, 10, 10, 20]),  # More weight on edges
+            20,
+            (1, 4)  # Should adjust for weight distribution
+        ),
+
+        # Test with all pixels in one bin
+        (
+            np.array([0, 100, 0, 0]),
+            10,
+            (1, 1)  # Should return the peak location
+        ),
+    ]
+)
+def test_get_histogram_bounds(hist: np.ndarray, cutoff: float, expected: tuple[int, int]):
+    """Test get_histogram_bounds with various histogram shapes and cutoffs."""
+    min_intensity, max_intensity = fmain.get_histogram_bounds(hist, cutoff)
+
+    assert isinstance(min_intensity, int)
+    assert isinstance(max_intensity, int)
+    assert min_intensity <= max_intensity
+    assert min_intensity >= 0
+    assert max_intensity < len(hist)
+    assert (min_intensity, max_intensity) == expected
+
+
+
+def test_get_histogram_bounds_properties():
+    """Test mathematical and logical properties of the bounds."""
+    np.random.seed(42)  # For reproducibility
+    hist = np.random.randint(0, 100, 256)
+
+    cutoffs = [0, 10, 25, 49]
+    previous_range = 256
+
+    for cutoff in cutoffs:
+        min_intensity, max_intensity = fmain.get_histogram_bounds(hist, cutoff)
+
+        # Range should decrease as cutoff increases
+        current_range = max_intensity - min_intensity + 1
+        assert current_range <= previous_range, \
+            f"Range should decrease with increasing cutoff. Cutoff: {cutoff}"
+        previous_range = current_range
+
+        # Verify percentage of pixels included
+        if cutoff > 0:
+            pixels_before_min = hist[:min_intensity].sum()
+            total_pixels = hist.sum()
+
+            expected_cut = total_pixels * cutoff / 100
+            relative_error = abs(pixels_before_min - expected_cut) / expected_cut
+            assert relative_error <= 0.1, \
+                f"Lower bound cut incorrect for cutoff {cutoff}"
+
+
+def test_get_histogram_bounds_edge_cases():
+    """Test edge cases for get_histogram_bounds."""
+    # Test with all zeros except edges
+    hist = np.zeros(256)
+    hist[0] = hist[-1] = 100
+    min_intensity, max_intensity = fmain.get_histogram_bounds(hist, 0)
+    assert (min_intensity, max_intensity) == (0, 255)
+
+    # Test with single non-zero value
+    hist = np.zeros(256)
+    hist[128] = 100
+    min_intensity, max_intensity = fmain.get_histogram_bounds(hist, 0)
+    assert min_intensity == max_intensity == 128
+
+    # Test with constant histogram and 25% cutoff
+    hist = np.ones(256)
+    min_intensity, max_intensity = fmain.get_histogram_bounds(hist, 25)
+    # With uniform distribution, should cut 25% from each end
+    assert min_intensity == 64  # 256 * 0.25
+    assert max_intensity == 191  # 256 * 0.75 - 1
+
+
+def test_get_histogram_bounds_numerical_stability():
+    """Test numerical stability with very large and small values."""
+    # Test with very large values
+    hist = np.ones(256) * 1e6
+    min_intensity, max_intensity = fmain.get_histogram_bounds(hist, 10)
+    # With uniform distribution, should cut 10% from each end
+    assert min_intensity == 25  # 256 * 0.10
+    assert max_intensity == 230  # 256 * 0.90 - 1
