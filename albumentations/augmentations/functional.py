@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import Any, Literal
 from warnings import warn
@@ -22,6 +23,7 @@ from albucore import (
     maybe_process_in_chunks,
     multiply,
     multiply_add,
+    multiply_by_array,
     multiply_by_constant,
     normalize_per_image,
     power,
@@ -2605,31 +2607,118 @@ def apply_illumination_pattern(
         Image with applied illumination
     """
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        pattern = pattern[..., np.newaxis]
-    return img * (1 + intensity * pattern)
+        pattern = cv2.merge([pattern] * img.shape[2])
+
+    return multiply(img, 1 + intensity * pattern, inplace=True)
 
 
-@clipped
-def apply_linear_illumination(
-    img: np.ndarray,
-    intensity: float,
-    angle: float,
-) -> np.ndarray:
-    """Apply linear gradient illumination effect."""
-    result, height, width = prepare_illumination_input(img)
+def create_directional_gradient(height: int, width: int, angle: float) -> np.ndarray:
+    """Create a directional gradient in [0, 1] range.
 
-    # Create gradient coordinates
-    y, x = np.ogrid[:height, :width]
+    Optimized implementation using broadcasting and fast paths for common angles:
+    - 0°, 180°: horizontal gradients using single linspace
+    - 90°, 270°: vertical gradients using single linspace
+    - 45°, 135°, 225°, 315°: diagonal gradients using equal combinations of horizontal and vertical
+    - Other angles: computed using trigonometric functions
+    """
+    # Fast path for horizontal gradients
+    if angle == 0:
+        return np.linspace(0, 1, width, dtype=np.float32)[None, :] * np.ones((height, 1), dtype=np.float32)
+    if angle == 180:
+        return np.linspace(1, 0, width, dtype=np.float32)[None, :] * np.ones((height, 1), dtype=np.float32)
 
-    # Calculate gradient direction
+    # Fast path for vertical gradients
+    if angle == 90:
+        return np.linspace(0, 1, height, dtype=np.float32)[:, None] * np.ones((1, width), dtype=np.float32)
+    if angle == 270:
+        return np.linspace(1, 0, height, dtype=np.float32)[:, None] * np.ones((1, width), dtype=np.float32)
+
+    # Fast path for diagonal gradients using broadcasting
+    if angle in (45, 135, 225, 315):
+        x = np.linspace(0, 1, width, dtype=np.float32)[None, :]  # Horizontal
+        y = np.linspace(0, 1, height, dtype=np.float32)[:, None]  # Vertical
+
+        if angle == 45:  # Bottom-left to top-right
+            return cv2.normalize(x + y, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        if angle == 135:  # Bottom-right to top-left
+            return cv2.normalize((1 - x) + y, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        if angle == 225:  # Top-right to bottom-left
+            return cv2.normalize((1 - x) + (1 - y), None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # angle == 315:  # Top-left to bottom-right
+        return cv2.normalize(x + (1 - y), None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
+    # General case for arbitrary angles using broadcasting
+    y = np.linspace(0, 1, height, dtype=np.float32)[:, None]  # Column vector
+    x = np.linspace(0, 1, width, dtype=np.float32)[None, :]  # Row vector
+
     angle_rad = np.deg2rad(angle)
-    dx, dy = np.cos(angle_rad), np.sin(angle_rad)
+    cos_a = math.cos(angle_rad)
+    sin_a = math.sin(angle_rad)
 
-    # Create normalized gradient
-    gradient = (x * dx + y * dy) / np.sqrt(height * height + width * width)
-    gradient = (gradient + 1) / 2  # Normalize to [0, 1]
+    cv2.multiply(x, cos_a, dst=x)
+    cv2.multiply(y, sin_a, dst=y)
 
-    return apply_illumination_pattern(result, gradient, intensity)
+    return x + y
+
+
+@float32_io
+@clipped
+def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -> np.ndarray:
+    """Apply directional illumination effect to an image using a linear gradient.
+
+    The function creates a directional gradient and uses it to modulate image brightness.
+    The gradient direction is controlled by the angle parameter, and the strength of the
+    effect is controlled by the intensity parameter.
+
+    The illumination is applied by multiplying the image with a scale factor that varies
+    linearly across the image. The scale factor ranges from (1-|intensity|) to (1+|intensity|).
+
+    Args:
+        img: Input image in range [0, 1]. Can be single or multi-channel.
+        intensity: Strength and direction of the illumination effect, range [-1, 1].
+            - Positive values brighten in gradient direction
+            - Negative values darken in gradient direction
+            - Magnitude determines strength of the effect
+        angle: Direction of the gradient in degrees.
+            - 0: left to right
+            - 90: bottom to top
+            - 180: right to left
+            - 270: top to bottom
+
+    Returns:
+        Image with applied illumination effect, same shape and range as input.
+
+    Implementation details:
+        1. Creates a directional gradient in range [0, 1]
+        2. For negative intensity, inverts the gradient (1 - gradient)
+        3. For multi-channel images, repeats gradient across channels
+        4. Computes scale factor in-place:
+           scale = 1 - |intensity| + 2 * |intensity| * gradient
+           This maps gradient [0, 1] to scale [(1-|i|), (1+|i|)]
+        5. Multiplies image by scale factor
+
+    Note:
+        Uses in-place operations where possible for memory efficiency.
+        The @float32_io decorator ensures float32 precision.
+        The @clipped decorator ensures output values stay in valid range.
+    """
+    height, width = img.shape[:2]
+    abs_intensity = abs(intensity)
+
+    # Create gradient and handle negative intensity in one step
+    gradient = create_directional_gradient(height, width, angle)
+
+    if intensity < 0:
+        cv2.subtract(1, gradient, dst=gradient)
+
+    cv2.multiply(gradient, 2 * abs_intensity, dst=gradient)
+    cv2.add(gradient, 1 - abs_intensity, dst=gradient)
+
+    # Add channel dimension if needed
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        gradient = gradient[..., np.newaxis]
+
+    return multiply_by_array(img, gradient)
 
 
 @clipped
