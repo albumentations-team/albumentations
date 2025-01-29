@@ -2710,30 +2710,38 @@ def auto_contrast(
     num_channels = get_num_channels(img)
     max_value = MAX_VALUES_BY_DTYPE[img.dtype]
 
+    # Pre-compute histograms using cv2.calcHist - much faster than np.histogram
+    if img.ndim > MONO_CHANNEL_DIMENSIONS:
+        channels = cv2.split(img)
+        hists: list[np.ndarray] = []
+        for i, channel in enumerate(channels):
+            if ignore is not None and i == ignore:
+                hists.append(None)
+                continue
+            mask = None if ignore is None else (channel != ignore)
+            hist = cv2.calcHist([channel], [0], mask, [256], [0, max_value])
+            hists.append(hist.ravel())
+
     for i in range(num_channels):
-        # Get channel data and check if it should be ignored
-        channel = img[..., i] if img.ndim > MONO_CHANNEL_DIMENSIONS else img
         if ignore is not None and i == ignore:
             continue
 
-        # Compute histogram
-        hist = np.histogram(
-            channel[channel != ignore] if ignore is not None else channel,
-            bins=256,
-            range=(0, max_value),
-        )[0]
+        if img.ndim > MONO_CHANNEL_DIMENSIONS:
+            hist = hists[i]
+            channel = channels[i]
+        else:
+            mask = None if ignore is None else (img != ignore)
+            hist = cv2.calcHist([img], [0], mask, [256], [0, max_value]).ravel()
+            channel = img
 
-        # Find histogram bounds
         lo, hi = get_histogram_bounds(hist, cutoff)
-        if hi <= lo:  # Skip if image has single color
+        if hi <= lo:
             continue
 
-        # Create lookup table based on method
         lut = create_contrast_lut(hist, lo, hi, max_value, method)
         if ignore is not None:
             lut[ignore] = ignore
 
-        # Apply lookup table
         if img.ndim > MONO_CHANNEL_DIMENSIONS:
             result[..., i] = sz_lut(channel, lut)
         else:

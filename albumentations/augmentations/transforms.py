@@ -6468,5 +6468,17 @@ class AutoContrast(ImageOnlyTransform):
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.auto_contrast(img, self.cutoff, self.ignore, self.method)
 
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "cutoff", "ignore", "method"
