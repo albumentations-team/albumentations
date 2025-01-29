@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import Any, Literal
 from warnings import warn
@@ -2618,8 +2619,8 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
 
     # Pre-compute trig values once
     angle_rad = np.deg2rad(angle)
-    cos_a = np.cos(angle_rad)
-    sin_a = np.sin(angle_rad)
+    cos_a = math.cos(angle_rad)
+    sin_a = math.sin(angle_rad)
 
     # Create gradient directly without meshgrid
     # Broadcasting is more efficient than meshgrid
