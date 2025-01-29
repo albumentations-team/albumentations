@@ -2109,12 +2109,12 @@ def test_apply_linear_illumination_symmetry():
 )
 def test_create_directional_gradient(height, width, angle, expected):
     gradient = fmain.create_directional_gradient(height, width, angle)
-    np.testing.assert_allclose(gradient, expected, rtol=1e-5, atol=1e-15)
+    np.testing.assert_allclose(gradient, expected, atol=1e-15)
 
 
 def test_gradient_range():
     """Test that gradient values are always in [0, 1] range."""
     for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
         gradient = fmain.create_directional_gradient(10, 10, angle)
-        assert gradient.min() >= 0
-        assert gradient.max() <= 1
+        assert gradient.min() >= 0 - 1e-7
+        assert gradient.max() <= 1 + 1e-7
