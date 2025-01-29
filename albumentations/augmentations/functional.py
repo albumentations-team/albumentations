@@ -5,7 +5,6 @@ from collections.abc import Sequence
 from typing import Any, Literal
 from warnings import warn
 
-import albucore
 import cv2
 import numpy as np
 from albucore import (
@@ -24,6 +23,7 @@ from albucore import (
     maybe_process_in_chunks,
     multiply,
     multiply_add,
+    multiply_by_array,
     multiply_by_constant,
     normalize_per_image,
     power,
@@ -2716,9 +2716,9 @@ def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -
 
     # Add channel dimension if needed
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        gradient = cv2.merge([gradient] * img.shape[2])
+        gradient = gradient[..., np.newaxis]
 
-    return albucore.multiply_by_array(img, gradient)
+    return multiply_by_array(img, gradient)
 
 
 @clipped
