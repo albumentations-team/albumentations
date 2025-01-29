@@ -2707,19 +2707,18 @@ def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -
 
     # Create gradient and handle negative intensity in one step
     gradient = create_directional_gradient(height, width, angle)
+
     if intensity < 0:
-        np.subtract(1, gradient, out=gradient)
+        cv2.subtract(1, gradient, dst=gradient)
 
-    # Calculate scale using wsum since we have scalar coefficients:
-    ones = np.ones_like(gradient)
-
-    scale = cv2.addWeighted(gradient, 2 * abs_intensity, ones, 1 - abs_intensity, 0)
+    cv2.multiply(gradient, 2 * abs_intensity, dst=gradient)
+    cv2.add(gradient, 1 - abs_intensity, dst=gradient)
 
     # Add channel dimension if needed
-    if img.ndim == 3:
-        scale = np.repeat(scale[..., None], img.shape[2], axis=2)
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        gradient = np.repeat(gradient[..., None], img.shape[2], axis=2)
 
-    return albucore.multiply_by_array(img, scale)
+    return albucore.multiply_by_array(img, gradient)
 
 
 @clipped
