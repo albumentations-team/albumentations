@@ -748,43 +748,40 @@ def add_rain(
     brightness_coefficient: float,
     rain_drops: list[tuple[int, int]],
 ) -> np.ndarray:
-    """Adds rain drops to the image.
-
-    Args:
-        img (np.ndarray): Input image.
-        slant (int): The angle of the rain drops.
-        drop_length (int): The length of each rain drop.
-        drop_width (int): The width of each rain drop.
-        drop_color (tuple[int, int, int]): The color of the rain drops in RGB format.
-        blur_value (int): The size of the kernel used to blur the image. Rainy views are blurry.
-        brightness_coefficient (float): Coefficient to adjust the brightness of the image. Rainy days are usually shady.
-        rain_drops (list[tuple[int, int]]): A list of tuples where each tuple represents the (x, y)
-            coordinates of the starting point of a rain drop.
-
-    Returns:
-        np.ndarray: Image with rain effect added.
-
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-    """
+    """Adds rain drops to the image with optimized performance."""
     img = img.copy()
-    for rain_drop_x0, rain_drop_y0 in rain_drops:
-        rain_drop_x1 = rain_drop_x0 + slant
-        rain_drop_y1 = rain_drop_y0 + drop_length
 
-        cv2.line(
-            img,
-            (rain_drop_x0, rain_drop_y0),
-            (rain_drop_x1, rain_drop_y1),
-            drop_color,
-            drop_width,
-        )
+    # Vectorize rain drop coordinates
+    rain_drops = np.array(rain_drops)
+    if len(rain_drops) == 0:
+        return img
 
-    img = cv2.blur(img, (blur_value, blur_value))  # rainy view are blurry
-    image_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
-    image_hsv[:, :, 2] *= brightness_coefficient
+    # Calculate all end points at once
+    end_points = rain_drops + np.array([slant, drop_length])
 
-    return cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+    # Draw all lines at once using polylines
+    lines = np.stack([rain_drops, end_points], axis=1)
+    cv2.polylines(
+        img,
+        lines.astype(np.int32),
+        False,
+        drop_color,
+        drop_width,
+        lineType=cv2.LINE_AA,  # Use anti-aliasing for better quality
+    )
+
+    # Optimize blur operation
+    if blur_value > 1:
+        # Use a faster blur method
+        img = cv2.boxFilter(img, -1, (blur_value, blur_value), normalize=True)
+
+    # Optimize brightness adjustment using HSV
+    if brightness_coefficient != 1.0:
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        img[:, :, 2] = cv2.multiply(img[:, :, 2], brightness_coefficient)
+        img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+    return img
 
 
 def get_fog_particle_radiuses(
