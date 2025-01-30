@@ -748,44 +748,53 @@ def add_rain(
     brightness_coefficient: float,
     rain_drops: np.ndarray,
 ) -> np.ndarray:
-    """Optimized version of add_rain using vectorized operations."""
+    """Optimized version of add_rain using vectorized operations and OpenCV."""
+    if not rain_drops.size:
+        return img.copy()
+
     img = img.copy()
 
-    if not rain_drops.size:
-        return img
-
-    # Generate all points for all rain drops at once
-    steps = max(drop_length, abs(slant))
-    t = np.linspace(0, 1, steps)
-
-    # Calculate all points along all rain drops
-    x_steps = rain_drops[:, 0, None] + (slant * t[None, :]).astype(int)
-    y_steps = rain_drops[:, 1, None] + (drop_length * t[None, :]).astype(int)
-
-    # Clip coordinates to image boundaries
     height, width = img.shape[:2]
-    x_steps = np.clip(x_steps, 0, width - 1)
-    y_steps = np.clip(y_steps, 0, height - 1)
 
-    # Create mask for valid coordinates
+    # Create rain layer instead of modifying image directly
+    rain_layer = np.zeros_like(img)
+
+    # Generate all points for all rain drops at once (fewer steps, use integers)
+    steps = max(drop_length, abs(slant))
+    t = np.linspace(0, 1, steps, dtype=np.float32)  # Use float32 for faster computation
+
+    # Pre-compute all coordinates at once
+    x_steps = (rain_drops[:, 0, None] + (slant * t[None, :])).astype(np.int32)
+    y_steps = (rain_drops[:, 1, None] + (drop_length * t[None, :])).astype(np.int32)
+
+    # Vectorize the width handling
+    if drop_width > 1:
+        w_offsets = np.arange(-drop_width // 2, drop_width // 2 + 1)
+        x_steps = x_steps[..., None] + w_offsets
+        y_steps = np.repeat(y_steps[..., None], len(w_offsets), axis=2)
+        x_steps = x_steps.reshape(-1)
+        y_steps = y_steps.reshape(-1)
+
+    # Single mask operation
     valid_mask = (x_steps >= 0) & (x_steps < width) & (y_steps >= 0) & (y_steps < height)
+    x_steps = x_steps[valid_mask]
+    y_steps = y_steps[valid_mask]
 
-    # Draw all rain drops at once
-    if drop_width == 1:
-        img[y_steps[valid_mask], x_steps[valid_mask]] = drop_color
-    else:
-        for w in range(-drop_width // 2, drop_width // 2 + 1):
-            x = np.clip(x_steps + w, 0, width - 1)
-            img[y_steps[valid_mask], x[valid_mask]] = drop_color
+    # Draw all points at once
+    rain_layer[y_steps, x_steps] = drop_color
 
-    # Apply blur and brightness adjustments
+    # Use OpenCV operations for blending and adjustments
     if blur_value > 1:
-        img = cv2.boxFilter(img, -1, (blur_value, blur_value), normalize=True)
+        rain_layer = cv2.blur(rain_layer, (blur_value, blur_value))
 
+    # Blend rain with original image
+    cv2.add(img, rain_layer, dst=img)
+
+    # Adjust brightness if needed
     if brightness_coefficient != 1.0:
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-        img[:, :, 2] = cv2.multiply(img[:, :, 2], brightness_coefficient)
-        img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+        # Use LUT for faster brightness adjustment
+        brightness_lut = np.clip(np.arange(0, 256) * brightness_coefficient, 0, 255).astype(np.uint8)
+        return cv2.LUT(img, brightness_lut)
 
     return img
 
