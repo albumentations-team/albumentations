@@ -796,7 +796,7 @@ class RandomRain(ImageOnlyTransform):
         img: np.ndarray,
         slant: int,
         drop_length: int,
-        rain_drops: list[tuple[int, int]],
+        rain_drops: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
         non_rgb_error(img)
@@ -817,34 +817,34 @@ class RandomRain(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        slant = int(self.py_random.uniform(*self.slant_range))
-
         height, width = params["shape"][:2]
-        area = height * width
 
+        # Simpler calculations, directly following Kornia
         if self.rain_type == "drizzle":
-            num_drops = area // 770
-            drop_length = 10
+            num_drops = height // 4
         elif self.rain_type == "heavy":
-            num_drops = width * height // 600
-            drop_length = 30
+            num_drops = height
         elif self.rain_type == "torrential":
-            num_drops = area // 500
-            drop_length = 60
+            num_drops = height * 2
         else:
-            drop_length = self.drop_length
-            num_drops = area // 600
+            num_drops = height // 3
 
-        # Vectorized rain drop generation
-        num_drops = int(num_drops)
+        # Fixed proportion for drop length (like Kornia)
+        drop_length = max(1, height // 8)
+
+        # Simplified slant calculation
+        slant = self.random_generator.integers(-width // 50, width // 50)
+
+        # Single random call for all coordinates
         if num_drops > 0:
-            if slant < 0:
-                x = self.random_generator.integers(slant, width, size=num_drops)
-            else:
-                x = self.random_generator.integers(0, max(width - slant, 1), size=num_drops)
-
-            y = self.random_generator.integers(0, max(height - drop_length, 1), size=num_drops)
-            rain_drops = np.column_stack((x, y))
+            # Generate all coordinates in one call
+            coords = self.random_generator.integers(
+                low=[0, 0],
+                high=[width, height - drop_length],
+                size=(num_drops, 2),
+                dtype=np.int32,
+            )
+            rain_drops = coords
         else:
             rain_drops = np.empty((0, 2), dtype=np.int32)
 

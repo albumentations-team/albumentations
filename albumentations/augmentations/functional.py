@@ -748,53 +748,32 @@ def add_rain(
     brightness_coefficient: float,
     rain_drops: np.ndarray,
 ) -> np.ndarray:
-    """Optimized version of add_rain using vectorized operations and OpenCV."""
+    """Optimized version using OpenCV line drawing."""
     if not rain_drops.size:
         return img.copy()
 
     img = img.copy()
 
-    height, width = img.shape[:2]
+    # Pre-allocate rain layer
+    rain_layer = np.zeros_like(img, dtype=np.uint8)
 
-    # Create rain layer instead of modifying image directly
-    rain_layer = np.zeros_like(img)
+    # Single polylines call with direct end points calculation
+    cv2.polylines(
+        rain_layer,
+        np.stack([rain_drops, [*rain_drops, [slant, drop_length]]], axis=1),
+        False,
+        drop_color,
+        drop_width,
+        lineType=cv2.LINE_4,
+    )
 
-    # Generate all points for all rain drops at once (fewer steps, use integers)
-    steps = max(drop_length, abs(slant))
-    t = np.linspace(0, 1, steps, dtype=np.float32)  # Use float32 for faster computation
-
-    # Pre-compute all coordinates at once
-    x_steps = (rain_drops[:, 0, None] + (slant * t[None, :])).astype(np.int32)
-    y_steps = (rain_drops[:, 1, None] + (drop_length * t[None, :])).astype(np.int32)
-
-    # Vectorize the width handling
-    if drop_width > 1:
-        w_offsets = np.arange(-drop_width // 2, drop_width // 2 + 1)
-        x_steps = x_steps[..., None] + w_offsets
-        y_steps = np.repeat(y_steps[..., None], len(w_offsets), axis=2)
-        x_steps = x_steps.reshape(-1)
-        y_steps = y_steps.reshape(-1)
-
-    # Single mask operation
-    valid_mask = (x_steps >= 0) & (x_steps < width) & (y_steps >= 0) & (y_steps < height)
-    x_steps = x_steps[valid_mask]
-    y_steps = y_steps[valid_mask]
-
-    # Draw all points at once
-    rain_layer[y_steps, x_steps] = drop_color
-
-    # Use OpenCV operations for blending and adjustments
     if blur_value > 1:
-        rain_layer = cv2.blur(rain_layer, (blur_value, blur_value))
+        cv2.blur(rain_layer, (blur_value, blur_value), dst=rain_layer)
 
-    # Blend rain with original image
     cv2.add(img, rain_layer, dst=img)
 
-    # Adjust brightness if needed
     if brightness_coefficient != 1.0:
-        # Use LUT for faster brightness adjustment
-        brightness_lut = np.clip(np.arange(0, 256) * brightness_coefficient, 0, 255).astype(np.uint8)
-        return cv2.LUT(img, brightness_lut)
+        cv2.multiply(img, brightness_coefficient, dst=img, dtype=cv2.CV_8U)
 
     return img
 
