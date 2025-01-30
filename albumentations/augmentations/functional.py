@@ -757,10 +757,15 @@ def add_rain(
     # Pre-allocate rain layer
     rain_layer = np.zeros_like(img, dtype=np.uint8)
 
-    # Single polylines call with direct end points calculation
+    # Calculate end points correctly
+    end_points = rain_drops + np.array([[slant, drop_length]])  # This creates correct shape
+
+    # Stack arrays properly - both must be same shape arrays
+    lines = np.stack((rain_drops, end_points), axis=1)  # Use tuple and proper axis
+
     cv2.polylines(
         rain_layer,
-        np.stack([rain_drops, [*rain_drops, [slant, drop_length]]], axis=1),
+        lines.astype(np.int32),
         False,
         drop_color,
         drop_width,
