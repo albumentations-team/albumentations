@@ -2721,7 +2721,6 @@ def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -
 
 
 @clipped
-@uint8_io
 def apply_corner_illumination(
     img: np.ndarray,
     intensity: float,
@@ -2732,37 +2731,34 @@ def apply_corner_illumination(
         return img.copy()
 
     height, width = img.shape[:2]
-    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
 
-    # Pre-compute normalization factor
-    norm_factor = 1.0 / np.sqrt(height * height + width * width)
+    # Pre-compute diagonal length once
+    diagonal_length = math.sqrt(height * height + width * width)
 
     # Create inverted distance map mask directly
-    mask = np.full((height, width), max_value, dtype=img.dtype)
+    # Use uint8 for distanceTransform regardless of input dtype
+    mask = np.full((height, width), 255, dtype=np.uint8)
 
-    if corner == 0:  # top-left
-        mask[0, 0] = 0
-    elif corner == 1:  # top-right
-        mask[0, -1] = 0
-    elif corner == 2:  # bottom-right
-        mask[-1, -1] = 0
-    else:  # corner == 3, bottom-left
-        mask[-1, 0] = 0
+    # Use array indexing instead of conditionals
+    corners = [(0, 0), (0, width - 1), (height - 1, width - 1), (height - 1, 0)]
+    mask[corners[corner]] = 0
 
     # Calculate distance transform
-    distance = cv2.distanceTransform(
-        mask,  # Invert mask so corner point is 0
-        distanceType=cv2.DIST_L2,  # Euclidean distance
+    pattern = cv2.distanceTransform(
+        mask,
+        distanceType=cv2.DIST_L2,
         maskSize=cv2.DIST_MASK_PRECISE,
+        dstType=cv2.CV_32F,  # Specify float output directly
     )
 
-    # Normalize and invert pattern
-    pattern = 1 - (distance * norm_factor)
+    # Combine operations to reduce array copies
+    cv2.multiply(pattern, -intensity / diagonal_length, dst=pattern)
+    cv2.add(pattern, 1, dst=pattern)
 
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
         pattern = cv2.merge([pattern] * img.shape[2])
 
-    return multiply_by_array(img, 1 + intensity * pattern)
+    return multiply_by_array(img, pattern)
 
 
 @clipped
