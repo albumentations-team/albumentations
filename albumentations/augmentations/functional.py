@@ -746,36 +746,42 @@ def add_rain(
     drop_color: tuple[int, int, int],
     blur_value: int,
     brightness_coefficient: float,
-    rain_drops: list[tuple[int, int]],
+    rain_drops: np.ndarray,
 ) -> np.ndarray:
-    """Adds rain drops to the image with optimized performance."""
+    """Optimized version of add_rain using vectorized operations."""
     img = img.copy()
 
-    # Vectorize rain drop coordinates
-    rain_drops = np.array(rain_drops)
-    if len(rain_drops) == 0:
+    if not rain_drops.size:
         return img
 
-    # Calculate all end points at once
-    end_points = rain_drops + np.array([slant, drop_length])
+    # Generate all points for all rain drops at once
+    steps = max(drop_length, abs(slant))
+    t = np.linspace(0, 1, steps)
 
-    # Draw all lines at once using polylines
-    lines = np.stack([rain_drops, end_points], axis=1)
-    cv2.polylines(
-        img,
-        lines.astype(np.int32),
-        False,
-        drop_color,
-        drop_width,
-        lineType=cv2.LINE_AA,  # Use anti-aliasing for better quality
-    )
+    # Calculate all points along all rain drops
+    x_steps = rain_drops[:, 0, None] + (slant * t[None, :]).astype(int)
+    y_steps = rain_drops[:, 1, None] + (drop_length * t[None, :]).astype(int)
 
-    # Optimize blur operation
+    # Clip coordinates to image boundaries
+    height, width = img.shape[:2]
+    x_steps = np.clip(x_steps, 0, width - 1)
+    y_steps = np.clip(y_steps, 0, height - 1)
+
+    # Create mask for valid coordinates
+    valid_mask = (x_steps >= 0) & (x_steps < width) & (y_steps >= 0) & (y_steps < height)
+
+    # Draw all rain drops at once
+    if drop_width == 1:
+        img[y_steps[valid_mask], x_steps[valid_mask]] = drop_color
+    else:
+        for w in range(-drop_width // 2, drop_width // 2 + 1):
+            x = np.clip(x_steps + w, 0, width - 1)
+            img[y_steps[valid_mask], x[valid_mask]] = drop_color
+
+    # Apply blur and brightness adjustments
     if blur_value > 1:
-        # Use a faster blur method
         img = cv2.boxFilter(img, -1, (blur_value, blur_value), normalize=True)
 
-    # Optimize brightness adjustment using HSV
     if brightness_coefficient != 1.0:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
         img[:, :, 2] = cv2.multiply(img[:, :, 2], brightness_coefficient)

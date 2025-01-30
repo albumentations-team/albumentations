@@ -835,13 +835,18 @@ class RandomRain(ImageOnlyTransform):
             drop_length = self.drop_length
             num_drops = area // 600
 
-        rain_drops = []
+        # Vectorized rain drop generation
+        num_drops = int(num_drops)
+        if num_drops > 0:
+            if slant < 0:
+                x = self.random_generator.integers(slant, width, size=num_drops)
+            else:
+                x = self.random_generator.integers(0, max(width - slant, 1), size=num_drops)
 
-        for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = self.py_random.randint(slant, width) if slant < 0 else self.py_random.randint(0, max(width - slant, 0))
-            y = self.py_random.randint(0, max(height - drop_length, 0))
-
-            rain_drops.append((x, y))
+            y = self.random_generator.integers(0, max(height - drop_length, 1), size=num_drops)
+            rain_drops = np.column_stack((x, y))
+        else:
+            rain_drops = np.empty((0, 2), dtype=np.int32)
 
         return {"drop_length": drop_length, "slant": slant, "rain_drops": rain_drops}
 

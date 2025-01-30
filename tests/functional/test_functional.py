@@ -2341,7 +2341,7 @@ def test_gaussian_illumination_sigma(sigma, expected_pattern):
             (200, 200, 200),
             3,
             0.7,
-            [(2, 2)],
+            np.array([(2, 2)]),
             (10, 10, 3),
         ),
         # Test with no rain drops
@@ -2353,7 +2353,7 @@ def test_gaussian_illumination_sigma(sigma, expected_pattern):
             (200, 200, 200),
             3,
             0.7,
-            [],
+            np.array([]).reshape(0, 2),
             (20, 20, 3),
         ),
         # Test with multiple rain drops
@@ -2365,7 +2365,7 @@ def test_gaussian_illumination_sigma(sigma, expected_pattern):
             (255, 255, 255),
             5,
             0.8,
-            [(5, 5), (10, 10), (15, 15)],
+            np.array([(5, 5), (10, 10), (15, 15)]),
             (30, 30, 3),
         ),
     ]
@@ -2384,7 +2384,7 @@ def test_add_rain_shape_and_type(
 def test_add_rain_brightness(brightness_coefficient):
     """Test that brightness coefficient correctly affects image brightness"""
     img = np.full((20, 20, 3), 100, dtype=np.uint8)
-    rain_drops = [(5, 5)]
+    rain_drops = np.array([(5, 5)])
 
     result = fmain.add_rain(
         img=img,
@@ -2422,7 +2422,7 @@ def test_add_rain_brightness(brightness_coefficient):
 def test_add_rain_drops_visibility():
     """Test that rain drops are actually visible in the output"""
     img = np.zeros((20, 20, 3), dtype=np.uint8)
-    rain_drops = [(5, 5)]
+    rain_drops = np.array([(5, 5)])
     drop_color = (255, 255, 255)
 
     result = fmain.add_rain(
@@ -2453,7 +2453,7 @@ def test_add_rain_preserves_input():
         drop_color=(200, 200, 200),
         blur_value=3,
         brightness_coefficient=0.7,
-        rain_drops=[(5, 5)],
+        rain_drops=np.array([(5, 5)]),
     )
 
     np.testing.assert_array_equal(img, img_copy)
