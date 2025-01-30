@@ -1599,18 +1599,23 @@ def generate_displacement_fields(
             size=(1 if same_dxdy else 2, *image_shape[:2]),
         ).astype(np.float32)
 
-    # Apply Gaussian blur if needed using fast OpenCV operations
+    # # Apply Gaussian blur if needed using fast OpenCV operations
     if kernel_size != (0, 0):
-        # Use faster OpenCV operations for Gaussian blur
-        for i in range(fields.shape[0]):
-            # Use cv2.BORDER_REPLICATE to avoid edge artifacts
-            cv2.GaussianBlur(
-                fields[i],
-                kernel_size,
-                sigma,
-                dst=fields[i],
-                borderType=cv2.BORDER_REPLICATE,
-            )
+        # Reshape to 2D array (combining first dimension with height)
+        shape = fields.shape
+        fields = fields.reshape(-1, shape[-1])
+
+        # Apply blur to all fields at once
+        cv2.GaussianBlur(
+            fields,
+            kernel_size,
+            sigma,
+            dst=fields,
+            borderType=cv2.BORDER_REPLICATE,
+        )
+
+        # Restore original shape
+        fields = fields.reshape(shape)
 
     # Scale by alpha inplace
     fields *= alpha
