@@ -2662,7 +2662,6 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
 
 
 @float32_io
-@clipped
 def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -> np.ndarray:
     """Apply directional illumination effect to an image using a linear gradient.
 
@@ -2727,26 +2726,46 @@ def apply_corner_illumination(
     intensity: float,
     corner: Literal[0, 1, 2, 3],
 ) -> np.ndarray:
-    """Apply corner-based illumination effect."""
+    """Apply corner-based illumination effect.
+
+    Args:
+        img: Input image
+        intensity: Effect strength (-1 to 1)
+        corner: Which corner to illuminate:
+                0 - top-left
+                1 - top-right
+                2 - bottom-right
+                3 - bottom-left
+
+    Returns:
+        Image with corner illumination applied
+    """
     result, height, width = prepare_illumination_input(img)
 
     # Create distance map coordinates
     y, x = np.ogrid[:height, :width]
 
-    # Adjust coordinates based on corner
-    if corner == 1:  # top-right
-        x = width - 1 - x
+    # Define corner coordinates
+    if corner == 0:  # top-left
+        corner_y, corner_x = 0, 0
+    elif corner == 1:  # top-right
+        corner_y, corner_x = 0, width - 1
     elif corner == 2:  # bottom-right
-        x = width - 1 - x
-        y = height - 1 - y
+        corner_y, corner_x = height - 1, width - 1
     elif corner == 3:  # bottom-left
-        y = height - 1 - y
+        corner_y, corner_x = height - 1, 0
 
-    # Calculate normalized distance
-    distance = np.sqrt(x * x + y * y) / np.sqrt(height * height + width * width)
+    # Calculate distance from the chosen corner
+    distance = np.sqrt(
+        (x - corner_x) ** 2 + (y - corner_y) ** 2,
+    ) / np.sqrt(height * height + width * width)
+
     pattern = 1 - distance  # Invert so corner is brightest
 
-    return apply_illumination_pattern(result, pattern, intensity)
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        pattern = cv2.merge([pattern] * img.shape[2])
+
+    return multiply(img, 1 + intensity * pattern, inplace=True)
 
 
 @clipped

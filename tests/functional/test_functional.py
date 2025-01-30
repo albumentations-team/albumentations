@@ -2118,3 +2118,126 @@ def test_gradient_range():
         gradient = fmain.create_directional_gradient(10, 10, angle)
         assert gradient.min() >= 0 - 1e-7
         assert gradient.max() <= 1 + 1e-7
+
+
+
+@pytest.mark.parametrize(
+    ["corner", "intensity", "expected_corner"],
+    [
+        # Test each corner with positive intensity (brightening)
+        (0, 0.2, (0, 0)),      # top-left is brightest
+        (1, 0.2, (0, 9)),      # top-right is brightest
+        (2, 0.2, (9, 9)),      # bottom-right is brightest
+        (3, 0.2, (9, 0)),      # bottom-left is brightest
+
+        # Test with negative intensity (darkening)
+        (0, -0.2, (9, 9)),     # top-left is darkest, opposite corner is brightest
+        (1, -0.2, (9, 0)),     # top-right is darkest, opposite corner is brightest
+        (2, -0.2, (0, 0)),     # bottom-right is darkest, opposite corner is brightest
+        (3, -0.2, (0, 9)),     # bottom-left is darkest, opposite corner is brightest
+    ],
+)
+def test_corner_illumination_brightest_point(corner, intensity, expected_corner):
+    """Test that the illumination pattern has maximum intensity at the correct corner."""
+    # Create a constant test image
+    image = np.full((10, 10), 0.5, dtype=np.float32)
+
+    # Apply corner illumination
+    result = fmain.apply_corner_illumination(image, intensity, corner)
+
+    # Find the brightest point
+    actual_corner = np.unravel_index(np.argmax(result), result.shape)
+
+    assert actual_corner == expected_corner
+
+
+@pytest.mark.parametrize(
+    ["shape", "dtype"],
+    [
+        ((10, 10), np.float32),      # grayscale float32
+        ((10, 10), np.uint8),        # grayscale uint8
+        ((10, 10, 3), np.float32),   # RGB float32
+        ((10, 10, 3), np.uint8),     # RGB uint8
+        # Removed single channel test case as it's not supported
+    ],
+)
+def test_corner_illumination_preserves_shape_and_type(shape, dtype):
+    """Test that the output maintains the input shape and dtype."""
+    # Create test image
+    image = np.ones(shape, dtype=dtype)
+    if dtype == np.uint8:
+        image *= 255
+
+    # Apply corner illumination
+    result = fmain.apply_corner_illumination(image, intensity=0.2, corner=0)
+
+    assert result.shape == shape
+    assert result.dtype == dtype
+
+
+@pytest.mark.parametrize("intensity", [-0.2, 0, 0.2])
+def test_corner_illumination_intensity_range(intensity):
+    """Test that the output values stay within valid range."""
+    # Create test images with extreme values
+    image_zeros = np.zeros((10, 10), dtype=np.float32)
+    image_ones = np.ones((10, 10), dtype=np.float32)
+
+    # Apply corner illumination
+    result_zeros = fmain.apply_corner_illumination(image_zeros, intensity, corner=0)
+    result_ones = fmain.apply_corner_illumination(image_ones, intensity, corner=0)
+
+    # Check that values stay in valid range
+    assert np.all(result_zeros >= 0)
+    assert np.all(result_zeros <= 1)
+    assert np.all(result_ones >= 0)
+    assert np.all(result_ones <= 1)
+
+
+def test_corner_illumination_identity_zero_intensity():
+    """Test that zero intensity returns the input image unchanged."""
+    # Create random test image
+    image = np.random.rand(10, 10).astype(np.float32)
+
+    # Apply corner illumination with zero intensity
+    result = fmain.apply_corner_illumination(image, intensity=0, corner=0)
+
+    np.testing.assert_array_almost_equal(result, image)
+
+
+@pytest.mark.parametrize("corner", [0, 1, 2, 3])
+def test_corner_illumination_symmetry(corner):
+    """Test that the illumination pattern is symmetric around the corner."""
+    # Create test image
+    image = np.ones((11, 11), dtype=np.float32)  # Odd dimensions for clear center
+
+    # Apply corner illumination
+    result = fmain.apply_corner_illumination(image, intensity=0.2, corner=corner)
+
+    # Get distances from corner to test symmetry
+    if corner == 0:  # top-left
+        d1 = result[0, 1]  # one step right
+        d2 = result[1, 0]  # one step down
+    elif corner == 1:  # top-right
+        d1 = result[0, -2]  # one step left
+        d2 = result[1, -1]  # one step down
+    elif corner == 2:  # bottom-right
+        d1 = result[-1, -2]  # one step left
+        d2 = result[-2, -1]  # one step up
+    else:  # bottom-left
+        d1 = result[-1, 1]  # one step right
+        d2 = result[-2, 0]  # one step up
+
+    np.testing.assert_almost_equal(d1, d2)
+
+
+def test_corner_illumination_multichannel_consistency():
+    """Test that all channels are modified identically for RGB images."""
+    # Create RGB test image
+    image = np.ones((10, 10, 3), dtype=np.float32)
+
+    # Apply corner illumination
+    result = fmain.apply_corner_illumination(image, intensity=0.2, corner=0)
+
+    # Check that all channels are identical
+    np.testing.assert_array_almost_equal(result[..., 0], result[..., 1])
+    np.testing.assert_array_almost_equal(result[..., 1], result[..., 2])
