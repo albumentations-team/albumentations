@@ -2731,24 +2731,41 @@ def apply_gaussian_illumination(
     sigma: float,
 ) -> np.ndarray:
     """Apply gaussian illumination effect."""
-    result = img.copy()
-    height, width = result.shape[:2]
+    if intensity == 0:
+        return img.copy()
 
-    # Create coordinate grid
-    y, x = np.ogrid[:height, :width]
+    height, width = img.shape[:2]
 
-    # Calculate gaussian pattern
+    # Pre-compute constants
     center_x = width * center[0]
     center_y = height * center[1]
-    sigma_pixels = max(height, width) * sigma
-    gaussian = np.exp(
-        -((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2),
-    )
+    sigma2 = 2 * (max(height, width) * sigma) ** 2  # Pre-compute denominator
+
+    # Create coordinate grid and calculate distances in-place
+    y, x = np.ogrid[:height, :width]
+    x = x.astype(np.float32)
+    y = y.astype(np.float32)
+    x -= center_x
+    y -= center_y
+
+    # Calculate squared distances in-place
+    cv2.multiply(x, x, dst=x)
+    cv2.multiply(y, y, dst=y)
+
+    x = x + y
+
+    # Calculate gaussian directly into x array
+    cv2.multiply(x, -1 / sigma2, dst=x)
+    cv2.exp(x, dst=x)
+
+    # Scale by intensity
+    cv2.multiply(x, intensity, dst=x)
+    cv2.add(x, 1, dst=x)
 
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        gaussian = cv2.merge([gaussian] * img.shape[2])
+        x = cv2.merge([x] * img.shape[2])
 
-    return multiply(img, 1 + intensity * gaussian, inplace=True)
+    return multiply_by_array(img, x)
 
 
 @uint8_io
