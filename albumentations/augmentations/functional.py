@@ -2574,44 +2574,6 @@ def apply_plasma_shadow(
     return img * (1 - scaled_pattern)
 
 
-def prepare_illumination_input(img: np.ndarray) -> tuple[np.ndarray, int, int]:
-    """Prepare image for illumination effect.
-
-    Args:
-        img: Input image
-
-    Returns:
-        tuple of:
-        - float32 image
-        - height
-        - width
-    """
-    result = img.astype(np.float32)
-    height, width = img.shape[:2]
-    return result, height, width
-
-
-def apply_illumination_pattern(
-    img: np.ndarray,
-    pattern: np.ndarray,
-    intensity: float,
-) -> np.ndarray:
-    """Apply illumination pattern to image.
-
-    Args:
-        img: Input image
-        pattern: Illumination pattern of shape (H, W)
-        intensity: Effect strength (-0.2 to 0.2)
-
-    Returns:
-        Image with applied illumination
-    """
-    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
-        pattern = cv2.merge([pattern] * img.shape[2])
-
-    return multiply(img, 1 + intensity * pattern, inplace=True)
-
-
 def create_directional_gradient(height: int, width: int, angle: float) -> np.ndarray:
     """Create a directional gradient in [0, 1] range.
 
@@ -2769,7 +2731,8 @@ def apply_gaussian_illumination(
     sigma: float,
 ) -> np.ndarray:
     """Apply gaussian illumination effect."""
-    result, height, width = prepare_illumination_input(img)
+    result = img.copy()
+    height, width = result.shape[:2]
 
     # Create coordinate grid
     y, x = np.ogrid[:height, :width]
@@ -2782,7 +2745,10 @@ def apply_gaussian_illumination(
         -((x - center_x) ** 2 + (y - center_y) ** 2) / (2 * sigma_pixels**2),
     )
 
-    return apply_illumination_pattern(result, gaussian, intensity)
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        gaussian = cv2.merge([gaussian] * img.shape[2])
+
+    return multiply(img, 1 + intensity * gaussian, inplace=True)
 
 
 @uint8_io
