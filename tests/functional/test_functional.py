@@ -2326,3 +2326,134 @@ def test_gaussian_illumination_sigma(sigma, expected_pattern):
 
     if expected_pattern == "narrow":
         assert diff > wide_diff  # Narrow should have steeper falloff than wide
+
+
+
+@pytest.mark.parametrize(
+    ["img", "slant", "drop_length", "drop_width", "drop_color", "blur_value", "brightness_coefficient", "rain_drops", "expected_shape"],
+    [
+        # Test basic functionality with small image
+        (
+            np.zeros((10, 10, 3), dtype=np.uint8),
+            5,
+            3,
+            1,
+            (200, 200, 200),
+            3,
+            0.7,
+            np.array([(2, 2)]),
+            (10, 10, 3),
+        ),
+        # Test with no rain drops
+        (
+            np.zeros((20, 20, 3), dtype=np.uint8),
+            5,
+            3,
+            1,
+            (200, 200, 200),
+            3,
+            0.7,
+            np.array([]).reshape(0, 2),
+            (20, 20, 3),
+        ),
+        # Test with multiple rain drops
+        (
+            np.zeros((30, 30, 3), dtype=np.uint8),
+            -5,
+            5,
+            2,
+            (255, 255, 255),
+            5,
+            0.8,
+            np.array([(5, 5), (10, 10), (15, 15)]),
+            (30, 30, 3),
+        ),
+    ]
+)
+def test_add_rain_shape_and_type(
+    img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops, expected_shape
+):
+    result = fmain.add_rain(
+        img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops
+    )
+    assert result.shape == expected_shape
+    assert result.dtype == np.uint8
+
+
+@pytest.mark.parametrize("brightness_coefficient", [0.5, 0.7, 1.0])
+def test_add_rain_brightness(brightness_coefficient):
+    """Test that brightness coefficient correctly affects image brightness"""
+    img = np.full((20, 20, 3), 100, dtype=np.uint8)
+    rain_drops = np.array([(5, 5)])
+
+    result = fmain.add_rain(
+        img=img,
+        slant=5,
+        drop_length=3,
+        drop_width=1,
+        drop_color=(200, 200, 200),
+        blur_value=3,
+        brightness_coefficient=brightness_coefficient,
+        rain_drops=rain_drops,
+    )
+
+    # Convert to HSV to check brightness
+    original_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    result_hsv = cv2.cvtColor(result, cv2.COLOR_RGB2HSV)
+
+    if brightness_coefficient < 1.0:
+        # For darkening coefficients, brightness should decrease
+        assert np.mean(result_hsv[:, :, 2]) < np.mean(original_hsv[:, :, 2])
+        np.testing.assert_allclose(
+            np.mean(result_hsv[:, :, 2]) / np.mean(original_hsv[:, :, 2]),
+            brightness_coefficient,
+            rtol=0.1  # Allow 10% tolerance due to rounding and blur effects
+        )
+    else:
+        # For brightness_coefficient = 1.0, brightness might slightly increase
+        # due to bright rain drops and blur, but shouldn't change dramatically
+        np.testing.assert_allclose(
+            np.mean(result_hsv[:, :, 2]) / np.mean(original_hsv[:, :, 2]),
+            1.0,
+            rtol=0.1  # Allow 10% tolerance
+        )
+
+
+def test_add_rain_drops_visibility():
+    """Test that rain drops are actually visible in the output"""
+    img = np.zeros((20, 20, 3), dtype=np.uint8)
+    rain_drops = np.array([(5, 5)])
+    drop_color = (255, 255, 255)
+
+    result = fmain.add_rain(
+        img=img,
+        slant=0,
+        drop_length=5,
+        drop_width=1,
+        drop_color=drop_color,
+        blur_value=1,  # Minimal blur to check drop visibility
+        brightness_coefficient=1.0,  # No brightness change
+        rain_drops=rain_drops,
+    )
+
+    # Check if any pixels have the rain drop color
+    assert np.any(result > 0)
+
+
+def test_add_rain_preserves_input():
+    """Test that the function doesn't modify the input image"""
+    img = np.zeros((10, 10, 3), dtype=np.uint8)
+    img_copy = img.copy()
+
+    fmain.add_rain(
+        img=img,
+        slant=5,
+        drop_length=3,
+        drop_width=1,
+        drop_color=(200, 200, 200),
+        blur_value=3,
+        brightness_coefficient=0.7,
+        rain_drops=np.array([(5, 5)]),
+    )
+
+    np.testing.assert_array_equal(img, img_copy)

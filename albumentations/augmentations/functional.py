@@ -746,45 +746,41 @@ def add_rain(
     drop_color: tuple[int, int, int],
     blur_value: int,
     brightness_coefficient: float,
-    rain_drops: list[tuple[int, int]],
+    rain_drops: np.ndarray,
 ) -> np.ndarray:
-    """Adds rain drops to the image.
+    """Optimized version using OpenCV line drawing."""
+    if not rain_drops.size:
+        return img.copy()
 
-    Args:
-        img (np.ndarray): Input image.
-        slant (int): The angle of the rain drops.
-        drop_length (int): The length of each rain drop.
-        drop_width (int): The width of each rain drop.
-        drop_color (tuple[int, int, int]): The color of the rain drops in RGB format.
-        blur_value (int): The size of the kernel used to blur the image. Rainy views are blurry.
-        brightness_coefficient (float): Coefficient to adjust the brightness of the image. Rainy days are usually shady.
-        rain_drops (list[tuple[int, int]]): A list of tuples where each tuple represents the (x, y)
-            coordinates of the starting point of a rain drop.
-
-    Returns:
-        np.ndarray: Image with rain effect added.
-
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-    """
     img = img.copy()
-    for rain_drop_x0, rain_drop_y0 in rain_drops:
-        rain_drop_x1 = rain_drop_x0 + slant
-        rain_drop_y1 = rain_drop_y0 + drop_length
 
-        cv2.line(
-            img,
-            (rain_drop_x0, rain_drop_y0),
-            (rain_drop_x1, rain_drop_y1),
-            drop_color,
-            drop_width,
-        )
+    # Pre-allocate rain layer
+    rain_layer = np.zeros_like(img, dtype=np.uint8)
 
-    img = cv2.blur(img, (blur_value, blur_value))  # rainy view are blurry
-    image_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
-    image_hsv[:, :, 2] *= brightness_coefficient
+    # Calculate end points correctly
+    end_points = rain_drops + np.array([[slant, drop_length]])  # This creates correct shape
 
-    return cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+    # Stack arrays properly - both must be same shape arrays
+    lines = np.stack((rain_drops, end_points), axis=1)  # Use tuple and proper axis
+
+    cv2.polylines(
+        rain_layer,
+        lines.astype(np.int32),
+        False,
+        drop_color,
+        drop_width,
+        lineType=cv2.LINE_4,
+    )
+
+    if blur_value > 1:
+        cv2.blur(rain_layer, (blur_value, blur_value), dst=rain_layer)
+
+    cv2.add(img, rain_layer, dst=img)
+
+    if brightness_coefficient != 1.0:
+        cv2.multiply(img, brightness_coefficient, dst=img, dtype=cv2.CV_8U)
+
+    return img
 
 
 def get_fog_particle_radiuses(
