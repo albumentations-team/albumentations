@@ -334,11 +334,13 @@ class ElasticTransform(BaseDistortion):
             noise_distribution=self.noise_distribution,
         )
 
-        x, y = np.meshgrid(np.arange(width), np.arange(height))
-        map_x = np.float32(x + dx)
-        map_y = np.float32(y + dy)
-
-        return {"map_x": map_x, "map_y": map_y}
+        # Vectorized map generation
+        coords = np.stack(np.meshgrid(np.arange(width), np.arange(height)))
+        maps = coords + np.stack([dx, dy])
+        return {
+            "map_x": maps[0].astype(np.float32),
+            "map_y": maps[1].astype(np.float32),
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
