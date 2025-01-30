@@ -2662,7 +2662,6 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
 
 
 @float32_io
-@clipped
 def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -> np.ndarray:
     """Apply directional illumination effect to an image using a linear gradient.
 
@@ -2728,25 +2727,38 @@ def apply_corner_illumination(
     corner: Literal[0, 1, 2, 3],
 ) -> np.ndarray:
     """Apply corner-based illumination effect."""
-    result, height, width = prepare_illumination_input(img)
+    if intensity == 0:
+        return img.copy()
 
-    # Create distance map coordinates
-    y, x = np.ogrid[:height, :width]
+    height, width = img.shape[:2]
 
-    # Adjust coordinates based on corner
-    if corner == 1:  # top-right
-        x = width - 1 - x
-    elif corner == 2:  # bottom-right
-        x = width - 1 - x
-        y = height - 1 - y
-    elif corner == 3:  # bottom-left
-        y = height - 1 - y
+    # Pre-compute diagonal length once
+    diagonal_length = math.sqrt(height * height + width * width)
 
-    # Calculate normalized distance
-    distance = np.sqrt(x * x + y * y) / np.sqrt(height * height + width * width)
-    pattern = 1 - distance  # Invert so corner is brightest
+    # Create inverted distance map mask directly
+    # Use uint8 for distanceTransform regardless of input dtype
+    mask = np.full((height, width), 255, dtype=np.uint8)
 
-    return apply_illumination_pattern(result, pattern, intensity)
+    # Use array indexing instead of conditionals
+    corners = [(0, 0), (0, width - 1), (height - 1, width - 1), (height - 1, 0)]
+    mask[corners[corner]] = 0
+
+    # Calculate distance transform
+    pattern = cv2.distanceTransform(
+        mask,
+        distanceType=cv2.DIST_L2,
+        maskSize=cv2.DIST_MASK_PRECISE,
+        dstType=cv2.CV_32F,  # Specify float output directly
+    )
+
+    # Combine operations to reduce array copies
+    cv2.multiply(pattern, -intensity / diagonal_length, dst=pattern)
+    cv2.add(pattern, 1, dst=pattern)
+
+    if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
+        pattern = cv2.merge([pattern] * img.shape[2])
+
+    return multiply_by_array(img, pattern)
 
 
 @clipped
