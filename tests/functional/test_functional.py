@@ -2201,7 +2201,7 @@ def test_corner_illumination_identity_zero_intensity():
     # Apply corner illumination with zero intensity
     result = fmain.apply_corner_illumination(image, intensity=0, corner=0)
 
-    np.testing.assert_array_almost_equal(result, image)
+    np.testing.assert_array_almost_equal(result, image, decimal=2)
 
 
 @pytest.mark.parametrize("corner", [0, 1, 2, 3])

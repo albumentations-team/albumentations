@@ -2721,51 +2721,48 @@ def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -
 
 
 @clipped
+@uint8_io
 def apply_corner_illumination(
     img: np.ndarray,
     intensity: float,
     corner: Literal[0, 1, 2, 3],
 ) -> np.ndarray:
-    """Apply corner-based illumination effect.
+    """Apply corner-based illumination effect."""
+    if intensity == 0:
+        return img.copy()
 
-    Args:
-        img: Input image
-        intensity: Effect strength (-1 to 1)
-        corner: Which corner to illuminate:
-                0 - top-left
-                1 - top-right
-                2 - bottom-right
-                3 - bottom-left
+    height, width = img.shape[:2]
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
 
-    Returns:
-        Image with corner illumination applied
-    """
-    result, height, width = prepare_illumination_input(img)
+    # Pre-compute normalization factor
+    norm_factor = 1.0 / np.sqrt(height * height + width * width)
 
-    # Create distance map coordinates
-    y, x = np.ogrid[:height, :width]
+    # Create inverted distance map mask directly
+    mask = np.full((height, width), max_value, dtype=img.dtype)
 
-    # Define corner coordinates
     if corner == 0:  # top-left
-        corner_y, corner_x = 0, 0
+        mask[0, 0] = 0
     elif corner == 1:  # top-right
-        corner_y, corner_x = 0, width - 1
+        mask[0, -1] = 0
     elif corner == 2:  # bottom-right
-        corner_y, corner_x = height - 1, width - 1
-    elif corner == 3:  # bottom-left
-        corner_y, corner_x = height - 1, 0
+        mask[-1, -1] = 0
+    else:  # corner == 3, bottom-left
+        mask[-1, 0] = 0
 
-    # Calculate distance from the chosen corner
-    distance = np.sqrt(
-        (x - corner_x) ** 2 + (y - corner_y) ** 2,
-    ) / np.sqrt(height * height + width * width)
+    # Calculate distance transform
+    distance = cv2.distanceTransform(
+        mask,  # Invert mask so corner point is 0
+        distanceType=cv2.DIST_L2,  # Euclidean distance
+        maskSize=cv2.DIST_MASK_PRECISE,
+    )
 
-    pattern = 1 - distance  # Invert so corner is brightest
+    # Normalize and invert pattern
+    pattern = 1 - (distance * norm_factor)
 
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
         pattern = cv2.merge([pattern] * img.shape[2])
 
-    return multiply(img, 1 + intensity * pattern, inplace=True)
+    return multiply_by_array(img, 1 + intensity * pattern)
 
 
 @clipped
