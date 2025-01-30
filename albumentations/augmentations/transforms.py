@@ -6330,7 +6330,7 @@ class Illumination(ImageOnlyTransform):
         self.center_range = center_range
         self.sigma_range = sigma_range
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         intensity = self.py_random.uniform(*self.intensity_range)
 
         # Determine if brightening or darkening
