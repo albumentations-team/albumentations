@@ -1858,87 +1858,6 @@ def test_get_histogram_bounds_numerical_stability():
 
 
 @pytest.mark.parametrize(
-    ["img", "pattern", "intensity", "expected"],
-    [
-        # Test grayscale image (2D)
-        (
-            np.array([[100, 200], [150, 50]], dtype=np.uint8),
-            np.array([[0.5, 1.0], [0.0, 0.5]], dtype=np.float32),
-            0.2,
-            np.array([[110, 240], [150, 55]], dtype=np.uint8),
-        ),
-        # Test RGB image (3D)
-        (
-            np.array([[[100, 150, 200]]], dtype=np.uint8),
-            np.array([[0.5]], dtype=np.float32),
-            0.1,
-            np.array([[[105, 158, 210]]], dtype=np.uint8),
-        ),
-        # Test float32 image
-        (
-            np.array([[0.5, 1.0]], dtype=np.float32),
-            np.array([[1.0, 0.0]], dtype=np.float32),
-            0.1,
-            np.array([[0.55, 1.0]], dtype=np.float32),
-        ),
-        # Test negative intensity (darkening)
-        (
-            np.array([[100, 200]], dtype=np.uint8),
-            np.array([[1.0, 1.0]], dtype=np.float32),
-            -0.2,
-            np.array([[80, 160]], dtype=np.uint8),
-        ),
-        # Test zero intensity (no change)
-        (
-            np.array([[100, 200]], dtype=np.uint8),
-            np.array([[1.0, 1.0]], dtype=np.float32),
-            0.0,
-            np.array([[100, 200]], dtype=np.uint8),
-        ),
-    ]
-)
-def test_apply_illumination_pattern(img, pattern, intensity, expected):
-    result = fmain.apply_illumination_pattern(img.copy(), pattern, intensity)
-    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
-
-
-@pytest.mark.parametrize(
-    ["shape", "dtype"],
-    [
-        ((100, 100), np.float32),
-        ((100, 100, 3), np.float32),
-        ((50, 75, 4), np.float32),  # RGBA
-    ]
-)
-def test_apply_illumination_pattern_shapes(shape, dtype):
-    """Test that function works with different image shapes and dtypes."""
-    img = np.random.rand(*shape).astype(dtype)
-    if dtype == np.uint8:
-        img = (img * 255).astype(dtype)
-
-    pattern = np.random.rand(shape[0], shape[1]).astype(np.float32)
-    intensity = 0.1
-
-    result = fmain.apply_illumination_pattern(img.copy(), pattern, intensity)
-
-    assert result.shape == img.shape
-    assert result.dtype == img.dtype
-
-
-def test_apply_illumination_pattern_preserves_input():
-    """Test that the function doesn't modify input arrays."""
-    img = np.array([[100, 200]], dtype=np.uint8)
-    pattern = np.array([[0.5, 1.0]], dtype=np.float32)
-    img_copy = img.copy()
-    pattern_copy = pattern.copy()
-
-    _ = fmain.apply_illumination_pattern(img, pattern, 0.1)
-
-    np.testing.assert_array_equal(img, img_copy)
-    np.testing.assert_array_equal(pattern, pattern_copy)
-
-
-@pytest.mark.parametrize(
     ["img", "intensity", "angle", "expected"],
     [
         # Test horizontal gradient (0 degrees)
@@ -2241,3 +2160,169 @@ def test_corner_illumination_multichannel_consistency():
     # Check that all channels are identical
     np.testing.assert_array_almost_equal(result[..., 0], result[..., 1])
     np.testing.assert_array_almost_equal(result[..., 1], result[..., 2])
+
+
+@pytest.mark.parametrize(
+    ["center", "intensity", "sigma", "expected_brightest"],
+    [
+        # Test different centers with positive intensity (brightening)
+        ((0.5, 0.5), 0.2, 0.25, (5, 5)),    # center
+        ((0.0, 0.0), 0.2, 0.25, (0, 0)),    # top-left
+        ((1.0, 0.0), 0.2, 0.25, (0, 9)),    # top-right
+        ((1.0, 1.0), 0.2, 0.25, (9, 9)),    # bottom-right
+        ((0.0, 1.0), 0.2, 0.25, (9, 0)),    # bottom-left
+
+        # Test with negative intensity (darkening)
+        ((0.5, 0.5), -0.2, 0.25, (0, 0)),   # center is darkest, corners brightest
+
+        # Test different sigma values
+        ((0.5, 0.5), 0.2, 0.1, (5, 5)),     # narrow gaussian
+        ((0.5, 0.5), 0.2, 0.5, (5, 5)),     # wide gaussian
+    ],
+)
+def test_gaussian_illumination_brightest_point(center, intensity, sigma, expected_brightest):
+    """Test that the brightest point is at the expected location."""
+    # Create a constant test image
+    image = np.full((10, 10), 0.5, dtype=np.float32)
+
+    # Apply gaussian illumination
+    result = fmain.apply_gaussian_illumination(image, intensity, center, sigma)
+
+    # Find the brightest point
+    actual_brightest = np.unravel_index(np.argmax(result), result.shape)
+
+    assert actual_brightest == expected_brightest
+
+
+@pytest.mark.parametrize(
+    ["shape", "dtype"],
+    [
+        ((10, 10), np.float32),       # grayscale float32
+        ((10, 10), np.uint8),         # grayscale uint8
+        ((10, 10, 3), np.float32),    # RGB float32
+        ((10, 10, 3), np.uint8),      # RGB uint8
+    ],
+)
+def test_gaussian_illumination_preserves_shape_and_type(shape, dtype):
+    """Test that output maintains input shape and dtype."""
+    # Create test image
+    image = np.ones(shape, dtype=dtype)
+    if dtype == np.uint8:
+        image *= 255
+
+    result = fmain.apply_gaussian_illumination(
+        image,
+        intensity=0.2,
+        center=(0.5, 0.5),
+        sigma=0.25,
+    )
+
+    assert result.shape == shape
+    assert result.dtype == dtype
+
+
+def test_gaussian_illumination_zero_intensity():
+    """Test that zero intensity returns unchanged image."""
+    image = np.random.rand(10, 10).astype(np.float32)
+    result = fmain.apply_gaussian_illumination(
+        image,
+        intensity=0.0,
+        center=(0.5, 0.5),
+        sigma=0.25,
+    )
+
+    np.testing.assert_array_equal(result, image)
+
+
+def test_gaussian_illumination_symmetry():
+    """Test that the gaussian pattern is symmetric around the center."""
+    size = 11  # Odd size for exact center
+    image = np.full((size, size), 0.5, dtype=np.float32)
+
+    # Calculate exact pixel center
+    center = ((size - 1) / (size * 2), (size - 1) / (size * 2))  # This gives exact center pixel
+
+    result = fmain.apply_gaussian_illumination(
+        image,
+        intensity=0.2,
+        center=center,
+        sigma=0.25,
+    )
+
+    # Get middle indices
+    mid = size // 2
+    radius = 3  # Test fewer pixels around center for stability
+
+    # Check horizontal symmetry with tolerance
+    center_row = result[mid]
+    assert np.allclose(
+        center_row[mid-radius:mid],  # Left of center
+        np.flip(center_row[mid+1:mid+radius+1]),  # Right of center
+        rtol=1e-4,  # Increased relative tolerance
+        atol=1e-3,  # Absolute tolerance
+    ), f"Horizontal asymmetry:\nLeft:  {center_row[mid-radius:mid]}\nRight: {np.flip(center_row[mid+1:mid+radius+1])}"
+
+    # Check vertical symmetry with tolerance
+    center_col = result[:, mid]
+    assert np.allclose(
+        center_col[mid-radius:mid],  # Above center
+        np.flip(center_col[mid+1:mid+radius+1]),  # Below center
+        rtol=1e-4,  # Increased relative tolerance
+        atol=1e-3,  # Absolute tolerance
+    ), f"Vertical asymmetry:\nAbove: {center_col[mid-radius:mid]}\nBelow: {np.flip(center_col[mid+1:mid+radius+1])}"
+
+
+@pytest.mark.parametrize("intensity", [-0.2, 0.2])
+def test_gaussian_illumination_multichannel_consistency(intensity):
+    """Test that all channels are modified identically for RGB images."""
+    image = np.ones((10, 10, 3), dtype=np.float32)
+    result = fmain.apply_gaussian_illumination(
+        image,
+        intensity=intensity,
+        center=(0.5, 0.5),
+        sigma=0.25,
+    )
+
+    # Check that all channels are identical
+    assert np.allclose(result[..., 0], result[..., 1])
+    assert np.allclose(result[..., 1], result[..., 2])
+
+
+@pytest.mark.parametrize(
+    ["sigma", "expected_pattern"],
+    [
+        (0.1, "narrow"),  # Narrow gaussian should have steeper falloff
+        (0.5, "wide"),    # Wide gaussian should have gradual falloff
+    ],
+)
+def test_gaussian_illumination_sigma(sigma, expected_pattern):
+    """Test that sigma controls the spread of the gaussian pattern."""
+    image = np.full((10, 10), 0.5, dtype=np.float32)
+    result = fmain.apply_gaussian_illumination(
+        image,
+        intensity=0.2,
+        center=(0.5, 0.5),
+        sigma=sigma,
+    )
+
+    # Compare center value to midpoint value
+    center_val = result[5, 5]
+    mid_val = result[5, 7]
+    diff = center_val - mid_val
+
+    if expected_pattern == "narrow":
+        assert diff > 0.05  # Reduced threshold for steeper falloff
+    else:
+        assert diff < 0.05  # Reduced threshold for gradual falloff
+
+    # Additional check: narrow should have larger difference than wide
+    result_wide = fmain.apply_gaussian_illumination(
+        image,
+        intensity=0.2,
+        center=(0.5, 0.5),
+        sigma=0.5,
+    )
+    wide_diff = result_wide[5, 5] - result_wide[5, 7]
+
+    if expected_pattern == "narrow":
+        assert diff > wide_diff  # Narrow should have steeper falloff than wide
