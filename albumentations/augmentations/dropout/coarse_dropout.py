@@ -512,7 +512,7 @@ class ConstrainedCoarseDropout(BaseDropout):
 
         # Filter boxes by labels (usually in column 4)
         mask = np.isin(bboxes[:, 4], target_labels)
-        filtered_boxes = bboxes[mask, :4]  # Keep only x,y,w,h
+        filtered_boxes = bboxes[mask, :4]
 
         return filtered_boxes if len(filtered_boxes) > 0 else None
 

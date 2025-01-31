@@ -10,9 +10,7 @@ import numpy as np
 
 
 def custom_sort(item: Any) -> tuple[int, Real | str]:
-    if isinstance(item, Real):
-        return (0, item)  # Numerical items come first
-    return (1, str(item))  # Non-numerical items come second, converted to strings
+    return (0, item) if isinstance(item, Real) else (1, str(item))
 
 
 class LabelEncoder:
