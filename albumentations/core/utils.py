@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from collections.abc import Sequence
 from numbers import Real
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import numpy as np
+
+from albumentations.core.label_manager import LabelManager
 
 from .serialization import Serializable
 from .type_definitions import PAIR, Number
@@ -75,59 +76,6 @@ def format_args(args_dict: dict[str, Any]) -> str:
     return ", ".join(formatted_args)
 
 
-def custom_sort(item: Any) -> tuple[int, Real | str]:
-    if isinstance(item, Real):
-        return (0, item)  # Numerical items come first
-    return (1, str(item))  # Non-numerical items come second, converted to strings
-
-
-class LabelEncoder:
-    def __init__(self) -> None:
-        self.classes_: dict[str | Real, int] = {}
-        self.inverse_classes_: dict[int, str | Real] = {}
-        self.num_classes: int = 0
-        self.is_numerical: bool = True
-
-    def fit(self, y: Sequence[Any] | np.ndarray) -> LabelEncoder:
-        if isinstance(y, np.ndarray):
-            y = y.flatten().tolist()
-
-        self.is_numerical = all(isinstance(label, Real) for label in y)
-
-        if self.is_numerical:
-            return self
-
-        unique_labels = sorted(set(y), key=custom_sort)
-        for label in unique_labels:
-            if label not in self.classes_:
-                self.classes_[label] = self.num_classes
-                self.inverse_classes_[self.num_classes] = label
-                self.num_classes += 1
-        return self
-
-    def transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
-        if isinstance(y, np.ndarray):
-            y = y.flatten().tolist()
-
-        if self.is_numerical:
-            return np.array(y)
-
-        return np.array([self.classes_[label] for label in y])
-
-    def fit_transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
-        self.fit(y)
-        return self.transform(y)
-
-    def inverse_transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
-        if isinstance(y, np.ndarray):
-            y = y.flatten().tolist()
-
-        if self.is_numerical:
-            return np.array(y)
-
-        return np.array([self.inverse_classes_[label] for label in y])
-
-
 class Params(Serializable, ABC):
     def __init__(self, format: Any, label_fields: Sequence[str] | None):  # noqa: A002
         self.format = format
@@ -141,11 +89,8 @@ class DataProcessor(ABC):
     def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
         self.params = params
         self.data_fields = [self.default_data_name]
-        self.label_encoders: dict[str, dict[str, LabelEncoder]] = defaultdict(dict)
         self.is_sequence_input: dict[str, bool] = {}
-        self.is_numerical_label: dict[str, dict[str, bool]] = defaultdict(dict)
-        self.label_dtypes: dict[str, dict[str, np.dtype]] = defaultdict(dict)
-        self.label_input_types: dict[str, dict[str, type]] = defaultdict(dict)
+        self.label_manager = LabelManager()
 
         if additional_targets is not None:
             self.add_targets(additional_targets)
@@ -263,7 +208,7 @@ class DataProcessor(ABC):
         if self.params.label_fields is not None:
             for label_field in self.params.label_fields:
                 self._validate_label_field_length(data, data_name, label_field)
-                encoded_labels = self._encode_label_field(data, data_name, label_field)
+                encoded_labels = self.label_manager.process_field(data_name, label_field, data[label_field])
                 data_array = np.hstack((data_array, encoded_labels))
                 del data[label_field]
         return data_array
@@ -274,32 +219,6 @@ class DataProcessor(ABC):
                 f"The lengths of {data_name} and {label_field} do not match. "
                 f"Got {len(data[data_name])} and {len(data[label_field])} respectively.",
             )
-
-    def _encode_label_field(self, data: dict[str, Any], data_name: str, label_field: str) -> np.ndarray:
-        field_data = data[label_field]
-
-        self.label_input_types[data_name][label_field] = type(field_data)
-        if isinstance(field_data, np.ndarray):
-            self.label_dtypes[data_name][label_field] = field_data.dtype
-
-        # Check if input is numpy array or if all elements are numerical
-        is_numerical = (isinstance(field_data, np.ndarray) and np.issubdtype(field_data.dtype, np.number)) or all(
-            isinstance(label, (int, float)) for label in field_data
-        )
-
-        self.is_numerical_label[data_name][label_field] = is_numerical
-
-        if is_numerical:
-            # For numerical values, convert to float32 for processing
-            if isinstance(field_data, np.ndarray):
-                return field_data.reshape(-1, 1).astype(np.float32)
-            return np.array(field_data, dtype=np.float32).reshape(-1, 1)
-
-        # For non-numerical values, use LabelEncoder
-        encoder = LabelEncoder()
-        encoded_labels = encoder.fit_transform(field_data).reshape(-1, 1)
-        self.label_encoders[data_name][label_field] = encoder
-        return encoded_labels
 
     def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
         if not self.params.label_fields:
@@ -316,7 +235,7 @@ class DataProcessor(ABC):
     def _handle_empty_data_array(self, data: dict[str, Any]) -> None:
         if self.params.label_fields is not None:
             for label_field in self.params.label_fields:
-                data[label_field] = []
+                data[label_field] = self.label_manager.handle_empty_data()
 
     def _remove_label_fields(self, data: dict[str, Any], data_name: str) -> None:
         if self.params.label_fields is None:
@@ -328,30 +247,9 @@ class DataProcessor(ABC):
 
         for idx, label_field in enumerate(self.params.label_fields):
             encoded_labels = data_array[:, non_label_columns + idx]
-            decoded_labels = self._decode_label_field(data_name, label_field, encoded_labels)
-
-            # Convert back to original type (list or numpy array)
-            input_type = self.label_input_types[data_name][label_field]
-            if isinstance(input_type, list):
-                data[label_field] = decoded_labels.tolist()
-            else:  # numpy array
-                data[label_field] = decoded_labels
+            data[label_field] = self.label_manager.restore_field(data_name, label_field, encoded_labels)
 
         data[data_name] = data_array[:, :non_label_columns]
-
-    def _decode_label_field(self, data_name: str, label_field: str, encoded_labels: np.ndarray) -> np.ndarray:
-        if self.is_numerical_label[data_name][label_field]:
-            # Restore original dtype if it was stored
-            original_dtype = self.label_dtypes.get(data_name, {}).get(label_field)
-            if original_dtype is not None:
-                return encoded_labels.astype(original_dtype)
-            return encoded_labels
-
-        encoder = self.label_encoders.get(data_name, {}).get(label_field)
-        if encoder:
-            return encoder.inverse_transform(encoded_labels.astype(int))
-
-        raise ValueError(f"Label encoder for {label_field} not found")
 
 
 def validate_args(
