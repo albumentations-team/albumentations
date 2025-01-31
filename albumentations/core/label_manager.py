@@ -93,6 +93,7 @@ class LabelManager:
         input_type = type(field_data)
         dtype = field_data.dtype if isinstance(field_data, np.ndarray) else None
 
+        # Check if input is numpy array or if all elements are numerical
         is_numerical = (isinstance(field_data, np.ndarray) and np.issubdtype(field_data.dtype, np.number)) or all(
             isinstance(label, (int, float)) for label in field_data
         )
@@ -130,15 +131,24 @@ class LabelManager:
 
         if metadata.encoder is None:
             raise ValueError("Encoder not found for non-numerical data")
-        return metadata.encoder.inverse_transform(encoded_data.astype(int))
+
+        decoded = metadata.encoder.inverse_transform(encoded_data.astype(int))
+        return decoded.reshape(-1)  # Ensure 1D array
 
     def _restore_type(self, decoded_data: np.ndarray, metadata: LabelMetadata) -> Any:
         """Restore data to its original type."""
-        if isinstance(metadata.input_type, list):
+        # If original input was a list or sequence, convert back to list
+        if isinstance(metadata.input_type, type) and issubclass(metadata.input_type, (list, Sequence)):
             return decoded_data.tolist()
-        if isinstance(metadata.input_type, np.ndarray) and metadata.dtype is not None:
-            return decoded_data.astype(metadata.dtype)
-        return decoded_data
+
+        # If original input was a numpy array, restore original dtype
+        if isinstance(metadata.input_type, type) and issubclass(metadata.input_type, np.ndarray):
+            if metadata.dtype is not None:
+                return decoded_data.astype(metadata.dtype)
+            return decoded_data
+
+        # For any other type, convert to list by default
+        return decoded_data.tolist()
 
     def handle_empty_data(self) -> list[Any]:
         """Handle empty data case."""
