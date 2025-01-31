@@ -499,15 +499,20 @@ class ConstrainedCoarseDropout(BaseDropout):
             label_fields = bbox_processor.params.label_fields
             if label_fields is None:
                 raise ValueError("BboxParams.label_fields must be specified when using string labels")
+
             first_class_label = label_fields[0]
-            label_encoder = bbox_processor.label_encoders["bboxes"][first_class_label]
-            target_labels = label_encoder.transform(self.bbox_labels)
+            # Access encoder through label_manager's metadata
+            metadata = bbox_processor.label_manager.metadata["bboxes"][first_class_label]
+            if metadata.encoder is None:
+                raise ValueError(f"No encoder found for label field {first_class_label}")
+
+            target_labels = metadata.encoder.transform(self.bbox_labels)
         else:
             target_labels = np.array(self.bbox_labels)
 
         # Filter boxes by labels (usually in column 4)
         mask = np.isin(bboxes[:, 4], target_labels)
-        filtered_boxes = bboxes[mask, :4]  # Keep only x,y,w,h
+        filtered_boxes = bboxes[mask, :4]
 
         return filtered_boxes if len(filtered_boxes) > 0 else None
 

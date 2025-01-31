@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from albumentations.core.utils import LabelEncoder
+from albumentations.core.label_manager import LabelEncoder
 
 
 @pytest.mark.parametrize(
