@@ -144,6 +144,8 @@ class DataProcessor(ABC):
         self.label_encoders: dict[str, dict[str, LabelEncoder]] = defaultdict(dict)
         self.is_sequence_input: dict[str, bool] = {}
         self.is_numerical_label: dict[str, dict[str, bool]] = defaultdict(dict)
+        self.label_dtypes: dict[str, dict[str, np.dtype]] = defaultdict(dict)
+        self.label_input_types: dict[str, dict[str, type]] = defaultdict(dict)
 
         if additional_targets is not None:
             self.add_targets(additional_targets)
@@ -276,6 +278,10 @@ class DataProcessor(ABC):
     def _encode_label_field(self, data: dict[str, Any], data_name: str, label_field: str) -> np.ndarray:
         field_data = data[label_field]
 
+        self.label_input_types[data_name][label_field] = type(field_data)
+        if isinstance(field_data, np.ndarray):
+            self.label_dtypes[data_name][label_field] = field_data.dtype
+
         # Check if input is numpy array or if all elements are numerical
         is_numerical = (isinstance(field_data, np.ndarray) and np.issubdtype(field_data.dtype, np.number)) or all(
             isinstance(label, (int, float)) for label in field_data
@@ -284,7 +290,7 @@ class DataProcessor(ABC):
         self.is_numerical_label[data_name][label_field] = is_numerical
 
         if is_numerical:
-            # For numerical values, preserve numpy arrays or convert to float32
+            # For numerical values, convert to float32 for processing
             if isinstance(field_data, np.ndarray):
                 return field_data.reshape(-1, 1).astype(np.float32)
             return np.array(field_data, dtype=np.float32).reshape(-1, 1)
@@ -323,12 +329,22 @@ class DataProcessor(ABC):
         for idx, label_field in enumerate(self.params.label_fields):
             encoded_labels = data_array[:, non_label_columns + idx]
             decoded_labels = self._decode_label_field(data_name, label_field, encoded_labels)
-            data[label_field] = decoded_labels.tolist()
+
+            # Convert back to original type (list or numpy array)
+            input_type = self.label_input_types[data_name][label_field]
+            if isinstance(input_type, list):
+                data[label_field] = decoded_labels.tolist()
+            else:  # numpy array
+                data[label_field] = decoded_labels
 
         data[data_name] = data_array[:, :non_label_columns]
 
     def _decode_label_field(self, data_name: str, label_field: str, encoded_labels: np.ndarray) -> np.ndarray:
         if self.is_numerical_label[data_name][label_field]:
+            # Restore original dtype if it was stored
+            original_dtype = self.label_dtypes.get(data_name, {}).get(label_field)
+            if original_dtype is not None:
+                return encoded_labels.astype(original_dtype)
             return encoded_labels
 
         encoder = self.label_encoders.get(data_name, {}).get(label_field)
