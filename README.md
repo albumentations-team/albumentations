@@ -10,6 +10,7 @@ https://anaconda.org/conda-forge/albumentations)
 https://stackoverflow.com/questions/tagged/albumentations)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Albumentations%20Guru-006BFF)](https://gurubase.io/g/albumentations)
+![PyPI - Types](https://img.shields.io/pypi/types/albumentations)
 
 [Docs](https://albumentations.ai/docs/) | [Discord](https://discord.gg/AKPrrDYNAt) | [Twitter](https://twitter.com/albumentations) | [LinkedIn](https://www.linkedin.com/company/100504475/)
 
