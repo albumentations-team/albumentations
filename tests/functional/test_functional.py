@@ -2522,7 +2522,7 @@ def test_rain_params_different_inputs(liquid_layer):
     result = fmain.get_rain_params(liquid_layer, color, intensity)
 
     assert isinstance(result["drops"], np.ndarray)
-    assert result["drops"].dtype == np.float32 or result["drops"].dtype == np.float64
+    assert result["drops"].dtype in [np.float32, np.float64]
 
 
 def test_rain_params_deterministic():
@@ -2554,6 +2554,7 @@ def test_rain_params_visual_pattern():
     # Check that we have some zero and non-zero values (rain drops)
     assert np.sum(drops > 0) > 0
     assert np.sum(drops == 0) > 0
+
 
 
 def test_rain_params_zero_input():

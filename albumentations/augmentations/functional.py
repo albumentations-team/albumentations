@@ -1705,7 +1705,6 @@ def unsharp_mask(
         ksize=(ksize, ksize),
         sigmaX=sigma,
     )
-    image = image.copy()
 
     if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and get_num_channels(image) == 1:
         image = np.squeeze(image, axis=-1)
