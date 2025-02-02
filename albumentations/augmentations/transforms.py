@@ -5777,16 +5777,17 @@ class SaltAndPepper(ImageOnlyTransform):
         total_amount = self.py_random.uniform(*self.amount)
         salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
 
-        num_pixels = int(height * width * total_amount)
+        area = height * width
+
+        num_pixels = int(area * total_amount)
         num_salt = int(num_pixels * salt_ratio)
 
         # Generate all positions at once
-        all_positions = np.arange(height * width)
-        noise_positions = self.random_generator.choice(all_positions, size=num_pixels, replace=False)
+        noise_positions = self.random_generator.choice(area, size=num_pixels, replace=False)
 
         # Create masks
-        salt_mask = np.zeros(height * width, dtype=bool)
-        pepper_mask = np.zeros(height * width, dtype=bool)
+        salt_mask = np.zeros(area, dtype=bool)
+        pepper_mask = np.zeros(area, dtype=bool)
 
         # Set salt and pepper positions
         salt_mask[noise_positions[:num_salt]] = True
