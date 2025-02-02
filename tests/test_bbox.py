@@ -682,7 +682,7 @@ def test_filter_bboxes_noop():
         classes=np.array([1]),
     )
     bbox_conf = A.core.bbox_utils.BboxParams(format="yolo", label_fields=["classes"], min_area=1.0)
-    transf = A.Compose([A.NoOp(p=1.0)], bbox_params=bbox_conf, is_check_shapes=False)
+    transf = A.Compose([A.NoOp(p=1.0)], bbox_params=bbox_conf, is_check_shapes=False, strict=True)
 
     out_data = transf(**in_data)
 
@@ -826,10 +826,11 @@ def test_compose_with_bbox_noop(
         aug = Compose(
             [NoOp(p=1.0)],
             bbox_params={"format": bbox_format, "label_fields": ["labels"]},
+            strict=True,
         )
         transformed = aug(image=image, bboxes=bboxes, labels=labels)
     else:
-        aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
+        aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format}, strict=True)
         transformed = aug(image=image, bboxes=bboxes)
     assert np.array_equal(transformed["image"], image)
     assert np.all(np.isclose(transformed["bboxes"], bboxes))
@@ -841,7 +842,7 @@ def test_compose_with_bbox_noop_error_label_fields(
     bbox_format: str,
 ) -> None:
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
+    aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format}, strict=True)
     with pytest.raises(Exception):
         aug(image=image, bboxes=bboxes)
 
@@ -876,6 +877,7 @@ def test_compose_with_bbox_noop_label_outside(
     aug = Compose(
         [NoOp(p=1.0)],
         bbox_params={"format": bbox_format, "label_fields": list(labels.keys())},
+        strict=True,
     )
     transformed = aug(image=image, bboxes=bboxes, **labels)
     assert np.array_equal(transformed["image"], image)
@@ -891,6 +893,7 @@ def test_random_sized_crop_size() -> None:
         [RandomSizedCrop(min_max_height=(70, 90), size=(50, 50), p=1.0)],
         bbox_params={"format": "albumentations"},
         seed=42,
+        strict=True,
     )
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
@@ -900,7 +903,7 @@ def test_random_sized_crop_size() -> None:
 def test_random_resized_crop_size() -> None:
     image = np.ones((100, 100, 3))
     bboxes = [(0.2, 0.3, 0.6, 0.8, 2), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = A.Compose([RandomResizedCrop(size=(50, 50), p=1.0)], bbox_params={"format": "albumentations"}, seed=42)
+    aug = A.Compose([RandomResizedCrop(size=(50, 50), p=1.0)], bbox_params={"format": "albumentations"}, seed=42, strict=True)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(bboxes) == len(transformed["bboxes"])
@@ -909,7 +912,7 @@ def test_random_resized_crop_size() -> None:
 def test_random_rotate() -> None:
     image = np.ones((192, 192, 3))
     bboxes = [(78, 42, 142, 80, 1), (32, 12, 42, 72, 2)]
-    aug = A.Compose([Rotate(limit=15, p=1.0, border_mode=cv2.BORDER_CONSTANT)], bbox_params={"format": "pascal_voc"})
+    aug = A.Compose([Rotate(limit=15, p=1.0, border_mode=cv2.BORDER_CONSTANT)], bbox_params={"format": "pascal_voc"}, strict=True)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
 
@@ -971,6 +974,7 @@ def test_bounding_box_outside_clip(
     transform = Compose(
         [A.NoOp()],
         bbox_params={"format": "pascal_voc", "label_fields": ["labels"], "clip": True},
+        strict=True,
     )
     transformed = transform(
         image=np.zeros((*image_size, 3), dtype=np.uint8),
@@ -995,6 +999,7 @@ def test_bounding_box_hflip(bbox, expected_bbox) -> None:
     transform = A.Compose(
         [A.HorizontalFlip(p=1.0)],
         bbox_params=A.BboxParams(format="coco", label_fields=[]),
+        strict=True,
     )
 
     transformed = transform(image=image, bboxes=[bbox])
@@ -1017,6 +1022,7 @@ def test_bounding_box_vflip(bbox, expected_bbox) -> None:
     transform = A.Compose(
         [A.VerticalFlip(p=1.0)],
         bbox_params=A.BboxParams(format="coco", label_fields=[]),
+        strict=True,
     )
 
     transformed = transform(image=image, bboxes=[bbox])
@@ -1059,6 +1065,7 @@ def test_bbox_clipping(
     aug = A.Compose(
         [transform],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility),
+        strict=True,
     )
 
     res = aug(image=image, bboxes=bboxes)["bboxes"]
@@ -1071,6 +1078,7 @@ def test_bbox_clipping_perspective() -> None:
         [A.Perspective(scale=(0.05, 0.05), p=1)],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6),
         seed=42,
+        strict=True,
     )
 
     image = np.empty([1000, 1000, 3], dtype=np.uint8)
@@ -1389,6 +1397,7 @@ def test_small_bbox(bbox_format, bbox, expected):
     transform = A.Compose(
         [A.NoOp()],
         bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
+        strict=True,
     )
     transformed = transform(
         image=np.zeros((4, 4, 3), dtype=np.uint8),
@@ -1411,6 +1420,7 @@ def test_very_small_bbox(bbox_format, bboxes, expected):
     transform = A.Compose(
         [A.NoOp()],
         bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
+        strict=True,
     )
 
     categories = [1]
@@ -1519,8 +1529,9 @@ def test_random_resized_crop():
     ],
     bbox_params=A.BboxParams(
         format="coco",
-        label_fields=["label"],
-    ),
+            label_fields=["label"],
+        ),
+        strict=True,
     )
     boxes = [[10,10,20,20], [5,5,10,10], [450, 450, 5,5], [250,250,5,5]]
     labels = [1,2,3,4]
@@ -2193,6 +2204,7 @@ def test_compose_bbox_transform(
             label_fields=["classes", "scores"],
             clip=clip,
         ),
+        strict=True,
     )
 
     transformed = transform(
@@ -2306,6 +2318,7 @@ def test_compose_with_max_accept_ratio(bboxes, shape, max_accept_ratio, expected
             max_accept_ratio=max_accept_ratio,
             label_fields=[],
         ),
+        strict=True,
     )
 
     data = {
@@ -2365,6 +2378,7 @@ def test_compose_max_accept_ratio_all_formats(bbox_format, bboxes, shape, max_ac
             max_accept_ratio=max_accept_ratio,
             label_fields=[],
         ),
+        strict=True,
     )
 
     data = {

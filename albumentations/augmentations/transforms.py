@@ -35,7 +35,6 @@ from pydantic import (
     model_validator,
 )
 from scipy import special
-from scipy.ndimage import gaussian_filter
 from typing_extensions import Literal, Self, TypedDict
 
 import albumentations.augmentations.dropout.functional as fdropout
@@ -77,7 +76,6 @@ from albumentations.core.type_definitions import (
     RainMode,
     ScaleFloatType,
     ScaleIntType,
-    SpatterMode,
 )
 from albumentations.core.utils import format_args, to_tuple
 
@@ -4290,7 +4288,11 @@ class UnsharpMask(ImageOnlyTransform):
         self.alpha = cast(tuple[float, float], alpha)
         self.threshold = threshold
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         return {
             "ksize": self.py_random.randrange(
                 self.blur_limit[0],
@@ -4528,7 +4530,7 @@ class Spatter(ImageOnlyTransform):
             If tuple of float gauss_sigma will be sampled from range `(gauss_sigma[0], gauss_sigma[1])`.
             If you want constant value use (gauss_sigma, gauss_sigma).
             Default: (2, 3).
-        cutout_threshold (tuple[float, float] | floats): Threshold for filtering liqued layer
+        cutout_threshold (tuple[float, float] | floats): Threshold for filtering liquid layer
             (determines number of drops). If single float it will used as cutout_threshold.
             If single float the number will be sampled from `(0, cutout_threshold)`.
             If tuple of float cutout_threshold will be sampled from range `(cutout_threshold[0], cutout_threshold[1])`.
@@ -4539,8 +4541,8 @@ class Spatter(ImageOnlyTransform):
             If tuple of float intensity will be sampled from range `(intensity[0], intensity[1])`.
             If you want constant value use `(intensity, intensity)`.
             Default: (0.6, 0.6).
-        mode (str, or list[str]): Type of corruption. Currently, supported options are 'rain' and 'mud'.
-             If list is provided type of corruption will be sampled list. Default: ("rain").
+        mode (Literal["rain", "mud"], or list[Literal["rain", "mud"]]): Type of corruption. Currently, supported options
+            are 'rain' and 'mud'. If list is provided type of corruption will be sampled list. Default: ("rain").
         color (list of (r, g, b) or dict or None): Corruption elements color.
             If list uses provided list as color for specified mode.
             If dict uses provided color for specified mode. Color for each specified mode should be provided in dict.
@@ -4565,15 +4567,15 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: NonNegativeFloatRangeType
         cutout_threshold: ZeroOneRangeType
         intensity: ZeroOneRangeType
-        mode: SpatterMode | Sequence[SpatterMode]
+        mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]]
         color: Sequence[int] | dict[str, Sequence[int]] | None = None
 
         @field_validator("mode")
         @classmethod
         def check_mode(
             cls,
-            mode: SpatterMode | Sequence[SpatterMode],
-        ) -> Sequence[SpatterMode]:
+            mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]],
+        ) -> Sequence[Literal["rain", "mud"]]:
             if isinstance(mode, str):
                 return [mode]
             return mode
@@ -4610,7 +4612,7 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: ScaleFloatType = (2, 2),
         cutout_threshold: ScaleFloatType = (0.68, 0.68),
         intensity: ScaleFloatType = (0.6, 0.6),
-        mode: SpatterMode | Sequence[SpatterMode] = "rain",
+        mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]] = "rain",
         color: Sequence[int] | dict[str, Sequence[int]] | None = None,
         p: float = 0.5,
     ):
@@ -4626,14 +4628,14 @@ class Spatter(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        non_mud: np.ndarray,
-        mud: np.ndarray,
-        drops: np.ndarray,
-        mode: SpatterMode,
         **params: dict[str, Any],
     ) -> np.ndarray:
         non_rgb_error(img)
-        return fmain.spatter(img, non_mud, mud, drops, mode)
+
+        if params["mode"] == "rain":
+            return fmain.spatter_rain(img, params["drops"])
+
+        return fmain.spatter_mud(img, params["non_mud"], params["mud"])
 
     def get_params_dependent_on_data(
         self,
@@ -4655,45 +4657,39 @@ class Spatter(ImageOnlyTransform):
             loc=mean,
             scale=std,
         )
-        liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
+        # Convert sigma to kernel size (must be odd)
+        ksize = int(2 * round(3 * sigma) + 1)  # 3 sigma rule, rounded to nearest odd
+        cv2.GaussianBlur(
+            src=liquid_layer,
+            dst=liquid_layer,  # in-place operation
+            ksize=(ksize, ksize),
+            sigmaX=sigma,
+            sigmaY=sigma,
+            borderType=cv2.BORDER_REPLICATE,
+        )
+
+        # Important line, without it the rain effect looses drops
         liquid_layer[liquid_layer < cutout_threshold] = 0
 
         if mode == "rain":
-            liquid_layer = clip(liquid_layer * 255, np.uint8, inplace=False)
-            dist = 255 - cv2.Canny(liquid_layer, 50, 150)
-            dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
-            _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
-            dist = clip(fblur.blur(dist, 3), np.uint8, inplace=True)
-            dist = fmain.equalize(dist)
-
-            ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
-            dist = fmain.convolve(dist, ker)
-            dist = fblur.blur(dist, 3).astype(np.float32)
-
-            m = liquid_layer * dist
-            m *= 1 / np.max(m, axis=(0, 1))
-
-            drops = m[:, :, None] * color * intensity
-            mud = None
-            non_mud = None
-        else:
-            m = np.where(liquid_layer > cutout_threshold, 1, 0)
-            m = gaussian_filter(m.astype(np.float32), sigma=sigma, mode="nearest")
-            m[m < 1.2 * cutout_threshold] = 0
-            m = m[..., np.newaxis]
-
-            mud = m * color
-            non_mud = 1 - m
-            drops = None
+            return {
+                "mode": "rain",
+                **fmain.get_rain_params(liquid_layer=liquid_layer, color=color, intensity=intensity),
+            }
 
         return {
-            "non_mud": non_mud,
-            "mud": mud,
-            "drops": drops,
-            "mode": mode,
+            "mode": "mud",
+            **fmain.get_mud_params(
+                liquid_layer=liquid_layer,
+                color=color,
+                cutout_threshold=cutout_threshold,
+                sigma=sigma,
+                intensity=intensity,
+                random_generator=self.random_generator,
+            ),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "mean",
             "std",

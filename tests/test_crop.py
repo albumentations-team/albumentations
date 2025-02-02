@@ -18,11 +18,13 @@ def test_random_crop_vs_crop(bboxes, keypoints):
         [A.RandomCrop(height=image_height, width=image_width, p=1.0)],
         bbox_params=A.BboxParams(format="pascal_voc"),
         keypoint_params=A.KeypointParams(format="xyas"),
+        strict=True,
     )
     crop_transform = A.Compose(
         [A.Crop(x_min=0, y_min=0, x_max=image_width, y_max=image_height, p=1.0)],
         bbox_params=A.BboxParams(format="pascal_voc"),
         keypoint_params=A.KeypointParams(format="xyas"),
+        strict=True,
     )
 
     random_crop_result = random_crop_transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
@@ -45,6 +47,7 @@ def test_center_crop_vs_crop(bboxes, keypoints):
         [A.CenterCrop(height=height, width=width, p=1.0)],
         bbox_params=A.BboxParams(format="pascal_voc"),
         keypoint_params=A.KeypointParams(format="xyas"),
+        strict=True,
     )
     crop_transform = A.Compose(
         [
@@ -58,6 +61,7 @@ def test_center_crop_vs_crop(bboxes, keypoints):
         ],
         bbox_params=A.BboxParams(format="pascal_voc"),
         keypoint_params=A.KeypointParams(format="xyas"),
+        strict=True,
     )
 
     center_crop_result = center_crop_transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
@@ -77,6 +81,7 @@ def test_crop_near_bbox(image, bboxes, keypoints):
         [A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)],
         bbox_params=A.BboxParams("pascal_voc"),
         keypoint_params=A.KeypointParams(format="xyas"),
+        strict=True,
     )
 
     aug(image=image, bboxes=bboxes, target_bbox=[0, 5, 10, 20], keypoints=keypoints)
@@ -89,6 +94,7 @@ def test_crop_near_bbox(image, bboxes, keypoints):
         [A.Sequential([A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)])],
         bbox_params=A.BboxParams("pascal_voc"),
         keypoint_params=A.KeypointParams(format="xyas"),
+        strict=True,
     )
 
     assert aug2._available_keys == target_keys
@@ -134,6 +140,7 @@ def test_bbox_params_edges(
             min_area=min_area,
             min_visibility=min_visibility,
         ),
+        strict=True,
     )
     res = aug(image=image, bboxes=bboxes)["bboxes"]
 
@@ -172,7 +179,7 @@ def test_pad_position_equivalence(
             fill=0,
             pad_position=pad_position,
         )
-    ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"))
+    ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
 
     # Approach 2: Separate pad and crop
     transform2 = A.Compose([
@@ -187,7 +194,7 @@ def test_pad_position_equivalence(
             **crop_params,
             pad_if_needed=False,
         )
-    ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"))
+    ], keypoint_params=A.KeypointParams(format="xyas"), bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
 
     result1 = transform1(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
     result2 = transform2(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)

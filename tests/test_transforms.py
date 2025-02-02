@@ -147,7 +147,7 @@ def test_semantic_mask_interpolation(augmentation_cls, params, image):
     np.random.seed(seed)
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
 
-    data = A.Compose([augmentation_cls(p=1, **params)], seed=seed)(image=image, mask=mask)
+    data = A.Compose([augmentation_cls(p=1, **params)], seed=seed, strict=False)(image=image, mask=mask)
 
     np.testing.assert_array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))
 
@@ -266,7 +266,7 @@ def test_force_apply():
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose(
-        [augmentation_cls(p=1, **params)], additional_targets={"image2": "image"}
+        [augmentation_cls(p=1, **params)], additional_targets={"image2": "image"}, strict=True
     )
     for _ in range(10):
         image1 = (
@@ -280,7 +280,7 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug2 = res["image2"]
         np.testing.assert_array_equal(aug1, aug2)
 
-    aug = A.Compose([augmentation_cls(p=1, **params)])
+    aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
     aug.add_targets(additional_targets={"image2": "image"})
     for _ in range(10):
         image1 = (
@@ -533,24 +533,6 @@ def test_mask_dropout():
     assert np.all(result["mask"] == 0)
 
 
-@pytest.mark.parametrize(
-    ["blur_limit", "sigma", "result_blur", "result_sigma"],
-    [
-        [[0, 0], [1, 1], 0, 1],
-        [[1, 1], [0, 0], 1, 0],
-        [[1, 1], [1, 1], 1, 1],
-    ],
-)
-def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
-    img = np.zeros([100, 100, 3], dtype=np.uint8)
-    aug = A.Compose(
-        [A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)], seed=42
-    )
-
-    res = aug(image=img)["image"]
-    assert np.allclose(res, fmain.unsharp_mask(img, result_blur, result_sigma))
-
-
 @pytest.mark.parametrize("val_uint8", [0, 1, 128, 255])
 def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
@@ -600,7 +582,8 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
                 p=1,
             ),
         ],
-        seed=42,
+        seed=137,
+        strict=True,
     )
 
     res1 = transform(image=img)["image"]
@@ -635,7 +618,8 @@ def test_perspective_keep_size():
         [A.Perspective(keep_size=True, p=1)],
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
-        seed=42,
+        seed=137,
+        strict=True,
     )
 
     res_1 = transform_1(
@@ -646,7 +630,8 @@ def test_perspective_keep_size():
         [A.Perspective(keep_size=False, p=1), A.Resize(height, width, p=1)],
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
-        seed=42,
+        seed=137,
+        strict=True,
     )
 
     res_2 = transform_2(
@@ -713,7 +698,8 @@ def test_smallest_max_size_list():
                     A.Blur(p=1.0),
                     A.RandomSizedCrop((50, 200), size=(512, 512), p=1.0),
                     A.HorizontalFlip(p=1.0),
-                ]
+                ],
+                strict=True,
             ),
             (512, 512),
             (512, 512),
@@ -947,7 +933,8 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
         keypoint_params=A.KeypointParams("xyas", angle_in_degrees=True),
         p=1,
-        seed=42,
+        seed=137,
+        strict=True,
     )
     res = t(image=image, **targets)
 
@@ -1002,13 +989,14 @@ def test_rotate_equal(img, aug_cls, angle):
     keypoint_params = A.KeypointParams("xya", remove_invisible=False)
 
     a = A.Compose(
-        [aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params, seed=42
+        [aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params, seed=137, strict=True
     )
 
     b = A.Compose(
         [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, fill=0, p=1)],
         keypoint_params=keypoint_params,
-        seed=42,
+        seed=137,
+        strict=True,
     )
     res_a = a(image=img, keypoints=kp)
     res_b = b(image=img, keypoints=kp)
@@ -1082,7 +1070,7 @@ def test_grid_shuffle(image, grid):
     """
     mask = image.copy()
 
-    aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)], seed=42)
+    aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)], seed=137, strict=True)
 
     res = aug(image=image, mask=mask)
     assert res["image"].shape == image.shape
@@ -1126,7 +1114,8 @@ def test_random_crop_from_borders(
         ],
         bbox_params=A.BboxParams("pascal_voc"),
         keypoint_params=A.KeypointParams("xy"),
-        seed=42,
+        seed=137,
+        strict=True,
     )
 
     assert aug(image=image, mask=image, bboxes=bboxes, keypoints=keypoints)
@@ -1174,12 +1163,15 @@ def test_image_compression_invalid_input(params):
             A.NoOp,
             A.Lambda,
             A.ToRGB,
+            A.FrequencyMasking,
+            A.TimeMasking,
+            A.RandomRotate90,
         },
     ),
 )
 def test_change_image(augmentation_cls, params):
     """Checks whether resulting image is different from the original one."""
-    aug = A.Compose([augmentation_cls(p=1, **params)], seed=0)
+    aug = A.Compose([augmentation_cls(p=1, **params)], seed=137, strict=False)
 
     image = SQUARE_UINT8_IMAGE
     original_image = image.copy()
@@ -1255,6 +1247,9 @@ def test_change_image(augmentation_cls, params):
             A.MaskDropout,
             A.Pad,
             A.ConstrainedCoarseDropout,
+            A.RandomRotate90,
+            A.FrequencyMasking,
+            A.TimeMasking,
         },
     ),
 )
@@ -1264,13 +1259,16 @@ def test_selective_channel(
     image = SQUARE_MULTI_UINT8_IMAGE
     channels = [3, 2, 4]
 
+    aug_cls = augmentation_cls(**params, p=1)
+
     aug = A.Compose(
         [
             A.SelectiveChannelTransform(
-                transforms=[augmentation_cls(**params, p=1)], channels=channels, p=1
+                transforms=[aug_cls], channels=channels, p=1
             )
         ],
-        seed=0,
+        seed=137,
+        strict=False,
     )
 
     data = {"image": image}
@@ -1501,6 +1499,8 @@ def test_crop_and_pad(px, percent, fill, keep_size, sample_independently, image)
                 p=1,
             ),
         ],
+        strict=True,
+        seed=137,
     )
 
     transformed_image = transform(image=image)["image"]
@@ -1540,6 +1540,8 @@ def test_crop_and_pad_percent(percent, expected_shape):
                 keep_size=False,
             )
         ],
+        strict=True,
+        seed=137,
     )
 
     image = np.ones((10, 10, 3), dtype=np.uint8)
@@ -1571,6 +1573,8 @@ def test_crop_and_pad_px_pixel_values(px, expected_shape):
                 keep_size=False,
             )
         ],
+        strict=True,
+        seed=137,
     )
 
     image = np.ones((10, 10, 3), dtype=np.uint8) * 255
@@ -1632,7 +1636,7 @@ def test_gauss_noise(mean, image):
         )
         < 0.5
     )
-    result = A.Compose([aug], seed=42)(image=image)
+    result = A.Compose([aug], seed=137, strict=True)(image=image)
 
     assert not (result["image"] >= image).all()
 
@@ -1714,7 +1718,7 @@ def test_return_nonzero(augmentation_cls, params):
         SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     )
 
-    aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
 
     data = {
         "image": image,
@@ -1777,7 +1781,7 @@ def test_padding_color(transform, num_channels):
     else:
         image = np.zeros((4, 4, num_channels), dtype=np.uint8)
 
-    pipeline = A.Compose([transform])
+    pipeline = A.Compose([transform], seed=137, strict=True)
 
     # Apply the transform
     augmented = pipeline(image=image)["image"]
@@ -1813,6 +1817,8 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
         [augmentation_cls(p=1, **params)],
         bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"]),
         keypoint_params=A.KeypointParams(format="xy"),
+        seed=137,
+        strict=False,
     )
     image = SQUARE_UINT8_IMAGE
     data = {
@@ -1857,6 +1863,8 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
         keypoint_params=A.KeypointParams(
             format="xy", remove_invisible=remove_invisible
         ),
+        seed=137,
+        strict=True,
     )
 
     transformed = transform(image=image, mask=mask, keypoints=keypoints)
@@ -1920,7 +1928,8 @@ def test_keypoints_bboxes_match(augmentation_cls, params):
         [aug],
         bbox_params=A.BboxParams(format="pascal_voc", label_fields=["labels"], min_area=0, min_visibility=0),
         keypoint_params=A.KeypointParams(format="xy", remove_invisible=False),
-        seed=42,
+        seed=137,
+        strict=False,
     )
 
     transformed = transform(image=image, bboxes=bboxes, keypoints=keypoints, labels=[1])

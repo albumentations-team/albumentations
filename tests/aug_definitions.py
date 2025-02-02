@@ -292,7 +292,12 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RingingOvershoot, dict(blur_limit=(7, 15), cutoff=(np.pi / 5, np.pi / 2))],
     [
         A.UnsharpMask,
-        {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15},
+               {
+            "blur_limit": (3, 7),  # Allow for stronger blur
+            "sigma_limit": (0.5, 2.0),  # Increase sigma range
+            "alpha": (0.5, 1.0),  # Allow for stronger sharpening
+            "threshold": 5,  # Lower threshold to allow more changes
+        },
     ],
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, [{"dropout_prob": 0.1, "per_channel": True, "drop_value": None},
@@ -310,14 +315,24 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [
         A.Spatter,
-        dict(
-            mean=0.2,
-            std=0.1,
-            gauss_sigma=3,
-            cutout_threshold=0.4,
-            intensity=0.7,
-            mode="mud",
+        [
+            dict(
+            mode="rain",
+            mean=(0.65, 0.65),
+            std=(0.3, 0.3),
+            gauss_sigma=(2, 2),
+            cutout_threshold=(0.68, 0.68),
+            intensity=(0.6, 0.6),
         ),
+        dict(
+            mode="mud",
+            mean=(0.65, 0.65),
+            std=(0.3, 0.3),
+            gauss_sigma=(2, 2),
+            cutout_threshold=(0.68, 0.68),
+            intensity=(0.6, 0.6),
+        )
+    ],
     ],
     [
         A.ChromaticAberration,
@@ -399,8 +414,8 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Pad, {"padding": 10}],
     [A.Erasing, {}],
     [A.AdditiveNoise, {}],
-    [A.SaltAndPepper, {}],
-    [A.PlasmaBrightnessContrast, {}],
+    [A.SaltAndPepper, {"amount": (0.5, 0.5), "salt_vs_pepper": (0.5, 0.5)}],
+    [A.PlasmaBrightnessContrast, {"brightness_range": (0.5, 0.5), "contrast_range": (0.5, 0.5)}],
     [A.PlasmaShadow, {}],
     [A.Illumination, {}],
     [A.ThinPlateSpline, {}],

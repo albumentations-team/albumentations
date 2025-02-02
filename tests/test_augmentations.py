@@ -6,7 +6,6 @@ import pytest
 from albucore import to_float
 
 import albumentations as A
-from albumentations.core.bbox_utils import normalize_bboxes
 from tests.conftest import (
     IMAGES,
     RECTANGULAR_UINT8_IMAGE,
@@ -51,14 +50,14 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
     if augmentation_cls == A.TextImage:
-        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = aug(
             image=image,
             mask=mask,
             textimage_metadata={"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)},
         )
     else:
-        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
         data = aug(image=image, mask=mask)
 
     assert data["image"].dtype == image.dtype
@@ -96,7 +95,7 @@ def test_image_only_augmentations(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image[:, :, 0].copy().astype(np.uint8)
     if augmentation_cls == A.TextImage:
-        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = aug(image=image, mask=mask, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     else:
         aug = augmentation_cls(p=1, **params)
@@ -120,7 +119,7 @@ def test_image_only_augmentations(augmentation_cls, params):
 def test_dual_augmentations(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
-    aug = A.Compose([augmentation_cls(p=1, **params)])
+    aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
     data = {"image": image, "mask": mask}
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
@@ -746,7 +745,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 )
 def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
     image = SQUARE_MULTI_FLOAT_IMAGE
-    aug = A.Compose([augmentation_cls(p=1, **params)])
+    aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
 
     data = {
         "image": image,
@@ -1015,7 +1014,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     image_uint8 = RECTANGULAR_UINT8_IMAGE
     image_float32 = to_float(image_uint8)
 
-    transform = A.Compose([augmentation_cls(p=1, **params)], seed=137)
+    transform = A.Compose([augmentation_cls(p=1, **params)], seed=137, strict=True)
 
     data = {"image": image_uint8}
     if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
@@ -1124,7 +1123,9 @@ def test_constrained_coarse_dropout_with_bboxes(bbox_labels, bboxes, expected_nu
             bbox_labels=bbox_labels,
             p=1.0,
         )
-    ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']), seed=137, save_applied_params=True)
+    ],
+    strict=True,
+    bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']), seed=137, save_applied_params=True)
 
 
     # Extract labels for bbox_params
