@@ -2409,7 +2409,11 @@ def apply_salt_and_pepper(
     pepper_mask: np.ndarray,
 ) -> np.ndarray:
     """Apply salt and pepper noise to image using pre-computed masks."""
-    # Avoid copy if possible by using np.where
+    # Add channel dimension to masks if image is 3D
+    if img.ndim == 3:
+        salt_mask = salt_mask[..., None]
+        pepper_mask = pepper_mask[..., None]
+
     max_value = MAX_VALUES_BY_DTYPE[img.dtype]
     return np.where(salt_mask, max_value, np.where(pepper_mask, 0, img))
 

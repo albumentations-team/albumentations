@@ -5772,28 +5772,28 @@ class SaltAndPepper(ImageOnlyTransform):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
-        height, width = image.shape[-2:]  # Get spatial dimensions only
+        height, width = image.shape[:2]
 
-        # Sample total amount and salt ratio
         total_amount = self.py_random.uniform(*self.amount)
         salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
 
-        # Calculate number of pixels to affect (only for H x W, not channels)
-        num_pixels = int(height * width * total_amount)
+        area = height * width
+
+        num_pixels = int(area * total_amount)
         num_salt = int(num_pixels * salt_ratio)
 
-        # Generate flat indices for salt and pepper (for H x W only)
-        total_pixels = height * width
-        indices = self.random_generator.choice(total_pixels, size=num_pixels, replace=False)
+        # Generate all positions at once
+        noise_positions = self.random_generator.choice(area, size=num_pixels, replace=False)
 
-        # Create 2D masks using advanced indexing
-        salt_mask = np.zeros(total_pixels, dtype=bool)
-        pepper_mask = np.zeros(total_pixels, dtype=bool)
+        # Create masks
+        salt_mask = np.zeros(area, dtype=bool)
+        pepper_mask = np.zeros(area, dtype=bool)
 
-        salt_mask[indices[:num_salt]] = True
-        pepper_mask[indices[num_salt:]] = True
+        # Set salt and pepper positions
+        salt_mask[noise_positions[:num_salt]] = True
+        pepper_mask[noise_positions[num_salt:]] = True
 
-        # Reshape masks to 2D and broadcast to all channels
+        # Reshape to 2D
         salt_mask = salt_mask.reshape(height, width)
         pepper_mask = pepper_mask.reshape(height, width)
 

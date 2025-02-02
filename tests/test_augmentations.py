@@ -1225,3 +1225,86 @@ def test_pixel_dropout_per_channel():
         assert len(unique_values) == 2  # Should only have original value and drop value
         assert drop_val in unique_values
         assert 255 in unique_values
+
+
+
+def test_salt_and_pepper_noise():
+    # Test image setup - create all gray image instead of black with gray square
+    image = np.full((100, 100, 3), 128, dtype=np.uint8)  # All gray image
+
+    # Fixed parameters for deterministic testing
+    amount = (0.05, 0.05)  # Exactly 5% of pixels
+    salt_vs_pepper = (0.6, 0.6)  # Exactly 60% salt, 40% pepper
+
+    transform = A.SaltAndPepper(
+        amount=amount,
+        salt_vs_pepper=salt_vs_pepper,
+        p=1.0
+    )
+    transform.set_random_seed(137)
+
+    # Apply transform
+    transformed = transform(image=image)["image"]
+
+    # Count all changes
+    salt_pixels = (transformed == 255).all(axis=2)
+    pepper_pixels = (transformed == 0).all(axis=2)
+
+    total_changes = salt_pixels.sum() + pepper_pixels.sum()
+
+    expected_pixels = int(image.shape[0] * image.shape[1] * amount[0])
+    assert total_changes == expected_pixels, \
+        f"Expected {expected_pixels} noisy pixels, got {total_changes}"
+
+    # Verify salt vs pepper ratio
+    expected_salt = int(expected_pixels * salt_vs_pepper[0])
+    assert salt_pixels.sum() == expected_salt, \
+        f"Expected {expected_salt} salt pixels, got {salt_pixels.sum()}"
+
+
+def test_salt_and_pepper_float_image():
+    """Test salt and pepper noise on float32 images"""
+    image = np.zeros((100, 100, 3), dtype=np.float32)
+    image[25:75, 25:75] = 0.5  # Gray square
+
+    transform = A.SaltAndPepper(
+        amount=(0.05, 0.05),
+        salt_vs_pepper=(0.6, 0.6),
+        p=1.0
+    )
+    transform.set_random_seed(137)
+
+    transformed = transform(image=image)["image"]
+
+    # Check that salt pixels are 1.0 and pepper pixels are 0.0
+    changed_mask = (transformed != image).any(axis=2)
+    assert np.allclose(transformed[transformed > 0.9], 1.0), \
+        "Salt pixels should be exactly 1.0 for float images"
+    assert np.allclose(transformed[transformed < 0.1], 0.0), \
+        "Pepper pixels should be exactly 0.0 for float images"
+
+def test_salt_and_pepper_grayscale():
+    """Test salt and pepper noise on single-channel images"""
+    image = np.zeros((100, 100), dtype=np.uint8)
+    image[25:75, 25:75] = 128
+
+    transform = A.SaltAndPepper(
+        amount=(0.05, 0.05),
+        salt_vs_pepper=(0.6, 0.6),
+        p=1.0
+    )
+    transform.set_random_seed(137)
+
+    transformed = transform(image=image)["image"]
+
+    # Verify shape is preserved
+    assert transformed.shape == image.shape, \
+        "Transform should preserve single-channel image shape"
+
+    # Check noise values
+    changed_mask = transformed != image
+    salt_pixels = (transformed == 255) & changed_mask
+    pepper_pixels = (transformed == 0) & changed_mask
+
+    assert (salt_pixels | pepper_pixels | ~changed_mask).all(), \
+        "Changed pixels should only be salt (255) or pepper (0)"
