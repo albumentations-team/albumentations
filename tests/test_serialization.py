@@ -1,4 +1,4 @@
-import inspect
+
 import io
 from pathlib import Path
 from typing import Any, Dict, Set
@@ -25,6 +25,7 @@ from .utils import (
     OpenMock,
     check_all_augs_exists,
     get_2d_transforms,
+    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
 )
@@ -44,7 +45,7 @@ AUGMENTATION_CLS_EXCEPT = {
 
 
 ## Can use several seeds, but just too slow.
-TEST_SEEDS = (42,)
+TEST_SEEDS = (137,)
 
 
 @pytest.mark.parametrize(
@@ -191,7 +192,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_2d_transforms(
+    get_dual_transforms(
         custom_arguments={
         },
         except_augmentations={
@@ -240,7 +241,7 @@ def test_augmentations_for_bboxes_serialization(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_2d_transforms(
+    get_dual_transforms(
         custom_arguments={
         },
         except_augmentations={
@@ -528,6 +529,7 @@ def test_additional_targets_for_image_only_serialization(
         [augmentation_cls(p=1.0, **params)],
         additional_targets={"image2": "image"},
         seed=seed,
+        strict=True,
     )
 
     image2 = image.copy()

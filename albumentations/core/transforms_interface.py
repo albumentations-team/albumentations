@@ -63,7 +63,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     class InitSchema(BaseTransformInitSchema):
         pass
 
-    def __init__(self, p: float = 0.5):
+    def __init__(self, p: float = 0.5, **kwargs: Any):
         self.p = p
         self._additional_targets: dict[str, str] = {}
         self.params: dict[Any, Any] = {}
@@ -73,6 +73,38 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.seed: int | None = None
         self.random_generator = np.random.default_rng(self.seed)
         self.py_random = random.Random(self.seed)
+        self._strict = False  # Use private attribute
+        self.invalid_args: list[str] = []  # Store invalid args found during init
+
+    @property
+    def strict(self) -> bool:
+        return self._strict
+
+    @strict.setter
+    def strict(self, value: bool) -> None:
+        """Set strict mode and validate for invalid arguments if enabled."""
+        if value == self._strict:
+            return  # No change needed
+
+        # Only validate if strict is being set to True and we have stored init args
+        if value and hasattr(self, "_init_args"):
+            # Get the list of valid arguments for this transform
+            valid_args = {"p", "strict"}  # Base valid args
+            if hasattr(self, "InitSchema"):
+                valid_args.update(self.InitSchema.model_fields.keys())
+
+            # Check for invalid arguments
+            invalid_args = [name_arg for name_arg in self._init_args if name_arg not in valid_args]
+
+            if invalid_args:
+                message = (
+                    f"Argument(s) '{', '.join(invalid_args)}' are not valid for transform {self.__class__.__name__}"
+                )
+                if value:  # In strict mode
+                    raise ValueError(message)
+                warn(message, stacklevel=2)
+
+        self._strict = value
 
     def set_random_state(
         self,

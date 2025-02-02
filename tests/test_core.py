@@ -1,12 +1,15 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
 import warnings
+from pydantic import BaseModel, Field
 import torch
 import cv2
 import numpy as np
 import pytest
+from typing import Any
 
 import albumentations as A
 from albumentations.core.bbox_utils import check_bboxes
@@ -22,7 +25,7 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
 )
-from albumentations.core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, NoOp
+from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
@@ -280,13 +283,13 @@ def test_named_args():
     ],
 )
 def test_targets_type_check(targets, additional_targets, err_message):
-    aug = Compose([A.NoOp()], additional_targets=additional_targets)
+    aug = Compose([A.NoOp()], additional_targets=additional_targets, strict=True)
 
     with pytest.raises(TypeError) as exc_info:
         aug(**targets)
     assert str(exc_info.value) == err_message
 
-    aug = Compose([A.NoOp()])
+    aug = Compose([A.NoOp()], strict=True)
     aug.add_targets(additional_targets)
     with pytest.raises(TypeError) as exc_info:
         aug(**targets)
@@ -654,7 +657,7 @@ def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expe
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_bbox_params_is_not_set(image, bboxes):
-    t = Compose([A.NoOp(p=1.0)])
+    t = Compose([A.NoOp(p=1.0)], strict=True)
     with pytest.raises(ValueError) as exc_info:
         t(image=image, bboxes=bboxes)
     assert str(exc_info.value) == "bbox_params must be specified for bbox transformations"
@@ -946,9 +949,16 @@ def test_common_pipeline_validity(transforms: list, compose_args: dict, args: di
 
 def test_compose_non_available_keys() -> None:
     """Check that non available keys raises error, except `mask` and `masks`"""
+    mock_transform = MagicMock()
+    mock_transform.available_keys = {"image"}
+    mock_transform.invalid_args = []  # Add this line to set up _invalid_args
+
     transform = A.Compose(
-        [MagicMock(available_keys={"image"})],
+        [mock_transform],
+        strict=True,
+        seed=137
     )
+
     image = np.empty([10, 10, 3], dtype=np.uint8)
     mask = np.empty([10, 10], dtype=np.uint8)
     _ = transform(image=image, mask=mask)
@@ -980,6 +990,7 @@ def test_compose_additional_targets_in_available_keys() -> None:
         [first, second],
         p=1,
         additional_targets={"additional_target_1": "image", "additional_target_2": "image"},
+        strict=False,
     )
     augmentation(image=image, additional_target_1=image, additional_target_2=image)  # will raise exception if not
     # strict=False should not raise error without additional_targets
@@ -987,7 +998,7 @@ def test_compose_additional_targets_in_available_keys() -> None:
     augmentation(image=image, additional_target_1=image, additional_target_2=image)
 
     # empty `transforms`
-    augmentation = Compose([], p=1, additional_targets={"additional_target_1": "image", "additional_target_2": "image"})
+    augmentation = Compose([], p=1, additional_targets={"additional_target_1": "image", "additional_target_2": "image"}, strict=True)
     augmentation(image=image, additional_target_1=image, additional_target_2=image)  # will raise exception if not
     # strict=False should not raise error without additional_targets
     augmentation = Compose([], p=1, strict=False)
@@ -1050,6 +1061,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
     aug = A.Compose(
         [augmentation_cls(p=1, **params)],
         p=1,
+        strict=True,
     )
 
     transformed = aug(**data)
@@ -1119,7 +1131,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
 
     if augmentation_cls == A.RandomCropNearBBox:
         # requires "cropping_bbox" arg
-        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
 
         data = {
             "image": image,
@@ -1128,14 +1140,14 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
         }
     elif augmentation_cls in [A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop]:
         # requires "bboxes" arg
-        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = {
             "image": image,
             "mask": mask,
             "bboxes": bboxes,
         }
     elif augmentation_cls == A.TextImage:
-        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = {
             "image": image,
             "mask": mask,
@@ -1144,7 +1156,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
         }
     elif augmentation_cls == A.OverlayElements:
         # requires "metadata" arg
-        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
         data = {
             "image": image,
             "mask": mask,
@@ -1160,7 +1172,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             # requires single channel mask
             mask = mask[:, :, 0]
 
-        aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
+        aug = A.Compose([augmentation_cls(p=1, **params)], p=1, strict=True)
         data = {
             "image": image,
             "mask": mask,
@@ -1222,6 +1234,7 @@ def test_masks_as_target(augmentation_cls, params, masks):
     aug = A.Compose(
         [augmentation_cls(p=1, **params)],
         seed=42,
+        strict=True,
     )
 
     transformed = aug(**data)
@@ -1309,7 +1322,7 @@ def test_mask_interpolation(augmentation_cls, params, interpolation):
     params["fill"] = 10
     params["fill_mask"] = 10
 
-    aug = A.Compose([augmentation_cls(**params, p=1)], seed=42)
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=True)
 
     transformed = aug(image=image, mask=mask)
 
@@ -1326,7 +1339,7 @@ def test_mask_interpolation(augmentation_cls, params, interpolation):
                                                 ])
 @pytest.mark.parametrize("compose", [A.Compose, A.OneOf, A.Sequential, A.SomeOf])
 def test_mask_interpolation_someof(interpolation, compose):
-    transform = A.Compose([compose([A.Affine(p=1), A.RandomSizedCrop(min_max_height=(4, 8), size= (113, 103), p=1)], p=1)], mask_interpolation=interpolation)
+    transform = A.Compose([compose([A.Affine(p=1), A.RandomSizedCrop(min_max_height=(4, 8), size= (113, 103), p=1)], p=1)], mask_interpolation=interpolation, strict=True)
 
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
@@ -1408,7 +1421,7 @@ def test_transform_returns_params(transform, expected_param_keys):
     ]
 )
 def test_transform_tracking(image, transforms, expected_names):
-    transform = A.Compose(transforms, p=1, save_applied_params=True)
+    transform = A.Compose(transforms, p=1, save_applied_params=True, strict=True)
     result = transform(image=image)
 
     assert "applied_transforms" in result
@@ -1436,7 +1449,7 @@ def test_transform_tracking(image, transforms, expected_names):
     ]
 )
 def test_params_content(image, transform_class, transform_params):
-    transform = A.Compose([transform_class(p=1, **transform_params)], save_applied_params=True)
+    transform = A.Compose([transform_class(p=1, **transform_params)], save_applied_params=True, strict=True)
     result = transform(image=image)
 
     assert len(result["applied_transforms"]) == 1
@@ -1449,7 +1462,7 @@ def test_no_param_tracking():
     transform = A.Compose([
         A.HorizontalFlip(p=1),
         A.Blur(p=1)
-    ], p=1, save_applied_params=False)
+    ], p=1, save_applied_params=False, strict=True)
 
     result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
     assert "applied_transforms" not in result
@@ -1459,7 +1472,7 @@ def test_probability_control():
     transform = A.Compose([
         A.HorizontalFlip(p=0),  # Will not be applied
         A.Blur(p=1)  # Will be applied
-    ], p=1, save_applied_params=True)
+    ], p=1, save_applied_params=True, strict=True)
 
     result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
     applied_names = [t[0] for t in result["applied_transforms"]]
@@ -1471,7 +1484,7 @@ def test_compose_probability():
     transform = A.Compose([
         A.HorizontalFlip(p=1),
         A.Blur(p=1)
-    ], p=0, save_applied_params=True)
+    ], p=0, save_applied_params=True, strict=True)
 
     result = transform(image=np.zeros((100, 100, 3), dtype=np.uint8))
 
@@ -1630,7 +1643,8 @@ def test_label_type_preservation(labels, expected_type, expected_dtype):
         bbox_params=BboxParams(
             format='pascal_voc',
             label_fields=['labels']
-        )
+        ),
+        strict=True,
     )
 
     transformed = transform(
@@ -1659,7 +1673,8 @@ def test_string_labels():
         bbox_params=BboxParams(
             format='pascal_voc',
             label_fields=['labels']
-        )
+        ),
+        strict=True,
     )
 
     transformed = transform(
@@ -1678,7 +1693,8 @@ def test_empty_labels():
         bbox_params=BboxParams(
             format='pascal_voc',
             label_fields=['labels']
-        )
+        ),
+        strict=True,
     )
 
     transformed = transform(
@@ -1688,3 +1704,107 @@ def test_empty_labels():
     )
 
     assert transformed['labels'] == []
+
+
+
+@pytest.mark.parametrize(
+    ["transforms_config", "strict", "should_raise"],
+    [
+        # Valid parameters, no error expected
+        (
+            [
+                NoOp(p=0.5),
+                OneOf([NoOp(p=0.7)], p=1.0),
+                Sequential([NoOp(p=0.3)], p=1.0),
+            ],
+            True,
+            False,
+        ),
+        # Invalid param in root level, should raise with strict=True
+        (
+            [
+                NoOp(p=0.5, invalid_param=123),
+                OneOf([NoOp(p=0.7)], p=1.0),
+                Sequential([NoOp(p=0.3)], p=1.0),
+            ],
+            True,
+            True,
+        ),
+        # Invalid param in OneOf, should raise with strict=True
+        (
+            [
+                NoOp(p=0.5),
+                OneOf([NoOp(p=0.7, invalid_param=123)], p=1.0),
+                Sequential([NoOp(p=0.3)], p=1.0),
+            ],
+            True,
+            True,
+        ),
+        # Multiple invalid params, should raise with strict=True
+        (
+            [
+                NoOp(p=0.5, invalid1=123),
+                OneOf([NoOp(p=0.7, invalid2=456)], p=1.0),
+                Sequential([NoOp(p=0.3, invalid3=789)], p=1.0),
+            ],
+            True,
+            True,
+        ),
+        # Invalid params but strict=False, should only warn
+        (
+            [
+                NoOp(p=0.5, invalid1=123),
+                OneOf([NoOp(p=0.7, invalid2=456)], p=1.0),
+                Sequential([NoOp(p=0.3, invalid3=789)], p=1.0),
+            ],
+            False,
+            False,
+        ),
+    ],
+)
+def test_strict_validation_in_compose(
+    transforms_config: list[Any],
+    strict: bool,
+    should_raise: bool,
+) -> None:
+    """Test that strict parameter properly validates unknown parameters."""
+    if should_raise:
+        with pytest.raises(ValueError, match="are not valid for transform"):
+            Compose(transforms_config, strict=strict)
+    else:
+        with warnings.catch_warnings(record=True) as w:
+            transform = Compose(transforms_config, strict=strict)
+            if not strict and any("invalid" in str(t) for t in transforms_config):
+                assert len(w) > 0
+                assert any("are not valid for transform" in str(warn.message) for warn in w)
+
+
+def test_transform_strict_mode_raises_error():
+    # Test that strict=True raises error for invalid parameters
+    with pytest.raises(ValueError, match="Argument\\(s\\) 'invalid_param' are not valid for transform Blur"):
+       A.Blur(strict=True, invalid_param=123)
+
+def test_transform_non_strict_mode_shows_warning():
+    # Test that strict=False (default) shows warning for invalid parameters
+    with pytest.warns(UserWarning, match="Argument\\(s\\) 'invalid_param' are not valid for transform Blur"):
+        transform = A.Blur(invalid_param=123)
+        assert transform.p == 0.5  # Check that transform was still created with default values
+
+def test_transform_valid_params_no_warning():
+    # Test that no warning/error is raised for valid parameters
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # Convert warnings to errors to ensure none are raised
+        transform = A.Blur(p=0.7, blur_limit=(3, 5))
+        assert transform.p == 0.7
+        assert transform.blur_limit == (3, 5)
+
+def test_transform_multiple_invalid_params():
+    # Test handling of multiple invalid parameters
+    with pytest.raises(ValueError, match="Argument\\(s\\) 'invalid1, invalid2' are not valid for transform Blur"):
+        A.Blur(strict=True, invalid1=123, invalid2=456)
+
+def test_transform_strict_with_valid_params():
+    # Test that strict mode doesn't affect valid parameters
+    transform = A.Blur(strict=True, p=0.7, blur_limit=(3, 5))
+    assert transform.p == 0.7
+    assert transform.blur_limit == (3, 5)

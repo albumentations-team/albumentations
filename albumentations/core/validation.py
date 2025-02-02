@@ -49,17 +49,22 @@ class ValidatedTransformMeta(type):
                     validated_kwargs = config.model_dump()
                     validated_kwargs.pop("strict", None)  # Also remove from default values
 
+                # Store invalid args in the instance
                 invalid_args = [
                     name_arg for name_arg in kwargs if name_arg not in validated_kwargs and name_arg != "strict"
                 ]
+
+                # Call original init with validated kwargs (strict removed)
+                original_init(self, **validated_kwargs)
+
+                # Store invalid args after initialization
+                self.invalid_args = invalid_args
+
                 if invalid_args:
                     message = f"Argument(s) '{', '.join(invalid_args)}' are not valid for transform {name}"
                     if strict:
                         raise ValueError(message)
                     warn(message, stacklevel=2)
-
-                # Call original init with validated kwargs (strict removed)
-                original_init(self, **validated_kwargs)
 
             # Preserve the original signature and docstring
             custom_init.__signature__ = original_sig  # type: ignore[attr-defined]

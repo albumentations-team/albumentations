@@ -2457,3 +2457,266 @@ def test_add_rain_preserves_input():
     )
 
     np.testing.assert_array_equal(img, img_copy)
+
+
+@pytest.mark.parametrize(
+    "shape,color,intensity,expected_shape",
+    [
+        # Test different image sizes
+        ((100, 100), np.array([1.0, 1.0, 1.0]), 1.0, (100, 100, 3)),
+        ((200, 300), np.array([0.5, 0.5, 0.5]), 0.8, (200, 300, 3)),
+
+        # Test different image shapes
+        ((50, 75), np.array([0.7, 0.7, 0.7]), 0.6, (50, 75, 3)),
+        ((480, 640), np.array([0.9, 0.9, 0.9]), 0.9, (480, 640, 3)),
+    ]
+)
+def test_rain_params_shapes(shape, color, intensity, expected_shape):
+    """Test that output shapes are correct for different input configurations."""
+    # Generate random liquid layer
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+
+    result = fmain.get_rain_params(liquid_layer, color, intensity)
+
+    assert "drops" in result
+    assert result["drops"].shape == expected_shape
+
+
+@pytest.mark.parametrize(
+    "intensity,color",
+    [
+        (0.0, np.array([1.0, 1.0, 1.0])),  # Zero intensity
+        (1.0, np.array([0.0, 0.0, 0.0])),  # Black color
+        (0.5, np.array([0.5, 0.5, 0.5])),  # Gray color
+        (0.8, np.array([1.0, 0.0, 0.0])),  # Red color
+    ]
+)
+def test_rain_params_intensity_and_color(intensity, color):
+    """Test that intensity and color are correctly applied."""
+    shape = (100, 100)
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+
+    result = fmain.get_rain_params(liquid_layer, color, intensity)
+
+    # Check that values are in valid range [0, 1]
+    assert np.all(result["drops"] >= 0)
+    assert np.all(result["drops"] <= 1)
+
+    # Check that maximum value respects intensity
+    assert np.max(result["drops"]) <= intensity + 1e-6  # Add small epsilon for floating point comparison
+
+
+@pytest.mark.parametrize(
+    "liquid_layer",
+    [
+        np.zeros((100, 100)),  # All zeros
+        np.ones((100, 100)),   # All ones
+        np.random.normal(0.65, 0.3, (100, 100)),  # Random normal
+    ]
+)
+def test_rain_params_different_inputs(liquid_layer):
+    """Test function behavior with different types of input layers."""
+    color = np.array([1.0, 1.0, 1.0])
+    intensity = 1.0
+
+    result = fmain.get_rain_params(liquid_layer, color, intensity)
+
+    assert isinstance(result["drops"], np.ndarray)
+    assert result["drops"].dtype == np.float32 or result["drops"].dtype == np.float64
+
+
+def test_rain_params_deterministic():
+    """Test that function produces same output for same input."""
+    shape = (100, 100)
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+    color = np.array([1.0, 1.0, 1.0])
+    intensity = 1.0
+
+    result1 = fmain.get_rain_params(liquid_layer.copy(), color, intensity)
+    result2 = fmain.get_rain_params(liquid_layer.copy(), color, intensity)
+
+    np.testing.assert_array_almost_equal(result1["drops"], result2["drops"])
+
+
+def test_rain_params_visual_pattern():
+    """Test that the rain pattern has expected characteristics."""
+    shape = (100, 100)
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+    color = np.array([1.0, 1.0, 1.0])
+    intensity = 1.0
+
+    result = fmain.get_rain_params(liquid_layer, color, intensity)
+    drops = result["drops"]
+
+    # Check that we have some variation in the pattern
+    assert drops.std() > 0
+
+    # Check that we have some zero and non-zero values (rain drops)
+    assert np.sum(drops > 0) > 0
+    assert np.sum(drops == 0) > 0
+
+
+def test_rain_params_zero_input():
+    """Test that zero input produces valid output without NaN values."""
+    shape = (100, 100)
+    liquid_layer = np.zeros(shape)  # All zeros input
+    color = np.array([1.0, 1.0, 1.0])
+    intensity = 1.0
+
+    result = fmain.get_rain_params(liquid_layer, color, intensity)
+
+    # Check there are no NaN values
+    assert not np.any(np.isnan(result["drops"]))
+    # Check output is all zeros for zero input
+    assert np.all(result["drops"] == 0)
+
+
+def test_rain_params_small_input():
+    """Test that very small input values produce valid output."""
+    shape = (100, 100)
+    liquid_layer = np.full(shape, 1e-10)  # Very small values
+    color = np.array([1.0, 1.0, 1.0])
+    intensity = 1.0
+
+    result = fmain.get_rain_params(liquid_layer, color, intensity)
+
+    # Check there are no NaN values
+    assert not np.any(np.isnan(result["drops"]))
+    # Check values are in valid range
+    assert np.all(result["drops"] >= 0)
+    assert np.all(result["drops"] <= 1)
+
+
+@pytest.mark.parametrize(
+    "shape,color,cutout_threshold,sigma,intensity,expected_shape",
+    [
+        # Test different image sizes
+        ((100, 100), np.array([0.2, 0.4, 0.6]), 0.5, 2.0, 0.8, (100, 100, 3)),
+        ((200, 300), np.array([0.1, 0.2, 0.3]), 0.6, 1.5, 0.7, (200, 300, 3)),
+
+        # Test different parameters
+        ((50, 75), np.array([0.3, 0.3, 0.3]), 0.4, 3.0, 0.9, (50, 75, 3)),
+        ((480, 640), np.array([0.4, 0.4, 0.4]), 0.7, 2.5, 0.6, (480, 640, 3)),
+    ]
+)
+def test_mud_params_shapes(shape, color, cutout_threshold, sigma, intensity, expected_shape):
+    """Test output shapes for different input configurations."""
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+
+    result = fmain.get_mud_params(liquid_layer, color, cutout_threshold, sigma, intensity, np.random.default_rng(137))
+
+    assert "mud" in result and "non_mud" in result
+    assert result["mud"].shape == expected_shape
+    assert result["non_mud"].shape == expected_shape
+
+
+@pytest.mark.parametrize(
+    "intensity,color,cutout_threshold",
+    [
+        (0.3, np.array([0.2, 0.2, 0.2]), 0.5),  # Low intensity
+        (0.8, np.array([0.0, 0.0, 0.0]), 0.6),  # Black color
+        (1.0, np.array([0.5, 0.5, 0.5]), 0.7),  # Gray color
+        (0.9, np.array([0.8, 0.4, 0.2]), 0.4),  # Brown color
+    ]
+)
+def test_mud_params_intensity_and_color(intensity, color, cutout_threshold):
+    """Test intensity and color application."""
+    shape = (100, 100)
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+    sigma = 2.0
+
+    result = fmain.get_mud_params(liquid_layer, color, cutout_threshold, sigma, intensity, np.random.default_rng(137))
+
+    # Check value ranges
+    assert np.all(result["mud"] >= 0)
+    assert np.all(result["mud"] <= 1)
+    assert np.all(result["non_mud"] >= 0)
+    assert np.all(result["non_mud"] <= 1)
+
+    # Check that actual intensity is reasonable
+    max_effect = np.max(result["mud"])
+    max_color = np.max(color)
+
+    # Expected effect should be proportional to both intensity and color
+    expected_max = intensity * max_color
+    expected_min = 0.8 * expected_max  # Allow 20% tolerance for numerical effects
+
+    # Add diagnostic information
+    if max_effect < expected_min:
+        # Calculate percentage of non-zero mud pixels
+        mud_coverage = np.mean(result["mud"] > 0)
+
+        # Show distribution of non-zero mud values
+        non_zero_mud = result["mud"][result["mud"] > 0]
+
+    if max_color > 0:
+        assert max_effect >= expected_min, (
+            f"Maximum effect ({max_effect:.3f}) is less than expected minimum ({expected_min:.3f}) "
+            f"for intensity={intensity}, color={color}"
+        )
+    else:
+        # For black color, expect no effect
+        assert max_effect == 0, f"Expected no effect for black color, got {max_effect:.3f}"
+
+def test_minimum_effect_coverage():
+    """Test that minimum effect coverage is maintained."""
+    shape = (100, 100)
+    liquid_layer = np.zeros(shape)  # Should trigger minimum coverage logic
+    color = np.array([0.2, 0.4, 0.6])
+    cutout_threshold = 0.9  # High threshold to force adjustment
+    sigma = 2.0
+    intensity = 0.8
+
+    result = fmain.get_mud_params(liquid_layer, color, cutout_threshold, sigma, intensity, np.random.default_rng(137)   )
+
+    # Check that we have some non-zero effect
+    mud_coverage = np.sum(result["mud"] > 0) / result["mud"].size
+    assert mud_coverage >= 0.1  # At least 10% coverage
+
+
+def test_threshold_adjustment():
+    """Test automatic threshold adjustment."""
+    shape = (100, 100)
+    liquid_layer = np.random.normal(0.3, 0.1, size=shape)  # Values mostly below threshold
+    color = np.array([0.2, 0.4, 0.6])
+    cutout_threshold = 0.8  # High threshold to force adjustment
+    sigma = 2.0
+    intensity = 0.8
+
+    result = fmain.get_mud_params(liquid_layer, color, cutout_threshold, sigma, intensity, np.random.default_rng(137))
+
+    # Should have some effect despite high threshold
+    assert np.sum(result["mud"] > 0) > 0
+
+
+def test_blur_effect():
+    """Test that Gaussian blur is properly applied."""
+    shape = (100, 100)
+    liquid_layer = np.zeros(shape)
+    liquid_layer[40:60, 40:60] = 1  # Create a square
+    color = np.array([0.2, 0.4, 0.6])
+    cutout_threshold = 0.5
+    sigma = 2.0
+    intensity = 0.8
+
+    result = fmain.get_mud_params(liquid_layer, color, cutout_threshold, sigma, intensity, np.random.default_rng(137))
+
+    # Blurring should create gradients - check that we have intermediate values
+    mud = result["mud"][:,:,0]  # Take first channel
+    assert np.sum((mud > 0) & (mud < np.max(mud))) > 0
+
+
+def test_deterministic():
+    """Test function produces same output for same input."""
+    shape = (100, 100)
+    liquid_layer = np.random.normal(0.65, 0.3, size=shape)
+    color = np.array([0.2, 0.4, 0.6])
+    cutout_threshold = 0.5
+    sigma = 2.0
+    intensity = 0.8
+
+    result1 = fmain.get_mud_params(liquid_layer.copy(), color, cutout_threshold, sigma, intensity, np.random.default_rng(137))
+    result2 = fmain.get_mud_params(liquid_layer.copy(), color, cutout_threshold, sigma, intensity, np.random.default_rng(137))
+
+    np.testing.assert_array_almost_equal(result1["mud"], result2["mud"])
+    np.testing.assert_array_almost_equal(result1["non_mud"], result2["non_mud"])

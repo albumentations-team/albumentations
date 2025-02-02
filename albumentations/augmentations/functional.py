@@ -44,7 +44,6 @@ from albumentations.core.type_definitions import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
-    SpatterMode,
 )
 
 __all__ = [
@@ -1697,15 +1696,16 @@ def superpixels(
 def unsharp_mask(
     image: np.ndarray,
     ksize: int,
-    sigma: float = 0.0,
-    alpha: float = 0.2,
-    threshold: int = 10,
+    sigma: float,
+    alpha: float,
+    threshold: int,
 ) -> np.ndarray:
     blur_fn = maybe_process_in_chunks(
         cv2.GaussianBlur,
         ksize=(ksize, ksize),
         sigmaX=sigma,
     )
+    image = image.copy()
 
     if image.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and get_num_channels(image) == 1:
         image = np.squeeze(image, axis=-1)
@@ -1752,30 +1752,15 @@ def pixel_dropout(
 @float32_io
 @clipped
 @preserve_channel_dim
-def spatter(
-    img: np.ndarray,
-    non_mud: np.ndarray | None,
-    mud: np.ndarray | None,
-    rain: np.ndarray | None,
-    mode: SpatterMode,
-) -> np.ndarray:
-    if mode == "rain":
-        if rain is None:
-            msg = "Rain spatter requires rain mask"
-            raise ValueError(msg)
+def spatter_rain(img: np.ndarray, rain: np.ndarray) -> np.ndarray:
+    return add(img, rain, inplace=False)
 
-        return img + rain
-    if mode == "mud":
-        if mud is None:
-            msg = "Mud spatter requires mud mask"
-            raise ValueError(msg)
-        if non_mud is None:
-            msg = "Mud spatter requires non_mud mask"
-            raise ValueError(msg)
 
-        return img * non_mud + mud
-
-    raise ValueError(f"Unsupported spatter mode: {mode}")
+@float32_io
+@clipped
+@preserve_channel_dim
+def spatter_mud(img: np.ndarray, non_mud: np.ndarray, mud: np.ndarray) -> np.ndarray:
+    return add(img * non_mud, mud, inplace=False)
 
 
 @uint8_io
@@ -3019,3 +3004,132 @@ def get_mask_array(data: dict[str, Any]) -> np.ndarray | None:
     if "mask" in data:
         return data["mask"]
     return data["masks"][0] if "masks" in data else None
+
+
+def get_rain_params(
+    liquid_layer: np.ndarray,
+    color: np.ndarray,
+    intensity: float,
+) -> dict[str, Any]:
+    """Generate parameters for rain effect."""
+    liquid_layer = clip(liquid_layer * 255, np.uint8, inplace=False)
+
+    # Generate distance transform with more defined edges
+    dist = 255 - cv2.Canny(liquid_layer, 50, 150)
+    dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
+    _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
+
+    # Use separate blur operations for better drop formation
+    dist = cv2.GaussianBlur(
+        dist,
+        ksize=(3, 3),
+        sigmaX=1,  # Add slight sigma for smoother drops
+        sigmaY=1,
+        borderType=cv2.BORDER_REPLICATE,
+    )
+    dist = clip(dist, np.uint8, inplace=True)
+
+    # Enhance contrast in the distance map
+    dist = equalize(dist)
+
+    # Modified kernel for more natural drop shapes
+    ker = np.array(
+        [
+            [-2, -1, 0],
+            [-1, 1, 1],
+            [0, 1, 2],
+        ],
+        dtype=np.float32,
+    )
+
+    # Apply convolution with better precision
+    dist = convolve(dist, ker)
+
+    # Final blur with larger kernel for smoother drops
+    dist = cv2.GaussianBlur(
+        dist,
+        ksize=(5, 5),  # Increased kernel size
+        sigmaX=1.5,  # Adjusted sigma
+        sigmaY=1.5,
+        borderType=cv2.BORDER_REPLICATE,
+    ).astype(np.float32)
+
+    # Calculate final rain mask with better blending
+    m = liquid_layer.astype(np.float32) * dist
+
+    # Normalize with better handling of edge cases
+    m_max = np.max(m, axis=(0, 1))
+    if m_max > 0:
+        m *= 1 / m_max
+    else:
+        m = np.zeros_like(m)
+
+    # Apply color with adjusted intensity for more natural look
+    drops = m[:, :, None] * color * (intensity * 0.9)  # Slightly reduced intensity
+
+    return {
+        "drops": drops,
+    }
+
+
+def get_mud_params(
+    liquid_layer: np.ndarray,
+    color: np.ndarray,
+    cutout_threshold: float,
+    sigma: float,
+    intensity: float,
+    random_generator: np.random.Generator,
+) -> dict[str, Any]:
+    """Generate mud effect parameters based on liquid layer."""
+    height, width = liquid_layer.shape
+
+    # Create initial mask (ensure we have some non-zero values)
+    mask = (liquid_layer > cutout_threshold).astype(np.float32)
+    if np.sum(mask) == 0:  # If mask is all zeros
+        # Force minimum coverage of 10%
+        num_pixels = height * width
+        num_needed = max(1, int(0.1 * num_pixels))  # At least 1 pixel
+        flat_indices = random_generator.choice(num_pixels, num_needed, replace=False)
+        mask = np.zeros_like(liquid_layer, dtype=np.float32)
+        mask.flat[flat_indices] = 1.0
+
+    # Apply Gaussian blur if sigma > 0
+    if sigma > 0:
+        mask = cv2.GaussianBlur(
+            mask,
+            ksize=(0, 0),
+            sigmaX=sigma,
+            sigmaY=sigma,
+            borderType=cv2.BORDER_REPLICATE,
+        )
+
+    # Safe normalization (avoid division by zero)
+    mask_max = np.max(mask)
+    if mask_max > 0:
+        mask = mask / mask_max
+    else:
+        # If mask is somehow all zeros after blur, force some effect
+        mask[0, 0] = 1.0
+
+    # Scale by intensity directly (no minimum)
+    mask = mask * intensity
+
+    # Create mud effect array
+    mud = np.zeros((height, width, 3), dtype=np.float32)
+
+    # Apply color directly - the intensity scaling is already handled
+    for i in range(3):
+        mud[..., i] = mask * color[i]
+
+    # Create complementary non-mud array
+    non_mud = np.ones_like(mud)
+    for i in range(3):
+        if color[i] > 0:
+            non_mud[..., i] = np.clip((color[i] - mud[..., i]) / color[i], 0, 1)
+        else:
+            non_mud[..., i] = 1.0 - mask
+
+    return {
+        "mud": mud.astype(np.float32),
+        "non_mud": non_mud.astype(np.float32),
+    }
