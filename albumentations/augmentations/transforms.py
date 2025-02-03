@@ -5836,12 +5836,12 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             - 0 means no contrast change
             Default: (-0.3, 0.3)
 
-        roughness (float): Controls how quickly the noise amplitude decreases at each iteration.
+        roughness (float): Controls how quickly the noise amplitude increases at each iteration.
             Must be greater than 0:
-            - Low values (< 0.5): Very rough, noisy pattern
-            - Medium values (~0.5): Natural-looking pattern
-            - High values (> 0.5): Smoother, more gradual pattern
-            Default: 0.5
+            - Low values (< 1.0): Smoother, more gradual pattern
+            - Medium values (~2.0): Natural-looking pattern
+            - High values (> 3.0): Very rough, noisy pattern
+            Default: 3.0
 
         p (float): Probability of applying the transform. Default: 0.5.
 
@@ -6016,12 +6016,12 @@ class PlasmaShadow(ImageOnlyTransform):
             - Values between create partial shadows
             Default: (0.3, 0.7)
 
-        roughness (float): Controls how quickly the noise amplitude decreases at each iteration.
+        roughness (float): Controls how quickly the noise amplitude increases at each iteration.
             Must be greater than 0:
-            - Low values (< 0.5): Very rough, noisy shadows
-            - Medium values (~0.5): Natural-looking shadows
-            - High values (> 0.5): Smoother, more gradual shadows
-            Default: 0.5
+            - Low values (< 1.0): Smoother, more gradual shadows
+            - Medium values (~2.0): Natural-looking shadows
+            - High values (> 3.0): Very rough, noisy shadows
+            Default: 3.0
 
         p (float): Probability of applying the transform. Default: 0.5.
 
