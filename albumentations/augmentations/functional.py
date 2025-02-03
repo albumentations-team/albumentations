@@ -2443,8 +2443,8 @@ INITIAL_GRID_SIZE = (3, 3)
 
 def generate_plasma_pattern(
     target_shape: tuple[int, int],
-    roughness: float = 0.5,
-    random_generator: np.random.Generator = np.random.default_rng(),
+    roughness: float,
+    random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Generate Plasma Fractal with consistent brightness."""
 
