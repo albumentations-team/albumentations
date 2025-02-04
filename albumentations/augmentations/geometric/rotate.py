@@ -136,7 +136,7 @@ class Rotate(DualTransform):
             Default: cv2.INTER_LINEAR.
         border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
+            Default: cv2.BORDER_CONSTANT
         fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
         fill_mask (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
