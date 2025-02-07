@@ -1308,3 +1308,91 @@ def test_salt_and_pepper_grayscale():
 
     assert (salt_pixels | pepper_pixels | ~changed_mask).all(), \
         "Changed pixels should only be salt (255) or pepper (0)"
+
+
+
+@pytest.mark.parametrize(
+    ["slant_range", "expected_slant_range"],
+    [
+        ((-10, -5), (-10, -5)),  # negative slant range
+        ((5, 10), (5, 10)),      # positive slant range
+        ((-5, 5), (-5, 5)),      # range crossing zero
+    ]
+)
+def test_random_rain_slant(slant_range, expected_slant_range):
+    # Create a deterministic image
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    # Create transform with 100% probability and specific slant range
+    transform = A.RandomRain(
+        slant_range=slant_range,
+        p=1.0,
+        rain_type="heavy"  # Use heavy to ensure enough rain drops
+    )
+    transform.set_random_seed(137)
+    # Run multiple times to ensure slant stays within range
+    slants = []
+    for _ in range(50):  # Run 50 times to get a good sample
+        # Get params without actually applying transform
+        params = transform.get_params_dependent_on_data(
+            {"shape": image.shape},
+            {"image": image}
+        )
+        slants.append(params["slant"])
+
+    # Assert all slants are within the expected range
+    assert all(expected_slant_range[0] <= s <= expected_slant_range[1] for s in slants), \
+        f"Slants {slants} not within range {expected_slant_range}"
+
+    # Assert we get at least some variation in slants
+    assert len(set(slants)) > 1, "Slant values show no variation"
+
+    # Assert we get values from both halves of the range
+    slant_mid = (expected_slant_range[0] + expected_slant_range[1]) / 2
+    has_lower = any(s < slant_mid for s in slants)
+    has_upper = any(s > slant_mid for s in slants)
+    if expected_slant_range[0] != expected_slant_range[1]:  # Skip if range is single value
+        assert has_lower and has_upper, \
+            f"Slant values {slants} don't cover both halves of range {expected_slant_range}"
+
+@pytest.mark.parametrize("slant", [-10, 0, 10])
+def test_random_rain_visual_effect(slant):
+    # Create a white image
+    image = np.full((100, 100, 3), 255, dtype=np.uint8)
+
+    # Create transform with fixed slant for visual verification
+    transform = A.RandomRain(
+        slant_range=(slant, slant),  # Force specific slant
+        drop_length=20,
+        drop_width=2,
+        drop_color=(0, 0, 0),  # Black rain drops for contrast
+        blur_value=1,          # Minimal blur for clearer lines
+        brightness_coefficient=1.0,  # No brightness change
+        p=1.0,
+        rain_type="heavy"
+    )
+
+    transform.set_random_seed(137)
+
+    # Apply transform
+    result = transform(image=image)["image"]
+
+    # Find non-white pixels (rain drops)
+    rain_pixels = np.where(result != 255)
+
+    if len(rain_pixels[0]) > 0:  # If we found rain drops
+        # Calculate the average slope of rain drops
+        # We can do this by looking at the leftmost and rightmost points
+        left_x = min(rain_pixels[1])
+        right_x = max(rain_pixels[1])
+        if right_x > left_x:  # Ensure we have horizontal spread
+            left_y = rain_pixels[0][rain_pixels[1] == left_x].mean()
+            right_y = rain_pixels[0][rain_pixels[1] == right_x].mean()
+
+            # Calculate observed slant direction
+            observed_slant = 1 if right_y > left_y else -1 if right_y < left_y else 0
+            expected_slant = 1 if slant > 0 else -1 if slant < 0 else 0
+
+            # The slant direction should match the expected direction
+            assert observed_slant == expected_slant, \
+                f"Rain drops slant direction {observed_slant} doesn't match expected {expected_slant}"

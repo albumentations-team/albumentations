@@ -831,7 +831,7 @@ class RandomRain(ImageOnlyTransform):
         drop_length = max(1, height // 8)
 
         # Simplified slant calculation
-        slant = self.random_generator.integers(-width // 50, width // 50)
+        slant = self.py_random.randint(*self.slant_range)
 
         # Single random call for all coordinates
         if num_drops > 0:
