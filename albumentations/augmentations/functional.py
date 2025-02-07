@@ -739,7 +739,7 @@ def add_snow_texture(
 @preserve_channel_dim
 def add_rain(
     img: np.ndarray,
-    slant: int,
+    slant: float,
     drop_length: int,
     drop_width: int,
     drop_color: tuple[int, int, int],

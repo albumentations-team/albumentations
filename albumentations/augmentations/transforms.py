@@ -687,7 +687,7 @@ class RandomRain(ImageOnlyTransform):
     tasks that need to perform well in rainy conditions.
 
     Args:
-        slant_range (tuple[int, int]): Range for the rain slant angle in degrees.
+        slant_range (tuple[float, float]): Range for the rain slant angle in degrees.
             Negative values slant to the left, positive to the right. Default: (-10, 10).
         drop_length (int): Length of the rain drops in pixels. Default: 20.
         drop_width (int): Width of the rain drops in pixels. Default: 1.
@@ -771,7 +771,7 @@ class RandomRain(ImageOnlyTransform):
 
     def __init__(
         self,
-        slant_range: tuple[int, int] = (-10, 10),
+        slant_range: tuple[float, float] = (-10, 10),
         drop_length: int = 20,
         drop_width: int = 1,
         drop_color: tuple[int, int, int] = (200, 200, 200),
@@ -792,7 +792,7 @@ class RandomRain(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        slant: int,
+        slant: float,
         drop_length: int,
         rain_drops: np.ndarray,
         **params: Any,
@@ -831,7 +831,7 @@ class RandomRain(ImageOnlyTransform):
         drop_length = max(1, height // 8)
 
         # Simplified slant calculation
-        slant = self.py_random.randint(*self.slant_range)
+        slant = self.py_random.uniform(*self.slant_range)
 
         # Single random call for all coordinates
         if num_drops > 0:
