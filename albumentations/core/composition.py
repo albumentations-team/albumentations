@@ -320,7 +320,26 @@ class Compose(BaseCompose, HubMixin):
             If False, these validations are skipped. Default is False.
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
-        seed (int, optional): Random seed. Default is None.
+        seed (int, optional): Controls reproducibility of random augmentations. Compose uses
+            its own internal random state, completely independent from global random seeds.
+
+            When seed is set (int):
+            - Creates a fixed internal random state
+            - Two Compose instances with the same seed and transforms will produce identical
+              sequences of augmentations
+            - Each call to the same Compose instance still produces random augmentations,
+              but these sequences are reproducible between different Compose instances
+            - Example: transform1 = A.Compose([...], seed=137) and
+                      transform2 = A.Compose([...], seed=137) will produce identical sequences
+
+            When seed is None (default):
+            - Generates a new internal random state on each Compose creation
+            - Different Compose instances will produce different sequences of augmentations
+            - Example: transform = A.Compose([...])  # random results
+
+            Important: Setting random seeds outside of Compose (like np.random.seed() or
+            random.seed()) has no effect on augmentations as Compose uses its own internal
+            random state.
         save_applied_params (bool): If True, saves the applied parameters of each transform. Default is False.
             You will need to use the `applied_transforms` key in the output dictionary to access the parameters.
 
@@ -330,7 +349,7 @@ class Compose(BaseCompose, HubMixin):
         ...     A.RandomCrop(width=256, height=256),
         ...     A.HorizontalFlip(p=0.5),
         ...     A.RandomBrightnessContrast(p=0.2),
-        ... ], seed=42)
+        ... ], seed=137)
         >>> transformed = transform(image=image)
 
     Note:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from numbers import Real
 from typing import Annotated, Any, cast
 
 import cv2
@@ -1728,7 +1727,7 @@ class CropAndPad(DualTransform):
                 return self.py_random.uniform(a, b)
             return self.py_random.choice(fill)
 
-        if isinstance(fill, Real):
+        if isinstance(fill, (int, float)):
             return fill
 
         msg = "fill should be a number or list, or tuple of two numbers."
