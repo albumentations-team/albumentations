@@ -2158,6 +2158,7 @@ def generate_noise(
     max_value: float,
     approximation: float,
     random_generator: np.random.Generator,
+    seed: int | None = None,
 ) -> np.ndarray:
     if params is None:
         return np.zeros(shape, dtype=np.float32)
@@ -2169,6 +2170,7 @@ def generate_noise(
             params,
             max_value,
             random_generator,
+            seed,
         )
 
     if approximation == 1.0:
@@ -2179,6 +2181,7 @@ def generate_noise(
                 params,
                 max_value,
                 random_generator,
+                seed,
             )
         return generate_per_pixel_noise(
             noise_type,
@@ -2186,6 +2189,7 @@ def generate_noise(
             params,
             max_value,
             random_generator,
+            seed,
         )
 
     # Calculate reduced size for noise generation
@@ -2202,6 +2206,7 @@ def generate_noise(
             params,
             max_value,
             random_generator,
+            seed,
         )
     else:  # per_pixel
         noise = generate_per_pixel_noise(
@@ -2210,6 +2215,7 @@ def generate_noise(
             params,
             max_value,
             random_generator,
+            seed,
         )
 
     # Resize noise to original size using existing resize function
@@ -2222,6 +2228,7 @@ def generate_constant_noise(
     params: dict[str, Any],
     max_value: float,
     random_generator: np.random.Generator,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Generate one value per channel."""
     num_channels = shape[-1] if len(shape) > MONO_CHANNEL_DIMENSIONS else 1
@@ -2231,6 +2238,7 @@ def generate_constant_noise(
         params,
         max_value,
         random_generator,
+        seed,
     )
 
 
@@ -2240,9 +2248,10 @@ def generate_per_pixel_noise(
     params: dict[str, Any],
     max_value: float,
     random_generator: np.random.Generator,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Generate separate noise map for each channel."""
-    return sample_noise(noise_type, shape, params, max_value, random_generator)
+    return sample_noise(noise_type, shape, params, max_value, random_generator, seed)
 
 
 def sample_noise(
@@ -2251,12 +2260,13 @@ def sample_noise(
     params: dict[str, Any],
     max_value: float,
     random_generator: np.random.Generator,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Sample from specific noise distribution."""
     if noise_type == "uniform":
         return sample_uniform(size, params, random_generator) * max_value
     if noise_type == "gaussian":
-        return sample_gaussian(size, params, random_generator) * max_value
+        return sample_gaussian(size, params, random_generator, seed) * max_value
     if noise_type == "laplace":
         return sample_laplace(size, params, random_generator) * max_value
     if noise_type == "beta":
@@ -2306,11 +2316,27 @@ def sample_gaussian(
     size: tuple[int, ...],
     params: dict[str, Any],
     random_generator: np.random.Generator,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Sample from Gaussian distribution."""
-    mean = random_generator.uniform(*params["mean_range"])
-    std = random_generator.uniform(*params["std_range"])
-    return random_generator.normal(mean, std, size=size)
+    cv2.setRNGSeed(seed)
+    mean = (
+        params["mean_range"][0]
+        if params["mean_range"][0] == params["mean_range"][1]
+        else random_generator.uniform(*params["mean_range"])
+    )
+    std = (
+        params["std_range"][0]
+        if params["std_range"][0] == params["std_range"][1]
+        else random_generator.uniform(*params["std_range"])
+    )
+    num_channels = size[2] if len(size) > 2 else 1
+    mean_vector = mean * np.ones(shape=(num_channels,), dtype=np.float64)
+    std_dev_vector = std * np.ones(shape=(num_channels,), dtype=np.float64)
+    gaussian_sampled_arr = np.zeros(shape=size)
+
+    cv2.randn(dst=gaussian_sampled_arr, mean=mean_vector, stddev=std_dev_vector)
+    return gaussian_sampled_arr.astype(np.float64)
 
 
 def sample_laplace(
@@ -2353,6 +2379,7 @@ def generate_shared_noise(
     params: dict[str, Any],
     max_value: float,
     random_generator: np.random.Generator,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Generate one noise map and broadcast to all channels.
 
@@ -2362,6 +2389,7 @@ def generate_shared_noise(
         params: Parameters for the noise distribution
         max_value: Maximum value for the noise distribution
         random_generator: NumPy random generator instance
+        seed : seed for cv2 RNG, used for generating gaussian noise
 
     Returns:
         Noise array of shape (H, W) or (H, W, C) where the same noise
@@ -2375,6 +2403,7 @@ def generate_shared_noise(
         params,
         max_value,
         random_generator,
+        seed,
     )
 
     # If input is multichannel, broadcast noise to all channels

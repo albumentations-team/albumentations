@@ -125,6 +125,7 @@ class BaseCompose(Serializable):
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
+        cv2.setRNGSeed(seed)
         self.set_random_seed(seed)
         self.save_applied_params = save_applied_params
 
@@ -161,6 +162,7 @@ class BaseCompose(Serializable):
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
+        cv2.setRNGSeed(seed)
 
         # Propagate seed to all transforms
         for transform in self.transforms:

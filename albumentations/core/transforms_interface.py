@@ -73,6 +73,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.seed: int | None = None
         self.random_generator = np.random.default_rng(self.seed)
         self.py_random = random.Random(self.seed)
+        cv2.setRNGSeed(self.seed)
         self._strict = False  # Use private attribute
         self.invalid_args: list[str] = []  # Store invalid args found during init
 
@@ -129,6 +130,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
+        cv2.setRNGSeed(seed)
 
     def get_dict_with_id(self) -> dict[str, Any]:
         d = self.to_dict_private()

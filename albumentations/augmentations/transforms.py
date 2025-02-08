@@ -2291,6 +2291,7 @@ class GaussNoise(ImageOnlyTransform):
             max_value=max_value,
             approximation=self.noise_scale_factor,
             random_generator=self.random_generator,
+            seed=self.seed,
         )
 
         return {"noise_map": noise_map}
@@ -5535,6 +5536,7 @@ class AdditiveNoise(ImageOnlyTransform):
             max_value=max_value,
             approximation=self.approximation,
             random_generator=self.random_generator,
+            seed=self.seed,
         )
         return {"noise_map": noise_map}
 
