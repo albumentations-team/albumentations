@@ -47,6 +47,8 @@ class MinMaxScaler(BaseScaler):
         super().__init__()
         self.min: float = feature_range[0]
         self.max: float = feature_range[1]
+        self.data_min: np.ndarray | None = None  # Assume these are set in the fit method
+        self.data_max: np.ndarray | None = None
         self.data_range: np.ndarray | None = None
 
     def fit(self, x: np.ndarray) -> None:
@@ -62,8 +64,13 @@ class MinMaxScaler(BaseScaler):
                 "This MinMaxScaler instance is not fitted yet. "
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
-        x_std = (x - self.data_min) / self.data_range
-        return x_std * (self.max - self.min) + self.min
+        
+        x_std = np.subtract(x, self.data_min)  # Faster than element-wise subtraction
+        np.divide(x_std, self.data_range, out=x_std)  # In-place division
+        np.multiply(x_std, (self.max - self.min), out=x_std)  # In-place multiplication
+        np.add(x_std, self.min, out=x_std)  # In-place addition
+        
+        return x_std
 
     def inverse_transform(self, x: np.ndarray) -> np.ndarray:
         if self.data_min is None or self.data_max is None or self.data_range is None:
@@ -73,6 +80,13 @@ class MinMaxScaler(BaseScaler):
             )
         x_std = (x - self.min) / (self.max - self.min)
         return x_std * self.data_range + self.data_min
+
+    def fit(self, x: np.ndarray) -> None:
+        """Calculate the data_min, data_max, and data_range moments and store them."""
+        self.data_min = np.min(x, axis=0)
+        self.data_max = np.max(x, axis=0)
+        self.data_range = self.data_max - self.data_min
+        self.data_range[self.data_range == 0] = 1  # Avoid division by zero
 
 
 class StandardScaler(BaseScaler):
