@@ -2330,7 +2330,7 @@ def sample_gaussian(
         if params["std_range"][0] == params["std_range"][1]
         else random_generator.uniform(*params["std_range"])
     )
-    num_channels = size[2] if len(size) > 2 else 1
+    num_channels = size[2] if len(size) > MONO_CHANNEL_DIMENSIONS else 1
     mean_vector = mean * np.ones(shape=(num_channels,), dtype=np.float64)
     std_dev_vector = std * np.ones(shape=(num_channels,), dtype=np.float64)
     gaussian_sampled_arr = np.zeros(shape=size)
