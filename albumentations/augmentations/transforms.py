@@ -94,6 +94,7 @@ __all__ = [
     "FancyPCA",
     "FromFloat",
     "GaussNoise",
+    "HEStain",
     "HueSaturationValue",
     "ISONoise",
     "Illumination",
@@ -6497,6 +6498,7 @@ class HEStain(ImageOnlyTransform):
     Args:
         method: Method to use for stain augmentation:
             - "preset": Use predefined stain matrices
+            - "random_preset": Randomly select a preset matrix each time
             - "vahadane": Extract using Vahadane method
             - "macenko": Extract using Macenko method
             - "custom": Use custom provided matrix
@@ -6549,7 +6551,7 @@ class HEStain(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        method: Literal["preset", "vahadane", "macenko", "custom"]
+        method: Literal["preset", "random_preset", "vahadane", "macenko", "custom"]
         preset: (
             Literal[
                 "ruifrok",
@@ -6580,6 +6582,8 @@ class HEStain(ImageOnlyTransform):
         def validate_matrix_selection(self) -> Self:
             if self.method == "preset" and self.preset is None:
                 self.preset = "standard"
+            elif self.method == "random_preset" and self.preset is not None:
+                raise ValueError("preset should not be specified when method='random_preset'")
             elif self.method == "custom" and self.custom_matrix is None:
                 raise ValueError("custom_matrix must be provided when method='custom'")
             elif self.method == "custom" and self.custom_matrix is not None and self.custom_matrix.shape != (2, 3):
@@ -6588,7 +6592,7 @@ class HEStain(ImageOnlyTransform):
 
     def __init__(
         self,
-        method: Literal["preset", "vahadane", "macenko", "custom"] = "preset",
+        method: Literal["preset", "random_preset", "vahadane", "macenko", "custom"] = "random_preset",
         preset: Literal[
             "ruifrok",
             "macenko",
@@ -6598,8 +6602,7 @@ class HEStain(ImageOnlyTransform):
             "e_heavy",
             "dark",
             "light",
-        ]
-        | None = None,
+        ] = "standard",
         custom_matrix: np.ndarray | None = None,
         intensity_scale_range: tuple[float, float] = (0.7, 1.3),
         intensity_shift_range: tuple[float, float] = (-0.2, 0.2),
@@ -6608,19 +6611,36 @@ class HEStain(ImageOnlyTransform):
     ):
         super().__init__(p=p)
         self.method = method
-        self.preset = preset if preset is not None else "standard"
+        self.preset = preset
         self.custom_matrix = custom_matrix
         self.intensity_scale_range = intensity_scale_range
         self.intensity_shift_range = intensity_shift_range
         self.augment_background = augment_background
 
         if method in ["vahadane", "macenko"]:
-            self.stain_extractor = fmain.get_normalizer(cast(Literal["vahadane", "macenko"], method), self.py_random)
+            self.stain_extractor = fmain.get_normalizer(
+                cast(Literal["vahadane", "macenko"], method),
+                self.random_generator,
+            )
+
+        self.preset_names = [
+            "ruifrok",
+            "macenko",
+            "standard",
+            "high_contrast",
+            "h_heavy",
+            "e_heavy",
+            "dark",
+            "light",
+        ]
 
     def get_stain_matrix(self, img: np.ndarray) -> np.ndarray:
         """Get stain matrix based on selected method."""
         if self.method == "preset":
             return fmain.STAIN_MATRICES[self.preset]
+        if self.method == "random_preset":
+            random_preset = self.py_random.choice(self.preset_names)
+            return fmain.STAIN_MATRICES[random_preset]
         if self.method == "custom":
             return self.custom_matrix
         # vahadane or macenko
@@ -6645,7 +6665,7 @@ class HEStain(ImageOnlyTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         # Get stain matrix
-        image = data["image"]
+        image = data["image"] if "image" in data else data["images"][0]
         stain_matrix = self.get_stain_matrix(image)
 
         # Generate random scaling and shift parameters for both H&E channels

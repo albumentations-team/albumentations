@@ -2811,3 +2811,220 @@ def test_simple_nmf_reproducibility(random_state):
 
     np.testing.assert_allclose(result1[0], result2[0])
     np.testing.assert_allclose(result1[1], result2[1])
+
+
+
+@pytest.fixture
+def synthetic_he_image():
+    """Create synthetic H&E-like image with known stain vectors."""
+    # Define synthetic H&E stain vectors (simplified but realistic)
+    h_vector = np.array([0.65, 0.70, 0.29])  # Hematoxylin (purple)
+    e_vector = np.array([0.07, 0.99, 0.11])  # Eosin (pink)
+    stain_matrix = np.vstack([h_vector, e_vector])
+
+    # Create synthetic concentrations with distinct regions
+    height, width = 100, 100
+    h_concentration = np.zeros((height, width))
+    e_concentration = np.zeros((height, width))
+
+    # Hematoxylin-rich region (top half)
+    h_concentration[:50, :] = np.random.uniform(0.5, 1.0, (50, width))
+    e_concentration[:50, :] = np.random.uniform(0, 0.5, (50, width))
+
+    # Eosin-rich region (bottom half)
+    h_concentration[50:, :] = np.random.uniform(0, 0.5, (50, width))
+    e_concentration[50:, :] = np.random.uniform(0.5, 1.0, (50, width))
+
+    # Add background region (top-left corner)
+    h_concentration[:20, :20] = 0
+    e_concentration[:20, :20] = 0
+
+    # Create image
+    concentrations = np.stack([h_concentration, e_concentration], axis=-1)
+    optical_density = np.dot(concentrations, stain_matrix)
+    img = np.exp(-optical_density) * 255
+    return img.astype(np.uint8), stain_matrix, concentrations
+
+
+@pytest.mark.parametrize(
+    ["normalizer_class", "kwargs"],
+    [
+        (fmain.VahadaneNormalizer, {"random_state": np.random.RandomState(42)}),
+        (fmain.MacenkoNormalizer, {"random_state": np.random.RandomState(42), "angular_percentile": 99}),
+    ]
+)
+def test_normalizer_output_shape(normalizer_class, kwargs, synthetic_he_image):
+    """Test that normalizers produce correctly shaped output."""
+    img = synthetic_he_image[0]
+    normalizer = normalizer_class(**kwargs)
+    normalizer.fit(img)
+
+    assert normalizer.stain_matrix_target.shape == (2, 3)
+    assert np.all(normalizer.stain_matrix_target >= 0)
+    assert np.allclose(
+        np.sum(normalizer.stain_matrix_target**2, axis=1),
+        np.ones(2),
+        rtol=1e-5
+    )
+
+@pytest.mark.parametrize(
+    ["normalizer_class", "kwargs"],
+    [
+        (fmain.VahadaneNormalizer, {"random_state": np.random.RandomState(137)}),
+        (fmain.MacenkoNormalizer, {
+            "random_state": np.random.RandomState(137),
+            "angular_percentile": 99
+        }),
+    ]
+)
+def test_normalizer_consistency(normalizer_class, kwargs, synthetic_he_image):
+    """Test that normalizers produce consistent results."""
+    img, stain_matrix, _ = synthetic_he_image  # Unpack 3 values
+
+    # Create two normalizers with SAME random state
+    rs1 = np.random.RandomState(137)  # Explicit seed
+    rs2 = np.random.RandomState(137)  # Same seed
+
+    kwargs1 = {**kwargs, "random_state": rs1}
+    kwargs2 = {**kwargs, "random_state": rs2}
+
+    normalizer1 = normalizer_class(**kwargs1)
+    normalizer2 = normalizer_class(**kwargs2)
+
+    normalizer1.fit(img)
+    normalizer2.fit(img)
+
+    np.testing.assert_allclose(
+        normalizer1.stain_matrix_target,
+        normalizer2.stain_matrix_target,
+        rtol=1e-5
+    )
+
+@pytest.mark.parametrize(
+    ["normalizer_class", "kwargs", "angle_tolerance"],
+    [
+        (fmain.VahadaneNormalizer, {"random_state": np.random.RandomState(42)}, 45),
+        (fmain.MacenkoNormalizer, {
+            "random_state": np.random.RandomState(42),
+            "angular_percentile": 99
+        }, 45),
+    ]
+)
+def test_normalizer_stain_separation(normalizer_class, kwargs, angle_tolerance, synthetic_he_image):
+    """Test that normalizers correctly separate H&E stains."""
+    img, stain_matrix, _ = synthetic_he_image  # Unpack 3 values
+    normalizer = normalizer_class(**kwargs)
+    normalizer.fit(img)
+
+    # Calculate angles between true and estimated stain vectors
+    for i in range(2):
+        cos_angle = np.dot(normalizer.stain_matrix_target[i], stain_matrix[i])
+        cos_angle /= np.linalg.norm(normalizer.stain_matrix_target[i])
+        cos_angle /= np.linalg.norm(stain_matrix[i])
+        angle = np.arccos(np.clip(cos_angle, -1.0, 1.0))
+        angle_degrees = np.degrees(angle)
+        assert angle_degrees < angle_tolerance
+
+
+@pytest.mark.parametrize(
+    "angular_percentile",
+    [0, 50, 90, 99, 99.9]
+)
+def test_macenko_angular_percentile(angular_percentile, synthetic_he_image):
+    """Test MacenkoNormalizer with different angular percentiles."""
+    img = synthetic_he_image[0]  # Unpack 3 values
+    normalizer = fmain.MacenkoNormalizer(
+        random_state=np.random.RandomState(42),
+        angular_percentile=angular_percentile
+    )
+    normalizer.fit(img)
+
+    assert normalizer.stain_matrix_target.shape == (2, 3)
+    assert np.all(normalizer.stain_matrix_target >= 0)
+
+
+@pytest.mark.parametrize(
+    ["scale_factors", "shift_values", "expected_changes"],
+    [
+        # Increase H only
+        (
+            np.array([2.0, 1.0], dtype=np.float32),
+            np.array([0.0, 0.0], dtype=np.float32),
+            {"h_change": "increase", "e_change": "stable"}
+        ),
+        # Decrease both
+        (
+            np.array([0.5, 0.5], dtype=np.float32),
+            np.array([0.0, 0.0], dtype=np.float32),
+            {"h_change": "decrease", "e_change": "decrease"}
+        ),
+    ]
+)
+def test_stain_augmentation_effects(synthetic_he_image, scale_factors, shift_values, expected_changes):
+    """Test that augmentation produces expected changes in stain intensities."""
+    img, stain_matrix, original_concentrations = synthetic_he_image
+
+    # Ensure stain_matrix is float32
+    stain_matrix = stain_matrix.astype(np.float32)
+
+    result = fmain.apply_he_stain_augmentation(
+        img=img,
+        stain_matrix=stain_matrix,
+        scale_factors=scale_factors,
+        shift_values=shift_values,
+        augment_background=True
+    )
+
+    # Calculate changes in optical density
+    def to_od(x):
+        return -np.log((x.astype(np.float32) + 1) / 256)
+
+    od_orig = to_od(img)
+    od_result = to_od(result)
+
+    # Exclude background pixels (where OD is very low)
+    tissue_mask = np.any(od_orig > 0.15, axis=2)
+
+    h_region_mask = tissue_mask[:50, 20:]
+    e_region_mask = tissue_mask[50:, 20:]
+
+    h_change = (np.mean(od_result[:50, 20:][h_region_mask]) -
+                np.mean(od_orig[:50, 20:][h_region_mask]))
+    e_change = (np.mean(od_result[50:, 20:][e_region_mask]) -
+                np.mean(od_orig[50:, 20:][e_region_mask]))
+
+    # Check direction of changes
+    if expected_changes["h_change"] == "increase":
+        assert h_change > 0, "H stain should increase"
+    elif expected_changes["h_change"] == "decrease":
+        assert h_change < 0, "H stain should decrease"
+    else:  # stable
+        np.testing.assert_allclose(h_change, 0, atol=0.15)
+
+    if expected_changes["e_change"] == "increase":
+        assert e_change > 0, "E stain should increase"
+    elif expected_changes["e_change"] == "decrease":
+        assert e_change < 0, "E stain should decrease"
+    else:  # stable
+        np.testing.assert_allclose(e_change, 0, atol=0.15)
+
+
+def test_background_augmentation(synthetic_he_image):
+    """Test that background augmentation flag works correctly."""
+    img, stain_matrix, _ = synthetic_he_image
+
+    result = fmain.apply_he_stain_augmentation(
+        img=img,
+        stain_matrix=stain_matrix,
+        scale_factors=np.array([2.0, 2.0]),
+        shift_values=np.array([0.1, 0.1]),
+        augment_background=False
+    )
+
+    # Background region should be unchanged
+    np.testing.assert_allclose(
+        result[:20, :20],
+        img[:20, :20],
+        rtol=1e-5,
+        atol=1
+    )

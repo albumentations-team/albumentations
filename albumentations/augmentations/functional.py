@@ -3289,66 +3289,79 @@ class VahadaneNormalizer(StainNormalizer):
 
 
 class MacenkoNormalizer(StainNormalizer):
-    """Macenko stain normalizer."""
+    """Macenko stain normalizer with optimized computations."""
+
+    def __init__(self, random_state: np.random.RandomState, angular_percentile: float = 99):
+        super().__init__(random_state)
+        self.angular_percentile = angular_percentile
 
     def fit(self, img: np.ndarray, angular_percentile: float = 99) -> None:
-        """Extract H&E stain matrix using Macenko's method.
+        """Extract H&E stain matrix using optimized Macenko's method."""
+        # Step 1: Convert RGB to optical density (OD) space
+        pixel_matrix = img.reshape(-1, 3).astype(np.float32)
+        pixel_matrix = np.maximum(pixel_matrix, 1)
+        optical_density = -np.log(pixel_matrix / 255.0)
 
-        Args:
-            img: RGB image of shape (height, width, 3)
-            angular_percentile: Percentile for angle selection. Higher values
-                              give more robust stain vectors. Range: 0-100
-        """
-        # Convert to optical density
-        optical_density = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
+        # Step 2: Remove background pixels
+        od_threshold = 0.05
+        threshold_mask = (optical_density > od_threshold).any(axis=1)
+        tissue_density = optical_density[threshold_mask]
 
-        # Remove data points with very low optical density
-        density_threshold = 0.15
-        valid_density_mask = np.all(optical_density > density_threshold, axis=1)
-        filtered_density = optical_density[valid_density_mask]
+        if len(tissue_density) < 1:
+            raise ValueError(f"No tissue pixels found (threshold={od_threshold})")
 
-        # Compute eigenvectors of optical density covariance
-        _, eigenvectors = np.linalg.eigh(np.cov(filtered_density.T))
-        stain_eigenvectors = eigenvectors[:, [2, 1]]  # Select top 2 eigenvectors
+        # Step 3: Compute covariance matrix
+        tissue_density = np.ascontiguousarray(tissue_density, dtype=np.float32)
+        od_covariance = cv2.calcCovarMatrix(
+            tissue_density,
+            None,
+            cv2.COVAR_NORMAL | cv2.COVAR_ROWS | cv2.COVAR_SCALE,
+        )[0]
 
-        # Project data onto plane spanned by eigenvectors
-        density_projection = np.dot(filtered_density, stain_eigenvectors)
+        # Step 4: Get principal components
+        eigenvalues, eigenvectors = cv2.eigen(od_covariance)[1:]
+        idx = np.argsort(eigenvalues.ravel())[-2:]
+        principal_eigenvectors = np.ascontiguousarray(eigenvectors[:, idx], dtype=np.float32)
 
-        # Find angular coordinates of points in the plane
-        stain_angles = np.arctan2(density_projection[:, 1], density_projection[:, 0])
+        # Step 5: Project onto eigenvector plane
+        plane_coordinates = tissue_density @ principal_eigenvectors
 
-        # Find robust extremes (arctan2 returns values between -pi and pi)
-        hematoxylin_angle = np.percentile(stain_angles, 100 - angular_percentile)
-        eosin_angle = np.percentile(stain_angles, angular_percentile)
-
-        # Convert angles back to stain vectors
-        hematoxylin_vector = np.dot(
-            stain_eigenvectors,
-            np.array([np.cos(hematoxylin_angle), np.sin(hematoxylin_angle)]),
-        )
-        eosin_vector = np.dot(
-            stain_eigenvectors,
-            np.array([np.cos(eosin_angle), np.sin(eosin_angle)]),
+        # Step 6: Find angles of extreme points
+        polar_angles = np.arctan2(
+            plane_coordinates[:, 1],
+            plane_coordinates[:, 0],
         )
 
-        # Order H&E components by their angles
-        if hematoxylin_vector[0] > eosin_vector[0]:
-            self.stain_matrix_target = np.array([hematoxylin_vector, eosin_vector])
-        else:
-            self.stain_matrix_target = np.array([eosin_vector, hematoxylin_vector])
+        # Get robust angle estimates
+        hematoxylin_angle = np.percentile(polar_angles, 100 - angular_percentile)
+        eosin_angle = np.percentile(polar_angles, angular_percentile)
 
+        # Step 7: Convert angles back to RGB space
+        hem_cos, hem_sin = np.cos(hematoxylin_angle), np.sin(hematoxylin_angle)
+        eos_cos, eos_sin = np.cos(eosin_angle), np.sin(eosin_angle)
 
-def get_stain_concentrations(
-    img: np.ndarray,
-    stain_matrix: np.ndarray,
-) -> np.ndarray:
-    """Extract stain concentrations from the image using the given stain matrix."""
-    # Convert to optical density space
-    od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
+        angle_to_vector = np.array(
+            [[hem_cos, hem_sin], [eos_cos, eos_sin]],
+            dtype=np.float32,
+        )
+        stain_vectors = cv2.gemm(
+            angle_to_vector,
+            principal_eigenvectors.T,
+            1,
+            None,
+            0,
+        )
 
-    # Solve for concentrations using pseudo-inverse
-    concentrations = np.linalg.lstsq(stain_matrix, od.T, rcond=None)[0].T
-    return np.maximum(concentrations, 0)
+        # Step 8: Ensure non-negativity by taking absolute values
+        # This is valid because stain vectors represent absorption coefficients
+        stain_vectors = np.abs(stain_vectors)
+
+        # Step 9: Normalize vectors to unit length
+        stain_vectors = stain_vectors / np.sqrt(np.sum(stain_vectors**2, axis=1, keepdims=True))
+
+        # Step 10: Order vectors as [hematoxylin, eosin]
+        # Hematoxylin typically has larger red component
+        self.stain_matrix_target = stain_vectors if stain_vectors[0, 0] > stain_vectors[1, 0] else stain_vectors[::-1]
 
 
 def get_tissue_mask(img: np.ndarray, threshold: float = 0.85) -> np.ndarray:
@@ -3376,6 +3389,8 @@ def get_tissue_mask(img: np.ndarray, threshold: float = 0.85) -> np.ndarray:
     return mask.reshape(-1).astype(bool)
 
 
+@clipped
+@uint8_io
 def apply_he_stain_augmentation(
     img: np.ndarray,
     stain_matrix: np.ndarray,
@@ -3383,31 +3398,28 @@ def apply_he_stain_augmentation(
     shift_values: np.ndarray,
     augment_background: bool,
 ) -> np.ndarray:
-    """Apply H&E stain augmentation to the image.
+    # Step 1: Convert to optical density
+    pixel_matrix = img.reshape(-1, 3).astype(np.float32)
+    pixel_matrix = np.maximum(pixel_matrix, 1)
+    optical_density = -np.log(pixel_matrix / 255.0)
 
-    Args:
-        img: RGB image to augment
-        stain_matrix: 2x3 matrix containing H&E stain vectors
-        scale_factors: Multiplicative factors for H&E concentrations
-        shift_values: Additive shifts for H&E concentrations
-        augment_background: Whether to apply augmentation to background regions
+    # Step 2: Calculate concentrations
+    stain_matrix = np.ascontiguousarray(stain_matrix, dtype=np.float32)
+    concentrations = np.linalg.solve(
+        stain_matrix @ stain_matrix.T,
+        stain_matrix @ optical_density.T,
+    ).T
 
-    Returns:
-        Augmented RGB image
-    """
-    # Get concentrations and tissue mask
-    concentrations = get_stain_concentrations(img, stain_matrix)
-    tissue_mask = get_tissue_mask(img) if not augment_background else None
-
-    # Apply augmentation
-    if tissue_mask is not None:
+    # Step 3: Apply scaling and shifting
+    if not augment_background:
+        tissue_mask = get_tissue_mask(img).reshape(-1)
         concentrations[tissue_mask] = concentrations[tissue_mask] * scale_factors + shift_values
     else:
+        # Use numpy operations instead of cv2
         concentrations = concentrations * scale_factors + shift_values
 
-    # Reconstruct image
-    od = np.dot(concentrations, stain_matrix)
-    img_augmented = 255 * np.exp(-od)
-    img_augmented = img_augmented.reshape(img.shape)
+    # Step 4: Reconstruct image
+    od_result = concentrations @ stain_matrix
+    rgb_result = 255.0 * np.exp(-od_result)
 
-    return np.clip(img_augmented, 0, 255).astype(np.uint8)
+    return rgb_result.reshape(img.shape)
