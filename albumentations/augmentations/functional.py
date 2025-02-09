@@ -3368,29 +3368,24 @@ def get_tissue_mask(img: np.ndarray, threshold: float = 0.85) -> np.ndarray:
     """Get binary mask of tissue regions based on luminosity.
 
     Args:
-        img: RGB image
+        img: RGB image in float32 format, range [0, 1]
         threshold: Luminosity threshold. Pixels with luminosity below this value
                   are considered tissue. Range: 0 to 1. Default: 0.85
 
     Returns:
         Binary mask where True indicates tissue regions
     """
-    # Convert to grayscale using OpenCV's weighted formula
-    luminosity = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # Convert to grayscale using RGB weights: R*0.299 + G*0.587 + B*0.114
+    luminosity = img[..., 0] * 0.299 + img[..., 1] * 0.587 + img[..., 2] * 0.114
 
-    # Apply threshold (cv2.THRESH_BINARY_INV because tissue is darker)
-    _, mask = cv2.threshold(
-        src=luminosity,
-        thresh=int(threshold * 255),
-        maxval=1,
-        type=cv2.THRESH_BINARY_INV,
-    )
+    # Tissue is darker, so we want pixels below threshold
+    mask = luminosity < threshold
 
-    return mask.reshape(-1).astype(bool)
+    return mask.reshape(-1)
 
 
 @clipped
-@uint8_io
+@float32_io
 def apply_he_stain_augmentation(
     img: np.ndarray,
     stain_matrix: np.ndarray,
@@ -3399,9 +3394,9 @@ def apply_he_stain_augmentation(
     augment_background: bool,
 ) -> np.ndarray:
     # Step 1: Convert to optical density
-    pixel_matrix = img.reshape(-1, 3).astype(np.float32)
-    pixel_matrix = np.maximum(pixel_matrix, 1)
-    optical_density = -np.log(pixel_matrix / 255.0)
+    pixel_matrix = img.reshape(-1, 3)
+    pixel_matrix = np.maximum(pixel_matrix, 1e-6)
+    optical_density = -cv2.log(pixel_matrix)
 
     # Step 2: Calculate concentrations
     stain_matrix = np.ascontiguousarray(stain_matrix, dtype=np.float32)
@@ -3420,6 +3415,6 @@ def apply_he_stain_augmentation(
 
     # Step 4: Reconstruct image
     od_result = concentrations @ stain_matrix
-    rgb_result = 255.0 * np.exp(-od_result)
+    rgb_result = np.exp(-od_result)
 
     return rgb_result.reshape(img.shape)
