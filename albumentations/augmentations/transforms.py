@@ -6483,3 +6483,197 @@ class AutoContrast(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "cutoff", "ignore", "method"
+
+
+class HEStain(ImageOnlyTransform):
+    """Applies H&E (Hematoxylin and Eosin) stain augmentation to histopathology images.
+
+    This transform simulates different H&E staining conditions using either:
+    1. Predefined stain matrices (8 standard references)
+    2. Vahadane method for stain extraction
+    3. Macenko method for stain extraction
+    4. Custom stain matrices
+
+    Args:
+        method: Method to use for stain augmentation:
+            - "preset": Use predefined stain matrices
+            - "vahadane": Extract using Vahadane method
+            - "macenko": Extract using Macenko method
+            - "custom": Use custom provided matrix
+            Default: "preset"
+
+        preset: Preset stain matrix to use when method="preset":
+            - "ruifrok": Standard reference from Ruifrok & Johnston
+            - "macenko": Reference from Macenko's method
+            - "standard": Typical bright-field microscopy
+            - "high_contrast": Enhanced contrast
+            - "h_heavy": Hematoxylin dominant
+            - "e_heavy": Eosin dominant
+            - "dark": Darker staining
+            - "light": Lighter staining
+            Default: "standard"
+
+        custom_matrix: Custom stain matrix to use when method="custom".
+            Shape should be (2, 3) for H&E stains.
+
+        intensity_scale_range: Range for multiplicative stain intensity variation.
+            Values are multipliers between 0.5 and 1.5. For example:
+            - (0.7, 1.3) means stain intensities will vary from 70% to 130%
+            - (0.9, 1.1) gives subtle variations
+            - (0.5, 1.5) gives dramatic variations
+            Default: (0.7, 1.3)
+
+        intensity_shift_range: Range for additive stain intensity variation.
+            Values between -0.3 and 0.3. For example:
+            - (-0.2, 0.2) means intensities will be shifted by -20% to +20%
+            - (-0.1, 0.1) gives subtle shifts
+            - (-0.3, 0.3) gives dramatic shifts
+            Default: (-0.2, 0.2)
+
+        augment_background: Whether to apply augmentation to background regions.
+            Default: False
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    References:
+        .. [1] A. C. Ruifrok and D. A. Johnston, "Quantification of histochemical
+               staining by color deconvolution," Analytical and quantitative
+               cytology and histology, 2001.
+        .. [2] M. Macenko et al., "A method for normalizing histology slides for
+               quantitative analysis," 2009 IEEE International Symposium on
+               Biomedical Imaging, 2009.
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        method: Literal["preset", "vahadane", "macenko", "custom"]
+        preset: (
+            Literal[
+                "ruifrok",
+                "macenko",
+                "standard",
+                "high_contrast",
+                "h_heavy",
+                "e_heavy",
+                "dark",
+                "light",
+            ]
+            | None
+        )
+        custom_matrix: np.ndarray | None
+        intensity_scale_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, None)),
+        ]
+        intensity_shift_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(-1, 1)),
+        ]
+        augment_background: bool
+
+        @model_validator(mode="after")
+        def validate_matrix_selection(self) -> Self:
+            if self.method == "preset" and self.preset is None:
+                self.preset = "standard"
+            elif self.method == "custom" and self.custom_matrix is None:
+                raise ValueError("custom_matrix must be provided when method='custom'")
+            elif self.method == "custom" and self.custom_matrix is not None and self.custom_matrix.shape != (2, 3):
+                raise ValueError("custom_matrix must have shape (2, 3)")
+            return self
+
+    def __init__(
+        self,
+        method: Literal["preset", "vahadane", "macenko", "custom"] = "preset",
+        preset: Literal[
+            "ruifrok",
+            "macenko",
+            "standard",
+            "high_contrast",
+            "h_heavy",
+            "e_heavy",
+            "dark",
+            "light",
+        ]
+        | None = None,
+        custom_matrix: np.ndarray | None = None,
+        intensity_scale_range: tuple[float, float] = (0.7, 1.3),
+        intensity_shift_range: tuple[float, float] = (-0.2, 0.2),
+        augment_background: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p)
+        self.method = method
+        self.preset = preset if preset is not None else "standard"
+        self.custom_matrix = custom_matrix
+        self.intensity_scale_range = intensity_scale_range
+        self.intensity_shift_range = intensity_shift_range
+        self.augment_background = augment_background
+
+        if method in ["vahadane", "macenko"]:
+            self.stain_extractor = fmain.get_normalizer(cast(Literal["vahadane", "macenko"], method), self.py_random)
+
+    def get_stain_matrix(self, img: np.ndarray) -> np.ndarray:
+        """Get stain matrix based on selected method."""
+        if self.method == "preset":
+            return fmain.STAIN_MATRICES[self.preset]
+        if self.method == "custom":
+            return self.custom_matrix
+        # vahadane or macenko
+        self.stain_extractor.fit(img)
+        return self.stain_extractor.stain_matrix_target
+
+    def apply(
+        self,
+        img: np.ndarray,
+        stain_matrix: np.ndarray,
+        scale_factors: np.ndarray,
+        shift_values: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        return fmain.apply_he_stain_augmentation(
+            img=img,
+            stain_matrix=stain_matrix,
+            scale_factors=scale_factors,
+            shift_values=shift_values,
+            augment_background=self.augment_background,
+        )
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        # Get stain matrix
+        image = data["image"]
+        stain_matrix = self.get_stain_matrix(image)
+
+        # Generate random scaling and shift parameters for both H&E channels
+        scale_factors = np.array(
+            [
+                self.py_random.uniform(*self.intensity_scale_range),
+                self.py_random.uniform(*self.intensity_scale_range),
+            ],
+        )
+        shift_values = np.array(
+            [
+                self.py_random.uniform(*self.intensity_shift_range),
+                self.py_random.uniform(*self.intensity_shift_range),
+            ],
+        )
+
+        return {
+            "stain_matrix": stain_matrix,
+            "scale_factors": scale_factors,
+            "shift_values": shift_values,
+        }
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            "method",
+            "preset",
+            "custom_matrix",
+            "intensity_scale_range",
+            "intensity_shift_range",
+            "augment_background",
+        )

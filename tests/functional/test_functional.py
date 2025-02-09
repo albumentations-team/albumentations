@@ -22,6 +22,7 @@ from tests.conftest import (
 )
 from tests.utils import convert_2d_to_target_format
 from copy import deepcopy
+from sklearn.decomposition import NMF
 
 
 @pytest.mark.parametrize(
@@ -2721,3 +2722,92 @@ def test_deterministic():
 
     np.testing.assert_array_almost_equal(result1["mud"], result2["mud"])
     np.testing.assert_array_almost_equal(result1["non_mud"], result2["non_mud"])
+
+
+
+@pytest.fixture
+def random_state():
+    return np.random.RandomState(42)
+
+@pytest.mark.parametrize(
+    ["height", "width", "n_iter"],
+    [
+        (100, 100, 50),   # Small square image
+        (200, 100, 100),  # Rectangle image
+        (50, 50, 200),    # Small image, more iterations
+    ]
+)
+def test_simple_nmf_shape(height, width, n_iter, random_state):
+    # Create synthetic H&E-like data
+    img = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
+
+    # Our implementation
+    nmf = fmain.SimpleNMF(random_state=random_state, n_iter=n_iter)
+    concentrations, colors = nmf.fit_transform(od)
+
+    # Check shapes
+    assert concentrations.shape == (height * width, 2)
+    assert colors.shape == (2, 3)
+
+    # Check non-negativity
+    assert np.all(concentrations >= 0)
+    assert np.all(colors >= 0)
+
+    # Check unit norm constraint on colors
+    np.testing.assert_allclose(
+        np.sum(colors**2, axis=1),
+        np.ones(2),
+        rtol=1e-5
+    )
+
+@pytest.mark.parametrize(
+    ["height", "width"],
+    [
+        (100, 100),  # Square image
+        (200, 100),  # Rectangle image
+    ]
+)
+def test_simple_nmf_against_sklearn(height, width, random_state):
+    # Create synthetic H&E-like data
+    img = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
+
+    # Our implementation
+    our_nmf = fmain.SimpleNMF(random_state=random_state, n_iter=100)
+    our_concentrations, our_colors = our_nmf.fit_transform(od)
+
+    # Sklearn implementation
+    sklearn_nmf = NMF(
+        n_components=2,
+        init='random',
+        random_state=42,
+        max_iter=100
+    )
+    sklearn_concentrations = sklearn_nmf.fit_transform(od)
+    sklearn_colors = sklearn_nmf.components_
+
+    # Reconstruction error comparison
+    our_reconstruction = np.dot(our_concentrations, our_colors)
+    sklearn_reconstruction = np.dot(sklearn_concentrations, sklearn_colors)
+
+    our_error = np.mean((od - our_reconstruction) ** 2)
+    sklearn_error = np.mean((od - sklearn_reconstruction) ** 2)
+
+    # Our error should be within a reasonable factor of sklearn's
+    assert our_error <= 2 * sklearn_error
+
+
+def test_simple_nmf_reproducibility(random_state):
+    # Test that same random state produces same results
+    img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
+
+    nmf1 = fmain.SimpleNMF(random_state=np.random.RandomState(42))
+    nmf2 = fmain.SimpleNMF(random_state=np.random.RandomState(42))
+
+    result1 = nmf1.fit_transform(od)
+    result2 = nmf2.fit_transform(od)
+
+    np.testing.assert_allclose(result1[0], result2[0])
+    np.testing.assert_allclose(result1[1], result2[1])
