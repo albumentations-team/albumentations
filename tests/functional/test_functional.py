@@ -2743,7 +2743,7 @@ def test_simple_nmf_shape(height, width, n_iter, random_state):
     od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
 
     # Our implementation
-    nmf = fmain.SimpleNMF(random_state=random_state, n_iter=n_iter)
+    nmf = fmain.SimpleNMF(n_iter=n_iter)
     concentrations, colors = nmf.fit_transform(od)
 
     # Check shapes
@@ -2774,7 +2774,7 @@ def test_simple_nmf_against_sklearn(height, width, random_state):
     od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
 
     # Our implementation
-    our_nmf = fmain.SimpleNMF(random_state=random_state, n_iter=100)
+    our_nmf = fmain.SimpleNMF(n_iter=100)
     our_concentrations, our_colors = our_nmf.fit_transform(od)
 
     # Sklearn implementation
@@ -2796,22 +2796,6 @@ def test_simple_nmf_against_sklearn(height, width, random_state):
 
     # Our error should be within a reasonable factor of sklearn's
     assert our_error <= 2 * sklearn_error
-
-
-def test_simple_nmf_reproducibility(random_state):
-    # Test that same random state produces same results
-    img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-    od = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
-
-    nmf1 = fmain.SimpleNMF(random_state=np.random.RandomState(42))
-    nmf2 = fmain.SimpleNMF(random_state=np.random.RandomState(42))
-
-    result1 = nmf1.fit_transform(od)
-    result2 = nmf2.fit_transform(od)
-
-    np.testing.assert_allclose(result1[0], result2[0])
-    np.testing.assert_allclose(result1[1], result2[1])
-
 
 
 @pytest.fixture
@@ -2849,8 +2833,8 @@ def synthetic_he_image():
 @pytest.mark.parametrize(
     ["normalizer_class", "kwargs"],
     [
-        (fmain.VahadaneNormalizer, {"random_state": np.random.RandomState(42)}),
-        (fmain.MacenkoNormalizer, {"random_state": np.random.RandomState(42), "angular_percentile": 99}),
+        (fmain.VahadaneNormalizer, {}),
+        (fmain.MacenkoNormalizer, { "angular_percentile": 99 }),
     ]
 )
 def test_normalizer_output_shape(normalizer_class, kwargs, synthetic_he_image):
@@ -2868,46 +2852,10 @@ def test_normalizer_output_shape(normalizer_class, kwargs, synthetic_he_image):
     )
 
 @pytest.mark.parametrize(
-    ["normalizer_class", "kwargs"],
-    [
-        (fmain.VahadaneNormalizer, {"random_state": np.random.RandomState(137)}),
-        (fmain.MacenkoNormalizer, {
-            "random_state": np.random.RandomState(137),
-            "angular_percentile": 99
-        }),
-    ]
-)
-def test_normalizer_consistency(normalizer_class, kwargs, synthetic_he_image):
-    """Test that normalizers produce consistent results."""
-    img, stain_matrix, _ = synthetic_he_image  # Unpack 3 values
-
-    # Create two normalizers with SAME random state
-    rs1 = np.random.RandomState(137)  # Explicit seed
-    rs2 = np.random.RandomState(137)  # Same seed
-
-    kwargs1 = {**kwargs, "random_state": rs1}
-    kwargs2 = {**kwargs, "random_state": rs2}
-
-    normalizer1 = normalizer_class(**kwargs1)
-    normalizer2 = normalizer_class(**kwargs2)
-
-    normalizer1.fit(img)
-    normalizer2.fit(img)
-
-    np.testing.assert_allclose(
-        normalizer1.stain_matrix_target,
-        normalizer2.stain_matrix_target,
-        rtol=1e-5
-    )
-
-@pytest.mark.parametrize(
     ["normalizer_class", "kwargs", "angle_tolerance"],
     [
-        (fmain.VahadaneNormalizer, {"random_state": np.random.RandomState(42)}, 45),
-        (fmain.MacenkoNormalizer, {
-            "random_state": np.random.RandomState(42),
-            "angular_percentile": 99
-        }, 45),
+        (fmain.VahadaneNormalizer, {}, 45),
+        (fmain.MacenkoNormalizer, { "angular_percentile": 99 }, 45),
     ]
 )
 def test_normalizer_stain_separation(normalizer_class, kwargs, angle_tolerance, synthetic_he_image):
@@ -2932,9 +2880,8 @@ def test_normalizer_stain_separation(normalizer_class, kwargs, angle_tolerance, 
 )
 def test_macenko_angular_percentile(angular_percentile, synthetic_he_image):
     """Test MacenkoNormalizer with different angular percentiles."""
-    img = synthetic_he_image[0]  # Unpack 3 values
+    img = synthetic_he_image[0]
     normalizer = fmain.MacenkoNormalizer(
-        random_state=np.random.RandomState(42),
         angular_percentile=angular_percentile
     )
     normalizer.fit(img)
@@ -2962,7 +2909,7 @@ def test_macenko_angular_percentile(angular_percentile, synthetic_he_image):
 )
 def test_stain_augmentation_effects(synthetic_he_image, scale_factors, shift_values, expected_changes):
     """Test that augmentation produces expected changes in stain intensities."""
-    img, stain_matrix, original_concentrations = synthetic_he_image
+    img, stain_matrix = synthetic_he_image[:2]
 
     # Ensure stain_matrix is float32
     stain_matrix = stain_matrix.astype(np.float32)

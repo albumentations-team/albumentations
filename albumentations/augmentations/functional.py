@@ -3191,17 +3191,16 @@ STAIN_MATRICES = {
 }
 
 
-def get_normalizer(method: Literal["vahadane", "macenko"], random_state: np.random.RandomState) -> StainNormalizer:
+def get_normalizer(method: Literal["vahadane", "macenko"]) -> StainNormalizer:
     """Get stain normalizer based on method."""
-    return VahadaneNormalizer(random_state) if method == "vahadane" else MacenkoNormalizer(random_state)
+    return VahadaneNormalizer() if method == "vahadane" else MacenkoNormalizer()
 
 
 class StainNormalizer:
     """Base class for stain normalizers."""
 
-    def __init__(self, random_state: np.random.RandomState) -> None:
+    def __init__(self) -> None:
         self.stain_matrix_target = None
-        self.random_state = random_state
 
     def fit(self, img: np.ndarray) -> None:
         """Extract stain matrix from image."""
@@ -3209,81 +3208,96 @@ class StainNormalizer:
 
 
 class SimpleNMF:
-    """Simple Non-negative Matrix Factorization for H&E stain separation.
-
-    This is a simplified implementation specifically for H&E staining,
-    where we know we want exactly 2 components (H&E) and have RGB data.
-    """
-
-    def __init__(self, random_state: np.random.RandomState, n_iter: int = 100):
+    def __init__(self, n_iter: int = 100):
         self.n_iter = n_iter
-        self.random_state = random_state
+        # Initialize with standard H&E colors from Ruifrok
+        self.initial_colors = np.array(
+            [
+                [0.644211, 0.716556, 0.266844],  # Hematoxylin
+                [0.092789, 0.954111, 0.283111],  # Eosin
+            ],
+            dtype=np.float32,
+        )
 
     def fit_transform(self, optical_density: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Decompose optical density matrix into stain concentrations and colors.
+        # Start with known H&E colors
+        stain_colors = self.initial_colors.copy()
 
-        Args:
-            optical_density: Input matrix of shape (n_pixels, n_channels)
-                           Optical density values of shape (n_pixels, 3) for RGB
+        # Initialize concentrations based on projection onto initial colors
+        # This gives us a physically meaningful starting point
+        stain_colors_normalized = stain_colors / np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
+        stain_concentrations = np.maximum(optical_density @ stain_colors_normalized.T, 0)
 
-        Returns:
-            stain_concentrations: Matrix of shape (n_pixels, 2) for H&E concentrations
-            stain_colors: Matrix of shape (2, 3) for RGB colors of each stain
-        """
-        n_pixels, n_channels = optical_density.shape
-        n_stains = 2  # H&E stains
-
-        # Initialize random matrices
-        stain_concentrations = self.random_state.uniform(0, 1, (n_pixels, n_stains))
-        stain_colors = self.random_state.uniform(0, 1, (n_stains, n_channels))
-
-        # Normalize stain colors to unit norm
-        stain_colors = stain_colors / np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
-
-        # Iterative update rules
-        eps = 1e-7  # Small number to prevent division by zero
+        # Iterative updates with careful normalization
+        eps = 1e-6
         for _ in range(self.n_iter):
             # Update concentrations
-            conc_numerator = np.dot(optical_density, stain_colors.T)
-            conc_denominator = np.dot(stain_concentrations, np.dot(stain_colors, stain_colors.T)) + eps
-            stain_concentrations *= conc_numerator / conc_denominator
+            numerator = optical_density @ stain_colors.T
+            denominator = stain_concentrations @ (stain_colors @ stain_colors.T)
+            stain_concentrations *= numerator / (denominator + eps)
+
+            # Ensure non-negativity
+            stain_concentrations = np.maximum(stain_concentrations, 0)
 
             # Update colors
-            color_numerator = np.dot(stain_concentrations.T, optical_density)
-            color_denominator = np.dot(np.dot(stain_concentrations.T, stain_concentrations), stain_colors) + eps
-            stain_colors *= color_numerator / color_denominator
+            numerator = stain_concentrations.T @ optical_density
+            denominator = (stain_concentrations.T @ stain_concentrations) @ stain_colors
+            stain_colors *= numerator / (denominator + eps)
 
-            # Normalize stain colors to unit norm
-            stain_colors = stain_colors / np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
+            # Ensure non-negativity and normalize
+            stain_colors = np.maximum(stain_colors, 0)
+            stain_colors /= np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
 
         return stain_concentrations, stain_colors
 
 
+def order_stains_combined(stain_colors: np.ndarray) -> tuple[int, int]:
+    """Order stains using a combination of methods.
+
+    This combines both angular information and spectral characteristics
+    for more robust identification.
+    """
+    # Normalize stain vectors
+    stain_colors = stain_colors / np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
+
+    # Calculate angles (Macenko)
+    angles = np.mod(np.arctan2(stain_colors[:, 1], stain_colors[:, 0]), np.pi)
+
+    # Calculate spectral ratios (Ruifrok)
+    blue_ratio = stain_colors[:, 2] / (np.sum(stain_colors, axis=1) + 1e-6)
+    red_ratio = stain_colors[:, 0] / (np.sum(stain_colors, axis=1) + 1e-6)
+
+    # Combine scores
+    # High angle and high blue ratio indicates Hematoxylin
+    # Low angle and high red ratio indicates Eosin
+    scores = angles * blue_ratio - red_ratio
+
+    hematoxylin_idx = np.argmax(scores)
+    eosin_idx = 1 - hematoxylin_idx
+
+    return hematoxylin_idx, eosin_idx
+
+
 class VahadaneNormalizer(StainNormalizer):
-    """Vahadane stain normalizer using simplified NMF."""
-
     def fit(self, img: np.ndarray) -> None:
-        """Extract H&E stain matrix using Vahadane's method.
+        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
 
-        Args:
-            img: RGB image of shape (height, width, 3)
-        """
-        # Convert to optical density
-        optical_density = -np.log((img.reshape((-1, 3)).astype(np.float32) + 1) / 256)
+        pixel_matrix = img.reshape((-1, 3)).astype(np.float32)
 
-        # Apply NMF to get stain concentrations and colors
-        nmf = SimpleNMF(self.random_state, n_iter=100)
+        pixel_matrix = np.maximum(pixel_matrix / max_value, 1e-6)
+
+        optical_density = -np.log(pixel_matrix)
+
+        nmf = SimpleNMF(n_iter=100)
         _, stain_colors = nmf.fit_transform(optical_density)
 
-        # Order H&E components by their angles in the color plane
-        color_angles = np.arctan2(stain_colors[:, 1], stain_colors[:, 0])
-        hematoxylin_idx = np.argmax(color_angles)
-        eosin_idx = 1 - hematoxylin_idx
+        # Use combined method for robust stain ordering
+        hematoxylin_idx, eosin_idx = order_stains_combined(stain_colors)
 
         self.stain_matrix_target = np.array(
             [
-                stain_colors[hematoxylin_idx],  # Hematoxylin stain color
-                stain_colors[eosin_idx],  # Eosin stain color
+                stain_colors[hematoxylin_idx],
+                stain_colors[eosin_idx],
             ],
         )
 
@@ -3291,16 +3305,17 @@ class VahadaneNormalizer(StainNormalizer):
 class MacenkoNormalizer(StainNormalizer):
     """Macenko stain normalizer with optimized computations."""
 
-    def __init__(self, random_state: np.random.RandomState, angular_percentile: float = 99):
-        super().__init__(random_state)
+    def __init__(self, angular_percentile: float = 99):
+        super().__init__()
         self.angular_percentile = angular_percentile
 
     def fit(self, img: np.ndarray, angular_percentile: float = 99) -> None:
         """Extract H&E stain matrix using optimized Macenko's method."""
+        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
         # Step 1: Convert RGB to optical density (OD) space
         pixel_matrix = img.reshape(-1, 3).astype(np.float32)
-        pixel_matrix = np.maximum(pixel_matrix, 1)
-        optical_density = -np.log(pixel_matrix / 255.0)
+        pixel_matrix = np.maximum(pixel_matrix / max_value, 1e-6)
+        optical_density = -np.log(pixel_matrix)
 
         # Step 2: Remove background pixels
         od_threshold = 0.05
@@ -3393,28 +3408,41 @@ def apply_he_stain_augmentation(
     shift_values: np.ndarray,
     augment_background: bool,
 ) -> np.ndarray:
-    # Step 1: Convert to optical density
-    pixel_matrix = img.reshape(-1, 3)
-    pixel_matrix = np.maximum(pixel_matrix, 1e-6)
-    optical_density = -cv2.log(pixel_matrix)
+    # Step 1: Convert RGB to optical density space
+    rgb_pixels = img.reshape(-1, 3)
+    rgb_pixels_clipped = np.maximum(rgb_pixels, 1e-6)  # Prevent log(0)
+    optical_density = -np.log(rgb_pixels_clipped)
 
-    # Step 2: Calculate concentrations
+    # Step 2: Calculate stain concentrations using regularized pseudo-inverse
     stain_matrix = np.ascontiguousarray(stain_matrix, dtype=np.float32)
-    concentrations = np.linalg.solve(
-        stain_matrix @ stain_matrix.T,
-        stain_matrix @ optical_density.T,
-    ).T
 
-    # Step 3: Apply scaling and shifting
+    # Add small regularization term for numerical stability
+    regularization = 1e-6
+    stain_correlation = stain_matrix @ stain_matrix.T + regularization * np.eye(2)
+    density_projection = stain_matrix @ optical_density.T
+
+    try:
+        # Solve for stain concentrations
+        stain_concentrations = np.linalg.solve(stain_correlation, density_projection).T
+    except np.linalg.LinAlgError:
+        # Fallback to pseudo-inverse if direct solve fails
+        stain_concentrations = np.linalg.lstsq(
+            stain_matrix.T,
+            optical_density,
+            rcond=regularization,
+        )[0].T
+
+    # Step 3: Apply concentration adjustments
     if not augment_background:
+        # Only modify tissue regions
         tissue_mask = get_tissue_mask(img).reshape(-1)
-        concentrations[tissue_mask] = concentrations[tissue_mask] * scale_factors + shift_values
+        stain_concentrations[tissue_mask] = stain_concentrations[tissue_mask] * scale_factors + shift_values
     else:
-        # Use numpy operations instead of cv2
-        concentrations = concentrations * scale_factors + shift_values
+        # Modify all pixels
+        stain_concentrations = stain_concentrations * scale_factors + shift_values
 
-    # Step 4: Reconstruct image
-    od_result = concentrations @ stain_matrix
-    rgb_result = np.exp(-od_result)
+    # Step 4: Reconstruct RGB image
+    optical_density_result = stain_concentrations @ stain_matrix
+    rgb_result = np.exp(-optical_density_result)
 
     return rgb_result.reshape(img.shape)

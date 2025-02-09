@@ -1038,7 +1038,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
         if augmentation_cls in {A.ChannelDropout, A.Spatter, A.ISONoise,
                                 A.RandomGravel, A.ChromaticAberration, A.PlanckianJitter, A.PixelDistributionAdaptation,
                                 A.MaskDropout, A.ConstrainedCoarseDropout, A.ChannelShuffle, A.ToRGB, A.RandomSunFlare,
-                                A.RandomFog, A.RandomSnow, A.RandomRain}:
+                                A.RandomFog, A.RandomSnow, A.RandomRain, A.HEStain}:
             pytest.skip("ChannelDropout is not applicable to grayscale images")
 
 
