@@ -71,10 +71,8 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image):
     aug = augmentation_cls(p=p, **params)
     aug.random_generator = np.random.default_rng(seed)
 
-    print(aug.to_dict_private(),"--------------------------")
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    print(deserialized_aug.to_dict_private(),"--------------------------")
 
     deserialized_aug.random_generator = np.random.default_rng(seed)
     aug_data = aug(image=image, mask=mask)
