@@ -3191,6 +3191,18 @@ STAIN_MATRICES = {
 }
 
 
+def rgb_to_optical_density(img: np.ndarray, eps: float = 1e-6) -> np.ndarray:
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+    pixel_matrix = img.reshape(-1, 3).astype(np.float32)
+    pixel_matrix = np.maximum(pixel_matrix / max_value, eps)
+    return -np.log(pixel_matrix)
+
+
+def normalize_vectors(vectors: np.ndarray) -> np.ndarray:
+    norms = np.sqrt(np.sum(vectors**2, axis=1, keepdims=True))
+    return vectors / norms
+
+
 def get_normalizer(method: Literal["vahadane", "macenko"]) -> StainNormalizer:
     """Get stain normalizer based on method."""
     return VahadaneNormalizer() if method == "vahadane" else MacenkoNormalizer()
@@ -3225,7 +3237,7 @@ class SimpleNMF:
 
         # Initialize concentrations based on projection onto initial colors
         # This gives us a physically meaningful starting point
-        stain_colors_normalized = stain_colors / np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
+        stain_colors_normalized = normalize_vectors(stain_colors)
         stain_concentrations = np.maximum(optical_density @ stain_colors_normalized.T, 0)
 
         # Iterative updates with careful normalization
@@ -3246,7 +3258,7 @@ class SimpleNMF:
 
             # Ensure non-negativity and normalize
             stain_colors = np.maximum(stain_colors, 0)
-            stain_colors /= np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
+            stain_colors = normalize_vectors(stain_colors)
 
         return stain_concentrations, stain_colors
 
@@ -3258,7 +3270,7 @@ def order_stains_combined(stain_colors: np.ndarray) -> tuple[int, int]:
     for more robust identification.
     """
     # Normalize stain vectors
-    stain_colors = stain_colors / np.sqrt(np.sum(stain_colors**2, axis=1, keepdims=True))
+    stain_colors = normalize_vectors(stain_colors)
 
     # Calculate angles (Macenko)
     angles = np.mod(np.arctan2(stain_colors[:, 1], stain_colors[:, 0]), np.pi)
@@ -3280,13 +3292,7 @@ def order_stains_combined(stain_colors: np.ndarray) -> tuple[int, int]:
 
 class VahadaneNormalizer(StainNormalizer):
     def fit(self, img: np.ndarray) -> None:
-        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
-
-        pixel_matrix = img.reshape((-1, 3)).astype(np.float32)
-
-        pixel_matrix = np.maximum(pixel_matrix / max_value, 1e-6)
-
-        optical_density = -np.log(pixel_matrix)
+        optical_density = rgb_to_optical_density(img)
 
         nmf = SimpleNMF(n_iter=100)
         _, stain_colors = nmf.fit_transform(optical_density)
@@ -3311,11 +3317,8 @@ class MacenkoNormalizer(StainNormalizer):
 
     def fit(self, img: np.ndarray, angular_percentile: float = 99) -> None:
         """Extract H&E stain matrix using optimized Macenko's method."""
-        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
         # Step 1: Convert RGB to optical density (OD) space
-        pixel_matrix = img.reshape(-1, 3).astype(np.float32)
-        pixel_matrix = np.maximum(pixel_matrix / max_value, 1e-6)
-        optical_density = -np.log(pixel_matrix)
+        optical_density = rgb_to_optical_density(img)
 
         # Step 2: Remove background pixels
         od_threshold = 0.05
@@ -3409,9 +3412,7 @@ def apply_he_stain_augmentation(
     augment_background: bool,
 ) -> np.ndarray:
     # Step 1: Convert RGB to optical density space
-    rgb_pixels = img.reshape(-1, 3)
-    rgb_pixels_clipped = np.maximum(rgb_pixels, 1e-6)  # Prevent log(0)
-    optical_density = -np.log(rgb_pixels_clipped)
+    optical_density = rgb_to_optical_density(img)
 
     # Step 2: Calculate stain concentrations using regularized pseudo-inverse
     stain_matrix = np.ascontiguousarray(stain_matrix, dtype=np.float32)
