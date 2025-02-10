@@ -2293,7 +2293,6 @@ class GaussNoise(ImageOnlyTransform):
             approximation=self.noise_scale_factor,
             random_generator=self.random_generator,
         )
-
         return {"noise_map": noise_map}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:

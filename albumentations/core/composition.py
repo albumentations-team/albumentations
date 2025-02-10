@@ -161,7 +161,6 @@ class BaseCompose(Serializable):
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
-
         # Propagate seed to all transforms
         for transform in self.transforms:
             if isinstance(transform, (BasicTransform, BaseCompose)):

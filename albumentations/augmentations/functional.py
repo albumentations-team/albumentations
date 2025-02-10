@@ -2162,6 +2162,10 @@ def generate_noise(
     if params is None:
         return np.zeros(shape, dtype=np.float32)
     """Generate noise with optional approximation for speed."""
+
+    cv2_seed = random_generator.integers(0, 2**16)
+    cv2.setRNGSeed(cv2_seed)
+
     if spatial_mode == "constant":
         return generate_constant_noise(
             noise_type,
@@ -2308,9 +2312,23 @@ def sample_gaussian(
     random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Sample from Gaussian distribution."""
-    mean = random_generator.uniform(*params["mean_range"])
-    std = random_generator.uniform(*params["std_range"])
-    return random_generator.normal(mean, std, size=size)
+    mean = (
+        params["mean_range"][0]
+        if params["mean_range"][0] == params["mean_range"][1]
+        else random_generator.uniform(*params["mean_range"])
+    )
+    std = (
+        params["std_range"][0]
+        if params["std_range"][0] == params["std_range"][1]
+        else random_generator.uniform(*params["std_range"])
+    )
+    num_channels = size[2] if len(size) > MONO_CHANNEL_DIMENSIONS else 1
+    mean_vector = mean * np.ones(shape=(num_channels,), dtype=np.float32)
+    std_dev_vector = std * np.ones(shape=(num_channels,), dtype=np.float32)
+    gaussian_sampled_arr = np.zeros(shape=size)
+
+    cv2.randn(dst=gaussian_sampled_arr, mean=mean_vector, stddev=std_dev_vector)
+    return gaussian_sampled_arr.astype(np.float32)
 
 
 def sample_laplace(
