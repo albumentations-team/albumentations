@@ -94,6 +94,7 @@ __all__ = [
     "FancyPCA",
     "FromFloat",
     "GaussNoise",
+    "HEStain",
     "HueSaturationValue",
     "ISONoise",
     "Illumination",
@@ -6483,3 +6484,222 @@ class AutoContrast(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "cutoff", "ignore", "method"
+
+
+class HEStain(ImageOnlyTransform):
+    """Applies H&E (Hematoxylin and Eosin) stain augmentation to histopathology images.
+
+    This transform simulates different H&E staining conditions using either:
+    1. Predefined stain matrices (8 standard references)
+    2. Vahadane method for stain extraction
+    3. Macenko method for stain extraction
+    4. Custom stain matrices
+
+    Args:
+        method: Method to use for stain augmentation:
+            - "preset": Use predefined stain matrices
+            - "random_preset": Randomly select a preset matrix each time
+            - "vahadane": Extract using Vahadane method
+            - "macenko": Extract using Macenko method
+            Default: "preset"
+
+        preset: Preset stain matrix to use when method="preset":
+            - "ruifrok": Standard reference from Ruifrok & Johnston
+            - "macenko": Reference from Macenko's method
+            - "standard": Typical bright-field microscopy
+            - "high_contrast": Enhanced contrast
+            - "h_heavy": Hematoxylin dominant
+            - "e_heavy": Eosin dominant
+            - "dark": Darker staining
+            - "light": Lighter staining
+            Default: "standard"
+
+        intensity_scale_range: Range for multiplicative stain intensity variation.
+            Values are multipliers between 0.5 and 1.5. For example:
+            - (0.7, 1.3) means stain intensities will vary from 70% to 130%
+            - (0.9, 1.1) gives subtle variations
+            - (0.5, 1.5) gives dramatic variations
+            Default: (0.7, 1.3)
+
+        intensity_shift_range: Range for additive stain intensity variation.
+            Values between -0.3 and 0.3. For example:
+            - (-0.2, 0.2) means intensities will be shifted by -20% to +20%
+            - (-0.1, 0.1) gives subtle shifts
+            - (-0.3, 0.3) gives dramatic shifts
+            Default: (-0.2, 0.2)
+
+        augment_background: Whether to apply augmentation to background regions.
+            Default: False
+
+    Targets:
+        image
+
+    Number of channels:
+        3
+
+    Image types:
+        uint8, float32
+
+    References:
+        .. [1] A. C. Ruifrok and D. A. Johnston, "Quantification of histochemical
+               staining by color deconvolution," Analytical and quantitative
+               cytology and histology, 2001.
+        .. [2] M. Macenko et al., "A method for normalizing histology slides for
+               quantitative analysis," 2009 IEEE International Symposium on
+               Biomedical Imaging, 2009.
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        method: Literal["preset", "random_preset", "vahadane", "macenko"]
+        preset: (
+            Literal[
+                "ruifrok",
+                "macenko",
+                "standard",
+                "high_contrast",
+                "h_heavy",
+                "e_heavy",
+                "dark",
+                "light",
+            ]
+            | None
+        )
+        intensity_scale_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, None)),
+        ]
+        intensity_shift_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(-1, 1)),
+        ]
+        augment_background: bool
+
+        @model_validator(mode="after")
+        def validate_matrix_selection(self) -> Self:
+            if self.method == "preset" and self.preset is None:
+                self.preset = "standard"
+            elif self.method == "random_preset" and self.preset is not None:
+                raise ValueError("preset should not be specified when method='random_preset'")
+            return self
+
+    def __init__(
+        self,
+        method: Literal["preset", "random_preset", "vahadane", "macenko"] = "random_preset",
+        preset: Literal[
+            "ruifrok",
+            "macenko",
+            "standard",
+            "high_contrast",
+            "h_heavy",
+            "e_heavy",
+            "dark",
+            "light",
+        ]
+        | None = None,
+        intensity_scale_range: tuple[float, float] = (0.7, 1.3),
+        intensity_shift_range: tuple[float, float] = (-0.2, 0.2),
+        augment_background: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p)
+        self.method = method
+        self.preset = preset
+        self.intensity_scale_range = intensity_scale_range
+        self.intensity_shift_range = intensity_shift_range
+        self.augment_background = augment_background
+        self.stain_normalizer = None
+
+        # Initialize stain extractor here if needed
+        if method in ["vahadane", "macenko"]:
+            self.stain_extractor = fmain.get_normalizer(
+                cast(Literal["vahadane", "macenko"], method),
+            )
+
+        self.preset_names = [
+            "ruifrok",
+            "macenko",
+            "standard",
+            "high_contrast",
+            "h_heavy",
+            "e_heavy",
+            "dark",
+            "light",
+        ]
+
+    def get_stain_matrix(self, img: np.ndarray) -> np.ndarray:
+        """Get stain matrix based on selected method."""
+        if self.method == "preset" and self.preset is not None:
+            return fmain.STAIN_MATRICES[self.preset]
+        if self.method == "random_preset":
+            random_preset = self.py_random.choice(self.preset_names)
+            return fmain.STAIN_MATRICES[random_preset]
+        # vahadane or macenko
+        self.stain_extractor.fit(img)
+        return self.stain_extractor.stain_matrix_target
+
+    def apply(
+        self,
+        img: np.ndarray,
+        stain_matrix: np.ndarray,
+        scale_factors: np.ndarray,
+        shift_values: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        non_rgb_error(img)
+        return fmain.apply_he_stain_augmentation(
+            img=img,
+            stain_matrix=stain_matrix,
+            scale_factors=scale_factors,
+            shift_values=shift_values,
+            augment_background=self.augment_background,
+        )
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        # Get stain matrix
+        image = data["image"] if "image" in data else data["images"][0]
+
+        stain_matrix = self.get_stain_matrix(image)
+
+        # Generate random scaling and shift parameters for both H&E channels
+        scale_factors = np.array(
+            [
+                self.py_random.uniform(*self.intensity_scale_range),
+                self.py_random.uniform(*self.intensity_scale_range),
+            ],
+        )
+        shift_values = np.array(
+            [
+                self.py_random.uniform(*self.intensity_shift_range),
+                self.py_random.uniform(*self.intensity_shift_range),
+            ],
+        )
+
+        return {
+            "stain_matrix": stain_matrix,
+            "scale_factors": scale_factors,
+            "shift_values": shift_values,
+        }
+
+    def get_transform_init_args(self) -> dict[str, Any]:
+        """Return dictionary with transform init arguments."""
+        return {
+            "method": self.method,
+            "preset": self.preset,
+            "intensity_scale_range": self.intensity_scale_range,
+            "intensity_shift_range": self.intensity_shift_range,
+            "augment_background": self.augment_background,
+        }
