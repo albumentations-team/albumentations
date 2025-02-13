@@ -816,41 +816,29 @@ def add_fog(
     fog_particle_positions: list[tuple[int, int]],
     fog_particle_radiuses: list[int],
 ) -> np.ndarray:
-    """Add fog to the input image.
+    result = img.copy()
 
-    Args:
-        img (np.ndarray): Input image.
-        fog_intensity (float): Intensity of the fog effect, between 0 and 1.
-        alpha_coef (float): Base alpha (transparency) value for fog particles.
-        fog_particle_positions (list[tuple[int, int]]): List of (x, y) coordinates for fog particles.
-        fog_particle_radiuses (list[int]): List of radiuses for each fog particle.
-
-    Returns:
-        np.ndarray: Image with added fog effect.
-    """
-    height, width = img.shape[:2]
-    num_channels = get_num_channels(img)
-
-    fog_layer = np.zeros((height, width, num_channels), dtype=np.uint8)
-    max_value = MAX_VALUES_BY_DTYPE[np.uint8]
-
+    # Apply fog particles progressively like in old version
     for (x, y), radius in zip(fog_particle_positions, fog_particle_radiuses):
-        color = max_value if num_channels == 1 else (max_value,) * num_channels
+        overlay = result.copy()
         cv2.circle(
-            fog_layer,
+            overlay,
             center=(x, y),
             radius=radius,
-            color=color,
+            color=(255, 255, 255),
             thickness=-1,
         )
 
-    # Apply gaussian blur to the fog layer
-    fog_layer = cv2.GaussianBlur(fog_layer, (25, 25), 0)
+        # Progressive blending
+        alpha = alpha_coef * fog_intensity
+        cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0, dst=result)
 
-    # Blend the fog layer with the original image
-    alpha = np.mean(fog_layer, axis=2, keepdims=True) / max_value * alpha_coef * fog_intensity
+    # Final subtle blur
+    blur_size = max(3, int(min(img.shape[:2]) // 30))
+    if blur_size % 2 == 0:
+        blur_size += 1
 
-    result = img * (1 - alpha) + fog_layer * alpha
+    result = cv2.GaussianBlur(result, (blur_size, blur_size), 0)
 
     return clip(result, np.uint8, inplace=True)
 
