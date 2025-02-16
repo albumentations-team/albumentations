@@ -70,12 +70,6 @@ from albumentations.core.type_definitions import (
     NUM_RGB_CHANNELS,
     PAIR,
     SEVEN,
-    ChromaticAberrationMode,
-    ColorType,
-    MorphologyMode,
-    RainMode,
-    ScaleFloatType,
-    ScaleIntType,
 )
 from albumentations.core.utils import format_args, to_tuple
 
@@ -147,9 +141,9 @@ class Normalize(ImageOnlyTransform):
         or scale pixel values to a specified range.
 
     Args:
-        mean (ColorType | None): Mean values for standard normalization.
+        mean (tuple[float, float] | float | None): Mean values for standard normalization.
             For "standard" normalization, the default values are ImageNet mean values: (0.485, 0.456, 0.406).
-        std (ColorType | None): Standard deviation values for standard normalization.
+        std (tuple[float, float] | float | None): Standard deviation values for standard normalization.
             For "standard" normalization, the default values are ImageNet standard deviation :(0.229, 0.224, 0.225).
         max_pixel_value (float | None): Maximum possible pixel value, used for scaling in standard normalization.
             Defaults to 255.0.
@@ -204,8 +198,8 @@ class Normalize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ColorType | None
-        std: ColorType | None
+        mean: tuple[float, ...] | float | None
+        std: tuple[float, ...] | float | None
         max_pixel_value: float | None
         normalization: Literal[
             "standard",
@@ -229,8 +223,8 @@ class Normalize(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: ColorType | None = (0.485, 0.456, 0.406),
-        std: ColorType | None = (0.229, 0.224, 0.225),
+        mean: tuple[float, ...] | float | None = (0.485, 0.456, 0.406),
+        std: tuple[float, ...] | float | None = (0.229, 0.224, 0.225),
         max_pixel_value: float | None = 255.0,
         normalization: Literal[
             "standard",
@@ -768,7 +762,7 @@ class RandomRain(ImageOnlyTransform):
         drop_color: tuple[int, int, int]
         blur_value: int = Field(ge=1)
         brightness_coefficient: float = Field(gt=0, le=1)
-        rain_type: RainMode
+        rain_type: Literal["drizzle", "heavy", "torrential", "default"]
 
     def __init__(
         self,
@@ -778,7 +772,7 @@ class RandomRain(ImageOnlyTransform):
         drop_color: tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: RainMode = "default",
+        rain_type: Literal["drizzle", "heavy", "torrential", "default"] = "default",
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -1661,9 +1655,9 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def __init__(
         self,
-        hue_shift_limit: ScaleFloatType = (-20, 20),
-        sat_shift_limit: ScaleFloatType = (-30, 30),
-        val_shift_limit: ScaleFloatType = (-20, 20),
+        hue_shift_limit: tuple[float, float] | float = (-20, 20),
+        sat_shift_limit: tuple[float, float] | float = (-30, 30),
+        val_shift_limit: tuple[float, float] | float = (-20, 20),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -2135,8 +2129,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness_limit: ScaleFloatType = (-0.2, 0.2),
-        contrast_limit: ScaleFloatType = (-0.2, 0.2),
+        brightness_limit: tuple[float, float] | float = (-0.2, 0.2),
+        contrast_limit: tuple[float, float] | float = (-0.2, 0.2),
         brightness_by_max: bool = True,
         ensure_safe_range: bool = False,
         p: float = 0.5,
@@ -2461,7 +2455,7 @@ class CLAHE(ImageOnlyTransform):
 
     def __init__(
         self,
-        clip_limit: ScaleFloatType = 4.0,
+        clip_limit: tuple[float, float] | float = 4.0,
         tile_grid_size: tuple[int, int] = (8, 8),
         p: float = 0.5,
     ):
@@ -2627,7 +2621,7 @@ class RandomGamma(ImageOnlyTransform):
 
     def __init__(
         self,
-        gamma_limit: ScaleFloatType = (80, 120),
+        gamma_limit: tuple[float, float] | float = (80, 120),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -3331,7 +3325,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def __init__(
         self,
-        multiplier: ScaleFloatType = (0.9, 1.1),
+        multiplier: tuple[float, float] | float = (0.9, 1.1),
         per_channel: bool = False,
         elementwise: bool = False,
         p: float = 0.5,
@@ -3541,16 +3535,16 @@ class ColorJitter(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness: ScaleFloatType
-        contrast: ScaleFloatType
-        saturation: ScaleFloatType
-        hue: ScaleFloatType
+        brightness: tuple[float, float] | float
+        contrast: tuple[float, float] | float
+        saturation: tuple[float, float] | float
+        hue: tuple[float, float] | float
 
         @field_validator("brightness", "contrast", "saturation", "hue")
         @classmethod
         def check_ranges(
             cls,
-            value: ScaleFloatType,
+            value: tuple[float, float] | float,
             info: ValidationInfo,
         ) -> tuple[float, float]:
             if info.field_name == "hue":
@@ -3578,10 +3572,10 @@ class ColorJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness: ScaleFloatType = (0.8, 1.2),
-        contrast: ScaleFloatType = (0.8, 1.2),
-        saturation: ScaleFloatType = (0.8, 1.2),
-        hue: ScaleFloatType = (-0.5, 0.5),
+        brightness: tuple[float, float] | float = (0.8, 1.2),
+        contrast: tuple[float, float] | float = (0.8, 1.2),
+        saturation: tuple[float, float] | float = (0.8, 1.2),
+        hue: tuple[float, float] | float = (-0.5, 0.5),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4025,8 +4019,8 @@ class Superpixels(ImageOnlyTransform):
 
     def __init__(
         self,
-        p_replace: ScaleFloatType = (0, 0.1),
-        n_segments: ScaleIntType = (100, 100),
+        p_replace: tuple[float, float] | float = (0, 0.1),
+        n_segments: tuple[int, int] | int = (100, 100),
         max_size: int | None = 128,
         interpolation: int = cv2.INTER_LINEAR,
         p: float = 0.5,
@@ -4148,7 +4142,7 @@ class RingingOvershoot(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        blur_limit: ScaleIntType
+        blur_limit: tuple[int, int] | int
         cutoff: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, np.pi)),
@@ -4157,7 +4151,7 @@ class RingingOvershoot(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (7, 15),
+        blur_limit: tuple[int, int] | int = (7, 15),
         cutoff: tuple[float, float] = (np.pi / 4, np.pi / 2),
         p: float = 0.5,
     ):
@@ -4263,22 +4257,22 @@ class UnsharpMask(ImageOnlyTransform):
         sigma_limit: NonNegativeFloatRangeType
         alpha: ZeroOneRangeType
         threshold: int = Field(ge=0, le=255)
-        blur_limit: ScaleIntType
+        blur_limit: tuple[int, int] | int
 
         @field_validator("blur_limit")
         @classmethod
         def process_blur(
             cls,
-            value: ScaleIntType,
+            value: tuple[int, int] | int,
             info: ValidationInfo,
         ) -> tuple[int, int]:
             return fblur.process_blur_limit(value, info, min_value=3)
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (3, 7),
-        sigma_limit: ScaleFloatType = 0.0,
-        alpha: ScaleFloatType = (0.2, 0.5),
+        blur_limit: tuple[int, int] | int = (3, 7),
+        sigma_limit: tuple[float, float] | float = 0.0,
+        alpha: tuple[float, float] | float = (0.2, 0.5),
         threshold: int = 10,
         p: float = 0.5,
     ):
@@ -4337,7 +4331,7 @@ class PixelDropout(DualTransform):
             If False, the same dropout mask will be applied to all channels.
             Default: False
 
-        drop_value (float | Sequence[float] | None): Value to assign to the dropped pixels.
+        drop_value (float | tuple[float, ...] | None): Value to assign to the dropped pixels.
             If None, the value will be randomly sampled for each application:
                 - For uint8 images: Random integer in [0, 255]
                 - For float32 images: Random float in [0, 1]
@@ -4345,7 +4339,7 @@ class PixelDropout(DualTransform):
             If a sequence, it should contain one value per channel.
             Default: 0
 
-        mask_drop_value (float | Sequence[float] | None): Value to assign to dropped pixels in the mask.
+        mask_drop_value (float | tuple[float, ...] | None): Value to assign to dropped pixels in the mask.
             If None, the mask will remain unchanged.
             If a single number, that value will be used for all dropped pixels in the mask.
             If a sequence, it should contain one value per channel.
@@ -4379,8 +4373,8 @@ class PixelDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         dropout_prob: ProbabilityType
         per_channel: bool
-        drop_value: ColorType | None
-        mask_drop_value: ColorType | None
+        drop_value: tuple[float, ...] | float | None
+        mask_drop_value: tuple[float, ...] | float | None
 
     _targets = ALL_TARGETS
 
@@ -4388,8 +4382,8 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: ColorType | None = 0,
-        mask_drop_value: ColorType | None = None,
+        drop_value: tuple[float, ...] | float | None = 0,
+        mask_drop_value: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4607,11 +4601,11 @@ class Spatter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: ScaleFloatType = (0.65, 0.65),
-        std: ScaleFloatType = (0.3, 0.3),
-        gauss_sigma: ScaleFloatType = (2, 2),
-        cutout_threshold: ScaleFloatType = (0.68, 0.68),
-        intensity: ScaleFloatType = (0.6, 0.6),
+        mean: tuple[float, float] | float = (0.65, 0.65),
+        std: tuple[float, float] | float = (0.3, 0.3),
+        gauss_sigma: tuple[float, float] | float = (2, 2),
+        cutout_threshold: tuple[float, float] | float = (0.68, 0.68),
+        intensity: tuple[float, float] | float = (0.6, 0.6),
         mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]] = "rain",
         color: Sequence[int] | dict[str, Sequence[int]] | None = None,
         p: float = 0.5,
@@ -4774,14 +4768,14 @@ class ChromaticAberration(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         primary_distortion_limit: SymmetricRangeType
         secondary_distortion_limit: SymmetricRangeType
-        mode: ChromaticAberrationMode
+        mode: Literal["green_purple", "red_blue", "random"]
         interpolation: InterpolationType
 
     def __init__(
         self,
-        primary_distortion_limit: ScaleFloatType = (-0.02, 0.02),
-        secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
-        mode: ChromaticAberrationMode = "green_purple",
+        primary_distortion_limit: tuple[float, float] | float = (-0.02, 0.02),
+        secondary_distortion_limit: tuple[float, float] | float = (-0.05, 0.05),
+        mode: Literal["green_purple", "red_blue", "random"] = "green_purple",
         interpolation: InterpolationType = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
@@ -4928,12 +4922,12 @@ class Morphological(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         scale: OnePlusIntRangeType
-        operation: MorphologyMode
+        operation: Literal["erosion", "dilation"]
 
     def __init__(
         self,
-        scale: ScaleIntType = (2, 3),
-        operation: MorphologyMode = "dilation",
+        scale: tuple[int, int] | int = (2, 3),
+        operation: Literal["erosion", "dilation"] = "dilation",
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -5632,9 +5626,9 @@ class RGBShift(AdditiveNoise):
 
     def __init__(
         self,
-        r_shift_limit: ScaleFloatType = (-20, 20),
-        g_shift_limit: ScaleFloatType = (-20, 20),
-        b_shift_limit: ScaleFloatType = (-20, 20),
+        r_shift_limit: tuple[float, float] | float = (-20, 20),
+        g_shift_limit: tuple[float, float] | float = (-20, 20),
+        b_shift_limit: tuple[float, float] | float = (-20, 20),
         p: float = 0.5,
     ):
         # Convert RGB shift limits to normalized ranges if needed

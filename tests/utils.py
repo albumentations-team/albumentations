@@ -11,11 +11,6 @@ import albumentations
 from tests.aug_definitions import AUGMENTATION_CLS_PARAMS
 
 
-def set_seed(seed: int = 0):
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def convert_2d_to_3d(arrays, num_channels=3):
     # Converts a 2D numpy array with shape (H, W) into a 3D array with shape (H, W, num_channels)
     # by repeating the existing values along the new axis.

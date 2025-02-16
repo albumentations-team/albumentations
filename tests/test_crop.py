@@ -1,8 +1,9 @@
+from typing import Literal
 import numpy as np
 import pytest
 
 import albumentations as A
-from albumentations.core.type_definitions import PositionType
+
 import cv2
 
 from .conftest import IMAGES, RECTANGULAR_UINT8_IMAGE
@@ -147,7 +148,7 @@ def test_bbox_params_edges(
     # Use assert_allclose instead of assert_array_equal to handle floating point precision
     np.testing.assert_allclose(res, expected_bboxes, rtol=1e-6, atol=1e-6)
 
-POSITIONS: list[PositionType] = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
+POSITIONS = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
 
 @pytest.mark.parametrize(
     ["crop_cls", "crop_params"],
@@ -162,7 +163,7 @@ def test_pad_position_equivalence(
     image: np.ndarray,
     crop_cls: type[A.DualTransform],
     crop_params: dict[str, int],
-    pad_position: PositionType,
+    pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right"],
     border_mode: int,
     mask: np.ndarray,
     bboxes: np.ndarray,

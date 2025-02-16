@@ -14,7 +14,7 @@ from pydantic import ValidationInfo
 
 from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
-from albumentations.core.type_definitions import EIGHT, ScaleIntType
+from albumentations.core.type_definitions import EIGHT
 
 __all__ = ["blur", "central_zoom", "defocus", "glass_blur", "median_blur", "zoom_blur"]
 
@@ -134,7 +134,7 @@ def _ensure_odd_values(result: tuple[int, int], field_name: str | None = None) -
     return new_result
 
 
-def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: int = 0) -> tuple[int, int]:
+def process_blur_limit(value: int | tuple[int, int], info: ValidationInfo, min_value: int = 0) -> tuple[int, int]:
     """Process blur limit to ensure valid kernel sizes."""
     # Convert value to tuple[int, int]
     if isinstance(value, Sequence):
