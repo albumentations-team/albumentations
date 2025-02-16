@@ -83,7 +83,7 @@ class MaskDropout(DualTransform):
         self,
         max_objects: tuple[int, int] | int = (1, 1),
         fill: float | Literal["inpaint_telea", "inpaint_ns"] = 0,
-        fill_mask: float | None = None,
+        fill_mask: float = 0,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -132,7 +132,7 @@ class MaskDropout(DualTransform):
         return img
 
     def apply_to_mask(self, mask: np.ndarray, dropout_mask: np.ndarray | None, **params: Any) -> np.ndarray:
-        if dropout_mask is None:
+        if dropout_mask is None or self.fill_mask is None:
             return mask
 
         mask = mask.copy()

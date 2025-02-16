@@ -25,12 +25,12 @@ class CoarseDropout(BaseDropout):
     Args:
         num_holes_range (tuple[int, int]): Range (min, max) for the number of rectangular
             regions to drop out. Default: (1, 1)
-        hole_height_range (tuple[Real, Real]): Range (min, max) for the height
+        hole_height_range (tuple[int, int] | tuple[float, float]): Range (min, max) for the height
             of dropout regions. If int, specifies absolute pixel values. If float,
-            interpreted as a fraction of the image height. Default: (8, 8)
-        hole_width_range (tuple[Real, Real]): Range (min, max) for the width
+            interpreted as a fraction of the image height. Default: (0.1, 0.2)
+        hole_width_range (tuple[int, int] | tuple[float, float]): Range (min, max) for the width
             of dropout regions. If int, specifies absolute pixel values. If float,
-            interpreted as a fraction of the image width. Default: (8, 8)
+            interpreted as a fraction of the image width. Default: (0.1, 0.2)
         fill (tuple[float, float] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value for the dropped pixels. Can be:
             - int or float: all channels are filled with this value
@@ -125,14 +125,14 @@ class CoarseDropout(BaseDropout):
     def calculate_hole_dimensions(
         self,
         image_shape: tuple[int, int],
-        height_range: tuple[float, float],
-        width_range: tuple[float, float],
+        height_range: tuple[float, float] | tuple[int, int],
+        width_range: tuple[float, float] | tuple[int, int],
         size: int,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate random hole dimensions based on the provided ranges."""
         height, width = image_shape[:2]
 
-        if isinstance(height_range[0], int):
+        if height_range[1] >= 1:
             min_height = height_range[0]
             max_height = min(height_range[1], height)
 
