@@ -294,40 +294,40 @@ def ensure_contiguous_output(arg: np.ndarray | Sequence[np.ndarray]) -> np.ndarr
 
 @overload
 def to_tuple(
-    param: int | Sequence[int],
-    low: int | Sequence[int] | None = None,
+    param: int | tuple[int, int],
+    low: int | tuple[int, int] | None = None,
     bias: float | None = None,
 ) -> tuple[int, int]: ...
 
 
 @overload
 def to_tuple(
-    param: float | Sequence[float],
-    low: float | Sequence[float] | None = None,
+    param: float | tuple[float, float],
+    low: float | tuple[float, float] | None = None,
     bias: float | None = None,
 ) -> tuple[float, float]: ...
 
 
 def to_tuple(
-    param: float | Sequence[int] | Sequence[float],
-    low: float | Sequence[int] | Sequence[float] | None = None,
+    param: float | tuple[float, float] | tuple[int, int],
+    low: float | tuple[float, float] | tuple[int, int] | None = None,
     bias: float | None = None,
-) -> tuple[int, int] | tuple[float, float]:
+) -> tuple[float, float] | tuple[int, int]:
     """Convert input argument to a min-max tuple.
 
     This function processes various input types and returns a tuple representing a range.
     It handles single values, sequences, and can apply optional low bounds or biases.
 
     Args:
-        param (ScaleType): The primary input value. Can be:
+        param (tuple[float, float] | float | tuple[int, int] | int): The primary input value. Can be:
             - A single int or float: Converted to a symmetric range around zero.
             - A tuple of two ints or two floats: Used directly as min and max values.
 
-        low (ScaleType | None, optional): A lower bound value. Used when param is a single value.
+        low (tuple[float, float] | float | None, optional): A lower bound value. Used when param is a single value.
             If provided, the result will be (low, param) or (param, low), depending on which is smaller.
             Cannot be used together with 'bias'. Defaults to None.
 
-        bias (ScalarType | None, optional): A value to be added to both elements of the resulting tuple.
+        bias (float | int | None, optional): A value to be added to both elements of the resulting tuple.
             Cannot be used together with 'low'. Defaults to None.
 
     Returns:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 from albucore import get_num_channels
@@ -13,7 +13,7 @@ from albumentations.augmentations.dropout.functional import (
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.type_definitions import ALL_TARGETS, ColorType, DropoutFillValue, Targets
+from albumentations.core.type_definitions import ALL_TARGETS, Targets
 
 
 class BaseDropout(DualTransform):
@@ -23,9 +23,9 @@ class BaseDropout(DualTransform):
     including applying cutouts to images and masks.
 
     Args:
-        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value to fill dropped regions.
-        fill_mask (ColorType | None): Value to fill
+        fill_mask (tuple[float, ...] | float | None): Value to fill
             dropped regions in the mask. If None, the mask is not modified.
         p (float): Probability of applying the transform.
 
@@ -39,17 +39,17 @@ class BaseDropout(DualTransform):
     _targets: tuple[Targets, ...] | Targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        fill: DropoutFillValue
-        fill_mask: ColorType | None
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]
+        fill_mask: tuple[float, ...] | float | None
 
     def __init__(
         self,
-        fill: DropoutFillValue,
-        fill_mask: ColorType | None,
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
+        fill_mask: tuple[float, ...] | float | None,
         p: float,
     ):
         super().__init__(p=p)
-        self.fill = fill
+        self.fill = fill  # type: ignore[assignment]
         self.fill_mask = fill_mask
 
     def apply(self, img: np.ndarray, holes: np.ndarray, seed: int, **params: Any) -> np.ndarray:

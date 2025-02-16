@@ -10,7 +10,7 @@ from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, no
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.type_definitions import ALL_TARGETS, ScaleIntType
+from albumentations.core.type_definitions import ALL_TARGETS
 
 __all__ = ["MaskDropout"]
 
@@ -25,8 +25,11 @@ class MaskDropout(DualTransform):
     Args:
         max_objects (int | tuple[int, int]): Maximum number of objects to dropout. If a single int is provided,
             it's treated as the upper bound. If a tuple of two ints is provided, it's treated as a range [min, max].
-        fill (float | str | Literal["inpaint"]): Value to fill the dropped out regions in the image.
-            If set to 'inpaint', it applies inpainting to the dropped out regions (works only for 3-channel images).
+        fill (float | Literal["inpaint_telea", "inpaint_ns"]): Value to fill dropped out regions in the image.
+            Can be one of:
+            - float: Constant value to fill the regions (e.g., 0 for black, 255 for white)
+            - "inpaint_telea": Use Telea inpainting algorithm (for 3-channel images only)
+            - "inpaint_ns": Use Navier-Stokes inpainting algorithm (for 3-channel images only)
         fill_mask (float | int): Value to fill the dropped out regions in the mask.
         min_area (float): Minimum area (in pixels) of a bounding box that must remain visible after dropout to be kept.
             Only applicable if bounding box augmentation is enabled. Default: 0.0
@@ -78,9 +81,9 @@ class MaskDropout(DualTransform):
 
     def __init__(
         self,
-        max_objects: ScaleIntType = (1, 1),
-        fill: float | Literal["inpaint"] = 0,
-        fill_mask: float = 0,
+        max_objects: tuple[int, int] | int = (1, 1),
+        fill: tuple[float, ...] | float | Literal["inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -117,11 +120,11 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return img
 
-        if self.fill == "inpaint":
+        if self.fill in {"inpaint_telea", "inpaint_ns"}:
             dropout_mask = dropout_mask.astype(np.uint8)
             _, _, width, height = cv2.boundingRect(dropout_mask)
             radius = min(3, max(width, height) // 2)
-            return cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
+            return cv2.inpaint(img, dropout_mask, radius, cast(Literal["inpaint_telea", "inpaint_ns"], self.fill))
 
         img = img.copy()
         img[dropout_mask] = self.fill

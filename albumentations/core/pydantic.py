@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated, TypeVar, overload
+from typing import Annotated, TypeVar, Union, overload
 
 import cv2
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 
-from albumentations.core.type_definitions import Number, ScaleFloatType, ScaleIntType, ScaleType
+from albumentations.core.type_definitions import Number
 from albumentations.core.utils import to_tuple
 
 valid_interpolations = {
@@ -58,7 +58,7 @@ BorderModeType = Annotated[int, Field(description="Border Mode"), AfterValidator
 ProbabilityType = Annotated[float, Field(description="Probability of applying the transform", ge=0, le=1)]
 
 
-def process_non_negative_range(value: ScaleType | None) -> tuple[float, float]:
+def process_non_negative_range(value: tuple[float, float] | float | None) -> tuple[float, float]:
     result = to_tuple(value if value is not None else 0, 0)
     if not all(x >= 0 for x in result):
         msg = "All values in the non negative range should be non negative"
@@ -71,37 +71,42 @@ def float2int(value: tuple[float, float]) -> tuple[int, int]:
 
 
 NonNegativeFloatRangeType = Annotated[
-    ScaleType,
+    Union[tuple[float, float], float],
     AfterValidator(process_non_negative_range),
     AfterValidator(nondecreasing),
 ]
-NonNegativeIntRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range), AfterValidator(float2int)]
+
+NonNegativeIntRangeType = Annotated[
+    Union[tuple[int, int], int],
+    AfterValidator(process_non_negative_range),
+    AfterValidator(float2int),
+]
 
 
 @overload
-def create_symmetric_range(value: ScaleIntType) -> tuple[int, int]: ...
+def create_symmetric_range(value: tuple[int, int] | int) -> tuple[int, int]: ...
 
 
 @overload
-def create_symmetric_range(value: ScaleFloatType) -> tuple[float, float]: ...
+def create_symmetric_range(value: tuple[float, float] | float) -> tuple[float, float]: ...
 
 
-def create_symmetric_range(value: ScaleType) -> tuple[int, int] | tuple[float, float]:
+def create_symmetric_range(value: tuple[float, float] | float) -> tuple[float, float]:
     return to_tuple(value)
 
 
-SymmetricRangeType = Annotated[ScaleType, AfterValidator(create_symmetric_range)]
+SymmetricRangeType = Annotated[Union[tuple[float, float], float], AfterValidator(create_symmetric_range)]
 
 
-def convert_to_1plus_range(value: ScaleType) -> tuple[float, float]:
+def convert_to_1plus_range(value: tuple[float, float] | float) -> tuple[float, float]:
     return to_tuple(value, low=1)
 
 
-def convert_to_0plus_range(value: ScaleType) -> tuple[float, float]:
+def convert_to_0plus_range(value: tuple[float, float] | float) -> tuple[float, float]:
     return to_tuple(value, low=0)
 
 
-def repeat_if_scalar(value: ScaleType) -> tuple[float, float]:
+def repeat_if_scalar(value: tuple[float, float] | float) -> tuple[float, float]:
     return (value, value) if isinstance(value, (int, float)) else value
 
 
@@ -162,7 +167,7 @@ def check_range_bounds(
 
 
 ZeroOneRangeType = Annotated[
-    ScaleType,
+    Union[tuple[float, float], float],
     AfterValidator(convert_to_0plus_range),
     AfterValidator(check_range_bounds(0, 1)),
     AfterValidator(nondecreasing),
@@ -170,19 +175,19 @@ ZeroOneRangeType = Annotated[
 
 
 OnePlusFloatRangeType = Annotated[
-    ScaleType,
+    Union[tuple[float, float], float],
     AfterValidator(convert_to_1plus_range),
     AfterValidator(check_range_bounds(1, None)),
 ]
 OnePlusIntRangeType = Annotated[
-    ScaleType,
+    Union[tuple[float, float], float],
     AfterValidator(convert_to_1plus_range),
     AfterValidator(check_range_bounds(1, None)),
     AfterValidator(float2int),
 ]
 
 OnePlusIntNonDecreasingRangeType = Annotated[
-    tuple[Number, Number],
+    tuple[int, int],
     AfterValidator(check_range_bounds(1, None)),
     AfterValidator(nondecreasing),
     AfterValidator(float2int),

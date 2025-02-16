@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, Union, cast
 
 import cv2
 import numpy as np
@@ -24,11 +24,8 @@ from albumentations.core.type_definitions import (
     ALL_TARGETS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     PAIR,
-    ColorType,
     PercentType,
-    PositionType,
     PxType,
-    ScaleFloatType,
 )
 
 from . import functional as fcrops
@@ -101,17 +98,17 @@ class BaseCropAndPad(BaseCrop):
     class InitSchema(BaseTransformInitSchema):
         pad_if_needed: bool
         border_mode: BorderModeType
-        fill: ColorType
-        fill_mask: ColorType
-        pad_position: PositionType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
+        pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]
 
     def __init__(
         self,
         pad_if_needed: bool,
         border_mode: int,
-        fill: ColorType,
-        fill_mask: ColorType,
-        pad_position: PositionType,
+        fill: tuple[float, ...] | float,
+        fill_mask: tuple[float, ...] | float,
+        pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"],
         p: float,
     ):
         super().__init__(p=p)
@@ -269,9 +266,9 @@ class RandomCrop(BaseCropAndPad):
         width: width of the crop.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (ColorType): Padding value for images if border_mode is
+        fill (Sequence[float] | float): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
-        fill_mask (ColorType): Padding value for masks if border_mode is
+        fill_mask (Sequence[float] | float): Padding value for masks if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
@@ -292,18 +289,18 @@ class RandomCrop(BaseCropAndPad):
         height: Annotated[int, Field(ge=1)]
         width: Annotated[int, Field(ge=1)]
         border_mode: BorderModeType
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
         height: int,
         width: int,
         pad_if_needed: bool = False,
-        pad_position: PositionType = "center",
+        pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
         border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0.0,
-        fill_mask: ColorType = 0.0,
+        fill: tuple[float, ...] | float = 0.0,
+        fill_mask: tuple[float, ...] | float = 0.0,
         p: float = 1.0,
     ):
         super().__init__(
@@ -383,9 +380,9 @@ class CenterCrop(BaseCropAndPad):
         width (int): The width of the crop. Must be greater than 0.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (ColorType): Padding value for images if border_mode is
+        fill (tuple[float, ...] | float): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
-        fill_mask (ColorType): Padding value for masks if border_mode is
+        fill_mask (tuple[float, ...] | float): Padding value for masks if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
@@ -407,18 +404,18 @@ class CenterCrop(BaseCropAndPad):
         height: Annotated[int, Field(ge=1)]
         width: Annotated[int, Field(ge=1)]
         border_mode: BorderModeType
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
         height: int,
         width: int,
         pad_if_needed: bool = False,
-        pad_position: PositionType = "center",
+        pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
         border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0.0,
-        fill_mask: ColorType = 0.0,
+        fill: tuple[float, ...] | float = 0.0,
+        fill_mask: tuple[float, ...] | float = 0.0,
         p: float = 1.0,
     ):
         super().__init__(
@@ -497,8 +494,8 @@ class Crop(BaseCropAndPad):
         y_max (int): Maximum y-coordinate of the crop region (bottom edge). Must be > y_min. Default: 1024.
         pad_if_needed (bool): Whether to pad if crop coordinates exceed image dimensions. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT. Default: 0.
-        fill_mask (ColorType): Padding value for masks. Default: 0.
+        fill (tuple[float, ...] | float): Padding value if border_mode is cv2.BORDER_CONSTANT. Default: 0.
+        fill_mask (tuple[float, ...] | float): Padding value for masks. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
         p (float): Probability of applying the transform. Default: 1.0.
@@ -522,8 +519,8 @@ class Crop(BaseCropAndPad):
         x_max: Annotated[int, Field(gt=0)]
         y_max: Annotated[int, Field(gt=0)]
         border_mode: BorderModeType
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
         @model_validator(mode="after")
         def validate_coordinates(self) -> Self:
@@ -543,10 +540,10 @@ class Crop(BaseCropAndPad):
         x_max: int = 1024,
         y_max: int = 1024,
         pad_if_needed: bool = False,
-        pad_position: PositionType = "center",
+        pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
         border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(
@@ -1109,7 +1106,7 @@ class RandomCropNearBBox(BaseCrop):
 
     def __init__(
         self,
-        max_part_shift: ScaleFloatType = (0, 0.3),
+        max_part_shift: tuple[float, float] | float = (0, 0.3),
         cropping_bbox_key: str = "cropping_bbox",
         p: float = 1.0,
     ):
@@ -1431,11 +1428,11 @@ class CropAndPad(DualTransform):
         border_mode (int):
             OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
 
-        fill (ColorType):
+        fill (tuple[float, ...] | float):
             The constant value to use for padding if border_mode is cv2.BORDER_CONSTANT.
             Default: 0.
 
-        fill_mask (ColorType):
+        fill_mask (tuple[float, ...] | float):
             Same as fill but used for mask padding. Default: 0.
 
         keep_size (bool):
@@ -1492,8 +1489,8 @@ class CropAndPad(DualTransform):
         sample_independently: bool
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
         border_mode: BorderModeType
 
         @model_validator(mode="after")
@@ -1516,8 +1513,8 @@ class CropAndPad(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         border_mode: BorderModeType = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -1540,7 +1537,7 @@ class CropAndPad(DualTransform):
         img: np.ndarray,
         crop_params: Sequence[int],
         pad_params: Sequence[int],
-        fill: ColorType,
+        fill: tuple[float, ...] | float,
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_and_pad(
@@ -1559,7 +1556,7 @@ class CropAndPad(DualTransform):
         mask: np.ndarray,
         crop_params: Sequence[int],
         pad_params: Sequence[int],
-        fill_mask: ColorType,
+        fill_mask: tuple[float, ...] | float,
         **params: Any,
     ) -> np.ndarray:
         return fcrops.crop_and_pad(
@@ -1669,8 +1666,10 @@ class CropAndPad(DualTransform):
         return {
             "crop_params": crop_params or None,
             "pad_params": pad_params or None,
-            "fill": None if pad_params is None else self._get_pad_value(cast(ColorType, self.fill)),
-            "fill_mask": None if pad_params is None else self._get_pad_value(cast(ColorType, self.fill_mask)),
+            "fill": None if pad_params is None else self._get_pad_value(self.fill),
+            "fill_mask": None
+            if pad_params is None
+            else self._get_pad_value(cast(Union[tuple[float, ...], float], self.fill_mask)),
             "result_shape": (result_rows, result_cols),
         }
 
@@ -1717,7 +1716,7 @@ class CropAndPad(DualTransform):
 
     def _get_pad_value(
         self,
-        fill: ColorType,
+        fill: Sequence[float] | float,
     ) -> int | float:
         if isinstance(fill, (list, tuple)):
             if len(fill) == PAIR:

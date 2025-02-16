@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from warnings import warn
 
 import numpy as np
@@ -10,7 +10,6 @@ import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.bbox_utils import denormalize_bboxes
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
-from albumentations.core.type_definitions import ColorType, DropoutFillValue, ScalarType
 
 __all__ = ["CoarseDropout", "ConstrainedCoarseDropout", "Erasing"]
 
@@ -32,7 +31,7 @@ class CoarseDropout(BaseDropout):
         hole_width_range (tuple[Real, Real]): Range (min, max) for the width
             of dropout regions. If int, specifies absolute pixel values. If float,
             interpreted as a fraction of the image width. Default: (8, 8)
-        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, float] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value for the dropped pixels. Can be:
             - int or float: all channels are filled with this value
             - tuple: tuple of values for each channel
@@ -41,7 +40,7 @@ class CoarseDropout(BaseDropout):
             - 'inpaint_telea': uses OpenCV Telea inpainting method
             - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        fill_mask (ColorType | None): Fill value for dropout regions in the mask.
+        fill_mask (tuple[float, float] | float | None): Fill value for dropout regions in the mask.
             If None, mask regions corresponding to image dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -98,13 +97,13 @@ class CoarseDropout(BaseDropout):
         ]
 
         hole_height_range: Annotated[
-            tuple[ScalarType, ScalarType],
+            tuple[float, float] | tuple[int, int],
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(0, None)),
         ]
 
         hole_width_range: Annotated[
-            tuple[ScalarType, ScalarType],
+            tuple[float, float] | tuple[int, int],
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(0, None)),
         ]
@@ -112,10 +111,10 @@ class CoarseDropout(BaseDropout):
     def __init__(
         self,
         num_holes_range: tuple[int, int] = (1, 2),
-        hole_height_range: tuple[ScalarType, ScalarType] = (0.1, 0.2),
-        hole_width_range: tuple[ScalarType, ScalarType] = (0.1, 0.2),
-        fill: DropoutFillValue = 0,
-        fill_mask: ColorType | None = None,
+        hole_height_range: tuple[float, float] | tuple[int, int] = (0.1, 0.2),
+        hole_width_range: tuple[float, float] | tuple[int, int] = (0.1, 0.2),
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
@@ -190,7 +189,7 @@ class Erasing(BaseDropout):
         ratio (tuple[float, float]): Range for the aspect ratio (width/height) of the erased region.
             The actual ratio will be randomly sampled from (ratio[0], ratio[1]).
             Default: (0.3, 3.3)
-        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, float] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value used to fill the erased regions. Can be:
             - int or float: fills all channels with this value
             - tuple: fills each channel with corresponding value
@@ -199,7 +198,7 @@ class Erasing(BaseDropout):
             - "inpaint_telea": uses OpenCV Telea inpainting method
             - "inpaint_ns": uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        fill_mask (ColorType | None): Value used to fill erased regions in the mask.
+        fill_mask (tuple[float, float] | float | None): Value used to fill erased regions in the mask.
             If None, mask regions are not modified. Default: None
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -254,8 +253,8 @@ class Erasing(BaseDropout):
         self,
         scale: tuple[float, float] = (0.02, 0.33),
         ratio: tuple[float, float] = (0.3, 3.3),
-        fill: DropoutFillValue = 0,
-        fill_mask: ColorType | None = None,
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
@@ -369,7 +368,7 @@ class ConstrainedCoarseDropout(BaseDropout):
             - For boxes: 20-40% of box height
             - For masks: 20-40% of sqrt(component area)
         hole_width_range (tuple[float, float]): Range for hole width, similar to height
-        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, float] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value used to fill the erased regions. Can be:
             - int or float: fills all channels with this value
             - tuple: fills each channel with corresponding value
@@ -378,7 +377,7 @@ class ConstrainedCoarseDropout(BaseDropout):
             - "inpaint_telea": uses OpenCV Telea inpainting method
             - "inpaint_ns": uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        fill_mask (ColorType | None): Value used to fill erased regions in the mask.
+        fill_mask (tuple[float, float] | float | None): Value used to fill erased regions in the mask.
             If None, mask regions are not modified. Default: None
         p (float): Probability of applying the transform
         mask_indices (List[int], optional): List of class indices in segmentation mask to target.
@@ -469,8 +468,8 @@ class ConstrainedCoarseDropout(BaseDropout):
         num_holes_range: tuple[int, int] = (1, 1),
         hole_height_range: tuple[float, float] = (0.1, 0.1),
         hole_width_range: tuple[float, float] = (0.1, 0.1),
-        fill: DropoutFillValue = 0,
-        fill_mask: ColorType | None = None,
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
         mask_indices: list[int] | None = None,
         bbox_labels: list[str | int | float] | None = None,

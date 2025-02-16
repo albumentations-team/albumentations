@@ -16,12 +16,7 @@ from albumentations.core.pydantic import ProbabilityType
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
-from .type_definitions import (
-    ALL_TARGETS,
-    ColorType,
-    DropoutFillValue,
-    Targets,
-)
+from .type_definitions import ALL_TARGETS, Targets
 from .utils import ensure_contiguous_output, format_args
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "Transform3D"]
@@ -52,8 +47,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
-    fill: DropoutFillValue
-    fill_mask: ColorType | None
+    fill: tuple[float, ...] | float
+    fill_mask: tuple[float, ...] | float | None
     # replay mode params
     deterministic: bool = False
     save_key = "replay"

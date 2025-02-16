@@ -9,7 +9,6 @@ from albucore import maybe_process_in_chunks, preserve_channel_dim
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
-from albumentations.core.type_definitions import ColorType
 
 __all__ = [
     "crop",
@@ -159,7 +158,7 @@ def crop_and_pad(
     img: np.ndarray,
     crop_params: Sequence[int] | None,
     pad_params: Sequence[int] | None,
-    pad_value: ColorType | None,
+    pad_value: Sequence[float] | float | None,
     image_shape: tuple[int, int],
     interpolation: int,
     pad_mode: int,

@@ -11,7 +11,7 @@ from typing_extensions import Self
 
 from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.type_definitions import ALL_TARGETS, ScaleFloatType
+from albumentations.core.type_definitions import ALL_TARGETS
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
@@ -67,18 +67,18 @@ class RandomScale(DualTransform):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        scale_limit: ScaleFloatType
+        scale_limit: tuple[float, float] | float
         interpolation: InterpolationType
         mask_interpolation: InterpolationType
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, v: ScaleFloatType) -> tuple[float, float]:
+        def check_scale_limit(cls, v: tuple[float, float] | float) -> tuple[float, float]:
             return to_tuple(v, bias=1.0)
 
     def __init__(
         self,
-        scale_limit: ScaleFloatType = (-0.1, 0.1),
+        scale_limit: tuple[float, float] | float = (-0.1, 0.1),
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 0.5,
