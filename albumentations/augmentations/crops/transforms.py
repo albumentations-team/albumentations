@@ -266,9 +266,9 @@ class RandomCrop(BaseCropAndPad):
         width: width of the crop.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
-        fill (Sequence[float] | float): Padding value for images if border_mode is
+        fill (tuple[float, ...] | float): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
-        fill_mask (Sequence[float] | float): Padding value for masks if border_mode is
+        fill_mask (tuple[float, ...] | float): Padding value for masks if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.

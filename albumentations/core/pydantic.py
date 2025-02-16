@@ -79,6 +79,7 @@ NonNegativeFloatRangeType = Annotated[
 NonNegativeIntRangeType = Annotated[
     Union[tuple[int, int], int],
     AfterValidator(process_non_negative_range),
+    AfterValidator(nondecreasing),
     AfterValidator(float2int),
 ]
 
