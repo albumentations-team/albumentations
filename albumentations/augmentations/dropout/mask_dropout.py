@@ -76,7 +76,7 @@ class MaskDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_objects: OnePlusIntRangeType
 
-        fill: float | Literal["inpaint"]
+        fill: float | Literal["inpaint_telea", "inpaint_ns"]
         fill_mask: float
 
     def __init__(
