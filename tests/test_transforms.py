@@ -1324,13 +1324,13 @@ def test_selective_channel(
             {"border_mode": cv2.BORDER_CONSTANT, "fill": 255},
         ),
         (
-            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0]},
-            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0]},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": (0, 0, 0)},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": (0, 0, 0)},
         ),
         # Mask value handling
         (
-            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0], "fill_mask": 128},
-            {"border_mode": cv2.BORDER_CONSTANT, "fill": [0, 0, 0], "fill_mask": 128},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": (0, 0, 0), "fill_mask": 128},
+            {"border_mode": cv2.BORDER_CONSTANT, "fill": (0, 0, 0), "fill_mask": 128},
         ),
     ],
 )

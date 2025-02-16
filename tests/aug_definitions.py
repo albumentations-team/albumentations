@@ -304,7 +304,7 @@ AUGMENTATION_CLS_PARAMS = [
                          {
                             "dropout_prob": 0.1,
                             "per_channel": False,
-                            "drop_value": None,
+                            "drop_value": 2,
                             "mask_drop_value": 15,
         },
                       ],

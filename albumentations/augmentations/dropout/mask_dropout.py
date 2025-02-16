@@ -30,7 +30,7 @@ class MaskDropout(DualTransform):
             - float: Constant value to fill the regions (e.g., 0 for black, 255 for white)
             - "inpaint_telea": Use Telea inpainting algorithm (for 3-channel images only)
             - "inpaint_ns": Use Navier-Stokes inpainting algorithm (for 3-channel images only)
-        fill_mask (float | int): Value to fill the dropped out regions in the mask.
+        fill_mask (float): Value to fill the dropped out regions in the mask.
         min_area (float): Minimum area (in pixels) of a bounding box that must remain visible after dropout to be kept.
             Only applicable if bounding box augmentation is enabled. Default: 0.0
         min_visibility (float): Minimum visibility ratio (visible area / total area) of a bounding box after dropout
@@ -82,8 +82,8 @@ class MaskDropout(DualTransform):
     def __init__(
         self,
         max_objects: tuple[int, int] | int = (1, 1),
-        fill: tuple[float, ...] | float | Literal["inpaint_telea", "inpaint_ns"] = 0,
-        fill_mask: tuple[float, ...] | float | None = None,
+        fill: float | Literal["inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)

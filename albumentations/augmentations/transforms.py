@@ -4331,7 +4331,7 @@ class PixelDropout(DualTransform):
             If False, the same dropout mask will be applied to all channels.
             Default: False
 
-        drop_value (float | Sequence[float] | None): Value to assign to the dropped pixels.
+        drop_value (float | tuple[float, ...] | None): Value to assign to the dropped pixels.
             If None, the value will be randomly sampled for each application:
                 - For uint8 images: Random integer in [0, 255]
                 - For float32 images: Random float in [0, 1]
@@ -4339,7 +4339,7 @@ class PixelDropout(DualTransform):
             If a sequence, it should contain one value per channel.
             Default: 0
 
-        mask_drop_value (float | Sequence[float] | None): Value to assign to dropped pixels in the mask.
+        mask_drop_value (float | tuple[float, ...] | None): Value to assign to dropped pixels in the mask.
             If None, the mask will remain unchanged.
             If a single number, that value will be used for all dropped pixels in the mask.
             If a sequence, it should contain one value per channel.
@@ -4373,8 +4373,8 @@ class PixelDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         dropout_prob: ProbabilityType
         per_channel: bool
-        drop_value: tuple[float, float] | float | None
-        mask_drop_value: tuple[float, float] | float | None
+        drop_value: tuple[float, ...] | float | None
+        mask_drop_value: tuple[float, ...] | float | None
 
     _targets = ALL_TARGETS
 
@@ -4382,8 +4382,8 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: tuple[float, float] | float | None = 0,
-        mask_drop_value: tuple[float, float] | float | None = None,
+        drop_value: tuple[float, ...] | float | None = 0,
+        mask_drop_value: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
