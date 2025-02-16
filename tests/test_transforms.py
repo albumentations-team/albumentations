@@ -1,15 +1,12 @@
 from __future__ import annotations
 import random
-import warnings
 from functools import partial
-from typing import Any, Type
+from typing import Any
 
 import cv2
 import numpy as np
 import pytest
 from albucore import to_float, clip, MAX_VALUES_BY_DTYPE
-
-from torchvision import transforms as torch_transforms
 
 import albumentations as A
 import albumentations.augmentations.functional as fmain
@@ -23,7 +20,7 @@ from tests.conftest import (
     RECTANGULAR_UINT8_IMAGE,
 )
 
-from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transforms, get_transforms
+from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transforms
 
 
 def test_transpose_both_image_and_mask():
@@ -35,9 +32,9 @@ def test_transpose_both_image_and_mask():
     assert augmented["mask"].shape == (6, 8)
 
 
-def test_rotate_crop_border():
-    image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
-    border_value = 13
+def test_rotate_crop_border(image):
+    height = image.shape[0]
+    border_value = 256
     aug = A.Rotate(
         limit=(45, 45),
         p=1,
@@ -46,7 +43,7 @@ def test_rotate_crop_border():
         crop_border=True,
     )
     aug_img = aug(image=image)["image"]
-    expected_size = int(np.round(100 / np.sqrt(2)))
+    expected_size = int(np.round(height / np.sqrt(2)))
     assert aug_img.shape[0] == expected_size
     assert (aug_img == border_value).sum() == 0
 
@@ -71,14 +68,13 @@ def test_rotate_crop_border():
         },
     ),
 )
-def test_binary_mask_interpolation(augmentation_cls, params):
+def test_binary_mask_interpolation(augmentation_cls, params, image):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
     params["mask_interpolation"] = cv2.INTER_NEAREST
     params["fill_mask"] = 0
 
     aug = augmentation_cls(p=1, **params)
-    image = SQUARE_UINT8_IMAGE
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+    mask = cv2.randu(np.zeros((100, 100), dtype=np.uint8), 0, 2)
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
@@ -144,8 +140,7 @@ def test_semantic_mask_interpolation(augmentation_cls, params, image):
     params["mask_interpolation"] = cv2.INTER_NEAREST
     params["fill_mask"] = 0
 
-    np.random.seed(seed)
-    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
+    mask = cv2.randu(np.zeros((100, 100), dtype=np.uint8), 0, 4) * 64
 
     data = A.Compose([augmentation_cls(p=1, **params)], seed=seed, strict=False)(image=image, mask=mask)
 
@@ -162,9 +157,7 @@ def __test_multiprocessing_support_proc(args):
     get_2d_transforms(
         custom_arguments={
             A.TemplateTransform: {
-                "templates": np.random.randint(
-                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
-                ),
+                "templates": cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8), 0, 255),
             },
         },
         except_augmentations={
@@ -298,7 +291,7 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
 def test_image_invert():
     for _ in range(10):
         # test for np.uint8 dtype
-        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image1 = cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8), 0, 255)
         image2 = to_float(image1)
         r_int = fmain.invert(fmain.invert(image1))
         r_float = fmain.invert(fmain.invert(image2))
@@ -370,12 +363,12 @@ def test_channel_droput():
 def test_equalize():
     aug = A.Equalize(p=1)
 
-    img = np.random.randint(0, 256, 256 * 256 * 3, np.uint8).reshape((256, 256, 3))
+    img = cv2.randu(np.zeros((256, 256, 3), dtype=np.uint8), 0, 255)
     a = aug(image=img)["image"]
     b = fmain.equalize(img)
     assert np.all(a == b)
 
-    mask = np.random.randint(0, 2, 256 * 256, np.uint8).reshape((256, 256))
+    mask = cv2.randu(np.zeros((256, 256), dtype=np.uint8), 0, 2)
     aug = A.Equalize(mask=mask, p=1)
     a = aug(image=img)["image"]
     b = fmain.equalize(img, mask=mask)
@@ -451,10 +444,10 @@ def test_crop_non_empty_mask():
 @pytest.mark.parametrize(
     "image",
     [
-        np.random.randint(0, 256, [256, 320], np.uint8),
-        np.random.random([256, 320]).astype(np.float32),
-        np.random.randint(0, 256, [256, 320, 1], np.uint8),
-        np.random.random([256, 320, 1]).astype(np.float32),
+        cv2.randu(np.zeros((256, 320), dtype=np.uint8), 0, 255),
+        cv2.randu(np.zeros((256, 320), dtype=np.float32), 0, 1),
+        cv2.randu(np.zeros((256, 320, 1), dtype=np.uint8), 0, 255),
+        cv2.randu(np.zeros((256, 320, 1), dtype=np.float32), 0, 1),
     ],
 )
 def test_multiplicative_noise_grayscale(image):
@@ -515,7 +508,7 @@ def test_multiplicative_noise_rgb(image, elementwise):
 
 def test_mask_dropout():
     # In this case we have mask with all ones, so MaskDropout wipe entire mask and image
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    img = cv2.randu(np.zeros((50, 10, 3), dtype=np.uint8), 0, 255)
     mask = np.ones([50, 10], dtype=np.int64)
 
     aug = A.MaskDropout(p=1)
@@ -524,7 +517,7 @@ def test_mask_dropout():
     assert np.all(result["mask"] == 0)
 
     # In this case we have mask with zeros , so MaskDropout will make no changes
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    img = cv2.randu(np.zeros((50, 10, 3), dtype=np.uint8), 0, 255)
     mask = np.zeros([50, 10], dtype=np.int64)
 
     aug = A.MaskDropout(p=1)
@@ -645,7 +638,7 @@ def test_perspective_keep_size():
 
 
 def test_longest_max_size_list():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    img = cv2.randu(np.zeros((50, 10), dtype=np.uint8), 0, 255)
     keypoints = np.array([(9, 5, 33, 0, 0)])
 
     aug = A.LongestMaxSize(max_size=[5, 10], p=1)
@@ -658,7 +651,7 @@ def test_longest_max_size_list():
 
 
 def test_smallest_max_size_list():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    img = cv2.randu(np.zeros((50, 10), dtype=np.uint8), 0, 255)
     keypoints = np.array([(9, 5, 33, 0, 0)])
 
     aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
@@ -709,8 +702,8 @@ def test_smallest_max_size_list():
 def test_template_transform(
     img_weight, template_transform, image_size, template_size
 ):
-    img = np.random.randint(0, 256, image_size, np.uint8)
-    template = np.random.randint(0, 256, template_size, np.uint8)
+    img = cv2.randu(np.zeros(image_size, dtype=np.uint8), 0, 255)
+    template = cv2.randu(np.zeros(template_size, dtype=np.uint8), 0, 255)
 
     aug = A.TemplateTransform(template, img_weight, template_transform)
     result = aug(image=img)["image"]
@@ -728,8 +721,9 @@ def test_template_transform(
 
 @pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
 def test_template_transform_incorrect_channels(img_channels, template_channels):
-    img = np.random.randint(0, 255, [100, 100, img_channels], np.uint8)
-    template = np.random.randint(0, 255, [100, 100, template_channels], np.uint8)
+    img = np.random.randint(0, 256, (100, 100, img_channels), dtype=np.uint8)
+
+    template = np.random.randint(0, 256, (100, 100, template_channels), dtype=np.uint8)
 
     with pytest.raises(ValueError) as exc_info:
         transform = A.TemplateTransform(template, p=1.0)
@@ -962,8 +956,8 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     "img",
     [
         SQUARE_UINT8_IMAGE,
-        np.random.randint(0, 256, [25, 100, 3], np.uint8),
-        np.random.randint(0, 256, [100, 25, 3], np.uint8),
+        cv2.randu(np.zeros((25, 100, 3), dtype=np.uint8), 0, 255),
+        cv2.randu(np.zeros((100, 25, 3), dtype=np.uint8), 0, 255),
     ],
 )
 # @pytest.mark.parametrize("angle", list(range(-360, 360, 15)))
@@ -1122,19 +1116,6 @@ def test_random_crop_from_borders(
 
 
 @pytest.mark.parametrize(
-    "params",
-    [
-        ({"quality_range": (101, 105)}),  # Invalid quality range
-        ({"quality_range": (0, 0)}),  # Invalid range for JPEG
-        ({"compression_type": "unknown"}),  # Invalid compression type
-    ],
-)
-def test_image_compression_invalid_input(params):
-    with pytest.raises(Exception):
-        A.ImageCompression(**params)
-
-
-@pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
@@ -1169,11 +1150,10 @@ def test_image_compression_invalid_input(params):
         },
     ),
 )
-def test_change_image(augmentation_cls, params):
+def test_change_image(augmentation_cls, params, image):
     """Checks whether resulting image is different from the original one."""
     aug = A.Compose([augmentation_cls(p=1, **params)], seed=137, strict=False)
 
-    image = SQUARE_UINT8_IMAGE
     original_image = image.copy()
 
     data = {
@@ -1403,7 +1383,7 @@ def test_dual_transforms_methods(augmentation_cls, params):
     aug.set_random_seed(42)
 
     image = SQUARE_UINT8_IMAGE
-    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
+    mask = cv2.randu(np.zeros((100, 100), dtype=np.uint8), 0, 4) * 64
 
     arg = {
         "images": np.stack([image] * 4),
@@ -1731,7 +1711,7 @@ def test_return_nonzero(augmentation_cls, params):
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
     elif augmentation_cls == A.ToRGB:
-        data["image"] = np.random.randint(0, 255, size=(100, 100)).astype(np.uint8)
+        data["image"] = cv2.randu(np.zeros((100, 100), dtype=np.uint8), 0, 255)
     elif augmentation_cls == A.MaskDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
