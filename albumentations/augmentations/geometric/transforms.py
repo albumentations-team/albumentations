@@ -766,7 +766,7 @@ class Affine(DualTransform):
         self,
         scale: tuple[float, float] | float | dict[str, float | tuple[float, float]] = (1.0, 1.0),
         translate_percent: tuple[float, float] | float | dict[str, float | tuple[float, float]] | None = None,
-        translate_px: tuple[float, float] | float | dict[str, float | tuple[float, float]] | None = None,
+        translate_px: tuple[int, int] | int | dict[str, int | tuple[int, int]] | None = None,
         rotate: tuple[float, float] | float = 0.0,
         shear: tuple[float, float] | float | dict[str, float | tuple[float, float]] = (0.0, 0.0),
         interpolation: int = cv2.INTER_LINEAR,
