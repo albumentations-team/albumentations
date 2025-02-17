@@ -48,11 +48,9 @@ from albumentations.core.bbox_utils import (
     normalize_bboxes,
 )
 from albumentations.core.pydantic import (
-    InterpolationType,
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
     OnePlusIntRangeType,
-    ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
     check_range_bounds,
@@ -3062,8 +3060,27 @@ class InterpolationDict(TypedDict):
 
 
 class InterpolationPydantic(BaseModel):
-    upscale: InterpolationType
-    downscale: InterpolationType
+    upscale: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_NEAREST_EXACT,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+        cv2.INTER_LINEAR_EXACT,
+        cv2.INTER_MAX,
+    ]
+
+    downscale: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_NEAREST_EXACT,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+        cv2.INTER_LINEAR_EXACT,
+        cv2.INTER_MAX,
+    ]
 
 
 class Downscale(ImageOnlyTransform):
@@ -4015,7 +4032,16 @@ class Superpixels(ImageOnlyTransform):
         p_replace: ZeroOneRangeType
         n_segments: OnePlusIntRangeType
         max_size: int | None = Field(ge=1)
-        interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+            cv2.INTER_MAX,
+        ]
 
     def __init__(
         self,
@@ -4371,7 +4397,7 @@ class PixelDropout(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dropout_prob: ProbabilityType
+        dropout_prob: float = Field(ge=0, le=1)
         per_channel: bool
         drop_value: tuple[float, ...] | float | None
         mask_drop_value: tuple[float, ...] | float | None
@@ -4769,14 +4795,32 @@ class ChromaticAberration(ImageOnlyTransform):
         primary_distortion_limit: SymmetricRangeType
         secondary_distortion_limit: SymmetricRangeType
         mode: Literal["green_purple", "red_blue", "random"]
-        interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+            cv2.INTER_MAX,
+        ]
 
     def __init__(
         self,
         primary_distortion_limit: tuple[float, float] | float = (-0.02, 0.02),
         secondary_distortion_limit: tuple[float, float] | float = (-0.05, 0.05),
         mode: Literal["green_purple", "red_blue", "random"] = "green_purple",
-        interpolation: InterpolationType = cv2.INTER_LINEAR,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+            cv2.INTER_MAX,
+        ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
         super().__init__(p=p)
