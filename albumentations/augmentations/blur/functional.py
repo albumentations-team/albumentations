@@ -285,3 +285,48 @@ def create_gaussian_kernel(sigma: float, ksize: int = 0) -> np.ndarray:
 
     # Create 2D kernel
     return kernel_1d[:, np.newaxis] @ kernel_1d[np.newaxis, :]
+
+
+def create_gaussian_kernel_1d(sigma: float, ksize: int = 0) -> np.ndarray:
+    """Create a 1D Gaussian kernel following PIL's approach.
+
+    Args:
+        sigma: Standard deviation for Gaussian kernel.
+        ksize: Kernel size. If 0, size is computed as int(sigma * 3.5) * 2 + 1
+               to match PIL's implementation. Otherwise, must be positive and odd.
+
+    Returns:
+        np.ndarray: 1D normalized Gaussian kernel.
+    """
+    # PIL's kernel creation approach
+    size = int(sigma * 3.5) * 2 + 1 if ksize == 0 else ksize
+
+    # Ensure odd size
+    size = size + 1 if size % 2 == 0 else size
+
+    # Create x coordinates
+    x = create_gaussian_kernel_input_array(size=size)
+
+    # Compute 1D kernel using vectorized operations
+    kernel_1d = np.exp(-0.5 * (x / sigma) ** 2)
+    return kernel_1d / kernel_1d.sum()
+
+
+def create_gaussian_kernel_input_array(size: int) -> np.ndarray:
+    """Creates a 1-D array which will create an array of x-coordinates which will be input for the
+    gaussian function (values from -size/2 to size/2 with step size of 1)
+
+    Piecewise function is needed as equivalent python list comprehension is faster than np.linspace
+    for values of size < 100
+
+    Args:
+        size: kernel size
+
+    Returns:
+        np.ndarray: x-coordinate array which will be input for gaussian function that will be used for
+        separable gaussian blur
+    """
+    if size < 100:
+        return np.array(list(range(-(size // 2), (size // 2) + 1, 1)))
+
+    return np.linspace(-(size // 2), size // 2, size)
