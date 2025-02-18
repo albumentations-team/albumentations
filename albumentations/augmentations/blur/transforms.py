@@ -448,7 +448,7 @@ class GaussianBlur(ImageOnlyTransform):
         kernel: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.seperable_convolve(img, kernel=kernel)
+        return fmain.separable_convolve(img, kernel=kernel)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         sigma = self.py_random.uniform(*self.sigma_limit)

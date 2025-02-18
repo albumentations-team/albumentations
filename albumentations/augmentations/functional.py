@@ -3456,6 +3456,6 @@ def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 
 @clipped
 @preserve_channel_dim
-def seperable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+def separable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     conv_fn = maybe_process_in_chunks(cv2.sepFilter2D, ddepth=-1, kernelX=kernel, kernelY=kernel)
     return conv_fn(img)
