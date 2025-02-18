@@ -12,8 +12,6 @@ from typing_extensions import Self
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes, union_of_bboxes
 from albumentations.core.pydantic import (
-    BorderModeType,
-    InterpolationType,
     OnePlusIntRangeType,
     ZeroOneRangeType,
     check_range_bounds,
@@ -97,7 +95,14 @@ class BaseCropAndPad(BaseCrop):
 
     class InitSchema(BaseTransformInitSchema):
         pad_if_needed: bool
-        border_mode: BorderModeType
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ]
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
         pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]
@@ -105,7 +110,14 @@ class BaseCropAndPad(BaseCrop):
     def __init__(
         self,
         pad_if_needed: bool,
-        border_mode: int,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ],
         fill: tuple[float, ...] | float,
         fill_mask: tuple[float, ...] | float,
         pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"],
@@ -288,7 +300,15 @@ class RandomCrop(BaseCropAndPad):
     class InitSchema(BaseCropAndPad.InitSchema):
         height: Annotated[int, Field(ge=1)]
         width: Annotated[int, Field(ge=1)]
-        border_mode: BorderModeType
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ]
+
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
 
@@ -298,7 +318,14 @@ class RandomCrop(BaseCropAndPad):
         width: int,
         pad_if_needed: bool = False,
         pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
-        border_mode: int = cv2.BORDER_CONSTANT,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0.0,
         fill_mask: tuple[float, ...] | float = 0.0,
         p: float = 1.0,
@@ -403,7 +430,15 @@ class CenterCrop(BaseCropAndPad):
     class InitSchema(BaseCropAndPad.InitSchema):
         height: Annotated[int, Field(ge=1)]
         width: Annotated[int, Field(ge=1)]
-        border_mode: BorderModeType
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ]
+
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
 
@@ -413,7 +448,14 @@ class CenterCrop(BaseCropAndPad):
         width: int,
         pad_if_needed: bool = False,
         pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
-        border_mode: int = cv2.BORDER_CONSTANT,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0.0,
         fill_mask: tuple[float, ...] | float = 0.0,
         p: float = 1.0,
@@ -518,7 +560,15 @@ class Crop(BaseCropAndPad):
         y_min: Annotated[int, Field(ge=0)]
         x_max: Annotated[int, Field(gt=0)]
         y_max: Annotated[int, Field(gt=0)]
-        border_mode: BorderModeType
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ]
+
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
 
@@ -541,7 +591,14 @@ class Crop(BaseCropAndPad):
         y_max: int = 1024,
         pad_if_needed: bool = False,
         pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
-        border_mode: int = cv2.BORDER_CONSTANT,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
@@ -750,14 +807,46 @@ class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
 
     class InitSchema(BaseRandomSizedCropInitSchema):
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
     def __init__(
         self,
         size: tuple[int, int],
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -876,8 +965,24 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
         size: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
@@ -887,8 +992,24 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         min_max_height: tuple[int, int],
         size: tuple[int, int],
         w2h_ratio: float = 1.0,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(
@@ -994,16 +1115,48 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             AfterValidator(nondecreasing),
         ]
         size: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
     def __init__(
         self,
         size: tuple[int, int],
         scale: tuple[float, float] = (0.08, 1.0),
         ratio: tuple[float, float] = (0.75, 1.3333333333333333),
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(
@@ -1344,16 +1497,48 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
             ge=0.0,
             le=1.0,
         )
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
     def __init__(
         self,
         height: int,
         width: int,
         erosion_rate: float = 0.0,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(erosion_rate=erosion_rate, p=p)
@@ -1487,11 +1672,34 @@ class CropAndPad(DualTransform):
         percent: PercentType | None
         keep_size: bool
         sample_independently: bool
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
-        border_mode: BorderModeType
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ]
 
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
@@ -1510,9 +1718,32 @@ class CropAndPad(DualTransform):
         percent: float | list[float] | None = None,
         keep_size: bool = True,
         sample_independently: bool = True,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
-        border_mode: BorderModeType = cv2.BORDER_CONSTANT,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,

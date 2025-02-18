@@ -62,7 +62,6 @@ __all__ = [
     "channel_shuffle",
     "chromatic_aberration",
     "clahe",
-    "convolve",
     "dilate",
     "downscale",
     "equalize",
@@ -463,13 +462,6 @@ def clahe(
     img[:, :, 0] = clahe_mat.apply(img[:, :, 0])
 
     return cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
-
-
-@clipped
-@preserve_channel_dim
-def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    conv_fn = maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
-    return conv_fn(img)
 
 
 @uint8_io
@@ -3453,3 +3445,10 @@ def apply_he_stain_augmentation(
     rgb_result = np.exp(-optical_density_result)
 
     return rgb_result.reshape(img.shape)
+
+
+@clipped
+@preserve_channel_dim
+def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    conv_fn = maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
+    return conv_fn(img)
