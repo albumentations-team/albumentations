@@ -75,9 +75,12 @@ class ValidatedTransformMeta(type):
             def custom_init(self: Any, *args: Any, **kwargs: Any) -> None:
                 full_kwargs, param_names, strict = cls._process_init_parameters(original_init, args, kwargs)
 
-                validated_kwargs = cls._validate_parameters(dct["InitSchema"], full_kwargs, param_names, strict)
-                if not validated_kwargs:
-                    validated_kwargs = cls._get_default_values(signature(original_init).parameters)
+                validated_kwargs = cls._validate_parameters(
+                    dct["InitSchema"],
+                    full_kwargs,
+                    param_names,
+                    strict,
+                ) or cls._get_default_values(signature(original_init).parameters)
 
                 # Store and check invalid args
                 invalid_args = [name_arg for name_arg in kwargs if name_arg not in param_names and name_arg != "strict"]
