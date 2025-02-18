@@ -4,7 +4,7 @@ import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
 import warnings
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 import torch
 import cv2
 import numpy as np
@@ -25,7 +25,7 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
 )
-from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
+from albumentations.core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
@@ -1879,3 +1879,61 @@ def test_mask_interpolation(augmentation_cls, params, border_mode, image):
     transform = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
 
     transform(image=image, mask=mask)
+
+
+@pytest.mark.parametrize(
+    "params, strict, expected_outcome, expected_error_params",
+    [
+        # Valid cases
+        ({"rotate": 45}, False, "valid", []),
+        ({"rotate": 45, "p": 0.5}, False, "valid", []),
+
+        # Invalid parameter names (affected by strict)
+        ({"rotate": 45, "invalid_param": 123}, False, "warning", []),
+        ({"rotate": 45, "invalid_param": 123}, True, "error", ["invalid_param"]),
+        ({"rotate": 45, "wrong_param": 0.5, "bad_param": 30}, False, "warning", []),
+
+        # Invalid parameter values (always error, regardless of strict)
+        ({"rotate": 45, "p": 1.5}, False, "value_error", ["p"]),
+        ({"rotate": 45, "p": -0.5}, False, "value_error", ["p"]),
+        # Multiple invalid values
+        ({"interpolation": -1, "mask_interpolation": -1, "p": 1.5}, False, "value_error",
+         ["interpolation", "mask_interpolation", "p"]),
+    ]
+)
+def test_affine_invalid_parameters(params, strict, expected_outcome, expected_error_params):
+    if expected_outcome == "valid":
+        transform = A.Affine(**params)
+        assert transform is not None
+        assert not hasattr(transform, 'invalid_args') or not transform.invalid_args
+
+    elif expected_outcome == "warning":
+        transform = A.Affine(strict=strict, **params)
+        assert hasattr(transform, 'invalid_args')
+        invalid_params = set(params.keys()) - {"rotate", "p", "scale", "translate_percent",
+                                             "translate_px", "interpolation", "mask_interpolation",
+                                             "mode", "fit_output", "keep_ratio"}
+        assert set(transform.invalid_args) == invalid_params
+
+    elif expected_outcome == "error":
+        with pytest.raises(ValueError) as excinfo:
+            A.Affine(strict=strict, **params)
+        error_msg = str(excinfo.value)
+        for param in expected_error_params:
+            assert param in error_msg
+
+    elif expected_outcome == "value_error":
+        with pytest.raises(ValueError) as excinfo:
+            A.Affine(strict=strict, **params)
+        error_msg = str(excinfo.value)
+
+        # Verify that ALL expected error parameters are in the message
+        for param in expected_error_params:
+            assert param in error_msg
+
+        if len(expected_error_params) > 1:
+            # Count unique parameters mentioned in the error
+            error_params = {param for param in expected_error_params if param in error_msg}
+
+            assert len(error_params) == len(expected_error_params), \
+                f"Expected validation errors for {expected_error_params}, got errors for {error_params}"
