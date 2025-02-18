@@ -823,7 +823,6 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -833,7 +832,6 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
     def __init__(
@@ -847,7 +845,6 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -857,7 +854,6 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
@@ -985,7 +981,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -995,7 +990,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
@@ -1014,7 +1008,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -1024,7 +1017,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
@@ -1139,7 +1131,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -1149,7 +1140,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
     def __init__(
@@ -1165,7 +1155,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -1175,7 +1164,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
@@ -1525,7 +1513,6 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -1535,7 +1522,6 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
     def __init__(
@@ -1543,8 +1529,24 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         height: int,
         width: int,
         erosion_rate: float = 0.0,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(erosion_rate=erosion_rate, p=p)
@@ -1686,7 +1688,6 @@ class CropAndPad(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -1696,7 +1697,6 @@ class CropAndPad(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
@@ -1727,8 +1727,24 @@ class CropAndPad(DualTransform):
         percent: float | list[float] | None = None,
         keep_size: bool = True,
         sample_independently: bool = True,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         border_mode: Literal[
             cv2.BORDER_CONSTANT,
             cv2.BORDER_REPLICATE,

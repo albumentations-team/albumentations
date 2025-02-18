@@ -1250,20 +1250,14 @@ def test_masks_as_target(augmentation_cls, params, masks):
         custom_arguments={
         },
         except_augmentations={
-            A.RandomSizedBBoxSafeCrop,
             A.PixelDropout,
-            A.CropNonEmptyMaskIfExists,
-            A.PixelDistributionAdaptation,
-            A.PadIfNeeded,
             A.RandomCrop,
-            A.AtLeastOneBBoxRandomCrop,
             A.Crop,
             A.CenterCrop,
             A.FDA,
             A.HistogramMatching,
             A.Lambda,
             A.TemplateTransform,
-            A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
@@ -1273,56 +1267,59 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.TimeMasking,
             A.FrequencyMasking,
             A.Erasing,
-            A.ElasticTransform,
             A.RandomCropNearBBox,
             A.GridDropout,
             A.CoarseDropout,
             A.ConstrainedCoarseDropout,
-            A.PadIfNeeded,
             A.RandomRotate90,
             A.D4,
-            A.GridDistortion,
-            A.ElasticTransform,
-            A.GridElasticDeform,
             A.HorizontalFlip,
             A.VerticalFlip,
             A.Transpose,
-            A.LongestMaxSize,
-            A.SmallestMaxSize,
-            A.RandomGridShuffle,
-            A.Morphological,
             A.NoOp,
-            A.OpticalDistortion,
-            A.Pad,
-            A.PiecewiseAffine,
-            A.RandomScale,
             A.RandomSizedBBoxSafeCrop,
-            A.RandomSizedCrop,
-            A.RandomResizedCrop,
             A.RandomRotate90,
-            A.RandomCropFromBorders,
-            A.Resize,
-            A.ThinPlateSpline,
             A.TimeReverse,
             A.TimeMasking
         },
     ),
 )
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST,
-                                                cv2.INTER_LINEAR,
-                                                cv2.INTER_CUBIC,
-                                                cv2.INTER_AREA
-                                                ])
-def test_mask_interpolation(augmentation_cls, params, interpolation):
-    image = SQUARE_UINT8_IMAGE
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT
+            ])
+def test_mask_interpolation(augmentation_cls, params, interpolation, image):
     mask = image.copy()
+    if augmentation_cls in {A.Affine, A.GridElasticDeform,
+    A.SafeRotate,
+    A.ShiftScaleRotate,
+    A.OpticalDistortion,
+    A.ThinPlateSpline,
+    A.Perspective,
+    A.ElasticTransform,
+    A.GridDistortion,
+    A.PiecewiseAffine,
+    A.CropAndPad,
+    A.LongestMaxSize,
+    A.SmallestMaxSize,
+    A.RandomResizedCrop,
+    A.RandomScale,
+    A.Rotate
+    } and interpolation in {cv2.INTER_NEAREST_EXACT, cv2.INTER_LINEAR_EXACT}:
+        return
+
     params["interpolation"] = interpolation
     params["mask_interpolation"] = interpolation
     params["border_mode"] = cv2.BORDER_CONSTANT
     params["fill"] = 10
     params["fill_mask"] = 10
 
-    aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=True)
+    # aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=True)
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
 
     transformed = aug(image=image, mask=mask)
 

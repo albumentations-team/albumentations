@@ -108,25 +108,14 @@ class RandomRotate90(DualTransform):
 class RotateInitSchema(BaseTransformInitSchema):
     limit: SymmetricRangeType
 
-    interpolation: Literal[
-        cv2.INTER_NEAREST,
-        cv2.INTER_NEAREST_EXACT,
-        cv2.INTER_LINEAR,
-        cv2.INTER_CUBIC,
-        cv2.INTER_AREA,
-        cv2.INTER_LANCZOS4,
-        cv2.INTER_LINEAR_EXACT,
-        cv2.INTER_MAX,
-    ]
+    interpolation: Literal[cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4]
+
     mask_interpolation: Literal[
         cv2.INTER_NEAREST,
-        cv2.INTER_NEAREST_EXACT,
         cv2.INTER_LINEAR,
         cv2.INTER_CUBIC,
         cv2.INTER_AREA,
         cv2.INTER_LANCZOS4,
-        cv2.INTER_LINEAR_EXACT,
-        cv2.INTER_MAX,
     ]
 
     border_mode: Literal[
@@ -217,13 +206,10 @@ class Rotate(DualTransform):
         limit: tuple[float, float] | float = (-90, 90),
         interpolation: Literal[
             cv2.INTER_NEAREST,
-            cv2.INTER_NEAREST_EXACT,
             cv2.INTER_LINEAR,
             cv2.INTER_CUBIC,
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
-            cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         border_mode: Literal[
             cv2.BORDER_CONSTANT,
@@ -238,13 +224,10 @@ class Rotate(DualTransform):
         crop_border: bool = False,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
-            cv2.INTER_NEAREST_EXACT,
             cv2.INTER_LINEAR,
             cv2.INTER_CUBIC,
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
-            cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
@@ -523,10 +506,30 @@ class SafeRotate(Affine):
     def __init__(
         self,
         limit: tuple[float, float] | float = (-90, 90),
-        interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_CONSTANT,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+            cv2.BORDER_TRANSPARENT,
+        ] = cv2.BORDER_CONSTANT,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,

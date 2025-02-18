@@ -75,7 +75,6 @@ class RandomScale(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -85,7 +84,6 @@ class RandomScale(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
         @field_validator("scale_limit")
@@ -104,7 +102,6 @@ class RandomScale(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -114,7 +111,6 @@ class RandomScale(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         p: float = 0.5,
     ):
@@ -178,7 +174,6 @@ class MaxSizeTransform(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -188,7 +183,6 @@ class MaxSizeTransform(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
         @model_validator(mode="after")
@@ -211,7 +205,6 @@ class MaxSizeTransform(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -221,7 +214,6 @@ class MaxSizeTransform(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         p: float = 1,
     ):
@@ -531,7 +523,6 @@ class Resize(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -541,7 +532,6 @@ class Resize(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
     def __init__(
@@ -556,7 +546,6 @@ class Resize(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
@@ -566,7 +555,6 @@ class Resize(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_NEAREST,
         p: float = 1,
     ):

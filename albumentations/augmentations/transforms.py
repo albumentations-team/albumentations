@@ -3068,7 +3068,6 @@ class InterpolationPydantic(BaseModel):
         cv2.INTER_AREA,
         cv2.INTER_LANCZOS4,
         cv2.INTER_LINEAR_EXACT,
-        cv2.INTER_MAX,
     ]
 
     downscale: Literal[
@@ -3079,7 +3078,6 @@ class InterpolationPydantic(BaseModel):
         cv2.INTER_AREA,
         cv2.INTER_LANCZOS4,
         cv2.INTER_LINEAR_EXACT,
-        cv2.INTER_MAX,
     ]
 
 
@@ -4040,7 +4038,6 @@ class Superpixels(ImageOnlyTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
     def __init__(
@@ -4048,7 +4045,15 @@ class Superpixels(ImageOnlyTransform):
         p_replace: tuple[float, float] | float = (0, 0.1),
         n_segments: tuple[int, int] | int = (100, 100),
         max_size: int | None = 128,
-        interpolation: int = cv2.INTER_LINEAR,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4803,7 +4808,6 @@ class ChromaticAberration(ImageOnlyTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ]
 
     def __init__(
@@ -4819,7 +4823,6 @@ class ChromaticAberration(ImageOnlyTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-            cv2.INTER_MAX,
         ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
