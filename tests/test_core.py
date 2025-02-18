@@ -1318,7 +1318,6 @@ def test_mask_interpolation(augmentation_cls, params, interpolation, image):
     params["fill"] = 10
     params["fill_mask"] = 10
 
-    # aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=True)
     aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
 
     transformed = aug(image=image, mask=mask)
@@ -1805,3 +1804,78 @@ def test_transform_strict_with_valid_params():
     transform = A.Blur(strict=True, p=0.7, blur_limit=(3, 5))
     assert transform.p == 0.7
     assert transform.blur_limit == (3, 5)
+
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+        },
+        except_augmentations={
+            A.PixelDropout,
+            A.RandomCrop,
+            A.Crop,
+            A.CenterCrop,
+            A.FDA,
+            A.HistogramMatching,
+            A.Lambda,
+            A.TemplateTransform,
+            A.BBoxSafeRandomCrop,
+            A.OverlayElements,
+            A.TextImage,
+            A.FromFloat,
+            A.MaskDropout,
+            A.XYMasking,
+            A.TimeMasking,
+            A.FrequencyMasking,
+            A.Erasing,
+            A.RandomCropNearBBox,
+            A.GridDropout,
+            A.CoarseDropout,
+            A.ConstrainedCoarseDropout,
+            A.RandomRotate90,
+            A.D4,
+            A.HorizontalFlip,
+            A.VerticalFlip,
+            A.Transpose,
+            A.NoOp,
+            A.RandomSizedBBoxSafeCrop,
+            A.RandomRotate90,
+            A.TimeReverse,
+            A.TimeMasking,
+            A.ThinPlateSpline,
+            A.ElasticTransform,
+            A.PiecewiseAffine,
+            A.ShiftScaleRotate,
+            A.RandomScale,
+            A.Resize,
+            A.RandomResizedCrop,
+            A.RandomGridShuffle,
+            A.OpticalDistortion,
+            A.Morphological,
+            A.AtLeastOneBBoxRandomCrop
+        },
+    ),
+)
+@pytest.mark.parametrize("border_mode", [
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ])
+def test_mask_interpolation(augmentation_cls, params, border_mode, image):
+
+    mask = image.copy()
+
+    params["interpolation"] = cv2.INTER_LINEAR
+    params["mask_interpolation"] = cv2.INTER_LINEAR
+    params["border_mode"] = border_mode
+    params["fill"] = 10
+    params["fill_mask"] = 10
+
+    transform = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
+
+    transform(image=image, mask=mask)

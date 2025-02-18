@@ -460,7 +460,6 @@ class Perspective(DualTransform):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ]
 
     def __init__(
@@ -489,7 +488,6 @@ class Perspective(DualTransform):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
@@ -778,7 +776,6 @@ class Affine(DualTransform):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ]
 
         fit_output: bool
@@ -1182,7 +1179,6 @@ class ShiftScaleRotate(Affine):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ]
 
         fill: tuple[float, ...] | float = 0
@@ -2401,7 +2397,6 @@ class Pad(DualTransform):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ]
 
     def __init__(
@@ -2416,7 +2411,6 @@ class Pad(DualTransform):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ] = cv2.BORDER_CONSTANT,
         p: float = 1.0,
     ):
@@ -2611,7 +2605,6 @@ class PadIfNeeded(Pad):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ]
 
         fill: tuple[float, ...] | float
@@ -2646,7 +2639,6 @@ class PadIfNeeded(Pad):
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
             cv2.BORDER_REFLECT101,
-            cv2.BORDER_TRANSPARENT,
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
