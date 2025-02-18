@@ -1933,10 +1933,7 @@ def test_affine_invalid_parameters(params, strict, expected_outcome, expected_er
 
         if len(expected_error_params) > 1:
             # Count unique parameters mentioned in the error
-            error_params = set()
-            for param in expected_error_params:
-                if param in error_msg:
-                    error_params.add(param)
+            error_params = {param for param in expected_error_params if param in error_msg}
 
             assert len(error_params) == len(expected_error_params), \
                 f"Expected validation errors for {expected_error_params}, got errors for {error_params}"
