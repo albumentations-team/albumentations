@@ -448,13 +448,13 @@ class GaussianBlur(ImageOnlyTransform):
         kernel: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.convolve(img, kernel=kernel)
+        return fmain.separable_convolve(img, kernel=kernel)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         sigma = self.py_random.uniform(*self.sigma_limit)
         ksize = self.py_random.randint(*self.blur_limit)
 
-        return {"kernel": fblur.create_gaussian_kernel(sigma, ksize)}
+        return {"kernel": fblur.create_gaussian_kernel_1d(sigma, ksize)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "blur_limit", "sigma_limit"
