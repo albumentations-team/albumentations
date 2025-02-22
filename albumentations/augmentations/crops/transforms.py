@@ -101,7 +101,6 @@ class BaseCropAndPad(BaseCrop):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ]
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
@@ -116,7 +115,6 @@ class BaseCropAndPad(BaseCrop):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ],
         fill: tuple[float, ...] | float,
         fill_mask: tuple[float, ...] | float,
@@ -306,7 +304,6 @@ class RandomCrop(BaseCropAndPad):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ]
 
         fill: tuple[float, ...] | float
@@ -324,7 +321,6 @@ class RandomCrop(BaseCropAndPad):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0.0,
         fill_mask: tuple[float, ...] | float = 0.0,
@@ -436,7 +432,6 @@ class CenterCrop(BaseCropAndPad):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ]
 
         fill: tuple[float, ...] | float
@@ -454,7 +449,6 @@ class CenterCrop(BaseCropAndPad):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0.0,
         fill_mask: tuple[float, ...] | float = 0.0,
@@ -566,7 +560,6 @@ class Crop(BaseCropAndPad):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ]
 
         fill: tuple[float, ...] | float
@@ -597,7 +590,6 @@ class Crop(BaseCropAndPad):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
@@ -1698,7 +1690,6 @@ class CropAndPad(DualTransform):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ]
 
         @model_validator(mode="after")
@@ -1742,7 +1733,6 @@ class CropAndPad(DualTransform):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,

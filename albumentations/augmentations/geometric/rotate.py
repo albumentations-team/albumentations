@@ -124,7 +124,6 @@ class RotateInitSchema(BaseTransformInitSchema):
         cv2.BORDER_REFLECT,
         cv2.BORDER_WRAP,
         cv2.BORDER_REFLECT_101,
-        cv2.BORDER_REFLECT101,
     ]
 
     fill: tuple[float, ...] | float
@@ -216,7 +215,6 @@ class Rotate(DualTransform):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ] = cv2.BORDER_CONSTANT,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
@@ -517,7 +515,6 @@ class SafeRotate(Affine):
             cv2.BORDER_REFLECT,
             cv2.BORDER_WRAP,
             cv2.BORDER_REFLECT_101,
-            cv2.BORDER_REFLECT101,
         ] = cv2.BORDER_CONSTANT,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         mask_interpolation: Literal[
