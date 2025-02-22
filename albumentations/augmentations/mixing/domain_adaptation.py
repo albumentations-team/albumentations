@@ -9,7 +9,7 @@ from albucore import add_weighted, get_num_channels
 from pydantic import AfterValidator, field_validator
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.domain_adaptation.functional import (
+from albumentations.augmentations.mixing.domain_adaptation_functional import (
     adapt_pixel_distribution,
     apply_histogram,
     fourier_domain_adaptation,

@@ -39,6 +39,7 @@ from typing_extensions import Literal, Self, TypedDict
 
 import albumentations.augmentations.dropout.functional as fdropout
 import albumentations.augmentations.geometric.functional as fgeometric
+from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.blur import functional as fblur
 from albumentations.augmentations.blur.transforms import BlurInitSchema
 from albumentations.augmentations.utils import check_range, non_rgb_error
@@ -70,8 +71,6 @@ from albumentations.core.type_definitions import (
     SEVEN,
 )
 from albumentations.core.utils import format_args, to_tuple
-
-from . import functional as fmain
 
 __all__ = [
     "CLAHE",
