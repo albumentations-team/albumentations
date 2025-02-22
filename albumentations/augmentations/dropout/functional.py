@@ -250,44 +250,28 @@ def resize_boxes_to_visible_area(
     if len(boxes) == 0:
         return boxes
 
-    # Extract box coordinates
-    x1 = boxes[:, 0].astype(int)
-    y1 = boxes[:, 1].astype(int)
-    x2 = boxes[:, 2].astype(int)
-    y2 = boxes[:, 3].astype(int)
+    # Extract box coordinates and convert to integer
+    x1, y1, x2, y2 = boxes[:, 0].astype(int), boxes[:, 1].astype(int), boxes[:, 2].astype(int), boxes[:, 3].astype(int)
 
-    # Process each box individually to avoid array shape issues
-    new_boxes: list[np.ndarray] = []
+    new_boxes = np.empty_like(boxes)  # Preallocate new_boxes array
 
-    regions = [hole_mask[y1[i] : y2[i], x1[i] : x2[i]] for i in range(len(boxes))]
-    visible_areas = [1 - region for region in regions]
+    for i in range(len(boxes)):
+        # Generate visible region for the box
+        region = hole_mask[y1[i]:y2[i], x1[i]:x2[i]]
+        visible = 1 - region
 
-    for i, (visible, box) in enumerate(zip(visible_areas, boxes)):
         if not visible.any():
             # Box is fully covered - handle directly
-            new_box = box.copy()
-
-            new_box[2:] = new_box[:2]  # collapse to point
-            new_boxes.append(new_box)
+            new_boxes[i] = np.array([x1[i], y1[i], x1[i], y1[i]])
             continue
 
-        # Find visible coordinates
-        y_visible = visible.any(axis=1)
-        x_visible = visible.any(axis=0)
+        # Find visible coordinates directly using np's nonzero logic.
+        y_coords, x_coords = np.nonzero(visible)
 
-        y_coords = np.nonzero(y_visible)[0]
-        x_coords = np.nonzero(x_visible)[0]
+        # Directly update new box coordinates
+        new_boxes[i] = [x1[i] + x_coords[0], y1[i] + y_coords[0], x1[i] + x_coords[-1] + 1, y1[i] + y_coords[-1] + 1]
 
-        # Create new box
-        new_box = boxes[i].copy()
-        new_box[0] = x1[i] + x_coords[0]  # x_min
-        new_box[1] = y1[i] + y_coords[0]  # y_min
-        new_box[2] = x1[i] + x_coords[-1] + 1  # x_max
-        new_box[3] = y1[i] + y_coords[-1] + 1  # y_max
-
-        new_boxes.append(new_box)
-
-    return np.array(new_boxes)
+    return new_boxes
 
 
 def filter_bboxes_by_holes(
