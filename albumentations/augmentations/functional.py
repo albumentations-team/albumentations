@@ -29,7 +29,6 @@ from albucore import (
     power,
     preserve_channel_dim,
     sz_lut,
-    to_float,
     uint8_io,
 )
 
@@ -1434,20 +1433,14 @@ def grayscale_to_multichannel(
 
 
 @preserve_channel_dim
+@uint8_io
 def downscale(
     img: np.ndarray,
     scale: float,
-    down_interpolation: int = cv2.INTER_AREA,
-    up_interpolation: int = cv2.INTER_LINEAR,
+    down_interpolation: int,
+    up_interpolation: int,
 ) -> np.ndarray:
     height, width = img.shape[:2]
-
-    need_cast = (
-        up_interpolation != cv2.INTER_NEAREST or down_interpolation != cv2.INTER_NEAREST
-    ) and img.dtype == np.uint8
-
-    if need_cast:
-        img = to_float(img)
 
     downscaled = cv2.resize(
         img,
@@ -1456,9 +1449,7 @@ def downscale(
         fy=scale,
         interpolation=down_interpolation,
     )
-    upscaled = cv2.resize(downscaled, (width, height), interpolation=up_interpolation)
-
-    return from_float(upscaled, target_dtype=np.uint8) if need_cast else upscaled
+    return cv2.resize(downscaled, (width, height), interpolation=up_interpolation)
 
 
 def noop(input_obj: Any, **params: Any) -> Any:

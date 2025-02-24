@@ -35,7 +35,7 @@ from pydantic import (
     model_validator,
 )
 from scipy import special
-from typing_extensions import Literal, Self, TypedDict
+from typing_extensions import Literal, Self
 
 import albumentations.augmentations.dropout.functional as fdropout
 import albumentations.augmentations.geometric.functional as fgeometric
@@ -3053,11 +3053,6 @@ class FromFloat(ImageOnlyTransform):
         return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
-class InterpolationDict(TypedDict):
-    upscale: int
-    downscale: int
-
-
 class InterpolationPydantic(BaseModel):
     upscale: Literal[
         cv2.INTER_NEAREST,
@@ -3095,7 +3090,15 @@ class Downscale(ImageOnlyTransform):
             Lower values result in more aggressive downscaling.
             Default: (0.25, 0.25)
 
-        interpolation_pair (InterpolationDict): A dictionary specifying the interpolation methods to use for
+        interpolation_pair (dict[Literal["downscale", "upscale"],
+                                Literal[ cv2.INTER_NEAREST,
+                                        cv2.INTER_NEAREST_EXACT,
+                                        cv2.INTER_LINEAR,
+                                        cv2.INTER_CUBIC,
+                                        cv2.INTER_AREA,
+                                        cv2.INTER_LANCZOS4,
+                                        cv2.INTER_LINEAR_EXACT,
+                                    ]]): A dictionary specifying the interpolation methods to use for
             downscaling and upscaling. Should contain two keys:
             - 'downscale': Interpolation method for downscaling
             - 'upscale': Interpolation method for upscaling
@@ -3133,8 +3136,18 @@ class Downscale(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        interpolation_pair: InterpolationPydantic
-
+        interpolation_pair: dict[
+            Literal["downscale", "upscale"],
+            Literal[
+                cv2.INTER_NEAREST,
+                cv2.INTER_NEAREST_EXACT,
+                cv2.INTER_LINEAR,
+                cv2.INTER_CUBIC,
+                cv2.INTER_AREA,
+                cv2.INTER_LANCZOS4,
+                cv2.INTER_LINEAR_EXACT,
+            ],
+        ]
         scale_range: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, 1)),
@@ -3144,9 +3157,18 @@ class Downscale(ImageOnlyTransform):
     def __init__(
         self,
         scale_range: tuple[float, float] = (0.25, 0.25),
-        interpolation_pair: InterpolationDict = InterpolationDict(
-            {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
-        ),
+        interpolation_pair: dict[
+            Literal["downscale", "upscale"],
+            Literal[
+                cv2.INTER_NEAREST,
+                cv2.INTER_NEAREST_EXACT,
+                cv2.INTER_LINEAR,
+                cv2.INTER_CUBIC,
+                cv2.INTER_AREA,
+                cv2.INTER_LANCZOS4,
+                cv2.INTER_LINEAR_EXACT,
+            ],
+        ] = {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
         p: float = 0.5,
     ):
         super().__init__(p=p)

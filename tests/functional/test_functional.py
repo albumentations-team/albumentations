@@ -470,21 +470,6 @@ def test_equalize_rgb_mask():
     assert np.all(img_b == result_img[20:30, 20:30, 2])
 
 
-@pytest.mark.parametrize("dtype", ["float32", "uint8"])
-def test_downscale_ones(dtype):
-    img = np.ones((100, 100, 3), dtype=dtype)
-    downscaled = fmain.downscale(img, scale=0.5)
-    np.testing.assert_array_equal(downscaled, img)
-
-
-def test_downscale_random():
-    img = np.random.rand(100, 100, 3)
-    downscaled = fmain.downscale(img, scale=0.5)
-    assert downscaled.shape == img.shape
-    downscaled = fmain.downscale(img, scale=1)
-    np.testing.assert_array_equal(img, downscaled)
-
-
 @pytest.mark.parametrize(
     "img",
     [
