@@ -7,7 +7,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore import hflip, is_grayscale_image, is_rgb_image, vflip
+from albucore import batch_transform, hflip, is_grayscale_image, is_rgb_image, vflip
 from pydantic import (
     AfterValidator,
     Field,
@@ -24,8 +24,6 @@ from albumentations.core.bbox_utils import (
     normalize_bboxes,
 )
 from albumentations.core.pydantic import (
-    BorderModeType,
-    InterpolationType,
     NonNegativeFloatRangeType,
     SymmetricRangeType,
     check_range_bounds,
@@ -37,12 +35,6 @@ from albumentations.core.transforms_interface import (
 from albumentations.core.type_definitions import (
     ALL_TARGETS,
     BIG_INTEGER,
-    ColorType,
-    D4Type,
-    PositionType,
-    ScaleFloatType,
-    ScaleIntType,
-    ScaleType,
     d4_group_elements,
 )
 from albumentations.core.utils import to_tuple
@@ -63,6 +55,7 @@ __all__ = [
     "PiecewiseAffine",
     "RandomGridShuffle",
     "ShiftScaleRotate",
+    "SquareSymmetry",
     "ThinPlateSpline",
     "Transpose",
     "VerticalFlip",
@@ -85,6 +78,11 @@ class BaseDistortion(DualTransform):
             cv2.INTER_CUBIC).
         mask_interpolation (int): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
         p (float): Probability of applying the transform.
 
     Targets:
@@ -117,18 +115,39 @@ class BaseDistortion(DualTransform):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
-        interpolation: int,
-        mask_interpolation: int,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ],
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ],
+        keypoint_remapping_method: Literal["direct", "mask"],
         p: float,
     ):
         super().__init__(p=p)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
+        self.keypoint_remapping_method = keypoint_remapping_method
 
     def apply(
         self,
@@ -145,6 +164,22 @@ class BaseDistortion(DualTransform):
             cv2.BORDER_CONSTANT,
             0,
         )
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, **params)
 
     def apply_to_mask(
         self,
@@ -186,10 +221,12 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
+        if self.keypoint_remapping_method == "direct":
+            return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
+        return fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "interpolation", "mask_interpolation"
+        return "interpolation", "mask_interpolation", "keypoint_remapping_method"
 
 
 class ElasticTransform(BaseDistortion):
@@ -222,6 +259,11 @@ class ElasticTransform(BaseDistortion):
             "gaussian" generates fields using normal distribution (more natural deformations).
             "uniform" generates fields using uniform distribution (more mechanical deformations).
             Default: "gaussian".
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
 
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -258,21 +300,36 @@ class ElasticTransform(BaseDistortion):
         approximate: bool
         same_dxdy: bool
         noise_distribution: Literal["gaussian", "uniform"]
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
         alpha: float = 1,
         sigma: float = 50,
-        interpolation: int = cv2.INTER_LINEAR,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
         approximate: bool = False,
         same_dxdy: bool = False,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
         noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.alpha = alpha
@@ -300,11 +357,13 @@ class ElasticTransform(BaseDistortion):
             noise_distribution=self.noise_distribution,
         )
 
-        x, y = np.meshgrid(np.arange(width), np.arange(height))
-        map_x = np.float32(x + dx)
-        map_y = np.float32(y + dy)
-
-        return {"map_x": map_x, "map_y": map_y}
+        # Vectorized map generation
+        coords = np.stack(np.meshgrid(np.arange(width), np.arange(height)))
+        maps = coords + np.stack([dx, dy])
+        return {
+            "map_x": maps[0].astype(np.float32),
+            "map_y": maps[1].astype(np.float32),
+        }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
@@ -330,9 +389,9 @@ class Perspective(DualTransform):
             Default: True.
         border_mode (OpenCV flag): OpenCV border mode used for padding.
             Default: cv2.BORDER_CONSTANT.
-        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill (tuple[float, ...] | float): Padding value if border_mode is cv2.BORDER_CONSTANT.
             Default: 0.
-        fill_mask (ColorType): Padding value for mask if border_mode is
+        fill_mask (tuple[float, ...] | float): Padding value for mask if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
         fit_output (bool): If True, the image plane size and position will be adjusted to still capture
             the whole image after perspective transformation. This is followed by image resizing if keep_size is set
@@ -379,22 +438,58 @@ class Perspective(DualTransform):
         scale: NonNegativeFloatRangeType
         keep_size: bool
         fit_output: bool
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
-        fill: ColorType
-        fill_mask: ColorType
-        border_mode: BorderModeType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
 
     def __init__(
         self,
-        scale: ScaleFloatType = (0.05, 0.1),
+        scale: tuple[float, float] | float = (0.05, 0.1),
         keep_size: bool = True,
         fit_output: bool = False,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
-        border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
         super().__init__(p)
@@ -425,6 +520,22 @@ class Perspective(DualTransform):
             self.keep_size,
             self.interpolation,
         )
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, **params)
 
     def apply_to_mask(
         self,
@@ -595,11 +706,11 @@ class Affine(DualTransform):
                   *independently* per axis, resulting in samples that differ between the axes.
         interpolation (int): OpenCV interpolation flag.
         mask_interpolation (int): OpenCV interpolation flag.
-        fill (ColorType): The constant value to use when filling in newly created pixels.
+        fill (tuple[float, ...] | float): The constant value to use when filling in newly created pixels.
             (E.g. translating by 1px to the right will create a new 1px-wide column of pixels
             on the left of the image).
             The value is only used when `mode=constant`. The expected value range is ``[0, 255]`` for ``uint8`` images.
-        fill_mask (ColorType): Same as fill but only for masks.
+        fill_mask (tuple[float, ...] | float): Same as fill but only for masks.
         border_mode (int): OpenCV border flag.
         fit_output (bool): If True, the image plane size and position will be adjusted to tightly capture
             the whole image after affine transformation (`translate_percent` and `translate_px` are ignored).
@@ -635,17 +746,35 @@ class Affine(DualTransform):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        scale: ScaleFloatType | fgeometric.XYFloatScale
-        translate_percent: ScaleFloatType | fgeometric.XYFloatScale | None
-        translate_px: ScaleIntType | fgeometric.XYIntScale | None
-        rotate: ScaleFloatType
-        shear: ScaleFloatType | fgeometric.XYFloatScale
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        scale: tuple[float, float] | float | dict[str, float | tuple[float, float]]
+        translate_percent: tuple[float, float] | float | dict[str, float | tuple[float, float]] | None
+        translate_px: tuple[float, float] | float | dict[str, float | tuple[float, float]] | None
+        rotate: tuple[float, float] | float
+        shear: tuple[float, float] | float | dict[str, float | tuple[float, float]]
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
 
-        fill: ColorType
-        fill_mask: ColorType
-        border_mode: BorderModeType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
 
         fit_output: bool
         keep_ratio: bool
@@ -656,19 +785,16 @@ class Affine(DualTransform):
         @classmethod
         def process_shear(
             cls,
-            value: ScaleFloatType | fgeometric.XYFloatScale,
+            value: tuple[float, float] | float | dict[str, float | tuple[float, float]],
             info: ValidationInfo,
-        ) -> fgeometric.XYFloatDict:
-            return cast(
-                fgeometric.XYFloatDict,
-                cls._handle_dict_arg(value, info.field_name),
-            )
+        ) -> dict[str, tuple[float, float]]:
+            return cls._handle_dict_arg(value, info.field_name)
 
         @field_validator("rotate")
         @classmethod
         def process_rotate(
             cls,
-            value: ScaleFloatType,
+            value: tuple[float, float] | float,
         ) -> tuple[float, float]:
             return to_tuple(value, value)
 
@@ -699,10 +825,16 @@ class Affine(DualTransform):
 
         @staticmethod
         def _handle_dict_arg(
-            val: ScaleType | fgeometric.XYFloatScale | fgeometric.XYIntScale,
+            val: tuple[float, float]
+            | dict[str, float | tuple[float, float]]
+            | float
+            | tuple[int, int]
+            | dict[str, int | tuple[int, int]],
             name: str | None,
             default: float = 1.0,
-        ) -> dict[str, Any]:
+        ) -> dict[str, tuple[float, float]]:
+            if isinstance(val, float):
+                return {"x": (val, val), "y": (val, val)}
             if isinstance(val, dict):
                 if "x" not in val and "y" not in val:
                     raise ValueError(
@@ -710,25 +842,43 @@ class Affine(DualTransform):
                     )
                 x = val.get("x", default)
                 y = val.get("y", default)
-                return {"x": to_tuple(x, x), "y": to_tuple(y, y)}  # type: ignore[arg-type]
+                return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
             return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
     def __init__(
         self,
-        scale: ScaleFloatType | fgeometric.XYFloatScale = 1,
-        translate_percent: ScaleFloatType | fgeometric.XYFloatScale | None = None,
-        translate_px: ScaleIntType | fgeometric.XYIntScale | None = None,
-        rotate: ScaleFloatType = 0,
-        shear: ScaleFloatType | fgeometric.XYFloatScale = 0,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        scale: tuple[float, float] | float | dict[str, float | tuple[float, float]] = (1.0, 1.0),
+        translate_percent: tuple[float, float] | float | dict[str, float | tuple[float, float]] | None = None,
+        translate_px: tuple[int, int] | int | dict[str, int | tuple[int, int]] | None = None,
+        rotate: tuple[float, float] | float = 0.0,
+        shear: tuple[float, float] | float | dict[str, float | tuple[float, float]] = (0.0, 0.0),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
         fit_output: bool = False,
         keep_ratio: bool = False,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         balanced_scale: bool = False,
-        border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -738,12 +888,12 @@ class Affine(DualTransform):
         self.fill = fill
         self.fill_mask = fill_mask
         self.border_mode = border_mode
-        self.scale = cast(fgeometric.XYFloatDict, scale)
-        self.translate_percent = cast(fgeometric.XYFloatDict, translate_percent)
-        self.translate_px = cast(fgeometric.XYIntDict, translate_px)
+        self.scale = cast(dict[str, tuple[float, float]], scale)
+        self.translate_percent = cast(dict[str, tuple[float, float]], translate_percent)
+        self.translate_px = cast(dict[str, tuple[int, int]], translate_px)
         self.rotate = cast(tuple[float, float], rotate)
         self.fit_output = fit_output
-        self.shear = cast(fgeometric.XYFloatDict, shear)
+        self.shear = cast(dict[str, tuple[float, float]], shear)
         self.keep_ratio = keep_ratio
         self.rotate_method = rotate_method
         self.balanced_scale = balanced_scale
@@ -823,7 +973,7 @@ class Affine(DualTransform):
         self,
         keypoints: np.ndarray,
         matrix: np.ndarray,
-        scale: fgeometric.XYFloat,
+        scale: dict[str, float],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.keypoints_affine(
@@ -834,13 +984,29 @@ class Affine(DualTransform):
             self.border_mode,
         )
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply_to_mask(mask3d, **params)
+
     @staticmethod
     def get_scale(
-        scale: fgeometric.XYFloatDict,
+        scale: dict[str, tuple[float, float]],
         keep_ratio: bool,
         balanced_scale: bool,
         random_state: random.Random,
-    ) -> fgeometric.XYFloat:
+    ) -> dict[str, float]:
         result_scale = {}
         for key, value in scale.items():
             if isinstance(value, (int, float)):
@@ -873,7 +1039,7 @@ class Affine(DualTransform):
         if keep_ratio:
             result_scale["y"] = result_scale["x"]
 
-        return cast(fgeometric.XYFloat, result_scale)
+        return result_scale
 
     def get_params_dependent_on_data(
         self,
@@ -930,22 +1096,22 @@ class Affine(DualTransform):
             "output_shape": output_shape,
         }
 
-    def _get_translate_params(self, image_shape: tuple[int, int]) -> fgeometric.XYInt:
+    def _get_translate_params(self, image_shape: tuple[int, int]) -> dict[str, int]:
         height, width = image_shape[:2]
         if self.translate_px is not None:
             return {
-                "x": self.py_random.randint(*self.translate_px["x"]),
-                "y": self.py_random.randint(*self.translate_px["y"]),
+                "x": self.py_random.randint(int(self.translate_px["x"][0]), int(self.translate_px["x"][1])),
+                "y": self.py_random.randint(int(self.translate_px["y"][0]), int(self.translate_px["y"][1])),
             }
         if self.translate_percent is not None:
             translate = {key: self.py_random.uniform(*value) for key, value in self.translate_percent.items()}
             return cast(
-                fgeometric.XYInt,
+                dict[str, int],
                 {"x": int(translate["x"] * width), "y": int(translate["y"] * height)},
             )
-        return cast(fgeometric.XYInt, {"x": 0, "y": 0})
+        return cast(dict[str, int], {"x": 0, "y": 0})
 
-    def _get_shear_params(self) -> fgeometric.XYFloat:
+    def _get_shear_params(self) -> dict[str, float]:
         return {
             "x": -self.py_random.uniform(*self.shear["x"]),
             "y": -self.py_random.uniform(*self.shear["y"]),
@@ -971,8 +1137,8 @@ class ShiftScaleRotate(Affine):
         border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_CONSTANT
-        fill (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT.
-        fill_mask (ColorType): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        fill (tuple[float, ...] | float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill_mask (tuple[float, ...] | float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         shift_limit_x ((float, float) or float): shift factor range for width. If it is set then this value
             instead of shift_limit will be used for shifting width.  If shift_limit_x is a single float value,
             the range will be (-shift_limit_x, shift_limit_x). Absolute values for lower and upper bounds should lie in
@@ -1002,16 +1168,35 @@ class ShiftScaleRotate(Affine):
         shift_limit: SymmetricRangeType
         scale_limit: SymmetricRangeType
         rotate_limit: SymmetricRangeType
-        interpolation: InterpolationType
-        border_mode: BorderModeType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
 
-        fill: ColorType = 0
-        fill_mask: ColorType = 0
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
 
-        shift_limit_x: ScaleFloatType | None
-        shift_limit_y: ScaleFloatType | None
+        fill: tuple[float, ...] | float = 0
+        fill_mask: tuple[float, ...] | float = 0
+
+        shift_limit_x: tuple[float, float] | float | None
+        shift_limit_y: tuple[float, float] | float | None
         rotate_method: Literal["largest_box", "ellipse"]
-        mask_interpolation: InterpolationType
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
 
         @model_validator(mode="after")
         def check_shift_limit(self) -> Self:
@@ -1031,9 +1216,9 @@ class ShiftScaleRotate(Affine):
         @classmethod
         def check_scale_limit(
             cls,
-            value: ScaleFloatType,
+            value: tuple[float, float] | float,
             info: ValidationInfo,
-        ) -> ScaleFloatType:
+        ) -> tuple[float, float]:
             bounds = 0, float("inf")
             result = to_tuple(value, bias=1.0)
             check_range(result, *bounds, str(info.field_name))
@@ -1041,17 +1226,29 @@ class ShiftScaleRotate(Affine):
 
     def __init__(
         self,
-        shift_limit: ScaleFloatType = (-0.0625, 0.0625),
-        scale_limit: ScaleFloatType = (-0.1, 0.1),
-        rotate_limit: ScaleFloatType = (-45, 45),
-        interpolation: int = cv2.INTER_LINEAR,
+        shift_limit: tuple[float, float] | float = (-0.0625, 0.0625),
+        scale_limit: tuple[float, float] | float = (-0.1, 0.1),
+        rotate_limit: tuple[float, float] | float = (-45, 45),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_CONSTANT,
-        shift_limit_x: ScaleFloatType | None = None,
-        shift_limit_y: ScaleFloatType | None = None,
+        shift_limit_x: tuple[float, float] | float | None = None,
+        shift_limit_y: tuple[float, float] | float | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
-        mask_interpolation: InterpolationType = cv2.INTER_NEAREST,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
         shift_limit_x = cast(tuple[float, float], shift_limit_x)
@@ -1131,6 +1328,11 @@ class PiecewiseAffine(BaseDistortion):
         absolute_scale (bool): If set to True, the value of the scale parameter will be treated as an absolute
             pixel value. If set to False, it will be treated as a fraction of the image height and width.
             Default: False.
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1158,19 +1360,32 @@ class PiecewiseAffine(BaseDistortion):
 
     class InitSchema(BaseTransformInitSchema):
         scale: NonNegativeFloatRangeType
-        nb_rows: ScaleIntType
-        nb_cols: ScaleIntType
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        nb_rows: tuple[int, int] | int
+        nb_cols: tuple[int, int] | int
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
         absolute_scale: bool
+        keypoint_remapping_method: Literal["direct", "mask"]
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
         def process_range(
             cls,
-            value: ScaleFloatType,
+            value: tuple[int, int] | int,
             info: ValidationInfo,
-        ) -> tuple[float, float]:
+        ) -> tuple[int, int]:
             bounds = 2, BIG_INTEGER
             result = to_tuple(value, value)
             check_range(result, *bounds, info.field_name)
@@ -1178,18 +1393,32 @@ class PiecewiseAffine(BaseDistortion):
 
     def __init__(
         self,
-        scale: ScaleFloatType = (0.03, 0.05),
-        nb_rows: ScaleIntType = (4, 4),
-        nb_cols: ScaleIntType = (4, 4),
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        scale: tuple[float, float] | float = (0.03, 0.05),
+        nb_rows: tuple[int, int] | int = (4, 4),
+        nb_cols: tuple[int, int] | int = (4, 4),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
         absolute_scale: bool = False,
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             p=p,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
         )
 
         warn(
@@ -1209,9 +1438,8 @@ class PiecewiseAffine(BaseDistortion):
             "scale",
             "nb_rows",
             "nb_cols",
-            "interpolation",
-            "mask_interpolation",
             "absolute_scale",
+            *super().get_transform_init_args_names(),
         )
 
     def get_params_dependent_on_data(
@@ -1294,6 +1522,22 @@ class VerticalFlip(DualTransform):
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_vflip(keypoints, params["shape"][0])
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
+
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
@@ -1322,6 +1566,22 @@ class HorizontalFlip(DualTransform):
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_hflip(keypoints, params["shape"][1])
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1421,6 +1681,12 @@ class OpticalDistortion(BaseDistortion):
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
 
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
+
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1452,18 +1718,33 @@ class OpticalDistortion(BaseDistortion):
     class InitSchema(BaseDistortion.InitSchema):
         distort_limit: SymmetricRangeType
         mode: Literal["camera", "fisheye"]
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
-        distort_limit: ScaleFloatType = (-0.05, 0.05),
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        distort_limit: tuple[float, float] | float = (-0.05, 0.05),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
         mode: Literal["camera", "fisheye"] = "camera",
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.distort_limit = cast(tuple[float, float], distort_limit)
@@ -1479,21 +1760,16 @@ class OpticalDistortion(BaseDistortion):
         # Get distortion coefficient
         k = self.py_random.uniform(*self.distort_limit)
 
-        # Calculate center shift
-        center_xy = fgeometric.center(image_shape)
-
         # Get distortion maps based on mode
         if self.mode == "camera":
             map_x, map_y = fgeometric.get_camera_matrix_distortion_maps(
                 image_shape,
                 k,
-                center_xy,
             )
         else:  # fisheye
             map_x, map_y = fgeometric.get_fisheye_distortion_maps(
                 image_shape,
                 k,
-                center_xy,
             )
 
         return {"map_x": map_x, "map_y": map_y}
@@ -1529,6 +1805,11 @@ class GridDistortion(BaseDistortion):
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1560,6 +1841,7 @@ class GridDistortion(BaseDistortion):
         num_steps: Annotated[int, Field(ge=1)]
         distort_limit: SymmetricRangeType
         normalized: bool
+        keypoint_remapping_method: Literal["direct", "mask"]
 
         @field_validator("distort_limit")
         @classmethod
@@ -1576,15 +1858,29 @@ class GridDistortion(BaseDistortion):
     def __init__(
         self,
         num_steps: int = 5,
-        distort_limit: ScaleFloatType = (-0.3, 0.3),
-        interpolation: int = cv2.INTER_LINEAR,
+        distort_limit: tuple[float, float] | float = (-0.3, 0.3),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
         normalized: bool = True,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.num_steps = num_steps
@@ -1692,7 +1988,7 @@ class D4(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        group_element: D4Type,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.d4(img, group_element)
@@ -1700,7 +1996,7 @@ class D4(DualTransform):
     def apply_to_bboxes(
         self,
         bboxes: np.ndarray,
-        group_element: D4Type,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.bboxes_d4(bboxes, group_element)
@@ -1708,12 +2004,28 @@ class D4(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        group_element: D4Type,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.keypoints_d4(keypoints, group_element, params["shape"])
 
-    def get_params(self) -> dict[str, D4Type]:
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
+
+    def get_params(self) -> dict[str, Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]]:
         return {
             "group_element": self.random_generator.choice(d4_group_elements),
         }
@@ -1764,15 +2076,39 @@ class GridElasticDeform(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
         magnitude: int = Field(gt=0)
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ]
 
     def __init__(
         self,
         num_grid_xy: tuple[int, int],
         magnitude: int,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -1988,6 +2324,22 @@ class RandomGridShuffle(DualTransform):
     ) -> np.ndarray:
         return fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(mask3d, **params)
+
     def get_params_dependent_on_data(
         self,
         params: dict[str, Any],
@@ -2020,8 +2372,8 @@ class Pad(DualTransform):
             * int - pad all sides by this value
             * tuple[int, int] - (pad_x, pad_y) to pad left/right by pad_x and top/bottom by pad_y
             * tuple[int, int, int, int] - (left, top, right, bottom) specific padding per side
-        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT
-        fill_mask (ColorType): Padding value for mask if border_mode is cv2.BORDER_CONSTANT
+        fill (tuple[float, ...] | float): Padding value if border_mode is cv2.BORDER_CONSTANT
+        fill_mask (tuple[float, ...] | float): Padding value for mask if border_mode is cv2.BORDER_CONSTANT
         border_mode (OpenCV flag): OpenCV border mode
         p (float): probability of applying the transform. Default: 1.0.
 
@@ -2039,16 +2391,28 @@ class Pad(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         padding: int | tuple[int, int] | tuple[int, int, int, int]
-        fill: ColorType
-        fill_mask: ColorType
-        border_mode: BorderModeType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
 
     def __init__(
         self,
         padding: int | tuple[int, int] | tuple[int, int, int, int] = 0,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
-        border_mode: BorderModeType = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -2198,9 +2562,9 @@ class PadIfNeeded(Pad):
             Position where the image is to be placed after padding. Default is 'center'.
         border_mode (int): Specifies the border mode to use if padding is required.
             The default is `cv2.BORDER_CONSTANT`.
-        fill (ColorType | None): Value to fill the border pixels if the border mode is `cv2.BORDER_CONSTANT`.
-            Default is None.
-        fill_mask (ColorType | None): Similar to `fill` but used for padding masks. Default is None.
+        fill (tuple[float, ...] | float | None): Value to fill the border pixels if the border mode
+            is `cv2.BORDER_CONSTANT`. Default is None.
+        fill_mask (tuple[float, ...] | float | None): Similar to `fill` but used for padding masks. Default is None.
         p (float): Probability of applying the transform. Default is 1.0.
 
     Targets:
@@ -2234,11 +2598,17 @@ class PadIfNeeded(Pad):
         min_width: int | None = Field(ge=1)
         pad_height_divisor: int | None = Field(ge=1)
         pad_width_divisor: int | None = Field(ge=1)
-        position: PositionType
-        border_mode: BorderModeType
+        position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
 
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
         @model_validator(mode="after")
         def validate_divisibility(self) -> Self:
@@ -2261,10 +2631,16 @@ class PadIfNeeded(Pad):
         min_width: int | None = 1024,
         pad_height_divisor: int | None = None,
         pad_width_divisor: int | None = None,
-        position: PositionType = "center",
-        border_mode: int = cv2.BORDER_CONSTANT,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "center",
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         # Initialize with dummy padding that will be calculated later
@@ -2366,6 +2742,12 @@ class ThinPlateSpline(BaseDistortion):
             See also: cv2.INTER_*
             Default: cv2.INTER_NEAREST
 
+        keypoint_remapping_method (Literal["direct", "mask"]): Method to use for keypoint remapping.
+            - "mask": Uses mask-based remapping. Faster, especially for many keypoints, but may be
+              less accurate for large distortions. Recommended for large images or many keypoints.
+            - "direct": Uses inverse mapping. More accurate for large distortions but slower.
+            Default: "mask"
+
         p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
@@ -2417,18 +2799,33 @@ class ThinPlateSpline(BaseDistortion):
     class InitSchema(BaseDistortion.InitSchema):
         scale_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
         num_control_points: int = Field(ge=2)
+        keypoint_remapping_method: Literal["direct", "mask"]
 
     def __init__(
         self,
         scale_range: tuple[float, float] = (0.2, 0.4),
         num_control_points: int = 4,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
+        keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            keypoint_remapping_method=keypoint_remapping_method,
             p=p,
         )
         self.scale_range = scale_range
@@ -2441,11 +2838,7 @@ class ThinPlateSpline(BaseDistortion):
     ) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
-        # Create regular grid of control points
-        grid_size = self.num_control_points
-        x = np.linspace(0, 1, grid_size)
-        y = np.linspace(0, 1, grid_size)
-        src_points = np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)
+        src_points = fgeometric.generate_control_points(self.num_control_points)
 
         # Add random displacement to destination points
         scale = self.py_random.uniform(*self.scale_range) / 10
@@ -2482,3 +2875,7 @@ class ThinPlateSpline(BaseDistortion):
             "num_control_points",
             *super().get_transform_init_args_names(),
         )
+
+
+## Alias for D4 for people who are not familiar with the concept of group of symmetries
+SquareSymmetry = D4

@@ -8,20 +8,14 @@ from warnings import warn
 import cv2
 import numpy as np
 from albucore import batch_transform
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from albumentations.core.bbox_utils import BboxProcessor
 from albumentations.core.keypoints_utils import KeypointsProcessor
-from albumentations.core.pydantic import ProbabilityType
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
-from .type_definitions import (
-    ALL_TARGETS,
-    ColorType,
-    DropoutFillValue,
-    Targets,
-)
+from .type_definitions import ALL_TARGETS, Targets
 from .utils import ensure_contiguous_output, format_args
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "Transform3D"]
@@ -35,7 +29,8 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    p: ProbabilityType
+    p: float = Field(ge=0, le=1)
+    strict: bool = False
 
 
 class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
@@ -51,8 +46,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
-    fill: DropoutFillValue
-    fill_mask: ColorType | None
+    fill: tuple[float, ...] | float
+    fill_mask: tuple[float, ...] | float | None
     # replay mode params
     deterministic: bool = False
     save_key = "replay"
@@ -65,7 +60,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def __init__(self, p: float = 0.5):
         self.p = p
         self._additional_targets: dict[str, str] = {}
-        # replay mode params
         self.params: dict[Any, Any] = {}
         self._key2func = {}
         self._set_keys()
@@ -73,6 +67,38 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.seed: int | None = None
         self.random_generator = np.random.default_rng(self.seed)
         self.py_random = random.Random(self.seed)
+        self._strict = False  # Use private attribute
+        self.invalid_args: list[str] = []  # Store invalid args found during init
+
+    @property
+    def strict(self) -> bool:
+        return self._strict
+
+    @strict.setter
+    def strict(self, value: bool) -> None:
+        """Set strict mode and validate for invalid arguments if enabled."""
+        if value == self._strict:
+            return  # No change needed
+
+        # Only validate if strict is being set to True and we have stored init args
+        if value and hasattr(self, "_init_args"):
+            # Get the list of valid arguments for this transform
+            valid_args = {"p", "strict"}  # Base valid args
+            if hasattr(self, "InitSchema"):
+                valid_args.update(self.InitSchema.model_fields.keys())
+
+            # Check for invalid arguments
+            invalid_args = [name_arg for name_arg in self._init_args if name_arg not in valid_args]
+
+            if invalid_args:
+                message = (
+                    f"Argument(s) '{', '.join(invalid_args)}' are not valid for transform {self.__class__.__name__}"
+                )
+                if value:  # In strict mode
+                    raise ValueError(message)
+                warn(message, stacklevel=2)
+
+        self._strict = value
 
     def set_random_state(
         self,
@@ -349,9 +375,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return args
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Returns a dictionary representation of the transform, excluding internal parameters."""
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
+        # Remove strict from serialization
+        state.pop("strict", None)
         return state
 
 

@@ -6,9 +6,9 @@ requires = [ "setuptools>=45", "wheel" ]
 [project]
 name = "albumentations"
 
-version = "2.0.0"
+version = "2.0.5"
 
-description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks) data, with optimized performance and seamless integration into ML workflows."
+description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks, keypoints) data, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
 keywords = [
   "2D augmentation",
@@ -201,6 +201,7 @@ lint.ignore = [
   "ANN401",
   "ARG001",
   "ARG002",
+  "B006",
   "B008",
   "B027",
   "D100",
@@ -253,6 +254,7 @@ warn_unused_ignores = true
 disallow_any_generics = true
 check_untyped_defs = true
 no_implicit_reexport = true
+disable_error_code = [ "valid-type" ]
 
 # for strict mypy: (this is the tricky one :-))
 disallow_untyped_defs = true

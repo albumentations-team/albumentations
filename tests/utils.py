@@ -11,11 +11,6 @@ import albumentations
 from tests.aug_definitions import AUGMENTATION_CLS_PARAMS
 
 
-def set_seed(seed: int = 0):
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def convert_2d_to_3d(arrays, num_channels=3):
     # Converts a 2D numpy array with shape (H, W) into a 3D array with shape (H, W, num_channels)
     # by repeating the existing values along the new axis.
@@ -69,12 +64,25 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-@functools.lru_cache(maxsize=None)
-def get_all_valid_transforms():
+def get_all_valid_transforms(use_cache=False):
     """
     Find all transforms that are children of BasicTransform or BaseCompose,
     and do not have DeprecationWarning or FutureWarning.
+
+    Args:
+        use_cache (bool): Whether to cache the results using lru_cache. Default: False
     """
+    if use_cache:
+        return _get_all_valid_transforms_cached()
+    return _get_all_valid_transforms()
+
+
+@functools.lru_cache(maxsize=None)
+def _get_all_valid_transforms_cached():
+    return _get_all_valid_transforms()
+
+
+def _get_all_valid_transforms():
     valid_transforms = []
     for _, cls in inspect.getmembers(albumentations):
         if not inspect.isclass(cls) or not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):

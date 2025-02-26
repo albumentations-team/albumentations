@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 from pydantic import model_validator
@@ -9,7 +9,6 @@ from typing_extensions import Self
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema
-from albumentations.core.type_definitions import ColorType, DropoutFillValue, ScaleIntType
 
 __all__ = ["XYMasking"]
 
@@ -36,7 +35,7 @@ class XYMasking(BaseDropout):
             while a tuple (min, max) allows for variable-height masks, chosen randomly
             within the specified range for each mask. This flexibility facilitates creating masks of various
             sizes in the vertical direction.
-        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, float] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value for the dropped pixels. Can be:
             - int or float: all channels are filled with this value
             - tuple: tuple of values for each channel
@@ -45,7 +44,7 @@ class XYMasking(BaseDropout):
             - 'inpaint_telea': uses OpenCV Telea inpainting method
             - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        fill_mask (ColorType | None): Fill value for dropout regions in the mask.
+        fill_mask (tuple[float, float] | float | None): Fill value for dropout regions in the mask.
             If None, mask regions corresponding to image dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Defaults to 0.5.
 
@@ -64,8 +63,8 @@ class XYMasking(BaseDropout):
         mask_x_length: NonNegativeIntRangeType
         mask_y_length: NonNegativeIntRangeType
 
-        fill: DropoutFillValue
-        fill_mask: ColorType | None
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]
+        fill_mask: tuple[float, ...] | float | None
 
         @model_validator(mode="after")
         def check_mask_length(self) -> Self:
@@ -82,12 +81,12 @@ class XYMasking(BaseDropout):
 
     def __init__(
         self,
-        num_masks_x: ScaleIntType = 0,
-        num_masks_y: ScaleIntType = 0,
-        mask_x_length: ScaleIntType = 0,
-        mask_y_length: ScaleIntType = 0,
-        fill: DropoutFillValue = 0,
-        fill_mask: ColorType | None = None,
+        num_masks_x: tuple[int, int] | int = 0,
+        num_masks_y: tuple[int, int] | int = 0,
+        mask_x_length: tuple[int, int] | int = 0,
+        mask_y_length: tuple[int, int] | int = 0,
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, fill=fill, fill_mask=fill_mask)

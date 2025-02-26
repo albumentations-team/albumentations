@@ -11,7 +11,6 @@ import albumentations.augmentations.text.functional as ftext
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.type_definitions import ColorType
 
 __all__ = ["TextImage"]
 
@@ -81,7 +80,7 @@ class TextImage(ImageOnlyTransform):
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(0, 1)),
         ]
-        font_color: list[ColorType | str] | ColorType | str
+        font_color: list[tuple[float, ...] | float | str] | tuple[float, ...] | float | str
         clear_bg: bool
         metadata_key: str
 
@@ -92,7 +91,7 @@ class TextImage(ImageOnlyTransform):
         augmentations: tuple[Literal["insertion", "swap", "deletion"] | None] = (None,),
         fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
-        font_color: list[ColorType | str] | ColorType | str = "black",
+        font_color: list[tuple[float, ...] | float | str] | tuple[float, ...] | float | str = "black",
         clear_bg: bool = False,
         metadata_key: str = "textimage_metadata",
         p: float = 0.5,

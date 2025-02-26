@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Literal, Union, cast
 
 import numpy as np
 from pydantic import AfterValidator, field_validator, model_validator
@@ -11,7 +11,7 @@ from albumentations.augmentations.transforms3d import functional as f3d
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, Transform3D
-from albumentations.core.type_definitions import ColorType, Targets
+from albumentations.core.type_definitions import Targets
 
 __all__ = ["CenterCrop3D", "CoarseDropout3D", "CubicSymmetry", "Pad3D", "PadIfNeeded3D", "RandomCrop3D"]
 
@@ -24,13 +24,13 @@ class BasePad3D(Transform3D):
     _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
     class InitSchema(Transform3D.InitSchema):
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(p=p)
@@ -48,7 +48,7 @@ class BasePad3D(Transform3D):
         return f3d.pad_3d_with_params(
             volume=volume,
             padding=padding,
-            value=cast(ColorType, self.fill),
+            value=self.fill,
         )
 
     def apply_to_mask3d(
@@ -62,7 +62,7 @@ class BasePad3D(Transform3D):
         return f3d.pad_3d_with_params(
             volume=mask3d,
             padding=padding,
-            value=cast(ColorType, self.fill_mask),
+            value=cast(Union[tuple[float, ...], float], self.fill_mask),
         )
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
@@ -82,8 +82,8 @@ class Pad3D(BasePad3D):
             * tuple[int, int, int, int, int, int] - explicit padding per side in order:
               (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
 
-        fill (ColorType): Padding value for image
-        fill_mask (ColorType): Padding value for mask
+        fill (tuple[float, ...] | float): Padding value for image
+        fill_mask (tuple[float, ...] | float): Padding value for mask
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -116,8 +116,8 @@ class Pad3D(BasePad3D):
     def __init__(
         self,
         padding: int | tuple[int, int, int] | tuple[int, int, int, int, int, int],
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
@@ -155,8 +155,8 @@ class PadIfNeeded3D(BasePad3D):
             If not specified, min_zyx must be provided.
         position (Literal["center", "random"]): Position where the volume is to be placed after padding.
             Default is 'center'.
-        fill (ColorType): Value to fill the border voxels for volume. Default: 0
-        fill_mask (ColorType): Value to fill the border voxels for masks. Default: 0
+        fill (tuple[float, ...] | float): Value to fill the border voxels for volume. Default: 0
+        fill_mask (tuple[float, ...] | float): Value to fill the border voxels for masks. Default: 0
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
@@ -187,8 +187,8 @@ class PadIfNeeded3D(BasePad3D):
         min_zyx: tuple[int, int, int] | None = None,
         pad_divisor_zyx: tuple[int, int, int] | None = None,
         position: Literal["center", "random"] = "center",
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)
@@ -238,15 +238,15 @@ class BaseCropAndPad3D(Transform3D):
 
     class InitSchema(Transform3D.InitSchema):
         pad_if_needed: bool
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
         pad_position: Literal["center", "random"]
 
     def __init__(
         self,
         pad_if_needed: bool,
-        fill: ColorType,
-        fill_mask: ColorType,
+        fill: tuple[float, ...] | float,
+        fill_mask: tuple[float, ...] | float,
         pad_position: Literal["center", "random"],
         p: float = 1.0,
     ):
@@ -334,7 +334,7 @@ class BaseCropAndPad3D(Transform3D):
             return f3d.pad_3d_with_params(
                 cropped,
                 padding=padding,
-                value=cast(ColorType, self.fill),
+                value=self.fill,
             )
 
         return cropped
@@ -362,7 +362,7 @@ class BaseCropAndPad3D(Transform3D):
             return f3d.pad_3d_with_params(
                 cropped,
                 padding=padding,
-                value=cast(ColorType, self.fill_mask),
+                value=cast(Union[tuple[float, ...], float], self.fill_mask),
             )
 
         return cropped
@@ -406,8 +406,8 @@ class CenterCrop3D(BaseCropAndPad3D):
     Args:
         size (tuple[int, int, int]): Desired output size of the crop in format (depth, height, width)
         pad_if_needed (bool): Whether to pad if the volume is smaller than desired crop size. Default: False
-        fill (ColorType): Padding value for image if pad_if_needed is True. Default: 0
-        fill_mask (ColorType): Padding value for mask if pad_if_needed is True. Default: 0
+        fill (tuple[float, float] | float): Padding value for image if pad_if_needed is True. Default: 0
+        fill_mask (tuple[float, float] | float): Padding value for mask if pad_if_needed is True. Default: 0
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
@@ -425,15 +425,15 @@ class CenterCrop3D(BaseCropAndPad3D):
     class InitSchema(BaseTransformInitSchema):
         size: Annotated[tuple[int, int, int], AfterValidator(check_range_bounds(1, None))]
         pad_if_needed: bool
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
         size: tuple[int, int, int],
         pad_if_needed: bool = False,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(
@@ -503,8 +503,8 @@ class RandomCrop3D(BaseCropAndPad3D):
     Args:
         size (tuple[int, int, int]): Desired output size of the crop in format (depth, height, width)
         pad_if_needed (bool): Whether to pad if the volume is smaller than desired crop size. Default: False
-        fill (ColorType): Padding value for image if pad_if_needed is True. Default: 0
-        fill_mask (ColorType): Padding value for mask if pad_if_needed is True. Default: 0
+        fill (tuple[float, float] | float): Padding value for image if pad_if_needed is True. Default: 0
+        fill_mask (tuple[float, float] | float): Padding value for mask if pad_if_needed is True. Default: 0
         p (float): probability of applying the transform. Default: 1.0
 
     Targets:
@@ -522,15 +522,15 @@ class RandomCrop3D(BaseCropAndPad3D):
     class InitSchema(BaseTransformInitSchema):
         size: Annotated[tuple[int, int, int], AfterValidator(check_range_bounds(1, None))]
         pad_if_needed: bool
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
         size: tuple[int, int, int],
         pad_if_needed: bool = False,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 1.0,
     ):
         super().__init__(
@@ -600,11 +600,11 @@ class CoarseDropout3D(Transform3D):
             of dropout regions as a fraction of the volume height (between 0 and 1). Default: (0.1, 0.2)
         hole_width_range (tuple[float, float]): Range (min, max) for the width
             of dropout regions as a fraction of the volume width (between 0 and 1). Default: (0.1, 0.2)
-        fill (ColorType): Value for the dropped voxels. Can be:
+        fill (tuple[float, float] | float): Value for the dropped voxels. Can be:
             - int or float: all channels are filled with this value
             - tuple: tuple of values for each channel
             Default: 0
-        fill_mask (ColorType | None): Fill value for dropout regions in the 3D mask.
+        fill_mask (tuple[float, float] | float | None): Fill value for dropout regions in the 3D mask.
             If None, mask regions corresponding to volume dropouts are unchanged. Default: None
         p (float): Probability of applying the transform. Default: 0.5
 
@@ -662,8 +662,8 @@ class CoarseDropout3D(Transform3D):
             AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
-        fill: ColorType
-        fill_mask: ColorType | None
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float | None
 
         @staticmethod
         def validate_range(range_value: tuple[float, float], range_name: str) -> None:
@@ -686,8 +686,8 @@ class CoarseDropout3D(Transform3D):
         hole_depth_range: tuple[float, float] = (0.1, 0.2),
         hole_height_range: tuple[float, float] = (0.1, 0.2),
         hole_width_range: tuple[float, float] = (0.1, 0.2),
-        fill: ColorType = 0,
-        fill_mask: ColorType | None = None,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -747,13 +747,13 @@ class CoarseDropout3D(Transform3D):
         if holes.size == 0:
             return volume
 
-        return f3d.cutout3d(volume, holes, cast(ColorType, self.fill))
+        return f3d.cutout3d(volume, holes, self.fill)
 
     def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
         if self.fill_mask is None or holes.size == 0:
             return mask
 
-        return f3d.cutout3d(mask, holes, cast(ColorType, self.fill_mask))
+        return f3d.cutout3d(mask, holes, self.fill_mask)
 
     def apply_to_keypoints(
         self,

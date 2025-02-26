@@ -144,7 +144,7 @@ def test_preprocess_metadata(metadata: dict[str, Any], img_shape: tuple[int, int
     ],
 )
 def test_end_to_end(metadata, expected_output):
-    transform = A.Compose([A.OverlayElements(p=1)])
+    transform = A.Compose([A.OverlayElements(p=1)], strict=True)
 
     img = np.zeros((100, 100, 3), dtype=np.uint8)
 

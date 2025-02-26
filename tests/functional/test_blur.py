@@ -71,11 +71,29 @@ def test_kernel_shapes(sigma, ksize, expected_shape):
     kernel = fblur.create_gaussian_kernel(sigma, ksize)
     assert kernel.shape == expected_shape
 
+@pytest.mark.parametrize(
+    ["sigma", "ksize", "expected_shape"],
+    [
+        (0.5, 0, (3,)),     # Small sigma
+        (1.0, 0, (7,)),     # Medium sigma
+        (2.0, 0, (15,)),   # Large sigma
+        (3.0, 0, (21,)),   # Very large sigma
+        (1.0, 5, (5,)),     # Fixed kernel size
+        (2.0, 7, (7,)),     # Different fixed kernel size
+    ]
+)
+def test_1d_kernel_shapes(sigma, ksize, expected_shape):
+    kernel = fblur.create_gaussian_kernel_1d(sigma, ksize)
+    assert kernel.shape == expected_shape
+
 @pytest.mark.parametrize("sigma", [0.5, 1.0, 2.0, 3.0])
 def test_kernel_normalization(sigma):
     """Test that kernel sums to 1 to preserve luminance"""
     kernel = fblur.create_gaussian_kernel(sigma, 0)
+    kernel_1d = fblur.create_gaussian_kernel_1d(sigma, 0)
+
     np.testing.assert_allclose(kernel.sum(), 1.0, atol=1e-6)
+    np.testing.assert_allclose(kernel_1d.sum(), 1.0, atol=1e-6)
 
 @pytest.mark.parametrize("sigma", [0.5, 1.0, 2.0, 3.0])
 def test_kernel_symmetry(sigma):
@@ -102,6 +120,21 @@ def test_matches_pil_kernel(sigma):
 def test_kernel_peak_values(sigma, ksize, expected_max_value):
     """Test that kernel peak values decrease with increasing sigma"""
     kernel = fblur.create_gaussian_kernel(sigma, ksize)
+
+    assert np.abs(kernel.max() - expected_max_value) < 0.01
+
+@pytest.mark.parametrize(
+    ["sigma", "ksize", "expected_max_value"],
+    [
+        (0.5, 0, 0.786),  # Small sigma has highest peak
+        (2.0, 0, 0.199),  # Larger sigma has lower peak
+        (3.0, 0, 0.133),  # Even larger sigma has even lower peak
+    ]
+)
+def test_1d_kernel_peak_values(sigma, ksize, expected_max_value):
+    """Test that kernel peak values decrease with increasing sigma"""
+    kernel = fblur.create_gaussian_kernel_1d(sigma, ksize)
+
     assert np.abs(kernel.max() - expected_max_value) < 0.01
 
 def test_kernel_visual_comparison():

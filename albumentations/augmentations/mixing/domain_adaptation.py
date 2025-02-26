@@ -9,7 +9,7 @@ from albucore import add_weighted, get_num_channels
 from pydantic import AfterValidator, field_validator
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.domain_adaptation.functional import (
+from albumentations.augmentations.mixing.domain_adaptation_functional import (
     adapt_pixel_distribution,
     apply_histogram,
     fourier_domain_adaptation,
@@ -18,7 +18,6 @@ from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.composition import Compose
 from albumentations.core.pydantic import ZeroOneRangeType, check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, BasicTransform, ImageOnlyTransform
-from albumentations.core.type_definitions import ScaleFloatType
 
 __all__ = [
     "FDA",
@@ -199,7 +198,7 @@ class FDA(ImageOnlyTransform):
     def __init__(
         self,
         reference_images: Sequence[Any],
-        beta_limit: ScaleFloatType = (0, 0.1),
+        beta_limit: tuple[float, float] | float = (0, 0.1),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         p: float = 0.5,
     ):
@@ -458,7 +457,7 @@ class TemplateTransform(ImageOnlyTransform):
     def __init__(
         self,
         templates: np.ndarray | list[np.ndarray],
-        img_weight: ScaleFloatType = (0.5, 0.5),
+        img_weight: tuple[float, float] | float = (0.5, 0.5),
         template_transform: Compose | BasicTransform | None = None,
         name: str | None = None,
         p: float = 0.5,
