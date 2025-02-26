@@ -380,6 +380,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Morphological, {}],
     [A.D4, {}],
+    [A.SquareSymmetry, {}],
     [A.PlanckianJitter, {}],
     [A.OverlayElements, {}],
     [A.RandomCropNearBBox, {}],
