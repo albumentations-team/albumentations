@@ -3027,7 +3027,7 @@ def test_white_pixels_in_mixed_images(image_type, sat_shift):
                     f"White pixel at ({y},{x}) changed color in {image_type} image"
 
     # Non-white pixels should be affected by saturation (except black which has V=0)
-    if image_type == "white_and_color" or image_type == "white_black_color":
+    if image_type in {"white_and_color", "white_black_color"}:
         colored_mask = ~white_mask & ~np.all(image == 0, axis=2)  # Not white and not black
 
         # Convert original and result to HSV to check saturation directly
