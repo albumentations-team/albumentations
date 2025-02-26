@@ -1,5 +1,4 @@
 import re
-import sys
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import setup, find_packages
 
