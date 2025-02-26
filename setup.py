@@ -1,5 +1,5 @@
 import re
-
+import sys
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import setup, find_packages
 
@@ -15,31 +15,44 @@ INSTALL_REQUIRES = [
 
 MIN_OPENCV_VERSION = "4.9.0.80"
 
-CHOOSE_INSTALL_REQUIRES = [
-    (
-        (f"opencv-python>={MIN_OPENCV_VERSION}", f"opencv-contrib-python>={MIN_OPENCV_VERSION}", f"opencv-contrib-python-headless>={MIN_OPENCV_VERSION}"),
-        f"opencv-python-headless>={MIN_OPENCV_VERSION}",
-    ),
+# OpenCV packages in order of preference
+OPENCV_PACKAGES = [
+    f"opencv-python>={MIN_OPENCV_VERSION}",
+    f"opencv-contrib-python>={MIN_OPENCV_VERSION}",
+    f"opencv-contrib-python-headless>={MIN_OPENCV_VERSION}",
+    f"opencv-python-headless>={MIN_OPENCV_VERSION}",
 ]
 
-def choose_requirement(mains: tuple[str, ...], secondary: str) -> str:
-    chosen = secondary
-    for main in mains:
-        try:
-            name = re.split(r"[!<>=]", main)[0]
-            get_distribution(name)
-            chosen = main
-            break
-        except DistributionNotFound:
-            pass
-    return chosen
+def choose_opencv_requirement():
+    """Check if any OpenCV package is already installed and use that one."""
+    # First try to import cv2 to see if any OpenCV is installed
+    try:
+        import cv2
+        print(f"Found existing OpenCV installation: {cv2.__version__}")
 
-def get_install_requirements(install_requires: list[str], choose_install_requires: list[tuple[tuple[str, ...], str]]) -> list[str]:
-    for mains, secondary in choose_install_requires:
-        install_requires.append(choose_requirement(mains, secondary))
-    return install_requires
+        # Try to determine which package provides the installed cv2
+        for package in OPENCV_PACKAGES:
+            package_name = re.split(r"[!<>=]", package)[0].strip()
+            try:
+                get_distribution(package_name)
+                return package
+            except DistributionNotFound:
+                continue
+
+        # If we can import cv2 but can't determine the package,
+        # don't add any OpenCV requirement
+        return None
+
+    except ImportError:
+        # No OpenCV installed, use the headless version as default
+        return f"opencv-python-headless>={MIN_OPENCV_VERSION}"
+
+# Add OpenCV requirement if needed
+opencv_req = choose_opencv_requirement()
+if opencv_req:
+    INSTALL_REQUIRES.append(opencv_req)
 
 setup(
     packages=find_packages(exclude=["tests", "tools", "benchmark"], include=['albumentations*']),
-    install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
+    install_requires=INSTALL_REQUIRES,
 )
