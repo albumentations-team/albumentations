@@ -399,6 +399,7 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.n
           Invalid bounding boxes may result in negative areas.
         - The function preserves the input array and creates a copy for internal calculations.
         - The returned areas are in pixel units, not normalized.
+
     Example:
         >>> bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]])
         >>> image_shape = (100, 100)
