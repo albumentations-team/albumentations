@@ -380,7 +380,6 @@ def denormalize_bboxes(
 
 def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
     """Calculate areas for multiple bounding boxes.
-
     This function computes the areas of bounding boxes given their normalized coordinates
     and the dimensions of the image they belong to. The bounding boxes are expected to be
     in the format [x_min, y_min, x_max, y_max] with normalized coordinates (0 to 1).
@@ -411,11 +410,14 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.n
     if len(bboxes) == 0:
         return np.array([], dtype=np.float32)
 
+    # Unpack shape to variables
     height, width = shape["height"], shape["width"]
-    bboxes_denorm = bboxes.copy()
-    bboxes_denorm[:, [0, 2]] *= width
-    bboxes_denorm[:, [1, 3]] *= height
-    return (bboxes_denorm[:, 2] - bboxes_denorm[:, 0]) * (bboxes_denorm[:, 3] - bboxes_denorm[:, 1])
+
+    # Directly compute denormalized bbox dimensions and areas
+    widths = (bboxes[:, 2] - bboxes[:, 0]) * width
+    heights = (bboxes[:, 3] - bboxes[:, 1]) * height
+
+    return widths * heights
 
 
 @handle_empty_array("bboxes")
