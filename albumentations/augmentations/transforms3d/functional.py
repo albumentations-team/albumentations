@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import random
 from typing import Literal
 
 import numpy as np
 
 from albumentations.augmentations.utils import handle_empty_array
-from albumentations.core.type_definitions import NUM_VOLUME_DIMENSIONS, ColorType
+from albumentations.core.type_definitions import NUM_VOLUME_DIMENSIONS
 
 
 def adjust_padding_by_position3d(
@@ -50,7 +52,7 @@ def adjust_padding_by_position3d(
 def pad_3d_with_params(
     volume: np.ndarray,
     padding: tuple[int, int, int, int, int, int],
-    value: ColorType,
+    value: tuple[float, ...] | float,
 ) -> np.ndarray:
     """Pad 3D volume with given parameters.
 
@@ -115,7 +117,7 @@ def crop3d(
     return volume[z_min:z_max, y_min:y_max, x_min:x_max]
 
 
-def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: ColorType) -> np.ndarray:
+def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: tuple[float, ...] | float) -> np.ndarray:
     """Cut out holes in 3D volume and fill them with a given value."""
     volume = volume.copy()
     for z1, y1, x1, z2, y2, x2 in holes:

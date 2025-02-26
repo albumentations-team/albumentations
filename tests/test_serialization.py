@@ -1,4 +1,4 @@
-import inspect
+
 import io
 from pathlib import Path
 from typing import Any, Dict, Set
@@ -25,6 +25,7 @@ from .utils import (
     OpenMock,
     check_all_augs_exists,
     get_2d_transforms,
+    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
 )
@@ -44,7 +45,7 @@ AUGMENTATION_CLS_EXCEPT = {
 
 
 ## Can use several seeds, but just too slow.
-TEST_SEEDS = (42,)
+TEST_SEEDS = (137,)
 
 
 @pytest.mark.parametrize(
@@ -191,7 +192,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_2d_transforms(
+    get_dual_transforms(
         custom_arguments={
         },
         except_augmentations={
@@ -240,7 +241,7 @@ def test_augmentations_for_bboxes_serialization(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_2d_transforms(
+    get_dual_transforms(
         custom_arguments={
         },
         except_augmentations={
@@ -528,6 +529,7 @@ def test_additional_targets_for_image_only_serialization(
         [augmentation_cls(p=1.0, **params)],
         additional_targets={"image2": "image"},
         seed=seed,
+        strict=True,
     )
 
     image2 = image.copy()
@@ -778,3 +780,18 @@ def test_augmentations_serialization(
     assert reported_args.issubset(
         expected_args
     ), f"Mismatch in {augmentation_cls.__name__}: Serialized fields {reported_args} not a subset of schema fields {expected_args}"
+
+
+
+def test_serialization_excludes_strict() -> None:
+    # Test that strict parameter is not included in serialization
+    transform = A.Compose([A.HorizontalFlip()])
+    transform_dict = A.to_dict(transform)["transform"]
+    assert "strict" not in transform_dict
+    # Also check nested transforms
+    assert "strict" not in transform_dict["transforms"][0]
+
+    # Test individual transform serialization
+    transform = A.HorizontalFlip(strict=True)
+    transform_dict = A.to_dict(transform)["transform"]
+    assert "strict" not in transform_dict

@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from albumentations.augmentations.domain_adaptation.functional import PCA, MinMaxScaler, StandardScaler, apply_histogram
+from albumentations.augmentations.mixing.domain_adaptation_functional import PCA, MinMaxScaler, StandardScaler, apply_histogram
 import numpy as np
 import pytest
 from skimage.exposure import match_histograms as skimage_match_histograms
 from skimage.metrics import structural_similarity as ssim
-from albumentations.augmentations.domain_adaptation.functional import match_histograms as our_match_histograms
+from albumentations.augmentations.mixing.domain_adaptation_functional import match_histograms as our_match_histograms
 
 
 @pytest.mark.parametrize(

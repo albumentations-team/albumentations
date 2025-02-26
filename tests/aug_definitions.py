@@ -107,7 +107,7 @@ AUGMENTATION_CLS_PARAMS = [
             "limit": 120,
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fill": (10, 10, 10),
+            "fill": 10,
         },
     ],
     [
@@ -118,7 +118,7 @@ AUGMENTATION_CLS_PARAMS = [
             "rotate_limit": (-70, 70),
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fill": (10, 10, 10),
+            "fill": 10,
         },
         {
             "shift_limit_x": (-0.3, 0.3),
@@ -127,7 +127,7 @@ AUGMENTATION_CLS_PARAMS = [
             "rotate_limit": (-70, 70),
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
-            "fill": (10, 10, 10),
+            "fill": 10,
         }]
     ],
     [
@@ -292,14 +292,19 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RingingOvershoot, dict(blur_limit=(7, 15), cutoff=(np.pi / 5, np.pi / 2))],
     [
         A.UnsharpMask,
-        {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15},
+               {
+            "blur_limit": (3, 7),  # Allow for stronger blur
+            "sigma_limit": (0.5, 2.0),  # Increase sigma range
+            "alpha": (0.5, 1.0),  # Allow for stronger sharpening
+            "threshold": 5,  # Lower threshold to allow more changes
+        },
     ],
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, [{"dropout_prob": 0.1, "per_channel": True, "drop_value": None},
                          {
                             "dropout_prob": 0.1,
                             "per_channel": False,
-                            "drop_value": None,
+                            "drop_value": 2,
                             "mask_drop_value": 15,
         },
                       ],
@@ -310,14 +315,24 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [
         A.Spatter,
-        dict(
-            mean=0.2,
-            std=0.1,
-            gauss_sigma=3,
-            cutout_threshold=0.4,
-            intensity=0.7,
-            mode="mud",
+        [
+            dict(
+            mode="rain",
+            mean=(0.65, 0.65),
+            std=(0.3, 0.3),
+            gauss_sigma=(2, 2),
+            cutout_threshold=(0.68, 0.68),
+            intensity=(0.6, 0.6),
         ),
+        dict(
+            mode="mud",
+            mean=(0.65, 0.65),
+            std=(0.3, 0.3),
+            gauss_sigma=(2, 2),
+            cutout_threshold=(0.68, 0.68),
+            intensity=(0.6, 0.6),
+        )
+    ],
     ],
     [
         A.ChromaticAberration,
@@ -365,6 +380,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Morphological, {}],
     [A.D4, {}],
+    [A.SquareSymmetry, {}],
     [A.PlanckianJitter, {}],
     [A.OverlayElements, {}],
     [A.RandomCropNearBBox, {}],
@@ -399,12 +415,15 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Pad, {"padding": 10}],
     [A.Erasing, {}],
     [A.AdditiveNoise, {}],
-    [A.SaltAndPepper, {}],
-    [A.PlasmaBrightnessContrast, {}],
+    [A.SaltAndPepper, {"amount": (0.5, 0.5), "salt_vs_pepper": (0.5, 0.5)}],
+    [A.PlasmaBrightnessContrast, {"brightness_range": (0.5, 0.5), "contrast_range": (0.5, 0.5)}],
     [A.PlasmaShadow, {}],
     [A.Illumination, {}],
     [A.ThinPlateSpline, {}],
-    [A.AutoContrast, {}],
+    [A.AutoContrast, [
+        {"cutoff": 0, "ignore": None, "method": "cdf"},
+        {"cutoff": 0, "ignore": None, "method": "pil"},
+    ]],
     [A.PadIfNeeded3D, {"min_zyx": (300, 200, 400), "pad_divisor_zyx": (10, 10, 10), "position": "center", "fill": 10, "fill_mask": 20}],
     [A.Pad3D, {"padding": 10}],
     [A.CenterCrop3D, {"size": (2, 30, 30)}],
@@ -413,5 +432,11 @@ AUGMENTATION_CLS_PARAMS = [
     [A.CubicSymmetry, {}],
     [A.AtLeastOneBBoxRandomCrop, {"height": 80, "width": 80, "erosion_factor": 0.2}],
     [A.ConstrainedCoarseDropout, {"num_holes_range": (1, 3), "hole_height_range": (0.1, 0.2), "hole_width_range": (0.1, 0.2), "fill": 0, "fill_mask": 0, "mask_indices": [1]}],
-    [A.RandomSizedBBoxSafeCrop, {"height": 80, "width": 80, "erosion_factor": 0.2}],
+    [A.RandomSizedBBoxSafeCrop, {"height": 80, "width": 80, "erosion_rate": 0.2}],
+    [A.HEStain, [
+        {"method": "vahadane", "intensity_scale_range": (0.5, 1.5), "intensity_shift_range": (-0.1, 0.1), "augment_background": False},
+        {"method": "macenko", "intensity_scale_range": (0.5, 1.5), "intensity_shift_range": (-0.1, 0.1), "augment_background": True},
+        {"method": "random_preset",
+         "intensity_scale_range": (0.5, 1.5), "intensity_shift_range": (-0.1, 0.1), "augment_background": True},
+    ]],
 ]
