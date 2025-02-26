@@ -28,7 +28,6 @@ def choose_opencv_requirement():
     # First try to import cv2 to see if any OpenCV is installed
     try:
         import cv2
-        print(f"Found existing OpenCV installation: {cv2.__version__}")
 
         # Try to determine which package provides the installed cv2
         for package in OPENCV_PACKAGES:
