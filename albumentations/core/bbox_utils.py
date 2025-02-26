@@ -370,8 +370,7 @@ def denormalize_bboxes(
     scale_factors = (shape[1], shape[0]) if isinstance(shape, tuple) else (shape["width"], shape["height"])
 
     # Vectorized scaling of bbox coordinates
-    return bboxes * np.array([*scale_factors, *scale_factors, *[1]*(bboxes.shape[1]-4)], dtype=float)
-
+    return bboxes * np.array([*scale_factors, *scale_factors, *[1] * (bboxes.shape[1] - 4)], dtype=float)
 
 
 def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
