@@ -3061,3 +3061,89 @@ def test_grayscale_image_with_saturation():
     # Result should be the same as input for grayscale
     assert result.shape == gray_image.shape, "Output shape changed for grayscale image"
     assert np.all(result == gray_image), "Grayscale values changed with saturation increase"
+
+
+@pytest.mark.parametrize(
+    "gray_value, sat_shift",
+    [
+        (128, 100),  # Medium gray
+        (50, 200),   # Dark gray
+        (200, 150),  # Light gray
+    ],
+)
+def test_gray_pixels_remain_gray_with_saturation_increase(gray_value, sat_shift):
+    """Test that gray pixels remain gray when saturation is increased.
+
+    This test verifies that increasing saturation doesn't affect gray pixels,
+    which should remain gray regardless of saturation changes.
+    """
+    # Create a simple test image with gray pixels
+    gray_image = np.ones((10, 10, 3), dtype=np.uint8) * gray_value
+
+    # Apply saturation increase
+    result = fmain.shift_hsv(gray_image, hue_shift=0, sat_shift=sat_shift, val_shift=0)
+
+    # Check that all pixels are still the same gray value
+    expected = np.ones((10, 10, 3), dtype=np.uint8) * gray_value
+    np.testing.assert_array_equal(
+        result, expected,
+        f"Gray pixels (value {gray_value}) changed color with saturation shift {sat_shift}"
+    )
+
+
+@pytest.mark.parametrize(
+    "image_type, sat_shift",
+    [
+        ("gray_and_color", 100),
+        ("multi_gray_and_color", 200),
+    ],
+)
+def test_gray_pixels_in_mixed_images(image_type, sat_shift):
+    """Test that gray pixels in mixed images remain gray when saturation is increased."""
+    # Create different test images
+    if image_type == "gray_and_color":
+        # Gray and colored image
+        image = np.ones((10, 10, 3), dtype=np.uint8) * 128  # Medium gray
+        image[5:, 5:] = [200, 100, 50]  # Brown/orange color
+    else:  # multi_gray_and_color
+        # Multiple gray values and colored pixels
+        image = np.ones((12, 12, 3), dtype=np.uint8) * 200  # Light gray
+        image[4:8, 4:8] = 50  # Dark gray
+        image[8:, 8:] = [100, 180, 220]  # Light blue
+
+    # Store original gray pixels for comparison (all pixels where R=G=B)
+    gray_mask = (image[:,:,0] == image[:,:,1]) & (image[:,:,1] == image[:,:,2])
+
+    # Store original values for comparison
+    original_values = image.copy()
+
+    # Apply saturation increase
+    result = fmain.shift_hsv(image, hue_shift=0, sat_shift=sat_shift, val_shift=0)
+
+    # Check that gray pixels remain unchanged
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            if gray_mask[y, x]:
+                assert np.array_equal(result[y, x], original_values[y, x]), \
+                    f"Gray pixel at ({y},{x}) changed from {original_values[y, x]} to {result[y, x]}"
+
+    # Non-gray pixels should be affected by saturation
+    colored_mask = ~gray_mask
+
+    # Convert original and result to HSV to check saturation directly
+    original_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    result_hsv = cv2.cvtColor(result, cv2.COLOR_RGB2HSV)
+
+    # Check that saturation was properly applied to colored pixels
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            if colored_mask[y, x]:
+                # Get original saturation
+                orig_sat = original_hsv[y, x, 1]
+                # Actual saturation
+                actual_sat = result_hsv[y, x, 1]
+
+                # Check that saturation increased or reached maximum
+                assert actual_sat > orig_sat or actual_sat == 255, \
+                    f"Saturation did not increase at ({y},{x}) in {image_type} image. " \
+                    f"Original: {orig_sat}, Actual: {actual_sat}"
