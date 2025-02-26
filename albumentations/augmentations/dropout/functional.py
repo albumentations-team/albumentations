@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Literal, cast
 
 import cv2
 import numpy as np
@@ -15,7 +15,7 @@ from albucore import (
 
 from albumentations.augmentations.geometric.functional import split_uniform_grid
 from albumentations.augmentations.utils import handle_empty_array
-from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS, ColorType, DropoutFillValue, InpaintMethod
+from albumentations.core.type_definitions import MONO_CHANNEL_DIMENSIONS
 
 __all__ = [
     "calculate_grid_dimensions",
@@ -32,7 +32,7 @@ __all__ = [
 def channel_dropout(
     img: np.ndarray,
     channels_to_drop: int | tuple[int, ...] | np.ndarray,
-    fill_value: ColorType = 0,
+    fill_value: tuple[float, ...] | float = 0,
 ) -> np.ndarray:
     if is_grayscale_image(img):
         msg = "Only one channel. ChannelDropout is not defined."
@@ -83,7 +83,7 @@ def generate_random_fill(
 
 
 @uint8_io
-def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: InpaintMethod) -> np.ndarray:
+def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpaint_telea", "inpaint_ns"]) -> np.ndarray:
     """Apply OpenCV inpainting to fill the holes in the image.
 
     Args:
@@ -160,7 +160,7 @@ def fill_holes_with_random(
 def cutout(
     img: np.ndarray,
     holes: np.ndarray,
-    fill_value: DropoutFillValue,
+    fill_value: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Apply cutout augmentation to the image by cutting out holes and filling them.
@@ -184,7 +184,7 @@ def cutout(
     # Handle inpainting methods
     if isinstance(fill_value, str):
         if fill_value in {"inpaint_telea", "inpaint_ns"}:
-            return apply_inpainting(img, holes, cast(InpaintMethod, fill_value))
+            return apply_inpainting(img, holes, cast(Literal["inpaint_telea", "inpaint_ns"], fill_value))
         if fill_value == "random":
             return fill_holes_with_random(img, holes, random_generator, uniform=False)
         if fill_value == "random_uniform":

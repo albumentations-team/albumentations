@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
@@ -9,9 +9,8 @@ from albucore import batch_transform
 from pydantic import Field, field_validator, model_validator
 from typing_extensions import Self
 
-from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.type_definitions import ALL_TARGETS, ScaleFloatType
+from albumentations.core.type_definitions import ALL_TARGETS
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
@@ -67,20 +66,52 @@ class RandomScale(DualTransform):
     _targets = ALL_TARGETS
 
     class InitSchema(BaseTransformInitSchema):
-        scale_limit: ScaleFloatType
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        scale_limit: tuple[float, float] | float
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, v: ScaleFloatType) -> tuple[float, float]:
+        def check_scale_limit(cls, v: tuple[float, float] | float) -> tuple[float, float]:
             return to_tuple(v, bias=1.0)
 
     def __init__(
         self,
-        scale_limit: ScaleFloatType = (-0.1, 0.1),
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        scale_limit: tuple[float, float] | float = (-0.1, 0.1),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -135,8 +166,24 @@ class MaxSizeTransform(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_size: int | list[int] | None
         max_size_hw: tuple[int | None, int | None] | None
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
         @model_validator(mode="after")
         def validate_size_parameters(self) -> Self:
@@ -150,8 +197,24 @@ class MaxSizeTransform(DualTransform):
         self,
         max_size: int | Sequence[int] | None = None,
         max_size_hw: tuple[int | None, int | None] | None = None,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1,
     ):
         super().__init__(p=p)
@@ -452,15 +515,47 @@ class Resize(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         height: int = Field(ge=1)
         width: int = Field(ge=1)
-        interpolation: InterpolationType
-        mask_interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
     def __init__(
         self,
         height: int,
         width: int,
-        interpolation: int = cv2.INTER_LINEAR,
-        mask_interpolation: int = cv2.INTER_NEAREST,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
         p: float = 1,
     ):
         super().__init__(p=p)

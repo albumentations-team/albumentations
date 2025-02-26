@@ -440,3 +440,185 @@ def test_copy_make_border_with_value_extension_zero_channels():
     assert result.shape == (15, 19, 0)  # 10+2+3, 10+4+5, 0
     assert result.dtype == np.uint8
     assert result.size == 0
+
+
+
+@pytest.fixture
+def random_generator():
+    return np.random.default_rng(42)  # Fixed seed for reproducibility
+
+@pytest.mark.parametrize("image_shape", [
+    (100, 100),
+    (224, 224),
+    (32, 64),
+    (1, 1),
+])
+@pytest.mark.parametrize("alpha", [
+    0.0,
+    1.0,
+    10.0,
+])
+@pytest.mark.parametrize("sigma", [
+    1.0,
+    50.0,
+    100.0,
+])
+@pytest.mark.parametrize("same_dxdy", [
+    True,
+    False,
+])
+@pytest.mark.parametrize("kernel_size", [
+    (0, 0),  # No blur
+    (3, 3),  # Small kernel
+    (17, 17),  # Large kernel
+])
+@pytest.mark.parametrize("noise_distribution", [
+    "gaussian",
+    "uniform",
+])
+def test_generate_displacement_fields(
+    random_generator,
+    image_shape,
+    alpha,
+    sigma,
+    same_dxdy,
+    kernel_size,
+    noise_distribution,
+):
+    # Generate displacement fields
+    dx, dy = fgeometric.generate_displacement_fields(
+        image_shape=image_shape,
+        alpha=alpha,
+        sigma=sigma,
+        same_dxdy=same_dxdy,
+        kernel_size=kernel_size,
+        random_generator=random_generator,
+        noise_distribution=noise_distribution,
+    )
+
+    # Test output shapes
+    assert dx.shape == image_shape
+    assert dy.shape == image_shape
+
+    # Test output dtypes
+    assert dx.dtype == np.float32
+    assert dy.dtype == np.float32
+
+    # Test same_dxdy behavior
+    if same_dxdy:
+        np.testing.assert_array_equal(dx, dy)
+
+    # Test alpha scaling
+    if alpha == 0:
+        np.testing.assert_array_equal(dx, np.zeros_like(dx))
+        np.testing.assert_array_equal(dy, np.zeros_like(dy))
+    else:
+        assert np.abs(dx).max() <= abs(alpha) * 3  # 3 sigma rule for gaussian
+        assert np.abs(dy).max() <= abs(alpha) * 3
+
+    # Test value ranges for uniform distribution
+    if noise_distribution == "uniform":
+        assert np.all(np.abs(dx) <= abs(alpha))
+        assert np.all(np.abs(dy) <= abs(alpha))
+
+def test_reproducibility(random_generator):
+    """Test that the function produces the same output with the same random seed"""
+    params = {
+        "image_shape": (100, 100),
+        "alpha": 1.0,
+        "sigma": 50.0,
+        "same_dxdy": False,
+        "kernel_size": (17, 17),
+        "random_generator": np.random.default_rng(42),  # Create new generator each time
+        "noise_distribution": "gaussian",
+    }
+
+    dx1, dy1 = fgeometric.generate_displacement_fields(**params)
+
+    # Create new generator with same seed for second call
+    params["random_generator"] = np.random.default_rng(42)
+    dx2, dy2 = fgeometric.generate_displacement_fields(**params)
+
+    np.testing.assert_array_equal(dx1, dx2)
+    np.testing.assert_array_equal(dy1, dy2)
+
+
+def test_gaussian_blur_effect(random_generator):
+    """Test that Gaussian blur is actually smoothing the displacement field"""
+    params = {
+        "image_shape": (100, 100),
+        "alpha": 1.0,
+        "sigma": 50.0,
+        "same_dxdy": False,
+        "noise_distribution": "gaussian",
+    }
+
+    # Generate fields with small kernel (less smoothing)
+    dx1, _ = fgeometric.generate_displacement_fields(
+        **params,
+        kernel_size=(3, 3),  # Small kernel
+        random_generator=np.random.default_rng(42)
+    )
+
+    # Generate fields with large kernel (more smoothing)
+    dx2, _ = fgeometric.generate_displacement_fields(
+        **params,
+        kernel_size=(17, 17),  # Large kernel
+        random_generator=np.random.default_rng(42)
+    )
+
+    # Calculate local variation using standard deviation of local neighborhoods
+    def calculate_local_variation(arr, window_size=3):
+        from scipy.ndimage import uniform_filter
+        # Ensure we're working with float64 for better numerical stability
+        arr = arr.astype(np.float64)
+        local_mean = uniform_filter(arr, size=window_size)
+        local_sqr_mean = uniform_filter(arr**2, size=window_size)
+        # Add small epsilon to avoid numerical instability
+        variance = np.maximum(local_sqr_mean - local_mean**2, 0)
+        return np.mean(np.sqrt(variance + 1e-10))
+
+    var1 = calculate_local_variation(dx1)
+    var2 = calculate_local_variation(dx2)
+
+    assert var2 < var1, (
+        f"Gaussian blur should reduce local variation. "
+        f"Before blur (3x3): {var1:.6f}, After blur (17x17): {var2:.6f}"
+    )
+
+def test_memory_efficiency(random_generator):
+    """Test that the function doesn't create unnecessary copies"""
+    import tracemalloc
+
+    tracemalloc.start()
+
+    params = {
+        "image_shape": (1000, 1000),  # Large image
+        "alpha": 1.0,
+        "sigma": 50.0,
+        "same_dxdy": True,  # Should reuse memory
+        "kernel_size": (17, 17),
+        "random_generator": random_generator,
+        "noise_distribution": "gaussian",
+    }
+
+    # Get memory snapshot before
+    snapshot1 = tracemalloc.take_snapshot()
+
+    # Run function
+    dx, dy = fgeometric.generate_displacement_fields(**params)
+
+    # Get memory snapshot after
+    snapshot2 = tracemalloc.take_snapshot()
+
+    # Compare memory usage
+    stats = snapshot2.compare_to(snapshot1, 'lineno')
+
+    # Check that memory usage is reasonable (less than 4 times the size of output)
+    # Factor of 4 accounts for temporary arrays during computation
+    expected_size = dx.nbytes * 4
+    total_memory = sum(stat.size_diff for stat in stats)
+
+    assert total_memory <= expected_size, "Memory usage is higher than expected"
+
+    tracemalloc.stop()

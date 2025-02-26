@@ -104,6 +104,7 @@ class BaseCompose(Serializable):
         mask_interpolation: int | None = None,
         seed: int | None = None,
         save_applied_params: bool = False,
+        **kwargs: Any,
     ):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -160,7 +161,6 @@ class BaseCompose(Serializable):
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
-
         # Propagate seed to all transforms
         for transform in self.transforms:
             if isinstance(transform, (BasicTransform, BaseCompose)):
@@ -312,10 +312,33 @@ class Compose(BaseCompose, HubMixin):
         p (float): Probability of applying all transforms. Should be in range [0, 1]. Default is 1.0.
         is_check_shapes (bool): If True, checks consistency of shapes for image/mask/masks on each call.
             Disable only if you are sure about your data consistency. Default is True.
-        strict (bool): If True, raises an error on unknown input keys. If False, ignores them. Default is True.
+        strict (bool): If True, enables strict mode which:
+            1. Validates that all input keys are known/expected
+            2. Validates that no transforms have invalid arguments
+            3. Raises ValueError if any validation fails
+            If False, these validations are skipped. Default is False.
         mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
-        seed (int, optional): Random seed. Default is None.
+        seed (int, optional): Controls reproducibility of random augmentations. Compose uses
+            its own internal random state, completely independent from global random seeds.
+
+            When seed is set (int):
+            - Creates a fixed internal random state
+            - Two Compose instances with the same seed and transforms will produce identical
+              sequences of augmentations
+            - Each call to the same Compose instance still produces random augmentations,
+              but these sequences are reproducible between different Compose instances
+            - Example: transform1 = A.Compose([...], seed=137) and
+                      transform2 = A.Compose([...], seed=137) will produce identical sequences
+
+            When seed is None (default):
+            - Generates a new internal random state on each Compose creation
+            - Different Compose instances will produce different sequences of augmentations
+            - Example: transform = A.Compose([...])  # random results
+
+            Important: Setting random seeds outside of Compose (like np.random.seed() or
+            random.seed()) has no effect on augmentations as Compose uses its own internal
+            random state.
         save_applied_params (bool): If True, saves the applied parameters of each transform. Default is False.
             You will need to use the `applied_transforms` key in the output dictionary to access the parameters.
 
@@ -325,13 +348,15 @@ class Compose(BaseCompose, HubMixin):
         ...     A.RandomCrop(width=256, height=256),
         ...     A.HorizontalFlip(p=0.5),
         ...     A.RandomBrightnessContrast(p=0.2),
-        ... ], seed=42)
+        ... ], seed=137)
         >>> transformed = transform(image=image)
 
     Note:
         - The class checks the validity of input data and shapes if is_check_args and is_check_shapes are True.
         - When bbox_params or keypoint_params are provided, it sets up the corresponding processors.
         - The transform can handle additional targets specified in the additional_targets dictionary.
+        - When strict mode is enabled, it performs additional validation to ensure data and transform
+          configuration correctness.
     """
 
     def __init__(
@@ -342,7 +367,7 @@ class Compose(BaseCompose, HubMixin):
         additional_targets: dict[str, str] | None = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
-        strict: bool = True,
+        strict: bool = False,
         mask_interpolation: int | None = None,
         seed: int | None = None,
         save_applied_params: bool = False,
@@ -397,6 +422,35 @@ class Compose(BaseCompose, HubMixin):
         self._images_was_list = False
         self._masks_was_list = False
 
+    @property
+    def strict(self) -> bool:
+        return self._strict
+
+    @strict.setter
+    def strict(self, value: bool) -> None:
+        # if value and not self._strict:
+        if value:
+            # Only validate when enabling strict mode
+            self._validate_strict()
+        self._strict = value
+
+    def _validate_strict(self) -> None:
+        """Validate that no transforms have invalid arguments when strict mode is enabled."""
+
+        def check_transform(transform: TransformType) -> None:
+            if hasattr(transform, "invalid_args") and transform.invalid_args:
+                message = (
+                    f"Argument(s) '{', '.join(transform.invalid_args)}' "
+                    f"are not valid for transform {transform.__class__.__name__}"
+                )
+                raise ValueError(message)
+            if isinstance(transform, BaseCompose):
+                for t in transform.transforms:
+                    check_transform(t)
+
+        for transform in self.transforms:
+            check_transform(transform)
+
     def _set_processors_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
             if isinstance(transform, BasicTransform):
@@ -447,7 +501,35 @@ class Compose(BaseCompose, HubMixin):
 
     def preprocess(self, data: Any) -> None:
         """Preprocess input data before applying transforms."""
-        self._validate_data(data)
+        # Always validate shapes if is_check_shapes is True, regardless of strict mode
+        if self.is_check_shapes:
+            shapes = []  # For H,W checks
+            volume_shapes = []  # For D,H,W checks
+
+            for data_name, data_value in data.items():
+                internal_name = self._additional_targets.get(data_name, data_name)
+
+                # Skip empty data
+                if data_value is None:
+                    continue
+
+                shape = self._get_data_shape(data_name, internal_name, data_value)
+                if shape is not None:
+                    if internal_name in CHECKED_VOLUME | CHECKED_MASK3D:
+                        shapes.append(shape[1:3])  # H,W from (D,H,W)
+                        volume_shapes.append(shape[:3])  # D,H,W
+                    elif internal_name in {"volumes", "masks3d"}:
+                        shapes.append(shape[2:4])  # H,W from (N,D,H,W)
+                        volume_shapes.append(shape[1:4])  # D,H,W from (N,D,H,W)
+                    else:
+                        shapes.append(shape[:2])  # H,W
+
+            self._check_shape_consistency(shapes, volume_shapes)
+
+        # Do strict validation only if enabled
+        if self.strict:
+            self._validate_data(data)
+
         self._preprocess_processors(data)
         self._preprocess_arrays(data)
 
@@ -579,7 +661,7 @@ class Compose(BaseCompose, HubMixin):
                 raise ValueError(f"{data_name} cannot be empty")
             if not all(isinstance(m, np.ndarray) for m in data):
                 raise TypeError(f"All elements in {data_name} must be numpy arrays")
-            if any(m.ndim not in [2, 3] for m in data):
+            if any(m.ndim not in {2, 3} for m in data):
                 raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
             return data[0].shape[:2]
 

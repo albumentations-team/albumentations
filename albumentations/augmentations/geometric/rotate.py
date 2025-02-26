@@ -9,20 +9,12 @@ from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
 from albumentations.augmentations.geometric.transforms import Affine
-from albumentations.core.pydantic import (
-    BorderModeType,
-    InterpolationType,
-    SymmetricRangeType,
-)
+from albumentations.core.pydantic import SymmetricRangeType
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     DualTransform,
 )
-from albumentations.core.type_definitions import (
-    ALL_TARGETS,
-    ColorType,
-    ScaleFloatType,
-)
+from albumentations.core.type_definitions import ALL_TARGETS
 
 from . import functional as fgeometric
 
@@ -116,13 +108,26 @@ class RandomRotate90(DualTransform):
 class RotateInitSchema(BaseTransformInitSchema):
     limit: SymmetricRangeType
 
-    interpolation: InterpolationType
-    mask_interpolation: InterpolationType
+    interpolation: Literal[cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4]
 
-    border_mode: BorderModeType
+    mask_interpolation: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+    ]
 
-    fill: ColorType | None
-    fill_mask: ColorType | None
+    border_mode: Literal[
+        cv2.BORDER_CONSTANT,
+        cv2.BORDER_REPLICATE,
+        cv2.BORDER_REFLECT,
+        cv2.BORDER_WRAP,
+        cv2.BORDER_REFLECT_101,
+    ]
+
+    fill: tuple[float, ...] | float
+    fill_mask: tuple[float, ...] | float | None
 
 
 class Rotate(DualTransform):
@@ -136,11 +141,11 @@ class Rotate(DualTransform):
             Default: cv2.INTER_LINEAR.
         border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
-        fill_mask (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-        rotate_method (str): Method to rotate bounding boxes. Should be 'largest_box' or 'ellipse'.
-            Default: 'largest_box'
+            Default: cv2.BORDER_CONSTANT
+        fill (tuple[float, ...] | float): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill_mask (tuple[float, ...] | float): Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        rotate_method (Literal["largest_box", "ellipse"]): Method to rotate bounding boxes.
+            Should be 'largest_box' or 'ellipse'. Default: 'largest_box'
         crop_border (bool): Whether to crop border after rotation. If True, the output image size might differ
             from the input. Default: False
         mask_interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm for mask.
@@ -191,19 +196,37 @@ class Rotate(DualTransform):
         rotate_method: Literal["largest_box", "ellipse"]
         crop_border: bool
 
-        fill: ColorType
-        fill_mask: ColorType
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
-        limit: ScaleFloatType = (-90, 90),
-        interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_CONSTANT,
+        limit: tuple[float, float] | float = (-90, 90),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
-        mask_interpolation: int = cv2.INTER_NEAREST,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -367,9 +390,9 @@ class Rotate(DualTransform):
         center = fgeometric.center(params["shape"][:2])
         bbox_center = fgeometric.center_bbox(params["shape"][:2])
 
-        translate: fgeometric.XYInt = {"x": 0, "y": 0}
-        shear: fgeometric.XYFloat = {"x": 0, "y": 0}
-        scale: fgeometric.XYFloat = {"x": 1, "y": 1}
+        translate: dict[str, int] = {"x": 0, "y": 0}
+        shear: dict[str, float] = {"x": 0, "y": 0}
+        scale: dict[str, float] = {"x": 1, "y": 1}
         rotate = angle
 
         matrix = fgeometric.create_affine_transformation_matrix(
@@ -420,8 +443,8 @@ class SafeRotate(Affine):
         border_mode (OpenCV flag): Flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        fill (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT.
-        fill_mask (ColorType): Padding value if border_mode is cv2.BORDER_CONSTANT applied
+        fill (tuple[float, float] | float): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        fill_mask (tuple[float, float] | float): Padding value if border_mode is cv2.BORDER_CONSTANT applied
             for masks.
         rotate_method (Literal["largest_box", "ellipse"]): Method to rotate bounding boxes.
             Should be 'largest_box' or 'ellipse'. Default: 'largest_box'
@@ -478,13 +501,31 @@ class SafeRotate(Affine):
 
     def __init__(
         self,
-        limit: ScaleFloatType = (-90, 90),
-        interpolation: int = cv2.INTER_LINEAR,
-        border_mode: int = cv2.BORDER_CONSTANT,
+        limit: tuple[float, float] | float = (-90, 90),
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_LINEAR,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
-        mask_interpolation: int = cv2.INTER_NEAREST,
-        fill: ColorType = 0,
-        fill_mask: ColorType = 0,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+        ] = cv2.INTER_NEAREST,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
         super().__init__(

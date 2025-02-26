@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import cv2
 import numpy as np
 from albucore import maybe_process_in_chunks, preserve_channel_dim
@@ -9,7 +7,6 @@ from albucore import maybe_process_in_chunks, preserve_channel_dim
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.utils import handle_empty_array
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
-from albumentations.core.type_definitions import ColorType
 
 __all__ = [
     "crop",
@@ -157,9 +154,9 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.
 @preserve_channel_dim
 def crop_and_pad(
     img: np.ndarray,
-    crop_params: Sequence[int] | None,
-    pad_params: Sequence[int] | None,
-    pad_value: ColorType | None,
+    crop_params: tuple[int, int, int, int] | None,
+    pad_params: tuple[int, int, int, int] | None,
+    pad_value: tuple[float, ...] | float | None,
     image_shape: tuple[int, int],
     interpolation: int,
     pad_mode: int,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, cast
 from warnings import warn
 
@@ -15,12 +15,13 @@ from albucore import (
     preserve_channel_dim,
     vflip,
 )
-from typing_extensions import NotRequired, TypedDict
 
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import (
     bboxes_from_masks,
+    bboxes_to_mask,
     denormalize_bboxes,
+    mask_to_bboxes,
     masks_from_bboxes,
     normalize_bboxes,
 )
@@ -29,9 +30,6 @@ from albumentations.core.type_definitions import (
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
-    ColorType,
-    D4Type,
-    PositionType,
 )
 
 __all__ = [
@@ -111,7 +109,7 @@ def bboxes_rot90(bboxes: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
 @handle_empty_array("bboxes")
 def bboxes_d4(
     bboxes: np.ndarray,
-    group_member: D4Type,
+    group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
 ) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to a bounding box.
 
@@ -122,7 +120,8 @@ def bboxes_d4(
     Parameters:
     -  bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
                 Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-    - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+    - group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for the
+        `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
 
     Returns:
@@ -200,7 +199,7 @@ def keypoints_rot90(
 @handle_empty_array("keypoints")
 def keypoints_d4(
     keypoints: np.ndarray,
-    group_member: D4Type,
+    group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
     image_shape: tuple[int, int],
     **params: Any,
 ) -> np.ndarray:
@@ -212,7 +211,8 @@ def keypoints_d4(
 
     Parameters:
     - keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
-    -group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+    -group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for
+        the `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
     - image_shape (tuple[int, int]): The shape of the image.
     - params (Any): Not used
@@ -542,7 +542,7 @@ def warp_affine_with_value_extension(
     dsize: tuple[int, int],
     flags: int,
     border_mode: int,
-    border_value: ColorType,
+    border_value: tuple[float, ...] | float,
 ) -> np.ndarray:
     num_channels = get_num_channels(image)
     extended_value = extend_value(border_value, num_channels)
@@ -562,7 +562,7 @@ def warp_affine(
     image: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    fill: ColorType,
+    fill: tuple[float, ...] | float,
     border_mode: int,
     output_shape: tuple[int, int],
 ) -> np.ndarray:
@@ -591,7 +591,7 @@ def keypoints_affine(
     keypoints: np.ndarray,
     matrix: np.ndarray,
     image_shape: tuple[int, int],
-    scale: XYFloat,
+    scale: dict[str, float],
     border_mode: int,
 ) -> np.ndarray:
     """Apply an affine transformation to keypoints.
@@ -1112,7 +1112,7 @@ def from_distance_maps(
     return keypoints
 
 
-def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
+def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to an image array.
 
     This function manipulates an image using transformations such as rotations and flips,
@@ -1121,7 +1121,8 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
 
     Parameters:
     - img (np.ndarray): The input image array to transform.
-    - group_member (D4Type): A string identifier indicating the specific transformation to apply. Valid codes include:
+    - group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier indicating
+        the specific transformation to apply. Valid codes include:
       - 'e': Identity (no transformation).
       - 'r90': Rotate 90 degrees counterclockwise.
       - 'r180': Rotate 180 degrees.
@@ -1315,7 +1316,7 @@ def pad(
     min_height: int,
     min_width: int,
     border_mode: int,
-    value: ColorType | None,
+    value: tuple[float, ...] | float | None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1351,7 +1352,7 @@ def pad(
     return img
 
 
-def extend_value(value: ColorType, num_channels: int) -> Sequence[float]:
+def extend_value(value: tuple[float, ...] | float, num_channels: int) -> Sequence[float]:
     return [value] * num_channels if isinstance(value, float) else value
 
 
@@ -1362,7 +1363,7 @@ def copy_make_border_with_value_extension(
     left: int,
     right: int,
     border_mode: int,
-    value: ColorType,
+    value: tuple[float, ...] | float,
 ) -> np.ndarray:
     # For 0-channel images, return empty array of correct padded size
     if img.size == 0:
@@ -1394,7 +1395,7 @@ def pad_with_params(
     w_pad_left: int,
     w_pad_right: int,
     border_mode: int,
-    value: ColorType | None,
+    value: tuple[float, ...] | float | None,
 ) -> np.ndarray:
     pad_fn = maybe_process_in_chunks(
         copy_make_border_with_value_extension,
@@ -1416,7 +1417,7 @@ def remap(
     map_y: np.ndarray,
     interpolation: int,
     border_mode: int,
-    value: ColorType | None = None,
+    value: tuple[float, ...] | float | None = None,
 ) -> np.ndarray:
     # Combine map_x and map_y into a single map array of type CV_32FC2
     map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
@@ -1435,6 +1436,47 @@ def remap(
     return remap_func(img)
 
 
+def remap_keypoints_via_mask(
+    keypoints: np.ndarray,
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    """Remap keypoints using mask and cv2.remap method."""
+    height, width = image_shape[:2]
+
+    # Handle empty keypoints array
+    if len(keypoints) == 0:
+        return np.zeros((0, 2 if keypoints.size == 0 else keypoints.shape[1]))
+
+    # Create mask where each keypoint has unique index
+    kp_mask = np.zeros((height, width), dtype=np.int16)
+    for idx, kp in enumerate(keypoints, start=1):
+        x, y = round(kp[0]), round(kp[1])
+        if 0 <= x < width and 0 <= y < height:
+            # Note: cv2.circle takes (x,y) coordinates
+            cv2.circle(kp_mask, (x, y), 1, idx, -1)
+
+    # Remap the mask
+    transformed_kp_mask = cv2.remap(
+        kp_mask,
+        map_x.astype(np.float32),
+        map_y.astype(np.float32),
+        cv2.INTER_NEAREST,
+    )
+
+    # Extract transformed keypoints
+    new_points = []
+    for idx, kp in enumerate(keypoints, start=1):
+        # Find points with this index
+        points = np.where(transformed_kp_mask == idx)
+        if len(points[0]) > 0:
+            # Convert back to (x,y) coordinates
+            new_points.append(np.concatenate([[points[1][0], points[0][0]], kp[2:]]))
+
+    return np.array(new_points) if new_points else np.zeros((0, keypoints.shape[1]))
+
+
 @handle_empty_array("keypoints")
 def remap_keypoints(
     keypoints: np.ndarray,
@@ -1444,30 +1486,67 @@ def remap_keypoints(
 ) -> np.ndarray:
     height, width = image_shape[:2]
 
-    # Create inverse mappings
-    x_inv = np.arange(width).reshape(1, -1).repeat(height, axis=0)
-    y_inv = np.arange(height).reshape(-1, 1).repeat(width, axis=1)
-
     # Extract x and y coordinates
     x, y = keypoints[:, 0], keypoints[:, 1]
 
     # Clip coordinates to image boundaries
-    x = np.clip(x, 0, width - 1, out=x)
-    y = np.clip(y, 0, height - 1, out=y)
+    x = np.clip(x, 0, width - 1)
+    y = np.clip(y, 0, height - 1)
 
     # Convert to integer indices
     x_idx, y_idx = x.astype(int), y.astype(int)
-
+    inv_map_x, inv_map_y = generate_inverse_distortion_map(map_x, map_y, image_shape[:2])
     # Apply the inverse mapping
-    new_x = x_inv[y_idx, x_idx] + (x - map_x[y_idx, x_idx])
-    new_y = y_inv[y_idx, x_idx] + (y - map_y[y_idx, x_idx])
+    new_x = inv_map_x[y_idx, x_idx]
+    new_y = inv_map_y[y_idx, x_idx]
 
     # Clip the new coordinates to ensure they're within the image bounds
-    new_x = np.clip(new_x, 0, width - 1, out=new_x)
-    new_y = np.clip(new_y, 0, height - 1, out=new_y)
+    new_x = np.clip(new_x, 0, width - 1)
+    new_y = np.clip(new_y, 0, height - 1)
 
     # Create the transformed keypoints array
     return np.column_stack([new_x, new_y, keypoints[:, 2:]])
+
+
+def generate_inverse_distortion_map(
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    shape: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate inverse mapping for strong distortions."""
+    h, w = shape
+
+    # Initialize inverse maps
+    inv_map_x = np.zeros((h, w), dtype=np.float32)
+    inv_map_y = np.zeros((h, w), dtype=np.float32)
+
+    # For each source point, record where it maps to
+    for y in range(h):
+        for x in range(w):
+            # Get destination point
+            dst_x = map_x[y, x]
+            dst_y = map_y[y, x]
+
+            # If destination is within bounds
+            if 0 <= dst_x < w and 0 <= dst_y < h:
+                # Get neighborhood coordinates
+                dst_x_floor = int(np.floor(dst_x))
+                dst_x_ceil = min(dst_x_floor + 1, w - 1)
+                dst_y_floor = int(np.floor(dst_y))
+                dst_y_ceil = min(dst_y_floor + 1, h - 1)
+
+                # Fill neighborhood
+                for ny in range(dst_y_floor, dst_y_ceil + 1):
+                    for nx in range(dst_x_floor, dst_x_ceil + 1):
+                        # Only update if empty or closer to pixel center
+                        if inv_map_x[ny, nx] == 0 or (
+                            abs(nx - dst_x) + abs(ny - dst_y)
+                            < abs(nx - inv_map_x[ny, nx]) + abs(ny - inv_map_y[ny, nx])
+                        ):
+                            inv_map_x[ny, nx] = x
+                            inv_map_y[ny, nx] = y
+
+    return inv_map_x, inv_map_y
 
 
 @handle_empty_array("bboxes")
@@ -1477,53 +1556,18 @@ def remap_bboxes(
     map_y: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    # Number of points to sample per dimension
-    grid_size = 5
+    """Remap bounding boxes using displacement maps."""
+    # Convert bboxes to mask
+    bbox_masks = bboxes_to_mask(bboxes, image_shape)
 
-    num_boxes = len(bboxes)
-    all_points = []
+    # Ensure maps are float32
+    map_x = map_x.astype(np.float32)
+    map_y = map_y.astype(np.float32)
 
-    for box in bboxes:
-        x_min, y_min, x_max, y_max = box[:4]
+    transformed_masks = remap(bbox_masks, map_x, map_y, cv2.INTER_NEAREST, cv2.BORDER_CONSTANT, value=0)
 
-        # Create grid of points inside and on edges of box
-        x_points = np.linspace(x_min, x_max, grid_size)
-        y_points = np.linspace(y_min, y_max, grid_size)
-        xx, yy = np.meshgrid(x_points, y_points)
-
-        points = np.column_stack([xx.ravel(), yy.ravel()])
-        all_points.append(points)
-
-    # Transform all points
-    all_points = np.vstack(all_points)
-    transformed_points = remap_keypoints(
-        np.column_stack(
-            [all_points, np.zeros(len(all_points)), np.zeros(len(all_points))],
-        ),
-        map_x,
-        map_y,
-        image_shape,
-    )[:, :2]
-
-    # Reshape back to per-box points
-    points_per_box = grid_size * grid_size
-    transformed_points = transformed_points.reshape(num_boxes, points_per_box, 2)
-
-    # Get min/max coordinates for each box
-    new_bboxes = np.column_stack(
-        [
-            np.min(transformed_points[:, :, 0], axis=1),  # x_min
-            np.min(transformed_points[:, :, 1], axis=1),  # y_min
-            np.max(transformed_points[:, :, 0], axis=1),  # x_max
-            np.max(transformed_points[:, :, 1], axis=1),  # y_max
-        ],
-    )
-
-    return (
-        np.column_stack([new_bboxes, bboxes[:, 4:]])
-        if bboxes.shape[1] > NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS
-        else new_bboxes
-    )
+    # Convert masks back to bboxes
+    return mask_to_bboxes(transformed_masks, bboxes)
 
 
 def generate_displacement_fields(
@@ -1535,40 +1579,48 @@ def generate_displacement_fields(
     random_generator: np.random.Generator,
     noise_distribution: Literal["gaussian", "uniform"],
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Generate displacement fields for elastic transform.
+    """Generate displacement fields for elastic transform."""
+    # Pre-allocate memory and generate noise in one step
+    if noise_distribution == "gaussian":
+        # Generate and normalize in one step, directly as float32
+        fields = random_generator.standard_normal(
+            (1 if same_dxdy else 2, *image_shape[:2]),
+            dtype=np.float32,
+        )
+        # Normalize inplace
+        max_abs = np.abs(fields, out=np.empty_like(fields)).max()
+        if max_abs > 1e-6:
+            fields /= max_abs
+    else:  # uniform is already normalized to [-1, 1]
+        fields = random_generator.uniform(
+            -1,
+            1,
+            size=(1 if same_dxdy else 2, *image_shape[:2]),
+        ).astype(np.float32)
 
-    Args:
-        image_shape: Shape of the image (height, width)
-        alpha: Scaling factor for displacement
-        sigma: Standard deviation for Gaussian blur
-        same_dxdy: Whether to use same displacement field for both directions
-        kernel_size: Size of Gaussian blur kernel
-        random_generator: NumPy random number generator
-        noise_distribution: Type of noise distribution to use ("gaussian" or "uniform")
+    # # Apply Gaussian blur if needed using fast OpenCV operations
+    if kernel_size != (0, 0):
+        # Reshape to 2D array (combining first dimension with height)
+        shape = fields.shape
+        fields = fields.reshape(-1, shape[-1])
 
-    Returns:
-        tuple: (dx, dy) displacement fields
-    """
+        # Apply blur to all fields at once
+        cv2.GaussianBlur(
+            fields,
+            kernel_size,
+            sigma,
+            dst=fields,
+            borderType=cv2.BORDER_REPLICATE,
+        )
 
-    def generate_noise_field() -> np.ndarray:
-        # Generate noise based on distribution type
-        if noise_distribution == "gaussian":
-            field = random_generator.standard_normal(size=image_shape[:2])
-        else:  # uniform
-            field = random_generator.uniform(low=-1, high=1, size=image_shape[:2])
+        # Restore original shape
+        fields = fields.reshape(shape)
 
-        # Common operations for both distributions
-        field = field.astype(np.float32)
-        cv2.GaussianBlur(field, kernel_size, sigma, dst=field)
-        return field * alpha
+    # Scale by alpha inplace
+    fields *= alpha
 
-    # Generate first displacement field
-    dx = generate_noise_field()
-
-    # Generate or copy second displacement field
-    dy = dx if same_dxdy else generate_noise_field()
-
-    return dx, dy
+    # Return views of the array to avoid copies
+    return (fields[0], fields[0]) if same_dxdy else (fields[0], fields[1])
 
 
 @handle_empty_array("bboxes")
@@ -2231,40 +2283,10 @@ def flip_keypoints(
     return flipped_keypoints
 
 
-class XYFloat(TypedDict):
-    x: float
-    y: float
-
-
-class XYInt(TypedDict):
-    x: int
-    y: int
-
-
-class XYFloatScale(TypedDict):
-    x: NotRequired[float | tuple[float, float]]
-    y: NotRequired[float | tuple[float, float]]
-
-
-class XYIntScale(TypedDict):
-    x: int | tuple[int, int] | None
-    y: int | tuple[int, int] | None
-
-
-class XYFloatDict(TypedDict):
-    x: tuple[float, float]
-    y: tuple[float, float]
-
-
-class XYIntDict(TypedDict):
-    x: tuple[int, int]
-    y: tuple[int, int]
-
-
 def create_affine_transformation_matrix(
-    translate: XYInt,
-    shear: XYFloat,
-    scale: XYFloat,
+    translate: Mapping[str, float],
+    shear: dict[str, float],
+    scale: dict[str, float],
     rotate: float,
     shift: tuple[float, float],
 ) -> np.ndarray:
@@ -2868,7 +2890,7 @@ def adjust_padding_by_position(
     h_bottom: int,
     w_left: int,
     w_right: int,
-    position: PositionType,
+    position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"],
     py_random: np.random.RandomState,
 ) -> tuple[int, int, int, int]:
     """Adjust padding values based on desired position."""
@@ -3170,6 +3192,32 @@ def shuffle_tiles_within_shape_groups(
     return mapping
 
 
+def compute_pairwise_distances(
+    points1: np.ndarray,
+    points2: np.ndarray,
+) -> np.ndarray:
+    """Compute pairwise squared Euclidean distances between two point sets.
+
+    Args:
+        points1: First set of points with shape (N, 2)
+        points2: Second set of points with shape (M, 2)
+
+    Returns:
+        Distance matrix with shape (N, M)
+    """
+    points1 = np.ascontiguousarray(points1, dtype=np.float32)
+    points2 = np.ascontiguousarray(points2, dtype=np.float32)
+
+    # Compute squared terms
+    p1_squared = cv2.multiply(points1, points1).sum(axis=1, keepdims=True)
+    p2_squared = cv2.multiply(points2, points2).sum(axis=1)[None, :]
+
+    # Compute dot product
+    dot_product = cv2.gemm(points1, points2.T, 1, None, 0)
+
+    return p1_squared + p2_squared - 2 * dot_product
+
+
 def compute_tps_weights(
     src_points: np.ndarray,
     dst_points: np.ndarray,
@@ -3194,38 +3242,32 @@ def compute_tps_weights(
     num_points = src_points.shape[0]
 
     # Compute pairwise distances
-    distances = np.linalg.norm(src_points[:, None] - src_points, axis=2)
+    distances = compute_pairwise_distances(src_points, src_points)
 
-    # Apply TPS kernel function: U(r) = r² log(r)
-    # Add small epsilon to avoid log(0)
     kernel_matrix = np.where(
         distances > 0,
-        distances * distances * np.log(distances + 1e-6),
+        distances * distances * cv2.log(distances + 1e-6),
         0,
-    )
+    ).astype(np.float32)
 
-    # Construct affine terms matrix [1, x, y]
-    affine_terms = np.ones((num_points, 3))
+    # Build system matrix efficiently
+    affine_terms = np.empty((num_points, 3), dtype=np.float32)
+    affine_terms[:, 0] = 1
     affine_terms[:, 1:] = src_points
 
-    # Build system matrix
-    system_matrix = np.zeros((num_points + 3, num_points + 3))
+    # Construct system matrix
+    system_matrix = np.zeros((num_points + 3, num_points + 3), dtype=np.float32)
     system_matrix[:num_points, :num_points] = kernel_matrix
     system_matrix[:num_points, num_points:] = affine_terms
     system_matrix[num_points:, :num_points] = affine_terms.T
 
-    # Right-hand side of the system
-    target_coords = np.zeros((num_points + 3, 2))
-    target_coords[:num_points] = dst_points
+    # Prepare target coordinates
+    target = np.zeros((num_points + 3, 2), dtype=np.float32)
+    target[:num_points] = dst_points
 
-    # Solve the system for both x and y coordinates
-    all_weights = np.linalg.solve(system_matrix, target_coords)
+    weights = cv2.solve(system_matrix, target, flags=cv2.DECOMP_LU)[1]
 
-    # Split weights into nonlinear and affine components
-    nonlinear_weights = all_weights[:num_points]
-    affine_weights = all_weights[num_points:]
-
-    return nonlinear_weights, affine_weights
+    return weights[:num_points], weights[num_points:]
 
 
 def tps_transform(
@@ -3234,43 +3276,38 @@ def tps_transform(
     nonlinear_weights: np.ndarray,
     affine_weights: np.ndarray,
 ) -> np.ndarray:
-    """Apply Thin Plate Spline transformation to points.
+    """Apply TPS transformation with consistent types."""
+    # Ensure float32 type for all inputs
+    target_points = np.ascontiguousarray(target_points, dtype=np.float32)
+    control_points = np.ascontiguousarray(control_points, dtype=np.float32)
+    nonlinear_weights = np.ascontiguousarray(nonlinear_weights, dtype=np.float32)
+    affine_weights = np.ascontiguousarray(affine_weights, dtype=np.float32)
 
-    Args:
-        target_points: Points to transform with shape (num_targets, 2)
-        control_points: Original control points with shape (num_controls, 2)
-        nonlinear_weights: TPS kernel weights with shape (num_controls, 2)
-        affine_weights: Affine transformation weights with shape (3, 2)
+    distances = compute_pairwise_distances(target_points, control_points)
 
-    Returns:
-        Transformed points with shape (num_targets, 2)
-
-    Note:
-        The transformation combines:
-        1. Nonlinear warping based on distances to control points
-        2. Global affine transformation (scale, rotation, translation)
-    """
-    # Compute all pairwise distances at once: (num_targets, num_controls)
-    distances = np.linalg.norm(target_points[:, None] - control_points, axis=2)
-
-    # Apply TPS kernel function: U(r) = r² log(r)
+    # Ensure kernel matrix is float32
     kernel_matrix = np.where(
         distances > 0,
-        distances * distances * np.log(distances + 1e-6),
+        distances * cv2.log(distances + 1e-6),
         0,
-    )
+    ).astype(np.float32)
 
-    # Prepare affine terms [1, x, y] for each point
-    affine_terms = np.c_[np.ones(len(target_points)), target_points]
+    # Prepare affine terms
+    num_points = len(target_points)
+    affine_terms = np.empty((num_points, 3), dtype=np.float32)
+    affine_terms[:, 0] = 1
+    affine_terms[:, 1:] = target_points
 
-    # Combine nonlinear and affine transformations
-    return kernel_matrix @ nonlinear_weights + affine_terms @ affine_weights
+    # Matrix multiplications with consistent float32 type
+    nonlinear_part = cv2.gemm(kernel_matrix, nonlinear_weights, 1, None, 0)
+    affine_part = cv2.gemm(affine_terms, affine_weights, 1, None, 0)
+
+    return nonlinear_part + affine_part
 
 
 def get_camera_matrix_distortion_maps(
     image_shape: tuple[int, int],
     k: float,
-    center_xy: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate distortion maps using camera matrix model.
 
@@ -3284,8 +3321,11 @@ def get_camera_matrix_distortion_maps(
         - map_y: Vertical displacement map
     """
     height, width = image_shape[:2]
+
+    center_x, center_y = width / 2, height / 2
+
     camera_matrix = np.array(
-        [[width, 0, center_xy[0]], [0, height, center_xy[1]], [0, 0, 1]],
+        [[width, 0, center_x], [0, height, center_y], [0, 0, 1]],
         dtype=np.float32,
     )
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
@@ -3302,7 +3342,6 @@ def get_camera_matrix_distortion_maps(
 def get_fisheye_distortion_maps(
     image_shape: tuple[int, int],
     k: float,
-    center_xy: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate distortion maps using fisheye model.
 
@@ -3317,8 +3356,7 @@ def get_fisheye_distortion_maps(
     """
     height, width = image_shape[:2]
 
-    center_x, center_y = center_xy
-
+    center_x, center_y = width / 2, height / 2
     # Create coordinate grid
     y, x = np.mgrid[:height, :width].astype(np.float32)
 
@@ -3341,3 +3379,35 @@ def get_fisheye_distortion_maps(
     map_y = r_dist * np.sin(theta) + center_y
 
     return map_x, map_y
+
+
+def generate_control_points(num_control_points: int) -> np.ndarray:
+    """Generate control points for TPS transformation.
+
+    Args:
+        num_control_points: Number of control points per side.
+            If 2, generates 4 corner points + 1 center point.
+            Otherwise generates a grid of num_control_points x num_control_points.
+
+    Returns:
+        np.ndarray: Control points with shape (N, 2) where N is:
+            - 5 points when num_control_points=2 (4 corners + center)
+            - num_control_points² points otherwise
+    """
+    if num_control_points == 2:
+        # Generate 4 corners + center point similar to Kornia
+        return np.array(
+            [
+                [0, 0],  # top-left
+                [0, 1],  # bottom-left
+                [1, 0],  # top-right
+                [1, 1],  # bottom-right
+                [0.5, 0.5],  # center
+            ],
+            dtype=np.float32,
+        )
+
+        # Generate regular grid
+    x = np.linspace(0, 1, num_control_points)
+    y = np.linspace(0, 1, num_control_points)
+    return np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)

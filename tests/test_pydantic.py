@@ -1,66 +1,23 @@
-import warnings
 from inspect import Parameter, signature
 from typing import Any, Dict, Optional, Tuple, Union
 
-import cv2
 import pytest
 from pydantic import BaseModel
 
 import albumentations as A
 from albumentations.core.pydantic import (
-    BorderModeType,
-    InterpolationType,
     NonNegativeFloatRangeType,
     NonNegativeIntRangeType,
     OnePlusFloatRangeType,
     OnePlusIntRangeType,
-    ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
     check_range_bounds,
-    check_valid_border_modes,
-    check_valid_interpolation,
     create_symmetric_range,
     process_non_negative_range,
-    valid_border_modes,
-    valid_interpolations,
 )
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from albumentations.core.validation import ValidatedTransformMeta
-
-
-# Interpolation Tests
-@pytest.mark.parametrize(
-    "interpolation, exception",
-    [
-        (cv2.INTER_NEAREST, False),
-        (cv2.INTER_LINEAR, False),
-        (999, True),  # Invalid interpolation
-    ],
-)
-def test_check_valid_interpolation(interpolation: int, exception: bool) -> None:
-    if exception:
-        with pytest.raises(ValueError):
-            check_valid_interpolation(interpolation)
-    else:
-        assert check_valid_interpolation(interpolation) == interpolation
-
-
-# Border Mode Tests
-@pytest.mark.parametrize(
-    "border_mode, exception",
-    [
-        (cv2.BORDER_CONSTANT, False),
-        (cv2.BORDER_REPLICATE, False),
-        (999, True),  # Invalid border mode
-    ],
-)
-def test_check_valid_border_modes(border_mode: int, exception: bool) -> None:
-    if exception:
-        with pytest.raises(ValueError):
-            check_valid_border_modes(border_mode)
-    else:
-        assert check_valid_border_modes(border_mode) == border_mode
 
 
 @pytest.mark.parametrize(
@@ -130,26 +87,12 @@ def test_process_non_negative_range_with_invalid_input(value: Tuple[float, float
         process_non_negative_range(value)
 
 class ValidationModel(BaseModel):
-    interpolation: Optional[InterpolationType] = None
-    border_mode: Optional[BorderModeType] = None
-    probability: Optional[ProbabilityType] = None
     non_negative_range_float: Optional[NonNegativeFloatRangeType] = None
     non_negative_range_int: Optional[NonNegativeIntRangeType] = None
     symmetric_range: Optional[SymmetricRangeType] = None
     one_plus_range_float: Optional[OnePlusFloatRangeType] = None
     one_plus_range_int: Optional[OnePlusIntRangeType] = None
     zero_one_range: Optional[ZeroOneRangeType] = None
-
-
-# Valid Cases
-@pytest.mark.parametrize("interpolation", valid_interpolations)
-def test_interpolation_valid(interpolation: int) -> None:
-    assert ValidationModel(interpolation=interpolation)
-
-
-@pytest.mark.parametrize("border_mode", valid_border_modes)
-def test_border_mode_valid(border_mode: int) -> None:
-    assert ValidationModel(border_mode=border_mode)
 
 
 @pytest.mark.parametrize("probability", [0, 0.5, 1])
@@ -166,25 +109,6 @@ def test_non_negative_range_valid(non_negative_range: Union[int, Tuple[int, int]
 @pytest.mark.parametrize("symmetric_range", [(-10, 10), 5])
 def test_symmetric_range_valid(symmetric_range: Union[int, Tuple[int, int]]) -> None:
     assert ValidationModel(symmetric_range=symmetric_range)
-
-
-# Invalid Cases
-@pytest.mark.parametrize("interpolation", [999, -1])  # Invalid interpolation values
-def test_interpolation_invalid(interpolation: int) -> None:
-    with pytest.raises(ValueError):
-        ValidationModel(interpolation=interpolation)
-
-
-@pytest.mark.parametrize("border_mode", [999, -1])  # Invalid border mode values
-def test_border_mode_invalid(border_mode: int) -> None:
-    with pytest.raises(ValueError):
-        ValidationModel(border_mode=border_mode)
-
-
-@pytest.mark.parametrize("probability", [-0.1, 1.1])  # Invalid probabilities
-def test_probability_invalid(probability: float) -> None:
-    with pytest.raises(ValueError):
-        ValidationModel(probability=probability)
 
 
 @pytest.mark.parametrize(
@@ -333,18 +257,6 @@ def test_custom_image_transform_signature() -> None:
     # Ensure the correct defaults and types
     assert expected_params["p"].default == 0.5
     assert expected_params["custom_param"].annotation is int
-
-
-def test_wrong_argument() -> None:
-    """Test that pas Transform will get warning"""
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        transform = A.Blur(wrong_param=10)
-        assert not hasattr(transform, "wrong_param")
-        assert len(w) == 1
-        assert issubclass(w[0].category, UserWarning)
-        assert str(w[0].message) == "Argument 'wrong_param' is not valid and will be ignored."
-    warnings.resetwarnings()
 
 
 def test_check_range_bounds_doctest():
