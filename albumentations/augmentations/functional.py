@@ -115,7 +115,15 @@ def shift_hsv(
         hue = sz_lut(hue, lut_hue, inplace=False)
 
     if sat_shift != 0:
+        # Create a mask for all grayscale pixels (S=0)
+        # These should remain grayscale regardless of saturation change
+        grayscale_mask = sat == 0
+
+        # Apply saturation shift only to non-white pixels
         sat = add_constant(sat, sat_shift, inplace=True)
+
+        # Reset saturation for white pixels
+        sat[grayscale_mask] = 0
 
     if val_shift != 0:
         val = add_constant(val, val_shift, inplace=True)
