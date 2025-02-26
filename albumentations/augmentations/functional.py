@@ -229,7 +229,7 @@ def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal
 def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
     h = np.array([_f for _f in histogram if _f])
-    
+
     if len(h) <= 1:
         return img.copy()
 
