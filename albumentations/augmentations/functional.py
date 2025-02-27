@@ -493,7 +493,7 @@ def image_compression(
     num_channels = get_num_channels(img)
 
     # Prepare to encode and decode
-    def encode_decode(src_img, read_mode):
+    def encode_decode(src_img, read_mode) -> np.ndarray:
         _, encoded_img = cv2.imencode(image_type, src_img, (int(quality_flag), quality))
         return cv2.imdecode(encoded_img, read_mode)
 
@@ -502,24 +502,21 @@ def image_compression(
         decoded = encode_decode(img, cv2.IMREAD_GRAYSCALE)
         return decoded[..., np.newaxis]  # Add channel dimension back
 
-    elif num_channels in (2, NUM_RGB_CHANNELS):
+    if num_channels in (2, NUM_RGB_CHANNELS):
         # 2 channels: pad to 3, or 3 (RGB) channels
         padded_img = np.pad(img, ((0, 0), (0, 0), (0, 1)), mode="constant") if num_channels == 2 else img
         decoded_bgr = encode_decode(padded_img, cv2.IMREAD_UNCHANGED)
         return decoded_bgr[..., :num_channels]  # Return only the required number of channels
 
-    else:
-        # More than 3 channels
-        bgr = img[..., :NUM_RGB_CHANNELS]
-        decoded_bgr = encode_decode(bgr, cv2.IMREAD_UNCHANGED)
-        
-        # Process additional channels
-        extra_channels = [encode_decode(img[..., i], cv2.IMREAD_GRAYSCALE)[..., np.newaxis] 
-                          for i in range(NUM_RGB_CHANNELS, num_channels)]
-        return np.dstack([decoded_bgr, *extra_channels])
+    # More than 3 channels
+    bgr = img[..., :NUM_RGB_CHANNELS]
+    decoded_bgr = encode_decode(bgr, cv2.IMREAD_UNCHANGED)
 
-    return img  # Return original image if none of the conditions met (though should not happen)
-
+    # Process additional channels
+    extra_channels = [
+        encode_decode(img[..., i], cv2.IMREAD_GRAYSCALE)[..., np.newaxis] for i in range(NUM_RGB_CHANNELS, num_channels)
+    ]
+    return np.dstack([decoded_bgr, *extra_channels])
 
 @uint8_io
 def add_snow_bleach(
