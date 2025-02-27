@@ -76,7 +76,7 @@ class MinMaxScaler(BaseScaler):
                 "This MinMaxScaler instance is not fitted yet. "
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
-        x_std = (x - self.min) / (self.max - self.min)
+        x_std = ((x - self.min) / (self.max - self.min)).astype(float)
         return x_std * self.data_range + self.data_min
 
 
