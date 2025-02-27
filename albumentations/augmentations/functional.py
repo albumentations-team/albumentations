@@ -171,7 +171,10 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
 
 @uint8_io
 @clipped
-def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]]) -> np.ndarray:
+def posterize(
+    img: np.ndarray,
+    bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]],
+) -> np.ndarray:
     """Reduce the number of bits for each color channel by keeping only the highest N bits.
 
     This transform performs bit-depth reduction by masking out lower bits, effectively
@@ -257,7 +260,11 @@ def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
 
     # Optimize cumulative sum and scale to generate LUT
     cumsum_histogram = np.cumsum(histogram)
-    lut = np.clip(((cumsum_histogram - cumsum_histogram[i]) * scale).round(), 0, 255).astype(np.uint8)
+    lut = np.clip(
+        ((cumsum_histogram - cumsum_histogram[i]) * scale).round(),
+        0,
+        255,
+    ).astype(np.uint8)
 
     return sz_lut(img, lut, inplace=True)
 
@@ -281,12 +288,15 @@ def _handle_mask(
     mask: np.ndarray | None,
     i: int | None = None,
 ) -> np.ndarray | None:
-    if mask is None:
-        return None
-    if is_grayscale_image(mask) or i is None:
-        return mask.astype(np.uint8)
+    mask = mask.astype(
+        np.uint8,
+        copy=False,
+    )  # Use copy=False to avoid unnecessary copying
+    # Check for grayscale image and avoid slicing if i is None
+    if i is not None and not is_grayscale_image(mask):
+        mask = mask[..., i]
 
-    return mask[..., i].astype(np.uint8)
+    return mask
 
 
 @uint8_io
@@ -742,7 +752,9 @@ def add_rain(
     rain_layer = np.zeros_like(img, dtype=np.uint8)
 
     # Calculate end points correctly
-    end_points = rain_drops + np.array([[slant, drop_length]])  # This creates correct shape
+    end_points = rain_drops + np.array(
+        [[slant, drop_length]],
+    )  # This creates correct shape
 
     # Stack arrays properly - both must be same shape arrays
     lines = np.stack((rain_drops, end_points), axis=1)  # Use tuple and proper axis
@@ -2431,7 +2443,10 @@ def generate_plasma_pattern(
 ) -> np.ndarray:
     """Generate Plasma Fractal with consistent brightness."""
 
-    def one_diamond_square_step(current_grid: np.ndarray, noise_scale: float) -> np.ndarray:
+    def one_diamond_square_step(
+        current_grid: np.ndarray,
+        noise_scale: float,
+    ) -> np.ndarray:
         next_height = (current_grid.shape[0] - 1) * 2 + 1
         next_width = (current_grid.shape[1] - 1) * 2 + 1
 
@@ -2439,23 +2454,44 @@ def generate_plasma_pattern(
         expanded_grid = np.zeros((next_height, next_width), dtype=np.float32)
 
         # Generate all noise at once for both steps (already scaled by noise_scale)
-        all_noise = random_generator.uniform(-noise_scale, noise_scale, (next_height, next_width)).astype(np.float32)
+        all_noise = random_generator.uniform(
+            -noise_scale,
+            noise_scale,
+            (next_height, next_width),
+        ).astype(np.float32)
 
         # Copy existing points with noise
         expanded_grid[::2, ::2] = current_grid + all_noise[::2, ::2]
 
         # Diamond step - keep separate for natural look
-        diamond_interpolation = cv2.filter2D(expanded_grid, -1, DIAMOND_KERNEL, borderType=cv2.BORDER_CONSTANT)
+        diamond_interpolation = cv2.filter2D(
+            expanded_grid,
+            -1,
+            DIAMOND_KERNEL,
+            borderType=cv2.BORDER_CONSTANT,
+        )
         diamond_mask = diamond_interpolation > 0
         expanded_grid += (diamond_interpolation + all_noise) * diamond_mask
 
         # Square step - keep separate for natural look
-        square_interpolation = cv2.filter2D(expanded_grid, -1, SQUARE_KERNEL, borderType=cv2.BORDER_CONSTANT)
+        square_interpolation = cv2.filter2D(
+            expanded_grid,
+            -1,
+            SQUARE_KERNEL,
+            borderType=cv2.BORDER_CONSTANT,
+        )
         square_mask = square_interpolation > 0
         expanded_grid += (square_interpolation + all_noise) * square_mask
 
         # Normalize after each step to prevent value drift
-        return cv2.normalize(expanded_grid, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        return cv2.normalize(
+            expanded_grid,
+            None,
+            0,
+            1,
+            cv2.NORM_MINMAX,
+            dtype=cv2.CV_32F,
+        )
 
     # Pre-compute noise scales
     max_dimension = max(target_shape)
@@ -2471,7 +2507,14 @@ def generate_plasma_pattern(
         plasma_grid = one_diamond_square_step(plasma_grid, noise_scale)
 
     return np.clip(
-        cv2.normalize(plasma_grid[: target_shape[0], : target_shape[1]], None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F),
+        cv2.normalize(
+            plasma_grid[: target_shape[0], : target_shape[1]],
+            None,
+            0,
+            1,
+            cv2.NORM_MINMAX,
+            dtype=cv2.CV_32F,
+        ),
         0,
         1,
     )
@@ -2498,7 +2541,11 @@ def apply_plasma_brightness_contrast(
 
     # Apply brightness adjustment
     if brightness_factor != 0:
-        brightness_adjustment = multiply(plasma_pattern, brightness_factor, inplace=False)
+        brightness_adjustment = multiply(
+            plasma_pattern,
+            brightness_factor,
+            inplace=False,
+        )
         img = add(img, brightness_adjustment, inplace=True)
 
     # Apply contrast adjustment
@@ -2552,15 +2599,27 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
     """
     # Fast path for horizontal gradients
     if angle == 0:
-        return np.linspace(0, 1, width, dtype=np.float32)[None, :] * np.ones((height, 1), dtype=np.float32)
+        return np.linspace(0, 1, width, dtype=np.float32)[None, :] * np.ones(
+            (height, 1),
+            dtype=np.float32,
+        )
     if angle == 180:
-        return np.linspace(1, 0, width, dtype=np.float32)[None, :] * np.ones((height, 1), dtype=np.float32)
+        return np.linspace(1, 0, width, dtype=np.float32)[None, :] * np.ones(
+            (height, 1),
+            dtype=np.float32,
+        )
 
     # Fast path for vertical gradients
     if angle == 90:
-        return np.linspace(0, 1, height, dtype=np.float32)[:, None] * np.ones((1, width), dtype=np.float32)
+        return np.linspace(0, 1, height, dtype=np.float32)[:, None] * np.ones(
+            (1, width),
+            dtype=np.float32,
+        )
     if angle == 270:
-        return np.linspace(1, 0, height, dtype=np.float32)[:, None] * np.ones((1, width), dtype=np.float32)
+        return np.linspace(1, 0, height, dtype=np.float32)[:, None] * np.ones(
+            (1, width),
+            dtype=np.float32,
+        )
 
     # Fast path for diagonal gradients using broadcasting
     if angle in (45, 135, 225, 315):
@@ -2570,9 +2629,23 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
         if angle == 45:  # Bottom-left to top-right
             return cv2.normalize(x + y, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
         if angle == 135:  # Bottom-right to top-left
-            return cv2.normalize((1 - x) + y, None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+            return cv2.normalize(
+                (1 - x) + y,
+                None,
+                0,
+                1,
+                cv2.NORM_MINMAX,
+                dtype=cv2.CV_32F,
+            )
         if angle == 225:  # Top-right to bottom-left
-            return cv2.normalize((1 - x) + (1 - y), None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+            return cv2.normalize(
+                (1 - x) + (1 - y),
+                None,
+                0,
+                1,
+                cv2.NORM_MINMAX,
+                dtype=cv2.CV_32F,
+            )
         # angle == 315:  # Top-left to bottom-right
         return cv2.normalize(x + (1 - y), None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
 
@@ -2591,7 +2664,11 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
 
 
 @float32_io
-def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -> np.ndarray:
+def apply_linear_illumination(
+    img: np.ndarray,
+    intensity: float,
+    angle: float,
+) -> np.ndarray:
     """Apply directional illumination effect to an image using a linear gradient.
 
     The function creates a directional gradient and uses it to modulate image brightness.
@@ -2825,7 +2902,11 @@ def create_contrast_lut(
 
         # Create lookup table
         lut = np.zeros(256, dtype=np.uint8)
-        lut[min_intensity : max_intensity + 1] = np.clip(np.round(cdf), 0, max_value).astype(np.uint8)
+        lut[min_intensity : max_intensity + 1] = np.clip(
+            np.round(cdf),
+            0,
+            max_value,
+        ).astype(np.uint8)
         lut[max_intensity + 1 :] = max_value
         return lut
 
@@ -2834,7 +2915,9 @@ def create_contrast_lut(
     indices = np.arange(256, dtype=float)
     # Changed: Use np.round to get 128 for middle value
     # Test expects [0, 128, 255] for range [0, 2]
-    lut = np.clip(np.round((indices - min_intensity) * scale), 0, max_value).astype(np.uint8)
+    lut = np.clip(np.round((indices - min_intensity) * scale), 0, max_value).astype(
+        np.uint8,
+    )
     lut[:min_intensity] = 0
     lut[max_intensity + 1 :] = max_value
     return lut
@@ -3214,14 +3297,20 @@ class SimpleNMF:
             dtype=np.float32,
         )
 
-    def fit_transform(self, optical_density: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def fit_transform(
+        self,
+        optical_density: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
         # Start with known H&E colors
         stain_colors = self.initial_colors.copy()
 
         # Initialize concentrations based on projection onto initial colors
         # This gives us a physically meaningful starting point
         stain_colors_normalized = normalize_vectors(stain_colors)
-        stain_concentrations = np.maximum(optical_density @ stain_colors_normalized.T, 0)
+        stain_concentrations = np.maximum(
+            optical_density @ stain_colors_normalized.T,
+            0,
+        )
 
         # Iterative updates with careful normalization
         eps = 1e-6
@@ -3322,7 +3411,10 @@ class MacenkoNormalizer(StainNormalizer):
         # Step 4: Get principal components
         eigenvalues, eigenvectors = cv2.eigen(od_covariance)[1:]
         idx = np.argsort(eigenvalues.ravel())[-2:]
-        principal_eigenvectors = np.ascontiguousarray(eigenvectors[:, idx], dtype=np.float32)
+        principal_eigenvectors = np.ascontiguousarray(
+            eigenvectors[:, idx],
+            dtype=np.float32,
+        )
 
         # Step 5: Project onto eigenvector plane
         plane_coordinates = tissue_density @ principal_eigenvectors
@@ -3358,7 +3450,9 @@ class MacenkoNormalizer(StainNormalizer):
         stain_vectors = np.abs(stain_vectors)
 
         # Step 9: Normalize vectors to unit length
-        stain_vectors = stain_vectors / np.sqrt(np.sum(stain_vectors**2, axis=1, keepdims=True))
+        stain_vectors = stain_vectors / np.sqrt(
+            np.sum(stain_vectors**2, axis=1, keepdims=True),
+        )
 
         # Step 10: Order vectors as [hematoxylin, eosin]
         # Hematoxylin typically has larger red component
@@ -3442,5 +3536,10 @@ def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 @clipped
 @preserve_channel_dim
 def separable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    conv_fn = maybe_process_in_chunks(cv2.sepFilter2D, ddepth=-1, kernelX=kernel, kernelY=kernel)
+    conv_fn = maybe_process_in_chunks(
+        cv2.sepFilter2D,
+        ddepth=-1,
+        kernelX=kernel,
+        kernelY=kernel,
+    )
     return conv_fn(img)
