@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from enum import Enum
-from typing import Literal, TypeVar, Union
+from typing import TypeVar, Union
 
 import cv2
 import numpy as np
@@ -10,27 +9,12 @@ from albucore.utils import MAX_VALUES_BY_DTYPE
 from numpy.typing import NDArray
 from typing_extensions import NotRequired, TypedDict
 
-ColorType = Union[float, Sequence[float]]
-
 Number = TypeVar("Number", float, int)
-
-ScalarType = Union[float, int]
-
-ScaleIntType = Union[int, tuple[int, int]]
-ScaleFloatType = Union[float, tuple[float, float]]
-
-ScaleType = Union[ScaleIntType, ScaleFloatType]
 
 IntNumType = Union[np.integer, NDArray[np.integer]]
 FloatNumType = Union[np.floating, NDArray[np.floating]]
 
-ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
-RainMode = Literal["drizzle", "heavy", "torrential", "default"]
-
-MorphologyMode = Literal["erosion", "dilation"]
-
 d4_group_elements = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
-D4Type = Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 
 
 class ReferenceImage(TypedDict):
@@ -97,17 +81,9 @@ PxType = Union[
 
 
 REFLECT_BORDER_MODES = {
-    cv2.BORDER_REFLECT101,
     cv2.BORDER_REFLECT_101,
     cv2.BORDER_REFLECT,
 }
 
 NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS = 5
 NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS = 4
-
-
-PositionType = Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]
-
-InpaintMethod = Literal["inpaint_telea", "inpaint_ns"]
-
-DropoutFillValue = Union[ColorType, Literal["random", "random_uniform"], InpaintMethod]

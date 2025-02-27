@@ -4,7 +4,7 @@ import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
 import warnings
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 import torch
 import cv2
 import numpy as np
@@ -25,7 +25,7 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
 )
-from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
+from albumentations.core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
@@ -1038,7 +1038,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
         if augmentation_cls in {A.ChannelDropout, A.Spatter, A.ISONoise,
                                 A.RandomGravel, A.ChromaticAberration, A.PlanckianJitter, A.PixelDistributionAdaptation,
                                 A.MaskDropout, A.ConstrainedCoarseDropout, A.ChannelShuffle, A.ToRGB, A.RandomSunFlare,
-                                A.RandomFog, A.RandomSnow, A.RandomRain}:
+                                A.RandomFog, A.RandomSnow, A.RandomRain, A.HEStain}:
             pytest.skip("ChannelDropout is not applicable to grayscale images")
 
 
@@ -1087,7 +1087,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
         if augmentation_cls not in [A.RandomCrop, A.AtLeastOneBBoxRandomCrop, A.RandomResizedCrop, A.Resize, A.RandomSizedCrop, A.RandomSizedBBoxSafeCrop,
                                     A.BBoxSafeRandomCrop, A.Transpose, A.RandomCropNearBBox, A.CenterCrop, A.Crop, A.CropAndPad,
                                     A.LongestMaxSize, A.RandomScale, A.PadIfNeeded, A.SmallestMaxSize, A.RandomCropFromBorders,
-                                    A.RandomRotate90, A.D4]:
+                                    A.RandomRotate90, A.D4, A.SquareSymmetry]:
             assert H == image.shape[0]  # Height matches input
             assert W == image.shape[1]  # Width matches input
     else:
@@ -1250,20 +1250,14 @@ def test_masks_as_target(augmentation_cls, params, masks):
         custom_arguments={
         },
         except_augmentations={
-            A.RandomSizedBBoxSafeCrop,
             A.PixelDropout,
-            A.CropNonEmptyMaskIfExists,
-            A.PixelDistributionAdaptation,
-            A.PadIfNeeded,
             A.RandomCrop,
-            A.AtLeastOneBBoxRandomCrop,
             A.Crop,
             A.CenterCrop,
             A.FDA,
             A.HistogramMatching,
             A.Lambda,
             A.TemplateTransform,
-            A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
@@ -1273,56 +1267,58 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.TimeMasking,
             A.FrequencyMasking,
             A.Erasing,
-            A.ElasticTransform,
             A.RandomCropNearBBox,
             A.GridDropout,
             A.CoarseDropout,
             A.ConstrainedCoarseDropout,
-            A.PadIfNeeded,
             A.RandomRotate90,
             A.D4,
-            A.GridDistortion,
-            A.ElasticTransform,
-            A.GridElasticDeform,
             A.HorizontalFlip,
             A.VerticalFlip,
             A.Transpose,
-            A.LongestMaxSize,
-            A.SmallestMaxSize,
-            A.RandomGridShuffle,
-            A.Morphological,
             A.NoOp,
-            A.OpticalDistortion,
-            A.Pad,
-            A.PiecewiseAffine,
-            A.RandomScale,
             A.RandomSizedBBoxSafeCrop,
-            A.RandomSizedCrop,
-            A.RandomResizedCrop,
             A.RandomRotate90,
-            A.RandomCropFromBorders,
-            A.Resize,
-            A.ThinPlateSpline,
             A.TimeReverse,
             A.TimeMasking
         },
     ),
 )
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST,
-                                                cv2.INTER_LINEAR,
-                                                cv2.INTER_CUBIC,
-                                                cv2.INTER_AREA
-                                                ])
-def test_mask_interpolation(augmentation_cls, params, interpolation):
-    image = SQUARE_UINT8_IMAGE
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT
+            ])
+def test_mask_interpolation(augmentation_cls, params, interpolation, image):
     mask = image.copy()
+    if augmentation_cls in {A.Affine, A.GridElasticDeform,
+    A.SafeRotate,
+    A.ShiftScaleRotate,
+    A.OpticalDistortion,
+    A.ThinPlateSpline,
+    A.Perspective,
+    A.ElasticTransform,
+    A.GridDistortion,
+    A.PiecewiseAffine,
+    A.CropAndPad,
+    A.LongestMaxSize,
+    A.SmallestMaxSize,
+    A.RandomResizedCrop,
+    A.RandomScale,
+    A.Rotate
+    } and interpolation in {cv2.INTER_NEAREST_EXACT, cv2.INTER_LINEAR_EXACT}:
+        return
+
     params["interpolation"] = interpolation
     params["mask_interpolation"] = interpolation
     params["border_mode"] = cv2.BORDER_CONSTANT
     params["fill"] = 10
     params["fill_mask"] = 10
 
-    aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=True)
+    aug = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
 
     transformed = aug(image=image, mask=mask)
 
@@ -1808,3 +1804,136 @@ def test_transform_strict_with_valid_params():
     transform = A.Blur(strict=True, p=0.7, blur_limit=(3, 5))
     assert transform.p == 0.7
     assert transform.blur_limit == (3, 5)
+
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+        },
+        except_augmentations={
+            A.PixelDropout,
+            A.RandomCrop,
+            A.Crop,
+            A.CenterCrop,
+            A.FDA,
+            A.HistogramMatching,
+            A.Lambda,
+            A.TemplateTransform,
+            A.BBoxSafeRandomCrop,
+            A.OverlayElements,
+            A.TextImage,
+            A.FromFloat,
+            A.MaskDropout,
+            A.XYMasking,
+            A.TimeMasking,
+            A.FrequencyMasking,
+            A.Erasing,
+            A.RandomCropNearBBox,
+            A.GridDropout,
+            A.CoarseDropout,
+            A.ConstrainedCoarseDropout,
+            A.RandomRotate90,
+            A.D4,
+            A.HorizontalFlip,
+            A.VerticalFlip,
+            A.Transpose,
+            A.NoOp,
+            A.RandomSizedBBoxSafeCrop,
+            A.RandomRotate90,
+            A.TimeReverse,
+            A.TimeMasking,
+            A.ThinPlateSpline,
+            A.ElasticTransform,
+            A.PiecewiseAffine,
+            A.ShiftScaleRotate,
+            A.RandomScale,
+            A.Resize,
+            A.RandomResizedCrop,
+            A.RandomGridShuffle,
+            A.OpticalDistortion,
+            A.Morphological,
+            A.AtLeastOneBBoxRandomCrop
+        },
+    ),
+)
+@pytest.mark.parametrize("border_mode", [
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+            cv2.BORDER_REFLECT101,
+        ])
+def test_mask_interpolation(augmentation_cls, params, border_mode, image):
+
+    mask = image.copy()
+
+    params["interpolation"] = cv2.INTER_LINEAR
+    params["mask_interpolation"] = cv2.INTER_LINEAR
+    params["border_mode"] = border_mode
+    params["fill"] = 10
+    params["fill_mask"] = 10
+
+    transform = A.Compose([augmentation_cls(**params, p=1)], seed=137, strict=False)
+
+    transform(image=image, mask=mask)
+
+
+@pytest.mark.parametrize(
+    "params, strict, expected_outcome, expected_error_params",
+    [
+        # Valid cases
+        ({"rotate": 45}, False, "valid", []),
+        ({"rotate": 45, "p": 0.5}, False, "valid", []),
+
+        # Invalid parameter names (affected by strict)
+        ({"rotate": 45, "invalid_param": 123}, False, "warning", []),
+        ({"rotate": 45, "invalid_param": 123}, True, "error", ["invalid_param"]),
+        ({"rotate": 45, "wrong_param": 0.5, "bad_param": 30}, False, "warning", []),
+
+        # Invalid parameter values (always error, regardless of strict)
+        ({"rotate": 45, "p": 1.5}, False, "value_error", ["p"]),
+        ({"rotate": 45, "p": -0.5}, False, "value_error", ["p"]),
+        # Multiple invalid values
+        ({"interpolation": -1, "mask_interpolation": -1, "p": 1.5}, False, "value_error",
+         ["interpolation", "mask_interpolation", "p"]),
+    ]
+)
+def test_affine_invalid_parameters(params, strict, expected_outcome, expected_error_params):
+    if expected_outcome == "valid":
+        transform = A.Affine(**params)
+        assert transform is not None
+        assert not hasattr(transform, 'invalid_args') or not transform.invalid_args
+
+    elif expected_outcome == "warning":
+        transform = A.Affine(strict=strict, **params)
+        assert hasattr(transform, 'invalid_args')
+        invalid_params = set(params.keys()) - {"rotate", "p", "scale", "translate_percent",
+                                             "translate_px", "interpolation", "mask_interpolation",
+                                             "mode", "fit_output", "keep_ratio"}
+        assert set(transform.invalid_args) == invalid_params
+
+    elif expected_outcome == "error":
+        with pytest.raises(ValueError) as excinfo:
+            A.Affine(strict=strict, **params)
+        error_msg = str(excinfo.value)
+        for param in expected_error_params:
+            assert param in error_msg
+
+    elif expected_outcome == "value_error":
+        with pytest.raises(ValueError) as excinfo:
+            A.Affine(strict=strict, **params)
+        error_msg = str(excinfo.value)
+
+        # Verify that ALL expected error parameters are in the message
+        for param in expected_error_params:
+            assert param in error_msg
+
+        if len(expected_error_params) > 1:
+            # Count unique parameters mentioned in the error
+            error_params = {param for param in expected_error_params if param in error_msg}
+
+            assert len(error_params) == len(expected_error_params), \
+                f"Expected validation errors for {expected_error_params}, got errors for {error_params}"

@@ -3,18 +3,22 @@ import sys
 
 import numpy as np
 import pytest
+import cv2
 
-from tests.utils import set_seed
+cv2.setRNGSeed(137)
 
-set_seed(42)
+np.random.seed(137)
 
 @pytest.fixture
 def mask():
-    return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+    return cv2.randu(np.empty((100, 100), dtype=np.uint8), 0, 2)
 
 @pytest.fixture
 def image():
-    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    return cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8),
+                       low=np.array([0, 0, 0]),
+                       high=np.array([255, 255, 255]))
+
 
 @pytest.fixture
 def bboxes():
@@ -29,7 +33,6 @@ def mask3d():
     return np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)
 
 
-
 @pytest.fixture
 def albumentations_bboxes():
     return np.array([[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]])
@@ -42,12 +45,12 @@ def keypoints():
 
 @pytest.fixture
 def template():
-    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    return cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8), 0, 255)
 
 
 @pytest.fixture
 def float_template():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+    return cv2.randu(np.zeros((100, 100, 3), dtype=np.float32), 0, 1)
 
 
 @pytest.fixture(scope="package")
@@ -61,12 +64,11 @@ def mp_pool():
         method = None
     return multiprocessing.get_context(method).Pool(4)
 
+SQUARE_UINT8_IMAGE = cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8), 0, 255)
+RECTANGULAR_UINT8_IMAGE = cv2.randu(np.zeros((101, 99, 3), dtype=np.uint8), 0, 255)
 
-SQUARE_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-RECTANGULAR_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)
-
-SQUARE_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)
-RECTANGULAR_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(101, 99, 3)).astype(np.float32)
+SQUARE_FLOAT_IMAGE = cv2.randu(np.zeros((100, 100, 3), dtype=np.float32), 0, 1)
+RECTANGULAR_FLOAT_IMAGE = cv2.randu(np.zeros((101, 99, 3), dtype=np.float32), 0, 1)
 
 UINT8_IMAGES = [SQUARE_UINT8_IMAGE, RECTANGULAR_UINT8_IMAGE]
 
@@ -79,3 +81,5 @@ RECTANGULAR_IMAGES = [RECTANGULAR_UINT8_IMAGE, RECTANGULAR_FLOAT_IMAGE]
 
 SQUARE_MULTI_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 5), dtype=np.uint8)
 SQUARE_MULTI_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 5)).astype(np.float32)
+
+MULTI_IMAGES = [SQUARE_MULTI_UINT8_IMAGE, SQUARE_MULTI_FLOAT_IMAGE]

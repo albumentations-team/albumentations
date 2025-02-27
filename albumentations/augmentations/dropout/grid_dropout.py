@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, Field
 
 import albumentations.augmentations.dropout.functional as fdropout
 from albumentations.augmentations.dropout.transforms import BaseDropout
 from albumentations.core.pydantic import check_range_bounds, nondecreasing
-from albumentations.core.type_definitions import ColorType, DropoutFillValue
 
 __all__ = ["GridDropout"]
 
@@ -30,7 +29,7 @@ class GridDropout(BaseDropout):
             Default: None. If provided, overrides unit_size_range.
         random_offset (bool): Whether to offset the grid randomly between 0 and (grid unit size - hole size).
             If True, entered shift_xy is ignored and set randomly. Default: True.
-        fill (ColorType | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, float] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value for the dropped pixels. Can be:
             - int or float: all channels are filled with this value
             - tuple: tuple of values for each channel
@@ -39,7 +38,7 @@ class GridDropout(BaseDropout):
             - 'inpaint_telea': uses OpenCV Telea inpainting method
             - 'inpaint_ns': uses OpenCV Navier-Stokes inpainting method
             Default: 0
-        fill_mask (ColorType | None): Value for the dropped pixels in mask.
+        fill_mask (tuple[float, float] | float | None): Value for the dropped pixels in mask.
             If None, the mask is not modified. Default: None.
         shift_xy (tuple[int, int]): Offsets of the grid start in x and y directions from (0,0) coordinate.
             Only used when random_offset is False. Default: (0, 0).
@@ -112,8 +111,8 @@ class GridDropout(BaseDropout):
         unit_size_range: tuple[int, int] | None = None,
         holes_number_xy: tuple[int, int] | None = None,
         shift_xy: tuple[int, int] = (0, 0),
-        fill: DropoutFillValue = 0,
-        fill_mask: ColorType | None = None,
+        fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"] = 0,
+        fill_mask: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(fill=fill, fill_mask=fill_mask, p=p)

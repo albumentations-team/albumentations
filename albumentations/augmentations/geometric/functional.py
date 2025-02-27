@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, cast
 from warnings import warn
 
@@ -15,7 +15,6 @@ from albucore import (
     preserve_channel_dim,
     vflip,
 )
-from typing_extensions import NotRequired, TypedDict
 
 from albumentations.augmentations.utils import angle_2pi_range, handle_empty_array
 from albumentations.core.bbox_utils import (
@@ -31,9 +30,6 @@ from albumentations.core.type_definitions import (
     NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     REFLECT_BORDER_MODES,
-    ColorType,
-    D4Type,
-    PositionType,
 )
 
 __all__ = [
@@ -113,7 +109,7 @@ def bboxes_rot90(bboxes: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
 @handle_empty_array("bboxes")
 def bboxes_d4(
     bboxes: np.ndarray,
-    group_member: D4Type,
+    group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
 ) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to a bounding box.
 
@@ -124,7 +120,8 @@ def bboxes_d4(
     Parameters:
     -  bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
                 Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-    - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+    - group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for the
+        `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
 
     Returns:
@@ -202,7 +199,7 @@ def keypoints_rot90(
 @handle_empty_array("keypoints")
 def keypoints_d4(
     keypoints: np.ndarray,
-    group_member: D4Type,
+    group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
     image_shape: tuple[int, int],
     **params: Any,
 ) -> np.ndarray:
@@ -214,7 +211,8 @@ def keypoints_d4(
 
     Parameters:
     - keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
-    -group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+    -group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for
+        the `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
     - image_shape (tuple[int, int]): The shape of the image.
     - params (Any): Not used
@@ -544,7 +542,7 @@ def warp_affine_with_value_extension(
     dsize: tuple[int, int],
     flags: int,
     border_mode: int,
-    border_value: ColorType,
+    border_value: tuple[float, ...] | float,
 ) -> np.ndarray:
     num_channels = get_num_channels(image)
     extended_value = extend_value(border_value, num_channels)
@@ -564,7 +562,7 @@ def warp_affine(
     image: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    fill: ColorType,
+    fill: tuple[float, ...] | float,
     border_mode: int,
     output_shape: tuple[int, int],
 ) -> np.ndarray:
@@ -593,7 +591,7 @@ def keypoints_affine(
     keypoints: np.ndarray,
     matrix: np.ndarray,
     image_shape: tuple[int, int],
-    scale: XYFloat,
+    scale: dict[str, float],
     border_mode: int,
 ) -> np.ndarray:
     """Apply an affine transformation to keypoints.
@@ -1114,7 +1112,7 @@ def from_distance_maps(
     return keypoints
 
 
-def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
+def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to an image array.
 
     This function manipulates an image using transformations such as rotations and flips,
@@ -1123,7 +1121,8 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
 
     Parameters:
     - img (np.ndarray): The input image array to transform.
-    - group_member (D4Type): A string identifier indicating the specific transformation to apply. Valid codes include:
+    - group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier indicating
+        the specific transformation to apply. Valid codes include:
       - 'e': Identity (no transformation).
       - 'r90': Rotate 90 degrees counterclockwise.
       - 'r180': Rotate 180 degrees.
@@ -1317,7 +1316,7 @@ def pad(
     min_height: int,
     min_width: int,
     border_mode: int,
-    value: ColorType | None,
+    value: tuple[float, ...] | float | None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1353,7 +1352,7 @@ def pad(
     return img
 
 
-def extend_value(value: ColorType, num_channels: int) -> Sequence[float]:
+def extend_value(value: tuple[float, ...] | float, num_channels: int) -> Sequence[float]:
     return [value] * num_channels if isinstance(value, float) else value
 
 
@@ -1364,7 +1363,7 @@ def copy_make_border_with_value_extension(
     left: int,
     right: int,
     border_mode: int,
-    value: ColorType,
+    value: tuple[float, ...] | float,
 ) -> np.ndarray:
     # For 0-channel images, return empty array of correct padded size
     if img.size == 0:
@@ -1396,7 +1395,7 @@ def pad_with_params(
     w_pad_left: int,
     w_pad_right: int,
     border_mode: int,
-    value: ColorType | None,
+    value: tuple[float, ...] | float | None,
 ) -> np.ndarray:
     pad_fn = maybe_process_in_chunks(
         copy_make_border_with_value_extension,
@@ -1418,7 +1417,7 @@ def remap(
     map_y: np.ndarray,
     interpolation: int,
     border_mode: int,
-    value: ColorType | None = None,
+    value: tuple[float, ...] | float | None = None,
 ) -> np.ndarray:
     # Combine map_x and map_y into a single map array of type CV_32FC2
     map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
@@ -2284,40 +2283,10 @@ def flip_keypoints(
     return flipped_keypoints
 
 
-class XYFloat(TypedDict):
-    x: float
-    y: float
-
-
-class XYInt(TypedDict):
-    x: int
-    y: int
-
-
-class XYFloatScale(TypedDict):
-    x: NotRequired[float | tuple[float, float]]
-    y: NotRequired[float | tuple[float, float]]
-
-
-class XYIntScale(TypedDict):
-    x: int | tuple[int, int] | None
-    y: int | tuple[int, int] | None
-
-
-class XYFloatDict(TypedDict):
-    x: tuple[float, float]
-    y: tuple[float, float]
-
-
-class XYIntDict(TypedDict):
-    x: tuple[int, int]
-    y: tuple[int, int]
-
-
 def create_affine_transformation_matrix(
-    translate: XYInt,
-    shear: XYFloat,
-    scale: XYFloat,
+    translate: Mapping[str, float],
+    shear: dict[str, float],
+    scale: dict[str, float],
     rotate: float,
     shift: tuple[float, float],
 ) -> np.ndarray:
@@ -2921,7 +2890,7 @@ def adjust_padding_by_position(
     h_bottom: int,
     w_left: int,
     w_right: int,
-    position: PositionType,
+    position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"],
     py_random: np.random.RandomState,
 ) -> tuple[int, int, int, int]:
     """Adjust padding values based on desired position."""

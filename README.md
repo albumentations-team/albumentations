@@ -204,6 +204,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [GaussNoise](https://explore.albumentations.ai/transform/GaussNoise)
 - [GaussianBlur](https://explore.albumentations.ai/transform/GaussianBlur)
 - [GlassBlur](https://explore.albumentations.ai/transform/GlassBlur)
+- [HEStain](https://explore.albumentations.ai/transform/HEStain)
 - [HistogramMatching](https://explore.albumentations.ai/transform/HistogramMatching)
 - [HueSaturationValue](https://explore.albumentations.ai/transform/HueSaturationValue)
 - [ISONoise](https://explore.albumentations.ai/transform/ISONoise)
@@ -297,6 +298,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [SafeRotate](https://explore.albumentations.ai/transform/SafeRotate)                             | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [ShiftScaleRotate](https://explore.albumentations.ai/transform/ShiftScaleRotate)                 | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [SmallestMaxSize](https://explore.albumentations.ai/transform/SmallestMaxSize)                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
+| [SquareSymmetry](https://explore.albumentations.ai/transform/SquareSymmetry)                     | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [ThinPlateSpline](https://explore.albumentations.ai/transform/ThinPlateSpline)                   | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [TimeMasking](https://explore.albumentations.ai/transform/TimeMasking)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
 | [TimeReverse](https://explore.albumentations.ai/transform/TimeReverse)                           | ✓     | ✓    | ✓      | ✓         | ✓      | ✓      |
