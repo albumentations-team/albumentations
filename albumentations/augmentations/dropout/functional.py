@@ -242,6 +242,7 @@ def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.nd
     return keypoints[valid_keypoints]
 
 
+@handle_empty_array("bboxes")
 def resize_boxes_to_visible_area(
     boxes: np.ndarray,
     hole_mask: np.ndarray,
@@ -280,10 +281,8 @@ def resize_boxes_to_visible_area(
         new_boxes.append(new_box)
 
         # Return empty array with correct shape if all boxes were removed
-    if not new_boxes:
-        return np.zeros((0, boxes.shape[1]), dtype=boxes.dtype)
 
-    return np.array(new_boxes)
+    return np.zeros((0, boxes.shape[1]), dtype=boxes.dtype) if not new_boxes else np.array(new_boxes)
 
 
 def filter_bboxes_by_holes(
