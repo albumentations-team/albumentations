@@ -2388,3 +2388,79 @@ def test_compose_max_accept_ratio_all_formats(bbox_format, bboxes, shape, max_ac
 
     result = transform(**data)
     np.testing.assert_array_almost_equal(result["bboxes"], expected, decimal=5)
+
+from albumentations.augmentations.dropout.functional import resize_boxes_to_visible_area
+
+
+def test_resize_boxes_to_visible_area_preserves_encoded_labels():
+    """Test that resize_boxes_to_visible_area preserves encoded label columns."""
+    # Create bounding boxes with additional columns for encoded labels
+    # Format: [x_min, y_min, x_max, y_max, encoded_label_1, encoded_label_2]
+    boxes = np.array([
+        [10, 10, 30, 30, 1, 2],  # Box 1 with encoded labels 1, 2
+        [40, 40, 60, 60, 3, 4],  # Box 2 with encoded labels 3, 4
+    ], dtype=np.float32)
+
+    # Create a hole mask that completely covers the first box
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+    hole_mask[10:30, 10:30] = 1  # Fully cover first box
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 2, "Should preserve the same number of boxes"
+    assert updated_boxes.shape == boxes.shape, "Should preserve the same array shape with all columns"
+
+    # Check if the first box is collapsed to a point (fully covered case)
+    assert updated_boxes[0, 0] == updated_boxes[0, 2], "First box x coordinates should be equal (collapsed)"
+    assert updated_boxes[0, 1] == updated_boxes[0, 3], "First box y coordinates should be equal (collapsed)"
+
+    # The key test: check if encoded label columns are preserved
+    # This will fail with the current implementation
+    assert updated_boxes.shape[1] == 6, "Should have 6 columns including encoded labels"
+
+    # Try to access the encoded label columns - this will raise an IndexError if they're missing
+    try:
+        label1 = updated_boxes[0, 4]
+        label2 = updated_boxes[0, 5]
+    except IndexError:
+        pytest.fail("Encoded label columns are missing from the updated boxes")
+
+    # Second box should remain unchanged
+    np.testing.assert_array_equal(updated_boxes[1, :4], boxes[1, :4], "Second box coordinates should be unchanged")
+
+    # Check if the second box's encoded labels are preserved
+    try:
+        assert updated_boxes[1, 4] == 3, "Second box should preserve first encoded label"
+        assert updated_boxes[1, 5] == 4, "Second box should preserve second encoded label"
+    except IndexError:
+        pytest.fail("Encoded label columns are missing from the second box")
+
+def test_resize_boxes_to_visible_area_with_varying_label_columns():
+    """Test with boxes having different numbers of columns to ensure all are preserved."""
+    # Create boxes with many additional columns
+    boxes = np.array([
+        [10, 10, 30, 30, 1, 2, 3, 4, 5],  # Box with 5 encoded label columns
+    ], dtype=np.float32)
+
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+    hole_mask[10:30, 10:30] = 1  # Fully cover the box
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert updated_boxes.shape == boxes.shape, "Should preserve all columns"
+    assert updated_boxes.shape[1] == 9, "Should have 9 columns (4 coordinates + 5 labels)"
+
+    # Check if the box is collapsed to a point
+    assert updated_boxes[0, 0] == updated_boxes[0, 2], "Box x coordinates should be equal (collapsed)"
+    assert updated_boxes[0, 1] == updated_boxes[0, 3], "Box y coordinates should be equal (collapsed)"
+
+    # Check if all encoded label columns are preserved
+    for i in range(4, 9):
+        try:
+            assert updated_boxes[0, i] == boxes[0, i], f"Label column {i} should be preserved"
+        except IndexError:
+            pytest.fail(f"Encoded label column {i} is missing from the updated boxes")

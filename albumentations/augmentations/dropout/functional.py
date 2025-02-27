@@ -263,11 +263,12 @@ def resize_boxes_to_visible_area(
     visible_areas = [1 - region for region in regions]
 
     for i, (visible, box) in enumerate(zip(visible_areas, boxes)):
-        if not visible.any():
-            # Box is fully covered - handle directly
-            new_box = box.copy()
+        new_box = box.copy()
 
-            new_box[2:] = new_box[:2]  # collapse to point
+        if not visible.any():
+            # Box is fully covered - only collapse the coordinate part
+            new_box[2] = new_box[0]  # x_max = x_min
+            new_box[3] = new_box[1]  # y_max = y_min
             new_boxes.append(new_box)
             continue
 
@@ -278,8 +279,7 @@ def resize_boxes_to_visible_area(
         y_coords = np.nonzero(y_visible)[0]
         x_coords = np.nonzero(x_visible)[0]
 
-        # Create new box
-        new_box = boxes[i].copy()
+        # Update only the coordinate part of the box
         new_box[0] = x1[i] + x_coords[0]  # x_min
         new_box[1] = y1[i] + y_coords[0]  # y_min
         new_box[2] = x1[i] + x_coords[-1] + 1  # x_max
