@@ -251,7 +251,12 @@ def resize_boxes_to_visible_area(
         return boxes
 
     # Extract box coordinates and convert to integer
-    x1, y1, x2, y2 = boxes[:, 0].astype(int), boxes[:, 1].astype(int), boxes[:, 2].astype(int), boxes[:, 3].astype(int)
+    x1, y1, x2, y2 = (
+        boxes[:, 0].astype(int),
+        boxes[:, 1].astype(int),
+        boxes[:, 2].astype(int),
+        boxes[:, 3].astype(int),
+    )
 
     new_boxes = np.empty_like(boxes)  # Preallocate new_boxes array
 
@@ -265,15 +270,22 @@ def resize_boxes_to_visible_area(
             new_boxes[i] = np.array([x1[i], y1[i], x1[i], y1[i]])
             continue
 
-        # Find visible coordinates directly using np's nonzero logic.
-        y_coords, x_coords = np.nonzero(visible)
+        # Find rows and columns with any visible pixels
+        visible_rows = np.any(visible, axis=1)
+        visible_cols = np.any(visible, axis=0)
 
-        # Directly update new box coordinates while preserving additional columns (like class labels)
+        # Get first and last visible row/column
+        y_min = np.argmax(visible_rows)
+        y_max = len(visible_rows) - np.argmax(visible_rows[::-1]) - 1
+        x_min = np.argmax(visible_cols)
+        x_max = len(visible_cols) - np.argmax(visible_cols[::-1]) - 1
+
+        # Update box coordinates
         new_boxes[i, :4] = [
-            x1[i] + x_coords[0],
-            y1[i] + y_coords[0],
-            x1[i] + x_coords[-1] + 1,
-            y1[i] + y_coords[-1] + 1,
+            x1[i] + x_min,
+            y1[i] + y_min,
+            x1[i] + x_max + 1,
+            y1[i] + y_max + 1,
         ]
 
     return new_boxes
