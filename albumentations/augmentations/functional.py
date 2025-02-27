@@ -281,6 +281,8 @@ def _handle_mask(
     mask: np.ndarray | None,
     i: int | None = None,
 ) -> np.ndarray | None:
+    if mask is None:
+        return None
     mask = mask.astype(
         np.uint8,
         copy=False,
