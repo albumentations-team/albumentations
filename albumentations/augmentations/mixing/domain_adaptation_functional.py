@@ -63,10 +63,10 @@ class MinMaxScaler(BaseScaler):
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
 
-        x_std = np.subtract(x, self.data_min)  # Faster than element-wise subtraction
-        np.divide(x_std, self.data_range, out=x_std)  # In-place division
-        np.multiply(x_std, (self.max - self.min), out=x_std)  # In-place multiplication
-        np.add(x_std, self.min, out=x_std)  # In-place addition
+        x_std = np.subtract(x, self.data_min).astype(float)
+        np.divide(x_std, self.data_range, out=x_std)
+        np.multiply(x_std, (self.max - self.min), out=x_std)
+        np.add(x_std, self.min, out=x_std)
 
         return x_std
 
