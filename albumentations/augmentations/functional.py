@@ -493,7 +493,7 @@ def image_compression(
     num_channels = get_num_channels(img)
 
     # Prepare to encode and decode
-    def encode_decode(src_img, read_mode) -> np.ndarray:
+    def encode_decode(src_img: np.ndarray, read_mode: int) -> np.ndarray:
         _, encoded_img = cv2.imencode(image_type, src_img, (int(quality_flag), quality))
         return cv2.imdecode(encoded_img, read_mode)
 
@@ -517,6 +517,7 @@ def image_compression(
         encode_decode(img[..., i], cv2.IMREAD_GRAYSCALE)[..., np.newaxis] for i in range(NUM_RGB_CHANNELS, num_channels)
     ]
     return np.dstack([decoded_bgr, *extra_channels])
+
 
 @uint8_io
 def add_snow_bleach(
