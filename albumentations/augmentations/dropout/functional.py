@@ -282,7 +282,7 @@ def resize_boxes_to_visible_area(
 
         # Return empty array with correct shape if all boxes were removed
 
-    return np.zeros((0, boxes.shape[1]), dtype=boxes.dtype) if not new_boxes else np.array(new_boxes)
+    return np.array(new_boxes) if new_boxes else np.zeros((0, boxes.shape[1]), dtype=boxes.dtype)
 
 
 def filter_bboxes_by_holes(
