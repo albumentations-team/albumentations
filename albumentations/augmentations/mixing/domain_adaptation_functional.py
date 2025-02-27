@@ -47,8 +47,6 @@ class MinMaxScaler(BaseScaler):
         super().__init__()
         self.min: float = feature_range[0]
         self.max: float = feature_range[1]
-        self.data_min: np.ndarray | None = None  # Assume these are set in the fit method
-        self.data_max: np.ndarray | None = None
         self.data_range: np.ndarray | None = None
 
     def fit(self, x: np.ndarray) -> None:
