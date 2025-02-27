@@ -257,7 +257,7 @@ def resize_boxes_to_visible_area(
 
     for i in range(len(boxes)):
         # Generate visible region for the box
-        region = hole_mask[y1[i]:y2[i], x1[i]:x2[i]]
+        region = hole_mask[y1[i] : y2[i], x1[i] : x2[i]]
         visible = 1 - region
 
         if not visible.any():
@@ -268,8 +268,13 @@ def resize_boxes_to_visible_area(
         # Find visible coordinates directly using np's nonzero logic.
         y_coords, x_coords = np.nonzero(visible)
 
-        # Directly update new box coordinates
-        new_boxes[i] = [x1[i] + x_coords[0], y1[i] + y_coords[0], x1[i] + x_coords[-1] + 1, y1[i] + y_coords[-1] + 1]
+        # Directly update new box coordinates while preserving additional columns (like class labels)
+        new_boxes[i, :4] = [
+            x1[i] + x_coords[0],
+            y1[i] + y_coords[0],
+            x1[i] + x_coords[-1] + 1,
+            y1[i] + y_coords[-1] + 1,
+        ]
 
     return new_boxes
 
