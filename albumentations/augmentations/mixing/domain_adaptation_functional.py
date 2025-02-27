@@ -62,8 +62,13 @@ class MinMaxScaler(BaseScaler):
                 "This MinMaxScaler instance is not fitted yet. "
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
-        x_std = (x - self.data_min) / self.data_range
-        return x_std * (self.max - self.min) + self.min
+
+        x_std = np.subtract(x, self.data_min).astype(float)
+        np.divide(x_std, self.data_range, out=x_std)
+        np.multiply(x_std, (self.max - self.min), out=x_std)
+        np.add(x_std, self.min, out=x_std)
+
+        return x_std
 
     def inverse_transform(self, x: np.ndarray) -> np.ndarray:
         if self.data_min is None or self.data_max is None or self.data_range is None:
@@ -71,7 +76,7 @@ class MinMaxScaler(BaseScaler):
                 "This MinMaxScaler instance is not fitted yet. "
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
-        x_std = (x - self.min) / (self.max - self.min)
+        x_std = ((x - self.min) / (self.max - self.min)).astype(float)
         return x_std * self.data_range + self.data_min
 
 
