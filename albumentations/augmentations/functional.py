@@ -586,7 +586,7 @@ def add_snow_bleach(
         - Original implementation: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
-    
+
     # Precompute snow_point threshold
     snow_point = (snow_point * max_value / 2) + (max_value / 3)
 
