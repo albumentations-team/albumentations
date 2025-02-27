@@ -35,8 +35,7 @@ def shorten_class_name(class_fullname: str) -> str:
         return class_fullname
 
     # Extract the class name after the last '.'
-    return class_fullname[split_index + 1:]
-
+    return class_fullname[split_index + 1 :]
 
 
 class SerializableMeta(ABCMeta):
