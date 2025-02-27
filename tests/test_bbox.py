@@ -28,6 +28,9 @@ from albumentations.core.bbox_utils import (
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import BasicTransform, NoOp
 
+from albumentations.augmentations.dropout.functional import resize_boxes_to_visible_area
+
+
 
 @pytest.mark.parametrize(
     "bboxes, image_shape, expected",
@@ -2389,16 +2392,14 @@ def test_compose_max_accept_ratio_all_formats(bbox_format, bboxes, shape, max_ac
     result = transform(**data)
     np.testing.assert_array_almost_equal(result["bboxes"], expected, decimal=5)
 
-from albumentations.augmentations.dropout.functional import resize_boxes_to_visible_area
 
-
-def test_resize_boxes_to_visible_area_preserves_encoded_labels():
-    """Test that resize_boxes_to_visible_area preserves encoded label columns."""
+def test_resize_boxes_to_visible_area_removes_fully_covered_boxes():
+    """Test that resize_boxes_to_visible_area removes boxes with zero visible area."""
     # Create bounding boxes with additional columns for encoded labels
     # Format: [x_min, y_min, x_max, y_max, encoded_label_1, encoded_label_2]
     boxes = np.array([
-        [10, 10, 30, 30, 1, 2],  # Box 1 with encoded labels 1, 2
-        [40, 40, 60, 60, 3, 4],  # Box 2 with encoded labels 3, 4
+        [10, 10, 30, 30, 1, 2],  # Box 1 with encoded labels 1, 2 - will be fully covered
+        [40, 40, 60, 60, 3, 4],  # Box 2 with encoded labels 3, 4 - will remain visible
     ], dtype=np.float32)
 
     # Create a hole mask that completely covers the first box
@@ -2409,41 +2410,44 @@ def test_resize_boxes_to_visible_area_preserves_encoded_labels():
     updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
 
     # Assertions
-    assert len(updated_boxes) == 2, "Should preserve the same number of boxes"
-    assert updated_boxes.shape == boxes.shape, "Should preserve the same array shape with all columns"
+    assert len(updated_boxes) == 1, "Should remove fully covered boxes"
+    assert updated_boxes.shape == (1, 6), "Should preserve the shape with correct number of columns"
 
-    # Check if the first box is collapsed to a point (fully covered case)
-    assert updated_boxes[0, 0] == updated_boxes[0, 2], "First box x coordinates should be equal (collapsed)"
-    assert updated_boxes[0, 1] == updated_boxes[0, 3], "First box y coordinates should be equal (collapsed)"
+    # The remaining box should be the second one
+    np.testing.assert_array_equal(updated_boxes[0, :4], boxes[1, :4], "Second box coordinates should be unchanged")
+    assert updated_boxes[0, 4] == 3, "Second box should preserve first encoded label"
+    assert updated_boxes[0, 5] == 4, "Second box should preserve second encoded label"
 
-    # The key test: check if encoded label columns are preserved
-    # This will fail with the current implementation
-    assert updated_boxes.shape[1] == 6, "Should have 6 columns including encoded labels"
-
-    # Try to access the encoded label columns - this will raise an IndexError if they're missing
-    try:
-        label1 = updated_boxes[0, 4]
-        label2 = updated_boxes[0, 5]
-    except IndexError:
-        pytest.fail("Encoded label columns are missing from the updated boxes")
-
-    # Second box should remain unchanged
-    np.testing.assert_array_equal(updated_boxes[1, :4], boxes[1, :4], "Second box coordinates should be unchanged")
-
-    # Check if the second box's encoded labels are preserved
-    try:
-        assert updated_boxes[1, 4] == 3, "Second box should preserve first encoded label"
-        assert updated_boxes[1, 5] == 4, "Second box should preserve second encoded label"
-    except IndexError:
-        pytest.fail("Encoded label columns are missing from the second box")
-
-def test_resize_boxes_to_visible_area_with_varying_label_columns():
-    """Test with boxes having different numbers of columns to ensure all are preserved."""
-    # Create boxes with many additional columns
+def test_resize_boxes_to_visible_area_with_partially_covered_boxes():
+    """Test that resize_boxes_to_visible_area correctly handles partially covered boxes."""
+    # Create bounding boxes with additional columns for encoded labels
     boxes = np.array([
-        [10, 10, 30, 30, 1, 2, 3, 4, 5],  # Box with 5 encoded label columns
+        [10, 10, 30, 30, 1, 2],  # Box that will be partially covered
     ], dtype=np.float32)
 
+    # Create a hole mask that covers the left half of the box
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+    hole_mask[10:30, 10:20] = 1  # Cover left half of the box
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 1, "Should keep partially covered boxes"
+    assert updated_boxes.shape == (1, 6), "Should preserve the shape with correct number of columns"
+    assert updated_boxes[0, 0] > boxes[0, 0], "X min should increase (left part covered)"
+    assert updated_boxes[0, 2] == boxes[0, 2], "X max should remain the same"
+    assert updated_boxes[0, 4] == 1, "Should preserve first encoded label"
+    assert updated_boxes[0, 5] == 2, "Should preserve second encoded label"
+
+def test_resize_boxes_to_visible_area_with_all_boxes_covered():
+    """Test that resize_boxes_to_visible_area returns empty array when all boxes are covered."""
+    # Create bounding boxes with additional columns
+    boxes = np.array([
+        [10, 10, 30, 30, 1, 2],  # Box that will be fully covered
+    ], dtype=np.float32)
+
+    # Create a hole mask that completely covers the box
     hole_mask = np.zeros((100, 100), dtype=np.uint8)
     hole_mask[10:30, 10:30] = 1  # Fully cover the box
 
@@ -2451,16 +2455,97 @@ def test_resize_boxes_to_visible_area_with_varying_label_columns():
     updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
 
     # Assertions
-    assert updated_boxes.shape == boxes.shape, "Should preserve all columns"
-    assert updated_boxes.shape[1] == 9, "Should have 9 columns (4 coordinates + 5 labels)"
+    assert len(updated_boxes) == 0, "Should return empty array when all boxes are covered"
+    assert updated_boxes.shape == (0, 6), "Empty array should have correct shape with all columns"
 
-    # Check if the box is collapsed to a point
-    assert updated_boxes[0, 0] == updated_boxes[0, 2], "Box x coordinates should be equal (collapsed)"
-    assert updated_boxes[0, 1] == updated_boxes[0, 3], "Box y coordinates should be equal (collapsed)"
+def test_resize_boxes_to_visible_area_with_empty_input():
+    """Test that resize_boxes_to_visible_area handles empty input correctly."""
+    # Empty boxes array with correct shape (0 boxes, 6 columns)
+    boxes = np.zeros((0, 6), dtype=np.float32)
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
 
-    # Check if all encoded label columns are preserved
-    for i in range(4, 9):
-        try:
-            assert updated_boxes[0, i] == boxes[0, i], f"Label column {i} should be preserved"
-        except IndexError:
-            pytest.fail(f"Encoded label column {i} is missing from the updated boxes")
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 0, "Should return empty array"
+    assert updated_boxes.shape == (0, 6), "Should preserve the shape with correct number of columns"
+
+
+def test_resize_boxes_to_visible_area_removes_fully_covered_boxes():
+    """Test that resize_boxes_to_visible_area removes boxes with zero visible area."""
+    # Create bounding boxes with additional columns for encoded labels
+    # Format: [x_min, y_min, x_max, y_max, encoded_label_1, encoded_label_2]
+    boxes = np.array([
+        [10, 10, 30, 30, 1, 2],  # Box 1 with encoded labels 1, 2 - will be fully covered
+        [40, 40, 60, 60, 3, 4],  # Box 2 with encoded labels 3, 4 - will remain visible
+    ], dtype=np.float32)
+
+    # Create a hole mask that completely covers the first box
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+    hole_mask[10:30, 10:30] = 1  # Fully cover first box
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 1, "Should remove fully covered boxes"
+    assert updated_boxes.shape == (1, 6), "Should preserve the shape with correct number of columns"
+
+    # The remaining box should be the second one
+    np.testing.assert_array_equal(updated_boxes[0, :4], boxes[1, :4], "Second box coordinates should be unchanged")
+    assert updated_boxes[0, 4] == 3, "Second box should preserve first encoded label"
+    assert updated_boxes[0, 5] == 4, "Second box should preserve second encoded label"
+
+def test_resize_boxes_to_visible_area_with_partially_covered_boxes():
+    """Test that resize_boxes_to_visible_area correctly handles partially covered boxes."""
+    # Create bounding boxes with additional columns for encoded labels
+    boxes = np.array([
+        [10, 10, 30, 30, 1, 2],  # Box that will be partially covered
+    ], dtype=np.float32)
+
+    # Create a hole mask that covers the left half of the box
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+    hole_mask[10:30, 10:20] = 1  # Cover left half of the box
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 1, "Should keep partially covered boxes"
+    assert updated_boxes.shape == (1, 6), "Should preserve the shape with correct number of columns"
+    assert updated_boxes[0, 0] > boxes[0, 0], "X min should increase (left part covered)"
+    assert updated_boxes[0, 2] == boxes[0, 2], "X max should remain the same"
+    assert updated_boxes[0, 4] == 1, "Should preserve first encoded label"
+    assert updated_boxes[0, 5] == 2, "Should preserve second encoded label"
+
+def test_resize_boxes_to_visible_area_with_all_boxes_covered():
+    """Test that resize_boxes_to_visible_area returns empty array when all boxes are covered."""
+    # Create bounding boxes with additional columns
+    boxes = np.array([
+        [10, 10, 30, 30, 1, 2],  # Box that will be fully covered
+    ], dtype=np.float32)
+
+    # Create a hole mask that completely covers the box
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+    hole_mask[10:30, 10:30] = 1  # Fully cover the box
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 0, "Should return empty array when all boxes are covered"
+    assert updated_boxes.shape == (0, 6), "Empty array should have correct shape with all columns"
+
+def test_resize_boxes_to_visible_area_with_empty_input():
+    """Test that resize_boxes_to_visible_area handles empty input correctly."""
+    # Empty boxes array with correct shape (0 boxes, 6 columns)
+    boxes = np.zeros((0, 6), dtype=np.float32)
+    hole_mask = np.zeros((100, 100), dtype=np.uint8)
+
+    # Update boxes using the function
+    updated_boxes = resize_boxes_to_visible_area(boxes, hole_mask)
+
+    # Assertions
+    assert len(updated_boxes) == 0, "Should return empty array"
+    assert updated_boxes.shape == (0, 6), "Should preserve the shape with correct number of columns"

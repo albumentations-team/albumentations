@@ -247,9 +247,6 @@ def resize_boxes_to_visible_area(
     hole_mask: np.ndarray,
 ) -> np.ndarray:
     """Resize boxes to their largest visible rectangular regions."""
-    if len(boxes) == 0:
-        return boxes
-
     # Extract box coordinates
     x1 = boxes[:, 0].astype(int)
     y1 = boxes[:, 1].astype(int)
@@ -263,13 +260,7 @@ def resize_boxes_to_visible_area(
     visible_areas = [1 - region for region in regions]
 
     for i, (visible, box) in enumerate(zip(visible_areas, boxes)):
-        new_box = box.copy()
-
         if not visible.any():
-            # Box is fully covered - only collapse the coordinate part
-            new_box[2] = new_box[0]  # x_max = x_min
-            new_box[3] = new_box[1]  # y_max = y_min
-            new_boxes.append(new_box)
             continue
 
         # Find visible coordinates
@@ -280,12 +271,17 @@ def resize_boxes_to_visible_area(
         x_coords = np.nonzero(x_visible)[0]
 
         # Update only the coordinate part of the box
+        new_box = box.copy()
         new_box[0] = x1[i] + x_coords[0]  # x_min
         new_box[1] = y1[i] + y_coords[0]  # y_min
         new_box[2] = x1[i] + x_coords[-1] + 1  # x_max
         new_box[3] = y1[i] + y_coords[-1] + 1  # y_max
 
         new_boxes.append(new_box)
+
+        # Return empty array with correct shape if all boxes were removed
+    if not new_boxes:
+        return np.zeros((0, boxes.shape[1]), dtype=boxes.dtype)
 
     return np.array(new_boxes)
 
