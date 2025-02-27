@@ -35,11 +35,11 @@ from pydantic import (
     model_validator,
 )
 from scipy import special
-from scipy.ndimage import gaussian_filter
-from typing_extensions import Literal, Self, TypedDict
+from typing_extensions import Literal, Self
 
 import albumentations.augmentations.dropout.functional as fdropout
 import albumentations.augmentations.geometric.functional as fgeometric
+from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.blur import functional as fblur
 from albumentations.augmentations.blur.transforms import BlurInitSchema
 from albumentations.augmentations.utils import check_range, non_rgb_error
@@ -49,11 +49,9 @@ from albumentations.core.bbox_utils import (
     normalize_bboxes,
 )
 from albumentations.core.pydantic import (
-    InterpolationType,
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
     OnePlusIntRangeType,
-    ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
     check_range_bounds,
@@ -71,17 +69,8 @@ from albumentations.core.type_definitions import (
     NUM_RGB_CHANNELS,
     PAIR,
     SEVEN,
-    ChromaticAberrationMode,
-    ColorType,
-    MorphologyMode,
-    RainMode,
-    ScaleFloatType,
-    ScaleIntType,
-    SpatterMode,
 )
 from albumentations.core.utils import format_args, to_tuple
-
-from . import functional as fmain
 
 __all__ = [
     "CLAHE",
@@ -96,6 +85,7 @@ __all__ = [
     "FancyPCA",
     "FromFloat",
     "GaussNoise",
+    "HEStain",
     "HueSaturationValue",
     "ISONoise",
     "Illumination",
@@ -148,9 +138,9 @@ class Normalize(ImageOnlyTransform):
         or scale pixel values to a specified range.
 
     Args:
-        mean (ColorType | None): Mean values for standard normalization.
+        mean (tuple[float, float] | float | None): Mean values for standard normalization.
             For "standard" normalization, the default values are ImageNet mean values: (0.485, 0.456, 0.406).
-        std (ColorType | None): Standard deviation values for standard normalization.
+        std (tuple[float, float] | float | None): Standard deviation values for standard normalization.
             For "standard" normalization, the default values are ImageNet standard deviation :(0.229, 0.224, 0.225).
         max_pixel_value (float | None): Maximum possible pixel value, used for scaling in standard normalization.
             Defaults to 255.0.
@@ -205,8 +195,8 @@ class Normalize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ColorType | None
-        std: ColorType | None
+        mean: tuple[float, ...] | float | None
+        std: tuple[float, ...] | float | None
         max_pixel_value: float | None
         normalization: Literal[
             "standard",
@@ -230,8 +220,8 @@ class Normalize(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: ColorType | None = (0.485, 0.456, 0.406),
-        std: ColorType | None = (0.229, 0.224, 0.225),
+        mean: tuple[float, ...] | float | None = (0.485, 0.456, 0.406),
+        std: tuple[float, ...] | float | None = (0.229, 0.224, 0.225),
         max_pixel_value: float | None = 255.0,
         normalization: Literal[
             "standard",
@@ -689,7 +679,7 @@ class RandomRain(ImageOnlyTransform):
     tasks that need to perform well in rainy conditions.
 
     Args:
-        slant_range (tuple[int, int]): Range for the rain slant angle in degrees.
+        slant_range (tuple[float, float]): Range for the rain slant angle in degrees.
             Negative values slant to the left, positive to the right. Default: (-10, 10).
         drop_length (int): Length of the rain drops in pixels. Default: 20.
         drop_width (int): Width of the rain drops in pixels. Default: 1.
@@ -769,17 +759,17 @@ class RandomRain(ImageOnlyTransform):
         drop_color: tuple[int, int, int]
         blur_value: int = Field(ge=1)
         brightness_coefficient: float = Field(gt=0, le=1)
-        rain_type: RainMode
+        rain_type: Literal["drizzle", "heavy", "torrential", "default"]
 
     def __init__(
         self,
-        slant_range: tuple[int, int] = (-10, 10),
+        slant_range: tuple[float, float] = (-10, 10),
         drop_length: int = 20,
         drop_width: int = 1,
         drop_color: tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: RainMode = "default",
+        rain_type: Literal["drizzle", "heavy", "torrential", "default"] = "default",
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -794,9 +784,9 @@ class RandomRain(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        slant: int,
+        slant: float,
         drop_length: int,
-        rain_drops: list[tuple[int, int]],
+        rain_drops: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
         non_rgb_error(img)
@@ -817,31 +807,36 @@ class RandomRain(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        slant = int(self.py_random.uniform(*self.slant_range))
-
         height, width = params["shape"][:2]
-        area = height * width
 
+        # Simpler calculations, directly following Kornia
         if self.rain_type == "drizzle":
-            num_drops = area // 770
-            drop_length = 10
+            num_drops = height // 4
         elif self.rain_type == "heavy":
-            num_drops = width * height // 600
-            drop_length = 30
+            num_drops = height
         elif self.rain_type == "torrential":
-            num_drops = area // 500
-            drop_length = 60
+            num_drops = height * 2
         else:
-            drop_length = self.drop_length
-            num_drops = area // 600
+            num_drops = height // 3
 
-        rain_drops = []
+        # Fixed proportion for drop length (like Kornia)
+        drop_length = max(1, height // 8)
 
-        for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = self.py_random.randint(slant, width) if slant < 0 else self.py_random.randint(0, max(width - slant, 0))
-            y = self.py_random.randint(0, max(height - drop_length, 0))
+        # Simplified slant calculation
+        slant = self.py_random.uniform(*self.slant_range)
 
-            rain_drops.append((x, y))
+        # Single random call for all coordinates
+        if num_drops > 0:
+            # Generate all coordinates in one call
+            coords = self.random_generator.integers(
+                low=[0, 0],
+                high=[width, height - drop_length],
+                size=(num_drops, 2),
+                dtype=np.int32,
+            )
+            rain_drops = coords
+        else:
+            rain_drops = np.empty((0, 2), dtype=np.int32)
 
         return {"drop_length": drop_length, "slant": slant, "rain_drops": rain_drops}
 
@@ -1657,9 +1652,9 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def __init__(
         self,
-        hue_shift_limit: ScaleFloatType = (-20, 20),
-        sat_shift_limit: ScaleFloatType = (-30, 30),
-        val_shift_limit: ScaleFloatType = (-20, 20),
+        hue_shift_limit: tuple[float, float] | float = (-20, 20),
+        sat_shift_limit: tuple[float, float] | float = (-30, 30),
+        val_shift_limit: tuple[float, float] | float = (-20, 20),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -2131,8 +2126,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness_limit: ScaleFloatType = (-0.2, 0.2),
-        contrast_limit: ScaleFloatType = (-0.2, 0.2),
+        brightness_limit: tuple[float, float] | float = (-0.2, 0.2),
+        contrast_limit: tuple[float, float] | float = (-0.2, 0.2),
         brightness_by_max: bool = True,
         ensure_safe_range: bool = False,
         p: float = 0.5,
@@ -2289,7 +2284,6 @@ class GaussNoise(ImageOnlyTransform):
             approximation=self.noise_scale_factor,
             random_generator=self.random_generator,
         )
-
         return {"noise_map": noise_map}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
@@ -2458,7 +2452,7 @@ class CLAHE(ImageOnlyTransform):
 
     def __init__(
         self,
-        clip_limit: ScaleFloatType = 4.0,
+        clip_limit: tuple[float, float] | float = 4.0,
         tile_grid_size: tuple[int, int] = (8, 8),
         p: float = 0.5,
     ):
@@ -2489,6 +2483,9 @@ class ChannelShuffle(ImageOnlyTransform):
     Targets:
         image
 
+    Number of channels:
+        Any
+
     Image types:
         uint8, float32
 
@@ -2497,9 +2494,11 @@ class ChannelShuffle(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        channels_shuffled: tuple[int, ...],
+        channels_shuffled: tuple[int, ...] | None,
         **params: Any,
     ) -> np.ndarray:
+        if channels_shuffled is None:
+            return img
         return fmain.channel_shuffle(img, channels_shuffled)
 
     def get_params_dependent_on_data(
@@ -2507,8 +2506,11 @@ class ChannelShuffle(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        ch_arr = list(range(params["shape"][2]))
-        self.random_generator.shuffle(ch_arr)
+        shape = params["shape"]
+        if len(shape) == 2 or shape[-1] == 1:
+            return {"channels_shuffled": None}
+        ch_arr = list(range(shape[-1]))
+        self.py_random.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
     def get_transform_init_args_names(self) -> tuple[()]:
@@ -2616,7 +2618,7 @@ class RandomGamma(ImageOnlyTransform):
 
     def __init__(
         self,
-        gamma_limit: ScaleFloatType = (80, 120),
+        gamma_limit: tuple[float, float] | float = (80, 120),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -3051,14 +3053,26 @@ class FromFloat(ImageOnlyTransform):
         return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
-class InterpolationDict(TypedDict):
-    upscale: int
-    downscale: int
-
-
 class InterpolationPydantic(BaseModel):
-    upscale: InterpolationType
-    downscale: InterpolationType
+    upscale: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_NEAREST_EXACT,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+        cv2.INTER_LINEAR_EXACT,
+    ]
+
+    downscale: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_NEAREST_EXACT,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+        cv2.INTER_LINEAR_EXACT,
+    ]
 
 
 class Downscale(ImageOnlyTransform):
@@ -3076,7 +3090,15 @@ class Downscale(ImageOnlyTransform):
             Lower values result in more aggressive downscaling.
             Default: (0.25, 0.25)
 
-        interpolation_pair (InterpolationDict): A dictionary specifying the interpolation methods to use for
+        interpolation_pair (dict[Literal["downscale", "upscale"],
+                                Literal[ cv2.INTER_NEAREST,
+                                        cv2.INTER_NEAREST_EXACT,
+                                        cv2.INTER_LINEAR,
+                                        cv2.INTER_CUBIC,
+                                        cv2.INTER_AREA,
+                                        cv2.INTER_LANCZOS4,
+                                        cv2.INTER_LINEAR_EXACT,
+                                    ]]): A dictionary specifying the interpolation methods to use for
             downscaling and upscaling. Should contain two keys:
             - 'downscale': Interpolation method for downscaling
             - 'upscale': Interpolation method for upscaling
@@ -3114,8 +3136,18 @@ class Downscale(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        interpolation_pair: InterpolationPydantic
-
+        interpolation_pair: dict[
+            Literal["downscale", "upscale"],
+            Literal[
+                cv2.INTER_NEAREST,
+                cv2.INTER_NEAREST_EXACT,
+                cv2.INTER_LINEAR,
+                cv2.INTER_CUBIC,
+                cv2.INTER_AREA,
+                cv2.INTER_LANCZOS4,
+                cv2.INTER_LINEAR_EXACT,
+            ],
+        ]
         scale_range: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, 1)),
@@ -3125,9 +3157,18 @@ class Downscale(ImageOnlyTransform):
     def __init__(
         self,
         scale_range: tuple[float, float] = (0.25, 0.25),
-        interpolation_pair: InterpolationDict = InterpolationDict(
-            {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
-        ),
+        interpolation_pair: dict[
+            Literal["downscale", "upscale"],
+            Literal[
+                cv2.INTER_NEAREST,
+                cv2.INTER_NEAREST_EXACT,
+                cv2.INTER_LINEAR,
+                cv2.INTER_CUBIC,
+                cv2.INTER_AREA,
+                cv2.INTER_LANCZOS4,
+                cv2.INTER_LINEAR_EXACT,
+            ],
+        ] = {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -3320,7 +3361,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def __init__(
         self,
-        multiplier: ScaleFloatType = (0.9, 1.1),
+        multiplier: tuple[float, float] | float = (0.9, 1.1),
         per_channel: bool = False,
         elementwise: bool = False,
         p: float = 0.5,
@@ -3530,16 +3571,16 @@ class ColorJitter(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness: ScaleFloatType
-        contrast: ScaleFloatType
-        saturation: ScaleFloatType
-        hue: ScaleFloatType
+        brightness: tuple[float, float] | float
+        contrast: tuple[float, float] | float
+        saturation: tuple[float, float] | float
+        hue: tuple[float, float] | float
 
         @field_validator("brightness", "contrast", "saturation", "hue")
         @classmethod
         def check_ranges(
             cls,
-            value: ScaleFloatType,
+            value: tuple[float, float] | float,
             info: ValidationInfo,
         ) -> tuple[float, float]:
             if info.field_name == "hue":
@@ -3567,10 +3608,10 @@ class ColorJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness: ScaleFloatType = (0.8, 1.2),
-        contrast: ScaleFloatType = (0.8, 1.2),
-        saturation: ScaleFloatType = (0.8, 1.2),
-        hue: ScaleFloatType = (-0.5, 0.5),
+        brightness: tuple[float, float] | float = (0.8, 1.2),
+        contrast: tuple[float, float] | float = (0.8, 1.2),
+        saturation: tuple[float, float] | float = (0.8, 1.2),
+        hue: tuple[float, float] | float = (-0.5, 0.5),
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4010,14 +4051,30 @@ class Superpixels(ImageOnlyTransform):
         p_replace: ZeroOneRangeType
         n_segments: OnePlusIntRangeType
         max_size: int | None = Field(ge=1)
-        interpolation: InterpolationType
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
     def __init__(
         self,
-        p_replace: ScaleFloatType = (0, 0.1),
-        n_segments: ScaleIntType = (100, 100),
+        p_replace: tuple[float, float] | float = (0, 0.1),
+        n_segments: tuple[int, int] | int = (100, 100),
         max_size: int | None = 128,
-        interpolation: int = cv2.INTER_LINEAR,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4137,7 +4194,7 @@ class RingingOvershoot(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        blur_limit: ScaleIntType
+        blur_limit: tuple[int, int] | int
         cutoff: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, np.pi)),
@@ -4146,7 +4203,7 @@ class RingingOvershoot(ImageOnlyTransform):
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (7, 15),
+        blur_limit: tuple[int, int] | int = (7, 15),
         cutoff: tuple[float, float] = (np.pi / 4, np.pi / 2),
         p: float = 0.5,
     ):
@@ -4252,22 +4309,22 @@ class UnsharpMask(ImageOnlyTransform):
         sigma_limit: NonNegativeFloatRangeType
         alpha: ZeroOneRangeType
         threshold: int = Field(ge=0, le=255)
-        blur_limit: ScaleIntType
+        blur_limit: tuple[int, int] | int
 
         @field_validator("blur_limit")
         @classmethod
         def process_blur(
             cls,
-            value: ScaleIntType,
+            value: tuple[int, int] | int,
             info: ValidationInfo,
         ) -> tuple[int, int]:
             return fblur.process_blur_limit(value, info, min_value=3)
 
     def __init__(
         self,
-        blur_limit: ScaleIntType = (3, 7),
-        sigma_limit: ScaleFloatType = 0.0,
-        alpha: ScaleFloatType = (0.2, 0.5),
+        blur_limit: tuple[int, int] | int = (3, 7),
+        sigma_limit: tuple[float, float] | float = 0.0,
+        alpha: tuple[float, float] | float = (0.2, 0.5),
         threshold: int = 10,
         p: float = 0.5,
     ):
@@ -4277,7 +4334,11 @@ class UnsharpMask(ImageOnlyTransform):
         self.alpha = cast(tuple[float, float], alpha)
         self.threshold = threshold
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
         return {
             "ksize": self.py_random.randrange(
                 self.blur_limit[0],
@@ -4322,7 +4383,7 @@ class PixelDropout(DualTransform):
             If False, the same dropout mask will be applied to all channels.
             Default: False
 
-        drop_value (float | Sequence[float] | None): Value to assign to the dropped pixels.
+        drop_value (float | tuple[float, ...] | None): Value to assign to the dropped pixels.
             If None, the value will be randomly sampled for each application:
                 - For uint8 images: Random integer in [0, 255]
                 - For float32 images: Random float in [0, 1]
@@ -4330,7 +4391,7 @@ class PixelDropout(DualTransform):
             If a sequence, it should contain one value per channel.
             Default: 0
 
-        mask_drop_value (float | Sequence[float] | None): Value to assign to dropped pixels in the mask.
+        mask_drop_value (float | tuple[float, ...] | None): Value to assign to dropped pixels in the mask.
             If None, the mask will remain unchanged.
             If a single number, that value will be used for all dropped pixels in the mask.
             If a sequence, it should contain one value per channel.
@@ -4362,10 +4423,10 @@ class PixelDropout(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dropout_prob: ProbabilityType
+        dropout_prob: float = Field(ge=0, le=1)
         per_channel: bool
-        drop_value: ColorType | None
-        mask_drop_value: ColorType | None
+        drop_value: tuple[float, ...] | float | None
+        mask_drop_value: tuple[float, ...] | float | None
 
     _targets = ALL_TARGETS
 
@@ -4373,8 +4434,8 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: ColorType | None = 0,
-        mask_drop_value: ColorType | None = None,
+        drop_value: tuple[float, ...] | float | None = 0,
+        mask_drop_value: tuple[float, ...] | float | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4515,7 +4576,7 @@ class Spatter(ImageOnlyTransform):
             If tuple of float gauss_sigma will be sampled from range `(gauss_sigma[0], gauss_sigma[1])`.
             If you want constant value use (gauss_sigma, gauss_sigma).
             Default: (2, 3).
-        cutout_threshold (tuple[float, float] | floats): Threshold for filtering liqued layer
+        cutout_threshold (tuple[float, float] | floats): Threshold for filtering liquid layer
             (determines number of drops). If single float it will used as cutout_threshold.
             If single float the number will be sampled from `(0, cutout_threshold)`.
             If tuple of float cutout_threshold will be sampled from range `(cutout_threshold[0], cutout_threshold[1])`.
@@ -4526,8 +4587,8 @@ class Spatter(ImageOnlyTransform):
             If tuple of float intensity will be sampled from range `(intensity[0], intensity[1])`.
             If you want constant value use `(intensity, intensity)`.
             Default: (0.6, 0.6).
-        mode (str, or list[str]): Type of corruption. Currently, supported options are 'rain' and 'mud'.
-             If list is provided type of corruption will be sampled list. Default: ("rain").
+        mode (Literal["rain", "mud"], or list[Literal["rain", "mud"]]): Type of corruption. Currently, supported options
+            are 'rain' and 'mud'. If list is provided type of corruption will be sampled list. Default: ("rain").
         color (list of (r, g, b) or dict or None): Corruption elements color.
             If list uses provided list as color for specified mode.
             If dict uses provided color for specified mode. Color for each specified mode should be provided in dict.
@@ -4552,15 +4613,15 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: NonNegativeFloatRangeType
         cutout_threshold: ZeroOneRangeType
         intensity: ZeroOneRangeType
-        mode: SpatterMode | Sequence[SpatterMode]
+        mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]]
         color: Sequence[int] | dict[str, Sequence[int]] | None = None
 
         @field_validator("mode")
         @classmethod
         def check_mode(
             cls,
-            mode: SpatterMode | Sequence[SpatterMode],
-        ) -> Sequence[SpatterMode]:
+            mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]],
+        ) -> Sequence[Literal["rain", "mud"]]:
             if isinstance(mode, str):
                 return [mode]
             return mode
@@ -4592,12 +4653,12 @@ class Spatter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: ScaleFloatType = (0.65, 0.65),
-        std: ScaleFloatType = (0.3, 0.3),
-        gauss_sigma: ScaleFloatType = (2, 2),
-        cutout_threshold: ScaleFloatType = (0.68, 0.68),
-        intensity: ScaleFloatType = (0.6, 0.6),
-        mode: SpatterMode | Sequence[SpatterMode] = "rain",
+        mean: tuple[float, float] | float = (0.65, 0.65),
+        std: tuple[float, float] | float = (0.3, 0.3),
+        gauss_sigma: tuple[float, float] | float = (2, 2),
+        cutout_threshold: tuple[float, float] | float = (0.68, 0.68),
+        intensity: tuple[float, float] | float = (0.6, 0.6),
+        mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]] = "rain",
         color: Sequence[int] | dict[str, Sequence[int]] | None = None,
         p: float = 0.5,
     ):
@@ -4613,14 +4674,14 @@ class Spatter(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        non_mud: np.ndarray,
-        mud: np.ndarray,
-        drops: np.ndarray,
-        mode: SpatterMode,
         **params: dict[str, Any],
     ) -> np.ndarray:
         non_rgb_error(img)
-        return fmain.spatter(img, non_mud, mud, drops, mode)
+
+        if params["mode"] == "rain":
+            return fmain.spatter_rain(img, params["drops"])
+
+        return fmain.spatter_mud(img, params["non_mud"], params["mud"])
 
     def get_params_dependent_on_data(
         self,
@@ -4642,45 +4703,39 @@ class Spatter(ImageOnlyTransform):
             loc=mean,
             scale=std,
         )
-        liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
+        # Convert sigma to kernel size (must be odd)
+        ksize = int(2 * round(3 * sigma) + 1)  # 3 sigma rule, rounded to nearest odd
+        cv2.GaussianBlur(
+            src=liquid_layer,
+            dst=liquid_layer,  # in-place operation
+            ksize=(ksize, ksize),
+            sigmaX=sigma,
+            sigmaY=sigma,
+            borderType=cv2.BORDER_REPLICATE,
+        )
+
+        # Important line, without it the rain effect looses drops
         liquid_layer[liquid_layer < cutout_threshold] = 0
 
         if mode == "rain":
-            liquid_layer = clip(liquid_layer * 255, np.uint8, inplace=False)
-            dist = 255 - cv2.Canny(liquid_layer, 50, 150)
-            dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
-            _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
-            dist = clip(fblur.blur(dist, 3), np.uint8, inplace=True)
-            dist = fmain.equalize(dist)
-
-            ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
-            dist = fmain.convolve(dist, ker)
-            dist = fblur.blur(dist, 3).astype(np.float32)
-
-            m = liquid_layer * dist
-            m *= 1 / np.max(m, axis=(0, 1))
-
-            drops = m[:, :, None] * color * intensity
-            mud = None
-            non_mud = None
-        else:
-            m = np.where(liquid_layer > cutout_threshold, 1, 0)
-            m = gaussian_filter(m.astype(np.float32), sigma=sigma, mode="nearest")
-            m[m < 1.2 * cutout_threshold] = 0
-            m = m[..., np.newaxis]
-
-            mud = m * color
-            non_mud = 1 - m
-            drops = None
+            return {
+                "mode": "rain",
+                **fmain.get_rain_params(liquid_layer=liquid_layer, color=color, intensity=intensity),
+            }
 
         return {
-            "non_mud": non_mud,
-            "mud": mud,
-            "drops": drops,
-            "mode": mode,
+            "mode": "mud",
+            **fmain.get_mud_params(
+                liquid_layer=liquid_layer,
+                color=color,
+                cutout_threshold=cutout_threshold,
+                sigma=sigma,
+                intensity=intensity,
+                random_generator=self.random_generator,
+            ),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "mean",
             "std",
@@ -4765,15 +4820,31 @@ class ChromaticAberration(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         primary_distortion_limit: SymmetricRangeType
         secondary_distortion_limit: SymmetricRangeType
-        mode: ChromaticAberrationMode
-        interpolation: InterpolationType
+        mode: Literal["green_purple", "red_blue", "random"]
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
 
     def __init__(
         self,
-        primary_distortion_limit: ScaleFloatType = (-0.02, 0.02),
-        secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
-        mode: ChromaticAberrationMode = "green_purple",
-        interpolation: InterpolationType = cv2.INTER_LINEAR,
+        primary_distortion_limit: tuple[float, float] | float = (-0.02, 0.02),
+        secondary_distortion_limit: tuple[float, float] | float = (-0.05, 0.05),
+        mode: Literal["green_purple", "red_blue", "random"] = "green_purple",
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4919,12 +4990,12 @@ class Morphological(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         scale: OnePlusIntRangeType
-        operation: MorphologyMode
+        operation: Literal["erosion", "dilation"]
 
     def __init__(
         self,
-        scale: ScaleIntType = (2, 3),
-        operation: MorphologyMode = "dilation",
+        scale: tuple[int, int] | int = (2, 3),
+        operation: Literal["erosion", "dilation"] = "dilation",
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -5623,9 +5694,9 @@ class RGBShift(AdditiveNoise):
 
     def __init__(
         self,
-        r_shift_limit: ScaleFloatType = (-20, 20),
-        g_shift_limit: ScaleFloatType = (-20, 20),
-        b_shift_limit: ScaleFloatType = (-20, 20),
+        r_shift_limit: tuple[float, float] | float = (-20, 20),
+        g_shift_limit: tuple[float, float] | float = (-20, 20),
+        b_shift_limit: tuple[float, float] | float = (-20, 20),
         p: float = 0.5,
     ):
         # Convert RGB shift limits to normalized ranges if needed
@@ -5664,6 +5735,7 @@ class SaltAndPepper(ImageOnlyTransform):
 
     Salt and pepper noise is a form of impulse noise that randomly sets pixels to either maximum value (salt)
     or minimum value (pepper). The amount and proportion of salt vs pepper noise can be controlled.
+    The same noise mask is applied to all channels of the image to preserve color consistency.
 
     Args:
         amount ((float, float)): Range for total amount of noise (both salt and pepper).
@@ -5690,22 +5762,25 @@ class SaltAndPepper(ImageOnlyTransform):
     Note:
         - Salt noise sets pixels to maximum value (255 for uint8, 1.0 for float32)
         - Pepper noise sets pixels to 0
-        - Salt and pepper masks are generated independently, so a pixel could theoretically
-          be selected for both (in this case, pepper overrides salt)
-        - The actual number of affected pixels might slightly differ from the specified amount
-          due to random sampling and potential overlap of salt and pepper masks
+        - The noise mask is generated once and applied to all channels to maintain
+          color consistency (i.e., if a pixel is set to salt, all its color channels
+          will be set to maximum value)
+        - The exact number of affected pixels matches the specified amount as masks
+          are generated without overlap
 
     Mathematical Formulation:
         For an input image I, the output O is:
-        O[x,y] = max_value,  if salt_mask[x,y] = True
-        O[x,y] = 0,         if pepper_mask[x,y] = True
-        O[x,y] = I[x,y],    otherwise
+        O[c,x,y] = max_value,  if salt_mask[x,y] = True
+        O[c,x,y] = 0,         if pepper_mask[x,y] = True
+        O[c,x,y] = I[c,x,y],  otherwise
 
         where:
-        P(salt_mask[x,y] = True) = amount * salt_ratio
-        P(pepper_mask[x,y] = True) = amount * (1 - salt_ratio)
-        amount ∈ [amount_min, amount_max]
-        salt_ratio ∈ [salt_vs_pepper_min, salt_vs_pepper_max]
+        - c is the channel index
+        - salt_mask and pepper_mask are 2D boolean arrays applied to all channels
+        - Number of True values in salt_mask = floor(H*W * amount * salt_ratio)
+        - Number of True values in pepper_mask = floor(H*W * amount * (1 - salt_ratio))
+        - amount ∈ [amount_min, amount_max]
+        - salt_ratio ∈ [salt_vs_pepper_min, salt_vs_pepper_max]
 
     Examples:
         >>> import albumentations as A
@@ -5759,18 +5834,30 @@ class SaltAndPepper(ImageOnlyTransform):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         image = data["image"] if "image" in data else data["images"][0]
+        height, width = image.shape[:2]
 
-        # Sample total amount and salt ratio
         total_amount = self.py_random.uniform(*self.amount)
         salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
 
-        # Calculate individual probabilities
-        prob_salt = total_amount * salt_ratio
-        prob_pepper = total_amount * (1 - salt_ratio)
+        area = height * width
 
-        # Generate masks
-        salt_mask = self.random_generator.random(image.shape) < prob_salt
-        pepper_mask = self.random_generator.random(image.shape) < prob_pepper
+        num_pixels = int(area * total_amount)
+        num_salt = int(num_pixels * salt_ratio)
+
+        # Generate all positions at once
+        noise_positions = self.random_generator.choice(area, size=num_pixels, replace=False)
+
+        # Create masks
+        salt_mask = np.zeros(area, dtype=bool)
+        pepper_mask = np.zeros(area, dtype=bool)
+
+        # Set salt and pepper positions
+        salt_mask[noise_positions[:num_salt]] = True
+        pepper_mask[noise_positions[num_salt:]] = True
+
+        # Reshape to 2D
+        salt_mask = salt_mask.reshape(height, width)
+        pepper_mask = pepper_mask.reshape(height, width)
 
         return {
             "salt_mask": salt_mask,
@@ -5793,9 +5880,8 @@ class SaltAndPepper(ImageOnlyTransform):
 class PlasmaBrightnessContrast(ImageOnlyTransform):
     """Apply plasma fractal pattern to modify image brightness and contrast.
 
-    This transform uses the Diamond-Square algorithm to generate organic-looking fractal patterns
-    that are then used to create spatially-varying brightness and contrast adjustments.
-    The result is a natural-looking, non-uniform modification of the image.
+    Uses Diamond-Square algorithm to generate organic-looking fractal patterns
+    that create spatially-varying brightness and contrast adjustments.
 
     Args:
         brightness_range ((float, float)): Range for brightness adjustment strength.
@@ -5812,15 +5898,14 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             - 0 means no contrast change
             Default: (-0.3, 0.3)
 
-        plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
-            Larger values create more detailed patterns. Default: 256
+        roughness (float): Controls how quickly the noise amplitude increases at each iteration.
+            Must be greater than 0:
+            - Low values (< 1.0): Smoother, more gradual pattern
+            - Medium values (~2.0): Natural-looking pattern
+            - High values (> 3.0): Very rough, noisy pattern
+            Default: 3.0
 
-        roughness (float): Controls the roughness of the plasma pattern.
-            Higher values create more rough/sharp transitions.
-            Must be greater than 0.
-            Typical values are between 1.0 and 5.0. Default: 3.0
-
-            p (float): Probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -5828,41 +5913,45 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Number of channels:
-        Any
+    Note:
+        - Works with any number of channels (grayscale, RGB, multispectral)
+        - The same plasma pattern is applied to all channels
+        - Operations are performed in float32 precision
+        - Final values are clipped to valid range [0, max_value]
 
     Mathematical Formulation:
-        1. Plasma Pattern Generation:
-           The Diamond-Square algorithm generates a pattern P(x,y) ∈ [0,1] by:
-           - Starting with random corner values
-           - Recursively computing midpoints using:
-             M = (V1 + V2 + V3 + V4)/4 + R(d)
-           where V1..V4 are corner values and R(d) is random noise that
-           decreases with distance d according to the roughness parameter.
+        1. Plasma Pattern Generation (Diamond-Square Algorithm):
+           Starting with a 3x3 grid of random values in [-1, 1], iteratively:
+           a) Diamond Step: For each 2x2 cell, compute center using diamond kernel:
+              [[0.25, 0.0, 0.25],
+               [0.0,  0.0, 0.0 ],
+               [0.25, 0.0, 0.25]]
+
+           b) Square Step: Fill remaining points using square kernel:
+              [[0.0,  0.25, 0.0 ],
+               [0.25, 0.0,  0.25],
+               [0.0,  0.25, 0.0 ]]
+
+           c) Add random noise scaled by roughness^iteration
+
+           d) Normalize final pattern P to [0,1] range using min-max normalization
 
         2. Brightness Adjustment:
            For each pixel (x,y):
-           O(x,y) = I(x,y) + b·P(x,y)·max_value
+           O(x,y) = I(x,y) + b·P(x,y)
            where:
            - I is the input image
            - b is the brightness factor
-           - P is the plasma pattern
-           - max_value is the maximum possible pixel value
+           - P is the normalized plasma pattern
 
         3. Contrast Adjustment:
            For each pixel (x,y):
-           O(x,y) = μ + (I(x,y) - μ)·(1 + c·P(x,y))
+           O(x,y) = I(x,y)·(1 + c·P(x,y)) + μ·(1 - (1 + c·P(x,y)))
            where:
-           - μ is the mean pixel value
+           - I is the input image
            - c is the contrast factor
-           - P is the plasma pattern
-
-    Note:
-        - The plasma pattern creates smooth, organic variations in the adjustments
-        - Brightness and contrast modifications are applied sequentially
-        - Final values are clipped to valid range [0, max_value]
-        - The same plasma pattern is used for both brightness and contrast
-          to maintain coherent spatial variations
+           - P is the normalized plasma pattern
+           - μ is the mean pixel value
 
     Examples:
         >>> import albumentations as A
@@ -5871,12 +5960,11 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         # Default parameters
         >>> transform = A.PlasmaBrightnessContrast(p=1.0)
 
-        # Custom adjustments with fine pattern
+        # Custom adjustments
         >>> transform = A.PlasmaBrightnessContrast(
         ...     brightness_range=(-0.5, 0.5),
         ...     contrast_range=(-0.3, 0.3),
-        ...     plasma_size=512,  # More detailed pattern
-        ...     roughness=2.5,    # Smoother transitions
+        ...     roughness=0.7,    # Smoother transitions
         ...     p=1.0
         ... )
 
@@ -5885,19 +5973,8 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
                Communications of the ACM, 1982.
                Paper introducing the Diamond-Square algorithm.
 
-        .. [2] Miller, "The Diamond-Square Algorithm: A Detailed Analysis,"
-               Journal of Computer Graphics Techniques, 2016.
-               Comprehensive analysis of the algorithm and its properties.
-
-        .. [3] Ebert et al., "Texturing & Modeling: A Procedural Approach,"
-               Chapter 12: Noise, Hypertexture, Antialiasing, and Gesture.
-               Detailed coverage of procedural noise patterns.
-
-        .. [4] Diamond-Square algorithm:
+        .. [2] Diamond-Square algorithm:
                https://en.wikipedia.org/wiki/Diamond-square_algorithm
-
-        .. [5] Plasma effect:
-               https://lodev.org/cgtutor/plasma.html
 
     See Also:
         - RandomBrightnessContrast: For uniform brightness/contrast adjustments
@@ -5915,7 +5992,6 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             tuple[float, float],
             AfterValidator(check_range_bounds(-1, 1)),
         ]
-        plasma_size: int = Field(default=256, gt=0)
         roughness: float = Field(default=3.0, gt=0)
 
     def __init__(
@@ -5937,7 +6013,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image = data["image"] if "image" in data else data["images"][0]
+        shape = params["shape"]
 
         # Sample adjustment strengths
         brightness = self.py_random.uniform(*self.brightness_range)
@@ -5945,8 +6021,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
 
         # Generate plasma pattern
         plasma = fmain.generate_plasma_pattern(
-            target_shape=image.shape[:2],
-            size=self.plasma_size,
+            target_shape=shape[:2],
             roughness=self.roughness,
             random_generator=self.random_generator,
         )
@@ -5972,12 +6047,24 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             plasma_pattern,
         )
 
+    @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "brightness_range", "contrast_range", "plasma_size", "roughness"
+        return "brightness_range", "contrast_range", "roughness"
 
 
 class PlasmaShadow(ImageOnlyTransform):
-    """Apply plasma-based shadow effect to the image.
+    """Apply plasma-based shadow effect to the image using Diamond-Square algorithm.
 
     Creates organic-looking shadows using plasma fractal noise pattern.
     The shadow intensity varies smoothly across the image, creating natural-looking
@@ -5991,19 +6078,11 @@ class PlasmaShadow(ImageOnlyTransform):
             - Values between create partial shadows
             Default: (0.3, 0.7)
 
-        plasma_size (int): Size of the plasma pattern. Will be rounded up to nearest power of 2.
-            Larger values create more detailed shadow patterns:
-            - Small values (~64): Large, smooth shadow regions
-            - Medium values (~256): Balanced detail level
-            - Large values (~512+): Fine shadow details
-            Default: 256
-
-        roughness (float): Controls the roughness of the plasma pattern.
-            Higher values create more rough/sharp shadow transitions.
+        roughness (float): Controls how quickly the noise amplitude increases at each iteration.
             Must be greater than 0:
-            - Low values (~1.0): Very smooth transitions
-            - Medium values (~3.0): Natural-looking shadows
-            - High values (~5.0): More dramatic, sharp shadows
+            - Low values (< 1.0): Smoother, more gradual shadows
+            - Medium values (~2.0): Natural-looking shadows
+            - High values (> 3.0): Very rough, noisy shadows
             Default: 3.0
 
         p (float): Probability of applying the transform. Default: 0.5.
@@ -6017,22 +6096,34 @@ class PlasmaShadow(ImageOnlyTransform):
     Note:
         - The transform darkens the image using a plasma pattern
         - Works with any number of channels (grayscale, RGB, multispectral)
-        - Shadow pattern is generated using Diamond-Square algorithm
+        - Shadow pattern is generated using Diamond-Square algorithm with specific kernels
         - The same shadow pattern is applied to all channels
         - Final values are clipped to valid range [0, max_value]
 
     Mathematical Formulation:
-        1. Plasma Pattern Generation:
-           The Diamond-Square algorithm generates a pattern P(x,y) ∈ [0,1]
-           with fractal characteristics controlled by roughness parameter.
+        1. Plasma Pattern Generation (Diamond-Square Algorithm):
+           Starting with a 3x3 grid of random values in [-1, 1], iteratively:
+           a) Diamond Step: For each 2x2 cell, compute center using diamond kernel:
+              [[0.25, 0.0, 0.25],
+               [0.0,  0.0, 0.0 ],
+               [0.25, 0.0, 0.25]]
+
+           b) Square Step: Fill remaining points using square kernel:
+              [[0.0,  0.25, 0.0 ],
+               [0.25, 0.0,  0.25],
+               [0.0,  0.25, 0.0 ]]
+
+           c) Add random noise scaled by roughness^iteration
+
+           d) Normalize final pattern P to [0,1] range using min-max normalization
 
         2. Shadow Application:
            For each pixel (x,y):
-           O(x,y) = I(x,y) * (1 - i·P(x,y))
+           O(x,y) = I(x,y) * (1 - i*P(x,y))
            where:
            - I is the input image
-           - P is the plasma pattern
-           - i is the shadow intensity
+           - P is the normalized plasma pattern
+           - i is the sampled shadow intensity
            - O is the output image
 
     Examples:
@@ -6044,17 +6135,15 @@ class PlasmaShadow(ImageOnlyTransform):
 
         # Subtle, smooth shadows
         >>> transform = A.PlasmaShadow(
-        ...     shadow_intensity=(0.1, 0.3),
-        ...     plasma_size=128,
-        ...     roughness=1.5,
+        ...     shadow_intensity_range=(0.1, 0.3),
+        ...     roughness=0.7,
         ...     p=1.0
         ... )
 
         # Dramatic, detailed shadows
         >>> transform = A.PlasmaShadow(
-        ...     shadow_intensity=(0.5, 0.9),
-        ...     plasma_size=512,
-        ...     roughness=4.0,
+        ...     shadow_intensity_range=(0.5, 0.9),
+        ...     roughness=0.3,
         ...     p=1.0
         ... )
 
@@ -6070,11 +6159,11 @@ class PlasmaShadow(ImageOnlyTransform):
         - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
         - RandomShadow: For geometric shadow effects
         - RandomToneCurve: For global lighting adjustments
+        - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
     """
 
     class InitSchema(BaseTransformInitSchema):
         shadow_intensity_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
-        plasma_size: int = Field(default=256, gt=0)
         roughness: float = Field(default=3.0, gt=0)
 
     def __init__(
@@ -6094,15 +6183,14 @@ class PlasmaShadow(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image = data["image"] if "image" in data else data["images"][0]
+        shape = params["shape"]
 
         # Sample shadow intensity
         intensity = self.py_random.uniform(*self.shadow_intensity_range)
 
         # Generate plasma pattern
         plasma = fmain.generate_plasma_pattern(
-            target_shape=image.shape[:2],
-            size=self.plasma_size,
+            target_shape=shape[:2],
             roughness=self.roughness,
             random_generator=self.random_generator,
         )
@@ -6121,8 +6209,20 @@ class PlasmaShadow(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.apply_plasma_shadow(img, intensity, plasma_pattern)
 
+    @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "shadow_intensity_range", "plasma_size", "roughness"
+        return "shadow_intensity_range", "roughness"
 
 
 class Illumination(ImageOnlyTransform):
@@ -6293,7 +6393,7 @@ class Illumination(ImageOnlyTransform):
         self.center_range = center_range
         self.sigma_range = sigma_range
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         intensity = self.py_random.uniform(*self.intensity_range)
 
         # Determine if brightening or darkening
@@ -6360,33 +6460,307 @@ class Illumination(ImageOnlyTransform):
 
 
 class AutoContrast(ImageOnlyTransform):
-    """Apply random auto contrast to images.
+    """Automatically adjust image contrast by stretching the intensity range.
 
-    Auto contrast enhances image contrast by stretching the intensity range
-    to use the full range while preserving relative intensities. For each
-    color channel:
-    1. Compute histogram
-    2. Find cumulative percentiles
-    3. Clip and scale intensities to full range
+    This transform provides two methods for contrast enhancement:
+    1. CDF method (default): Uses cumulative distribution function for more gradual adjustment
+    2. PIL method: Uses linear scaling like PIL.ImageOps.autocontrast
+
+    The transform can optionally exclude extreme values from both ends of the
+    intensity range and preserve specific intensity values (e.g., alpha channel).
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        cutoff (float): Percentage of pixels to exclude from both ends of the histogram.
+            Range: [0, 100]. Default: 0 (use full intensity range)
+            - 0 means use the minimum and maximum intensity values found
+            - 20 means exclude darkest and brightest 20% of pixels
+        ignore (int, optional): Intensity value to preserve (e.g., alpha channel).
+            Range: [0, 255]. Default: None
+            - If specified, this intensity value will not be modified
+            - Useful for images with alpha channel or special marker values
+        method (Literal["cdf", "pil"]): Algorithm to use for contrast enhancement.
+            Default: "cdf"
+            - "cdf": Uses cumulative distribution for smoother adjustment
+            - "pil": Uses linear scaling like PIL.ImageOps.autocontrast
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
 
     Image types:
         uint8, float32
+
+    Note:
+        - The transform processes each color channel independently
+        - For grayscale images, only one channel is processed
+        - The output maintains the same dtype as input
+        - Empty or single-color channels remain unchanged
+
+    Examples:
+        >>> import albumentations as A
+        >>> # Basic usage
+        >>> transform = A.AutoContrast(p=1.0)
+        >>>
+        >>> # Exclude extreme values
+        >>> transform = A.AutoContrast(cutoff=20, p=1.0)
+        >>>
+        >>> # Preserve alpha channel
+        >>> transform = A.AutoContrast(ignore=255, p=1.0)
+        >>>
+        >>> # Use PIL-like contrast enhancement
+        >>> transform = A.AutoContrast(method="pil", p=1.0)
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        cutoff: float = Field(ge=0, le=100)
+        ignore: int | None = Field(ge=0, le=255)
+        method: Literal["cdf", "pil"]
 
     def __init__(
         self,
+        cutoff: float = 0,
+        ignore: int | None = None,
+        method: Literal["cdf", "pil"] = "cdf",
         p: float = 0.5,
     ):
         super().__init__(p=p)
+        self.cutoff = cutoff
+        self.ignore = ignore
+        self.method = method
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.auto_contrast(img)
+        return fmain.auto_contrast(img, self.cutoff, self.ignore, self.method)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ()
+        return "cutoff", "ignore", "method"
+
+
+class HEStain(ImageOnlyTransform):
+    """Applies H&E (Hematoxylin and Eosin) stain augmentation to histopathology images.
+
+    This transform simulates different H&E staining conditions using either:
+    1. Predefined stain matrices (8 standard references)
+    2. Vahadane method for stain extraction
+    3. Macenko method for stain extraction
+    4. Custom stain matrices
+
+    Args:
+        method: Method to use for stain augmentation:
+            - "preset": Use predefined stain matrices
+            - "random_preset": Randomly select a preset matrix each time
+            - "vahadane": Extract using Vahadane method
+            - "macenko": Extract using Macenko method
+            Default: "preset"
+
+        preset: Preset stain matrix to use when method="preset":
+            - "ruifrok": Standard reference from Ruifrok & Johnston
+            - "macenko": Reference from Macenko's method
+            - "standard": Typical bright-field microscopy
+            - "high_contrast": Enhanced contrast
+            - "h_heavy": Hematoxylin dominant
+            - "e_heavy": Eosin dominant
+            - "dark": Darker staining
+            - "light": Lighter staining
+            Default: "standard"
+
+        intensity_scale_range: Range for multiplicative stain intensity variation.
+            Values are multipliers between 0.5 and 1.5. For example:
+            - (0.7, 1.3) means stain intensities will vary from 70% to 130%
+            - (0.9, 1.1) gives subtle variations
+            - (0.5, 1.5) gives dramatic variations
+            Default: (0.7, 1.3)
+
+        intensity_shift_range: Range for additive stain intensity variation.
+            Values between -0.3 and 0.3. For example:
+            - (-0.2, 0.2) means intensities will be shifted by -20% to +20%
+            - (-0.1, 0.1) gives subtle shifts
+            - (-0.3, 0.3) gives dramatic shifts
+            Default: (-0.2, 0.2)
+
+        augment_background: Whether to apply augmentation to background regions.
+            Default: False
+
+    Targets:
+        image
+
+    Number of channels:
+        3
+
+    Image types:
+        uint8, float32
+
+    References:
+        .. [1] A. C. Ruifrok and D. A. Johnston, "Quantification of histochemical
+               staining by color deconvolution," Analytical and quantitative
+               cytology and histology, 2001.
+        .. [2] M. Macenko et al., "A method for normalizing histology slides for
+               quantitative analysis," 2009 IEEE International Symposium on
+               Biomedical Imaging, 2009.
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        method: Literal["preset", "random_preset", "vahadane", "macenko"]
+        preset: (
+            Literal[
+                "ruifrok",
+                "macenko",
+                "standard",
+                "high_contrast",
+                "h_heavy",
+                "e_heavy",
+                "dark",
+                "light",
+            ]
+            | None
+        )
+        intensity_scale_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(0, None)),
+        ]
+        intensity_shift_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_range_bounds(-1, 1)),
+        ]
+        augment_background: bool
+
+        @model_validator(mode="after")
+        def validate_matrix_selection(self) -> Self:
+            if self.method == "preset" and self.preset is None:
+                self.preset = "standard"
+            elif self.method == "random_preset" and self.preset is not None:
+                raise ValueError("preset should not be specified when method='random_preset'")
+            return self
+
+    def __init__(
+        self,
+        method: Literal["preset", "random_preset", "vahadane", "macenko"] = "random_preset",
+        preset: Literal[
+            "ruifrok",
+            "macenko",
+            "standard",
+            "high_contrast",
+            "h_heavy",
+            "e_heavy",
+            "dark",
+            "light",
+        ]
+        | None = None,
+        intensity_scale_range: tuple[float, float] = (0.7, 1.3),
+        intensity_shift_range: tuple[float, float] = (-0.2, 0.2),
+        augment_background: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p)
+        self.method = method
+        self.preset = preset
+        self.intensity_scale_range = intensity_scale_range
+        self.intensity_shift_range = intensity_shift_range
+        self.augment_background = augment_background
+        self.stain_normalizer = None
+
+        # Initialize stain extractor here if needed
+        if method in ["vahadane", "macenko"]:
+            self.stain_extractor = fmain.get_normalizer(
+                cast(Literal["vahadane", "macenko"], method),
+            )
+
+        self.preset_names = [
+            "ruifrok",
+            "macenko",
+            "standard",
+            "high_contrast",
+            "h_heavy",
+            "e_heavy",
+            "dark",
+            "light",
+        ]
+
+    def get_stain_matrix(self, img: np.ndarray) -> np.ndarray:
+        """Get stain matrix based on selected method."""
+        if self.method == "preset" and self.preset is not None:
+            return fmain.STAIN_MATRICES[self.preset]
+        if self.method == "random_preset":
+            random_preset = self.py_random.choice(self.preset_names)
+            return fmain.STAIN_MATRICES[random_preset]
+        # vahadane or macenko
+        self.stain_extractor.fit(img)
+        return self.stain_extractor.stain_matrix_target
+
+    def apply(
+        self,
+        img: np.ndarray,
+        stain_matrix: np.ndarray,
+        scale_factors: np.ndarray,
+        shift_values: np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
+        non_rgb_error(img)
+        return fmain.apply_he_stain_augmentation(
+            img=img,
+            stain_matrix=stain_matrix,
+            scale_factors=scale_factors,
+            shift_values=shift_values,
+            augment_background=self.augment_background,
+        )
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(images, **params)
+
+    @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volume, **params)
+
+    @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        return self.apply(volumes, **params)
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        # Get stain matrix
+        image = data["image"] if "image" in data else data["images"][0]
+
+        stain_matrix = self.get_stain_matrix(image)
+
+        # Generate random scaling and shift parameters for both H&E channels
+        scale_factors = np.array(
+            [
+                self.py_random.uniform(*self.intensity_scale_range),
+                self.py_random.uniform(*self.intensity_scale_range),
+            ],
+        )
+        shift_values = np.array(
+            [
+                self.py_random.uniform(*self.intensity_shift_range),
+                self.py_random.uniform(*self.intensity_shift_range),
+            ],
+        )
+
+        return {
+            "stain_matrix": stain_matrix,
+            "scale_factors": scale_factors,
+            "shift_values": shift_values,
+        }
+
+    def get_transform_init_args(self) -> dict[str, Any]:
+        """Return dictionary with transform init arguments."""
+        return {
+            "method": self.method,
+            "preset": self.preset,
+            "intensity_scale_range": self.intensity_scale_range,
+            "intensity_shift_range": self.intensity_shift_range,
+            "augment_background": self.augment_background,
+        }

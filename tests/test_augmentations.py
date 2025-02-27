@@ -6,7 +6,6 @@ import pytest
 from albucore import to_float
 
 import albumentations as A
-from albumentations.core.bbox_utils import normalize_bboxes
 from tests.conftest import (
     IMAGES,
     RECTANGULAR_UINT8_IMAGE,
@@ -51,14 +50,14 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
     if augmentation_cls == A.TextImage:
-        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = aug(
             image=image,
             mask=mask,
             textimage_metadata={"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)},
         )
     else:
-        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
         data = aug(image=image, mask=mask)
 
     assert data["image"].dtype == image.dtype
@@ -96,7 +95,7 @@ def test_image_only_augmentations(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image[:, :, 0].copy().astype(np.uint8)
     if augmentation_cls == A.TextImage:
-        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = aug(image=image, mask=mask, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     else:
         aug = augmentation_cls(p=1, **params)
@@ -120,7 +119,7 @@ def test_image_only_augmentations(augmentation_cls, params):
 def test_dual_augmentations(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
-    aug = A.Compose([augmentation_cls(p=1, **params)])
+    aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
     data = {"image": image, "mask": mask}
     if augmentation_cls == A.OverlayElements:
         data["overlay_metadata"] = []
@@ -320,7 +319,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomGravel,
             A.RandomSunFlare,
             A.RandomFog,
-            A.Pad
+            A.Pad,
+            A.HEStain,
         },
     ),
 )
@@ -454,7 +454,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [A.Rotate, {"border_mode": cv2.BORDER_CONSTANT, "fill": 100, "fill_mask": 1}],
         [A.SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "fill": 100, "fill_mask": 1}],
         [A.ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "fill": 100, "fill_mask": 1}],
-        [A.Affine, {"mode": cv2.BORDER_CONSTANT, "fill_mask": 1, "fill": 100}],
+        [A.Affine, {"border_mode": cv2.BORDER_CONSTANT, "fill_mask": 1, "fill": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
@@ -516,6 +516,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomFog,
             A.Equalize,
             A.GridElasticDeform,
+            A.HEStain,
         },
     ),
 )
@@ -592,6 +593,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomSunFlare,
             A.RandomFog,
             A.GridElasticDeform,
+            A.HEStain,
         },
     ),
 )
@@ -665,6 +667,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomFog,
             A.Equalize,
             A.GridElasticDeform,
+            A.HEStain,
         },
     ),
 )
@@ -741,12 +744,13 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RandomSunFlare,
             A.RandomFog,
             A.GridElasticDeform,
+            A.HEStain,
         },
     ),
 )
 def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
     image = SQUARE_MULTI_FLOAT_IMAGE
-    aug = A.Compose([augmentation_cls(p=1, **params)])
+    aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
 
     data = {
         "image": image,
@@ -1015,7 +1019,7 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
     image_uint8 = RECTANGULAR_UINT8_IMAGE
     image_float32 = to_float(image_uint8)
 
-    transform = A.Compose([augmentation_cls(p=1, **params)], seed=137)
+    transform = A.Compose([augmentation_cls(p=1, **params)], seed=137, strict=True)
 
     data = {"image": image_uint8}
     if augmentation_cls == A.MaskDropout or augmentation_cls == A.ConstrainedCoarseDropout:
@@ -1124,7 +1128,9 @@ def test_constrained_coarse_dropout_with_bboxes(bbox_labels, bboxes, expected_nu
             bbox_labels=bbox_labels,
             p=1.0,
         )
-    ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']), seed=137, save_applied_params=True)
+    ],
+    strict=True,
+    bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']), seed=137, save_applied_params=True)
 
 
     # Extract labels for bbox_params
@@ -1224,3 +1230,174 @@ def test_pixel_dropout_per_channel():
         assert len(unique_values) == 2  # Should only have original value and drop value
         assert drop_val in unique_values
         assert 255 in unique_values
+
+
+
+def test_salt_and_pepper_noise():
+    # Test image setup - create all gray image instead of black with gray square
+    image = np.full((100, 100, 3), 128, dtype=np.uint8)  # All gray image
+
+    # Fixed parameters for deterministic testing
+    amount = (0.05, 0.05)  # Exactly 5% of pixels
+    salt_vs_pepper = (0.6, 0.6)  # Exactly 60% salt, 40% pepper
+
+    transform = A.SaltAndPepper(
+        amount=amount,
+        salt_vs_pepper=salt_vs_pepper,
+        p=1.0
+    )
+    transform.set_random_seed(137)
+
+    # Apply transform
+    transformed = transform(image=image)["image"]
+
+    # Count all changes
+    salt_pixels = (transformed == 255).all(axis=2)
+    pepper_pixels = (transformed == 0).all(axis=2)
+
+    total_changes = salt_pixels.sum() + pepper_pixels.sum()
+
+    expected_pixels = int(image.shape[0] * image.shape[1] * amount[0])
+    assert total_changes == expected_pixels, \
+        f"Expected {expected_pixels} noisy pixels, got {total_changes}"
+
+    # Verify salt vs pepper ratio
+    expected_salt = int(expected_pixels * salt_vs_pepper[0])
+    assert salt_pixels.sum() == expected_salt, \
+        f"Expected {expected_salt} salt pixels, got {salt_pixels.sum()}"
+
+
+def test_salt_and_pepper_float_image():
+    """Test salt and pepper noise on float32 images"""
+    image = np.zeros((100, 100, 3), dtype=np.float32)
+    image[25:75, 25:75] = 0.5  # Gray square
+
+    transform = A.SaltAndPepper(
+        amount=(0.05, 0.05),
+        salt_vs_pepper=(0.6, 0.6),
+        p=1.0
+    )
+    transform.set_random_seed(137)
+
+    transformed = transform(image=image)["image"]
+
+    # Check that salt pixels are 1.0 and pepper pixels are 0.0
+    changed_mask = (transformed != image).any(axis=2)
+    assert np.allclose(transformed[transformed > 0.9], 1.0), \
+        "Salt pixels should be exactly 1.0 for float images"
+    assert np.allclose(transformed[transformed < 0.1], 0.0), \
+        "Pepper pixels should be exactly 0.0 for float images"
+
+def test_salt_and_pepper_grayscale():
+    """Test salt and pepper noise on single-channel images"""
+    image = np.zeros((100, 100), dtype=np.uint8)
+    image[25:75, 25:75] = 128
+
+    transform = A.SaltAndPepper(
+        amount=(0.05, 0.05),
+        salt_vs_pepper=(0.6, 0.6),
+        p=1.0
+    )
+    transform.set_random_seed(137)
+
+    transformed = transform(image=image)["image"]
+
+    # Verify shape is preserved
+    assert transformed.shape == image.shape, \
+        "Transform should preserve single-channel image shape"
+
+    # Check noise values
+    changed_mask = transformed != image
+    salt_pixels = (transformed == 255) & changed_mask
+    pepper_pixels = (transformed == 0) & changed_mask
+
+    assert (salt_pixels | pepper_pixels | ~changed_mask).all(), \
+        "Changed pixels should only be salt (255) or pepper (0)"
+
+
+
+@pytest.mark.parametrize(
+    ["slant_range", "expected_slant_range"],
+    [
+        ((-10, -5), (-10, -5)),  # negative slant range
+        ((5, 10), (5, 10)),      # positive slant range
+        ((-5, 5), (-5, 5)),      # range crossing zero
+    ]
+)
+def test_random_rain_slant(slant_range, expected_slant_range):
+    # Create a deterministic image
+    image = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    # Create transform with 100% probability and specific slant range
+    transform = A.RandomRain(
+        slant_range=slant_range,
+        p=1.0,
+        rain_type="heavy"  # Use heavy to ensure enough rain drops
+    )
+    transform.set_random_seed(137)
+    # Run multiple times to ensure slant stays within range
+    slants = []
+    for _ in range(50):  # Run 50 times to get a good sample
+        # Get params without actually applying transform
+        params = transform.get_params_dependent_on_data(
+            {"shape": image.shape},
+            {"image": image}
+        )
+        slants.append(params["slant"])
+
+    # Assert all slants are within the expected range
+    assert all(expected_slant_range[0] <= s <= expected_slant_range[1] for s in slants), \
+        f"Slants {slants} not within range {expected_slant_range}"
+
+    # Assert we get at least some variation in slants
+    assert len(set(slants)) > 1, "Slant values show no variation"
+
+    # Assert we get values from both halves of the range
+    slant_mid = (expected_slant_range[0] + expected_slant_range[1]) / 2
+    has_lower = any(s < slant_mid for s in slants)
+    has_upper = any(s > slant_mid for s in slants)
+    if expected_slant_range[0] != expected_slant_range[1]:  # Skip if range is single value
+        assert has_lower and has_upper, \
+            f"Slant values {slants} don't cover both halves of range {expected_slant_range}"
+
+@pytest.mark.parametrize("slant", [-10, 0, 10])
+def test_random_rain_visual_effect(slant):
+    # Create a white image
+    image = np.full((100, 100, 3), 255, dtype=np.uint8)
+
+    # Create transform with fixed slant for visual verification
+    transform = A.RandomRain(
+        slant_range=(slant, slant),  # Force specific slant
+        drop_length=20,
+        drop_width=2,
+        drop_color=(0, 0, 0),  # Black rain drops for contrast
+        blur_value=1,          # Minimal blur for clearer lines
+        brightness_coefficient=1.0,  # No brightness change
+        p=1.0,
+        rain_type="heavy"
+    )
+
+    transform.set_random_seed(137)
+
+    # Apply transform
+    result = transform(image=image)["image"]
+
+    # Find non-white pixels (rain drops)
+    rain_pixels = np.where(result != 255)
+
+    if len(rain_pixels[0]) > 0:  # If we found rain drops
+        # Calculate the average slope of rain drops
+        # We can do this by looking at the leftmost and rightmost points
+        left_x = min(rain_pixels[1])
+        right_x = max(rain_pixels[1])
+        if right_x > left_x:  # Ensure we have horizontal spread
+            left_y = rain_pixels[0][rain_pixels[1] == left_x].mean()
+            right_y = rain_pixels[0][rain_pixels[1] == right_x].mean()
+
+            # Calculate observed slant direction
+            observed_slant = 1 if right_y > left_y else -1 if right_y < left_y else 0
+            expected_slant = 1 if slant > 0 else -1 if slant < 0 else 0
+
+            # The slant direction should match the expected direction
+            assert observed_slant == expected_slant, \
+                f"Rain drops slant direction {observed_slant} doesn't match expected {expected_slant}"

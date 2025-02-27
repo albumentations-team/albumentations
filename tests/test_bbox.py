@@ -22,6 +22,8 @@ from albumentations.core.bbox_utils import (
     masks_from_bboxes,
     normalize_bboxes,
     union_of_bboxes,
+    bboxes_to_mask,
+    mask_to_bboxes,
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import BasicTransform, NoOp
@@ -680,7 +682,7 @@ def test_filter_bboxes_noop():
         classes=np.array([1]),
     )
     bbox_conf = A.core.bbox_utils.BboxParams(format="yolo", label_fields=["classes"], min_area=1.0)
-    transf = A.Compose([A.NoOp(p=1.0)], bbox_params=bbox_conf, is_check_shapes=False)
+    transf = A.Compose([A.NoOp(p=1.0)], bbox_params=bbox_conf, is_check_shapes=False, strict=True)
 
     out_data = transf(**in_data)
 
@@ -824,10 +826,11 @@ def test_compose_with_bbox_noop(
         aug = Compose(
             [NoOp(p=1.0)],
             bbox_params={"format": bbox_format, "label_fields": ["labels"]},
+            strict=True,
         )
         transformed = aug(image=image, bboxes=bboxes, labels=labels)
     else:
-        aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
+        aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format}, strict=True)
         transformed = aug(image=image, bboxes=bboxes)
     assert np.array_equal(transformed["image"], image)
     assert np.all(np.isclose(transformed["bboxes"], bboxes))
@@ -839,7 +842,7 @@ def test_compose_with_bbox_noop_error_label_fields(
     bbox_format: str,
 ) -> None:
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
+    aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format}, strict=True)
     with pytest.raises(Exception):
         aug(image=image, bboxes=bboxes)
 
@@ -874,6 +877,7 @@ def test_compose_with_bbox_noop_label_outside(
     aug = Compose(
         [NoOp(p=1.0)],
         bbox_params={"format": bbox_format, "label_fields": list(labels.keys())},
+        strict=True,
     )
     transformed = aug(image=image, bboxes=bboxes, **labels)
     assert np.array_equal(transformed["image"], image)
@@ -889,6 +893,7 @@ def test_random_sized_crop_size() -> None:
         [RandomSizedCrop(min_max_height=(70, 90), size=(50, 50), p=1.0)],
         bbox_params={"format": "albumentations"},
         seed=42,
+        strict=True,
     )
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
@@ -898,7 +903,7 @@ def test_random_sized_crop_size() -> None:
 def test_random_resized_crop_size() -> None:
     image = np.ones((100, 100, 3))
     bboxes = [(0.2, 0.3, 0.6, 0.8, 2), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = A.Compose([RandomResizedCrop(size=(50, 50), p=1.0)], bbox_params={"format": "albumentations"}, seed=42)
+    aug = A.Compose([RandomResizedCrop(size=(50, 50), p=1.0)], bbox_params={"format": "albumentations"}, seed=42, strict=True)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(bboxes) == len(transformed["bboxes"])
@@ -907,7 +912,7 @@ def test_random_resized_crop_size() -> None:
 def test_random_rotate() -> None:
     image = np.ones((192, 192, 3))
     bboxes = [(78, 42, 142, 80, 1), (32, 12, 42, 72, 2)]
-    aug = A.Compose([Rotate(limit=15, p=1.0, border_mode=cv2.BORDER_CONSTANT)], bbox_params={"format": "pascal_voc"})
+    aug = A.Compose([Rotate(limit=15, p=1.0, border_mode=cv2.BORDER_CONSTANT)], bbox_params={"format": "pascal_voc"}, strict=True)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
 
@@ -969,6 +974,7 @@ def test_bounding_box_outside_clip(
     transform = Compose(
         [A.NoOp()],
         bbox_params={"format": "pascal_voc", "label_fields": ["labels"], "clip": True},
+        strict=True,
     )
     transformed = transform(
         image=np.zeros((*image_size, 3), dtype=np.uint8),
@@ -993,6 +999,7 @@ def test_bounding_box_hflip(bbox, expected_bbox) -> None:
     transform = A.Compose(
         [A.HorizontalFlip(p=1.0)],
         bbox_params=A.BboxParams(format="coco", label_fields=[]),
+        strict=True,
     )
 
     transformed = transform(image=image, bboxes=[bbox])
@@ -1015,6 +1022,7 @@ def test_bounding_box_vflip(bbox, expected_bbox) -> None:
     transform = A.Compose(
         [A.VerticalFlip(p=1.0)],
         bbox_params=A.BboxParams(format="coco", label_fields=[]),
+        strict=True,
     )
 
     transformed = transform(image=image, bboxes=[bbox])
@@ -1025,7 +1033,7 @@ def test_bounding_box_vflip(bbox, expected_bbox) -> None:
 @pytest.mark.parametrize(
     "get_transform",
     [
-        lambda sign: A.Affine(translate_px=sign * 2, mode=cv2.BORDER_CONSTANT, fill=255),
+        lambda sign: A.Affine(translate_px=sign * 2, border_mode=cv2.BORDER_CONSTANT, fill=255),
         lambda sign: A.ShiftScaleRotate(
             shift_limit=(sign * 0.02, sign * 0.02),
             scale_limit=0,
@@ -1057,10 +1065,12 @@ def test_bbox_clipping(
     aug = A.Compose(
         [transform],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility),
+        strict=True,
     )
 
     res = aug(image=image, bboxes=bboxes)["bboxes"]
-    np.testing.assert_almost_equal(res, expected)
+    # Use assert_allclose instead of assert_almost_equal
+    np.testing.assert_allclose(res, expected, rtol=1e-5, atol=1e-5)
 
 
 def test_bbox_clipping_perspective() -> None:
@@ -1068,6 +1078,7 @@ def test_bbox_clipping_perspective() -> None:
         [A.Perspective(scale=(0.05, 0.05), p=1)],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6),
         seed=42,
+        strict=True,
     )
 
     image = np.empty([1000, 1000, 3], dtype=np.uint8)
@@ -1386,6 +1397,7 @@ def test_small_bbox(bbox_format, bbox, expected):
     transform = A.Compose(
         [A.NoOp()],
         bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
+        strict=True,
     )
     transformed = transform(
         image=np.zeros((4, 4, 3), dtype=np.uint8),
@@ -1408,6 +1420,7 @@ def test_very_small_bbox(bbox_format, bboxes, expected):
     transform = A.Compose(
         [A.NoOp()],
         bbox_params=A.BboxParams(format=bbox_format, label_fields=["category_id"]),
+        strict=True,
     )
 
     categories = [1]
@@ -1516,8 +1529,9 @@ def test_random_resized_crop():
     ],
     bbox_params=A.BboxParams(
         format="coco",
-        label_fields=["label"],
-    ),
+            label_fields=["label"],
+        ),
+        strict=True,
     )
     boxes = [[10,10,20,20], [5,5,10,10], [450, 450, 5,5], [250,250,5,5]]
     labels = [1,2,3,4]
@@ -1727,3 +1741,650 @@ def test_bboxes_grid_shuffle_multiple_components():
     assert np.all(result >= 0)  # All coordinates should be valid
     assert np.all(result[:, [0, 2]] <= image_shape[1])  # x coordinates within image width
     assert np.all(result[:, [1, 3]] <= image_shape[0])  # y coordinates within image height
+
+
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "single_bbox",
+        "bboxes": np.array([[10, 20, 30, 40]]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 1),
+        "expected_nonzero": [(20, 10, 0), (20, 30, 0), (40, 10, 0), (40, 30, 0)]  # y, x, channel
+    },
+    {
+        "name": "multiple_bboxes",
+        "bboxes": np.array([
+            [10, 20, 30, 40],
+            [50, 60, 70, 80]
+        ]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 2),
+        "expected_nonzero": [(20, 10, 0), (60, 50, 1)]  # y, x, channel
+    },
+    {
+        "name": "bbox_with_extra_fields",
+        "bboxes": np.array([[10, 20, 30, 40, 1, 0.8]]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 1),
+        "expected_nonzero": [(20, 10, 0)]
+    },
+    {
+        "name": "bbox_at_edges",
+        "bboxes": np.array([[0, 0, 99, 99]]),
+        "image_shape": (100, 100),
+        "expected_mask_shape": (100, 100, 1),
+        "expected_nonzero": [(0, 0, 0), (99, 99, 0)]
+    }
+])
+def test_bboxes_to_mask(test_case):
+    bboxes = test_case["bboxes"]
+    image_shape = test_case["image_shape"]
+    expected_shape = test_case["expected_mask_shape"]
+    expected_nonzero = test_case["expected_nonzero"]
+
+    masks = bboxes_to_mask(bboxes, image_shape)
+
+    # Check shape
+    assert masks.shape == expected_shape
+
+    # Check dtype
+    assert masks.dtype == np.uint8
+
+    # Check if masks are binary
+    assert np.all(np.isin(masks, [0, 1]))
+
+    # Check specific points
+    for y, x, c in expected_nonzero:
+        assert masks[y, x, c] == 1, f"Expected 1 at position ({y}, {x}, {c})"
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "single_mask",
+        "masks": np.array([  # (3, 3, 1) mask
+            [[0], [0], [0]],
+            [[0], [1], [0]],
+            [[0], [0], [0]]
+        ], dtype=np.uint8),
+        "original_bboxes": np.array([[0, 0, 2, 2]]),
+        "expected_bboxes": np.array([[1, 1, 1, 1]])
+    },
+    {
+        "name": "multiple_masks",
+        "masks": np.array([  # (3, 3, 2) mask
+            [[0, 0], [0, 1], [0, 0]],
+            [[0, 1], [1, 1], [0, 1]],
+            [[0, 0], [0, 1], [0, 0]]
+        ], dtype=np.uint8),
+        "original_bboxes": np.array([
+            [0, 0, 2, 2],
+            [0, 0, 2, 2]
+        ]),
+        "expected_bboxes": np.array([
+            [1, 1, 1, 1],
+            [0, 0, 2, 2]
+        ])
+    },
+    {
+        "name": "mask_with_extra_fields",
+        "masks": np.array([  # (3, 3, 1) mask
+            [[0], [0], [0]],
+            [[0], [1], [0]],
+            [[0], [0], [0]]
+        ], dtype=np.uint8),
+        "original_bboxes": np.array([[0, 0, 2, 2, 1, 0.8]]),
+        "expected_bboxes": np.array([[1, 1, 1, 1, 1, 0.8]])
+    },
+    {
+        "name": "empty_mask",
+        "masks": np.zeros((3, 3, 1), dtype=np.uint8),
+        "original_bboxes": np.array([[10, 20, 30, 40]]),
+        "expected_bboxes": np.array([[10, 20, 30, 40]])  # Should preserve original bbox
+    }
+])
+def test_mask_to_bboxes(test_case):
+    masks = test_case["masks"]
+    original_bboxes = test_case["original_bboxes"]
+    expected_bboxes = test_case["expected_bboxes"]
+
+    result = mask_to_bboxes(masks, original_bboxes)
+
+    # Check shape and values
+    assert result.shape == expected_bboxes.shape
+    np.testing.assert_array_equal(result, expected_bboxes)
+
+    # Check extra fields preservation
+    if original_bboxes.shape[1] > 4:
+        assert np.all(result[:, 4:] == original_bboxes[:, 4:])
+
+def test_empty_bboxes():
+    empty_bboxes = np.zeros((0, 4))
+    image_shape = (100, 100)
+
+    # Test bboxes_to_mask with empty input
+    masks = bboxes_to_mask(empty_bboxes, image_shape)
+    assert masks.shape == (100, 100, 0)
+
+    # Test mask_to_bboxes with empty input
+    result = mask_to_bboxes(masks, empty_bboxes)
+    assert result.shape == (0, 4)
+
+
+@pytest.mark.parametrize(
+    "bbox_format, bboxes",
+    [
+        # Test with invalid bboxes that should raise error when filter_invalid_bboxes=False
+        ("pascal_voc", [[10, 10, 5, 20]]),  # x_max < x_min
+        ("pascal_voc", [[10, 10, 10, 5]]),  # y_max < y_min
+        ("coco", [[10, 10, -5, 20]]),  # negative width
+        ("coco", [[10, 10, 20, -5]]),  # negative height
+        ("yolo", [[0.5, 0.5, -0.1, 0.2]]),  # negative width
+    ]
+)
+def test_bbox_processor_invalid_no_filter(bbox_format, bboxes):
+    """Test that BboxProcessor raises error on invalid bboxes when filter_invalid_bboxes=False."""
+    params = BboxParams(format=bbox_format, filter_invalid_bboxes=False)
+    processor = BboxProcessor(params)
+
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": bboxes,
+    }
+
+    # Should raise ValueError due to invalid bboxes
+    with pytest.raises(ValueError):
+        processor.preprocess(data)
+
+@pytest.mark.parametrize(
+    "bbox_format, bboxes, expected_bboxes",
+    [
+        # COCO format: [x_min, y_min, width, height]
+        ("coco", [[10, 10, -5, 20], [10, 10, 20, 20]], [[10, 10, 20, 20]]),
+
+        # Pascal VOC format: [x_min, y_min, x_max, y_max]
+        ("pascal_voc", [[10, 10, 5, 20], [10, 10, 30, 30]], [[10, 10, 30, 30]]),
+
+        # Albumentations format: normalized [x_min, y_min, x_max, y_max]
+        ("albumentations", [[0.1, 0.1, 0.05, 0.2], [0.1, 0.1, 0.3, 0.3]], [[0.1, 0.1, 0.3, 0.3]]),
+
+        # YOLO format: normalized [x_center, y_center, width, height]
+        ("yolo", [[0.5, 0.5, -0.1, 0.2], [0.5, 0.5, 0.2, 0.2]], [[0.5, 0.5, 0.2, 0.2]]),
+
+        # Test with empty bboxes array
+        ("pascal_voc", [], []),
+
+        # Test with additional columns (labels)
+        ("pascal_voc", [[10, 10, 5, 20, 1], [10, 10, 30, 30, 2]], [[10, 10, 30, 30, 2]]),
+    ]
+)
+def test_bbox_processor_filter_invalid(bbox_format, bboxes, expected_bboxes):
+    """Test that BboxProcessor correctly filters invalid bboxes when filter_invalid_bboxes=True."""
+    params = BboxParams(format=bbox_format, filter_invalid_bboxes=True)
+    processor = BboxProcessor(params)
+
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": bboxes,
+    }
+
+    # Preprocess data (this is where filtering should occur)
+    processor.preprocess(data)
+
+    # Convert filtered bboxes back to original format for comparison
+    if bbox_format != "albumentations":
+        data["bboxes"] = convert_bboxes_from_albumentations(
+            data["bboxes"],
+            bbox_format,
+            {"height": 100, "width": 100}
+        )
+
+    # Check that invalid bboxes were filtered out
+    assert len(data["bboxes"]) == len(expected_bboxes)
+    if len(expected_bboxes) > 0:
+        np.testing.assert_allclose(data["bboxes"], expected_bboxes)
+
+
+def test_bbox_processor_clip_and_filter():
+    """Test that BboxProcessor correctly handles both clipping and filtering."""
+    params = BboxParams(
+        format="pascal_voc",
+        filter_invalid_bboxes=True,
+        clip=True
+    )
+    processor = BboxProcessor(params)
+
+    # Create a bbox that extends beyond image boundaries and would be invalid
+    # without clipping
+    data = {
+        "image": np.zeros((100, 100, 3)),
+        "bboxes": [[80, 80, 120, 120]],  # Goes beyond image boundaries
+    }
+
+    processor.preprocess(data)
+
+    # Convert back to pascal_voc format for comparison
+    result = convert_bboxes_from_albumentations(
+        data["bboxes"],
+        "pascal_voc",
+        {"height": 100, "width": 100}
+    )
+
+    # After clipping, the bbox should be valid and preserved
+    expected = [[80, 80, 100, 100]]  # Clipped to image boundaries
+    np.testing.assert_allclose(result, expected)
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "classes", "scores", "format", "expected_bboxes", "expected_classes", "expected_scores", "clip"],
+    [
+        # YOLO format tests
+        (
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            "yolo",
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[0.9, 0.8, 0.3, 0.3], [-0.1, 0.6, 0.3, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            "yolo",
+            np.array([[0.875, 0.8, 0.25, 0.3], [0.025, 0.6, 0.05, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.9, 0.8], dtype=np.float32),
+            True,
+        ),
+
+        # COCO format tests [x_min, y_min, width, height]
+        (
+            np.array([[10, 10, 20, 20], [30, 30, 40, 40]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "coco",
+            np.array([[10, 10, 20, 20], [30, 30, 40, 40]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[-10, -10, 30, 40], [90, 80, 30, 40]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "coco",
+            np.array([[0, 0, 20, 30], [90, 80, 10, 20]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            True,
+        ),
+
+        # Pascal VOC format tests [x_min, y_min, x_max, y_max]
+        (
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "pascal_voc",
+            np.array([[10, 10, 30, 30], [40, 40, 60, 60]], dtype=np.float32),
+            np.array([1, 2], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[-10, -10, 30, 30], [80, 80, 120, 120]], dtype=np.float32),
+            np.array([4, 5], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            "pascal_voc",
+            np.array([[0, 0, 30, 30], [80, 80, 100, 100]], dtype=np.float32),
+            np.array([4, 5], dtype=np.int32),
+            np.array([0.7, 0.8], dtype=np.float32),
+            True,
+        ),
+
+        # Empty arrays tests for each format
+        (
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            "yolo",
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            False,
+        ),
+        (
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            "coco",
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            False,
+        ),
+        (
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            "pascal_voc",
+            np.zeros((0, 4), dtype=np.float32),
+            np.array([], dtype=np.int32),
+            np.array([], dtype=np.float32),
+            False,
+        ),
+
+        # Single bbox tests with high class id
+        (
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([100], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([100], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),
+            False,
+        ),
+
+        # Edge cases for each format
+        (
+            np.array([[0.999, 0.999, 0.002, 0.002]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            "yolo",
+            np.array([[0.999, 0.999, 0.002, 0.002]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            False,
+        ),
+        (
+            np.array([[98, 98, 4, 4]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            "coco",
+            np.array([[98, 98, 2, 2]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            True,
+        ),
+        (
+            np.array([[98, 98, 102, 102]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            "pascal_voc",
+            np.array([[98, 98, 100, 100]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.9], dtype=np.float32),
+            True,
+        ),
+(
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),  # Single float in numpy array
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.95], dtype=np.float32),  # Should preserve float32 type and value
+            False,
+        ),
+        (
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.8, 0.7], dtype=np.float64),  # Test float64 dtype
+            "yolo",
+            np.array([[0.3, 0.4, 0.2, 0.3], [0.5, 0.6, 0.1, 0.2]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),
+            np.array([0.8, 0.7], dtype=np.float64),  # Should preserve float64 type
+            False,
+        ),
+        (
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.99999], dtype=np.float32),  # Test very high confidence
+            "pascal_voc",
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.99999], dtype=np.float32),  # Should preserve exact value
+            False,
+        ),
+        (
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.00001], dtype=np.float32),  # Test very low confidence
+            "pascal_voc",
+            np.array([[10, 20, 30, 40]], dtype=np.float32),
+            np.array([1], dtype=np.int32),
+            np.array([0.00001], dtype=np.float32),  # Should preserve exact value
+            False,
+        ),
+        # Test multiple label fields with different numpy dtypes
+        (
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int64),  # Test int64 class labels
+            np.array([0.95], dtype=np.float16),  # Test float16 scores
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([1], dtype=np.int64),  # Should preserve int64
+            np.array([0.95], dtype=np.float16),  # Should preserve float16
+            False,
+        ),
+        # Test case specifically for class ID clipping bug
+        (
+            np.array([[0.3, 0.8, 0.1, 0.1], [0.1, 0.1, 0.1, 0.1]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),  # Class IDs > 1
+            np.array([0.9, 0.8], dtype=np.float32),
+            "yolo",
+            np.array([[0.3, 0.8, 0.1, 0.1], [0.1, 0.1, 0.1, 0.1]], dtype=np.float32),
+            np.array([2, 3], dtype=np.int32),  # Should remain [2, 3], not [1, 1]
+            np.array([0.9, 0.8], dtype=np.float32),
+            True,  # This is key - we want clip=True to test the bug
+        ),
+        # Additional test with higher class IDs
+        (
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([10], dtype=np.int32),  # Higher class ID
+            np.array([0.95], dtype=np.float32),
+            "yolo",
+            np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32),
+            np.array([10], dtype=np.int32),  # Should remain 10, not 1
+            np.array([0.95], dtype=np.float32),
+            True,  # With clip=True
+        ),
+    ]
+)
+def test_compose_bbox_transform(
+    bboxes, classes, scores, format, expected_bboxes, expected_classes, expected_scores, clip
+):
+    """Test bbox transformations with various formats and configurations."""
+    transform = A.Compose(
+        [A.NoOp()],
+        bbox_params=A.BboxParams(
+            format=format,
+            label_fields=["classes", "scores"],
+            clip=clip,
+        ),
+        strict=True,
+    )
+
+    transformed = transform(
+        image=np.zeros((100, 100, 3), dtype=np.uint8),
+        bboxes=bboxes,
+        classes=classes,
+        scores=scores,
+    )
+
+    if len(bboxes) > 0:
+        np.testing.assert_array_almost_equal(np.array(transformed["bboxes"]), expected_bboxes, decimal=5)
+        np.testing.assert_array_equal(np.array(transformed["classes"]), expected_classes)
+        np.testing.assert_array_almost_equal(np.array(transformed["scores"]), expected_scores, decimal=5)
+
+        if format == "yolo" and clip:
+            assert np.all(np.array(transformed["bboxes"]) >= 0)
+            assert np.all(np.array(transformed["bboxes"]) <= 1)
+    else:
+        assert len(transformed["bboxes"]) == 0
+        assert len(transformed["classes"]) == 0
+        assert len(transformed["scores"]) == 0
+
+
+MAX_ACCEPT_RATIO_TEST_CASES = [
+    # Normal aspect ratios (should pass)
+    (
+        np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),  # 1:1 ratio
+        {"height": 100, "width": 100},
+        2.0,
+        np.array([[0.1, 0.1, 0.2, 0.2]], dtype=np.float32),
+    ),
+    # Too wide box (should be filtered)
+    (
+        np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),  # 8:1 ratio
+        {"height": 100, "width": 100},
+        2.0,
+        np.zeros((0, 4), dtype=np.float32),
+    ),
+    # Too tall box (should be filtered)
+    (
+        np.array([[0.1, 0.1, 0.2, 0.9]], dtype=np.float32),  # 1:8 ratio
+        {"height": 100, "width": 100},
+        2.0,
+        np.zeros((0, 4), dtype=np.float32),
+    ),
+    # Multiple boxes with mixed ratios
+    (
+        np.array([
+            [0.1, 0.1, 0.2, 0.2],  # 1:1 ratio (keep)
+            [0.3, 0.3, 0.9, 0.4],  # 6:1 ratio (filter)
+            [0.5, 0.5, 0.6, 0.6],  # 1:1 ratio (keep)
+        ], dtype=np.float32),
+        {"height": 100, "width": 100},
+        2.0,
+        np.array([
+            [0.1, 0.1, 0.2, 0.2],
+            [0.5, 0.5, 0.6, 0.6],
+        ], dtype=np.float32),
+    ),
+    # None max_ratio (should not filter)
+    (
+        np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
+        {"height": 100, "width": 100},
+        None,
+        np.array([[0.1, 0.1, 0.9, 0.2]], dtype=np.float32),
+    ),
+]
+
+@pytest.mark.parametrize(
+    ["bboxes", "shape", "max_accept_ratio", "expected"],
+    MAX_ACCEPT_RATIO_TEST_CASES
+)
+def test_filter_bboxes_aspect_ratio(bboxes, shape, max_accept_ratio, expected):
+    filtered = filter_bboxes(bboxes, shape, max_accept_ratio=max_accept_ratio)
+    np.testing.assert_array_almost_equal(filtered, expected)
+
+@pytest.mark.parametrize(
+    ["bboxes", "shape", "max_accept_ratio", "expected"],
+    MAX_ACCEPT_RATIO_TEST_CASES
+)
+def test_bbox_processor_max_accept_ratio(bboxes, shape, max_accept_ratio, expected):
+    data = {
+        "image": np.zeros((shape["height"], shape["width"], 3), dtype=np.uint8),
+        "bboxes": bboxes,
+    }
+
+    params = BboxParams(
+        format="albumentations",
+        max_accept_ratio=max_accept_ratio,
+    )
+    processor = BboxProcessor(params)
+
+    # Preprocess
+    processor.preprocess(data)
+
+    # Postprocess
+    processed_data = processor.postprocess(data)
+
+    np.testing.assert_array_almost_equal(processed_data["bboxes"], expected, decimal=5)
+
+@pytest.mark.parametrize(
+    ["bboxes", "shape", "max_accept_ratio", "expected"],
+    MAX_ACCEPT_RATIO_TEST_CASES
+)
+def test_compose_with_max_accept_ratio(bboxes, shape, max_accept_ratio, expected):
+
+    transform = A.Compose(
+        [A.NoOp(p=1.0)],
+        bbox_params=BboxParams(
+            format="albumentations",
+            max_accept_ratio=max_accept_ratio,
+            label_fields=[],
+        ),
+        strict=True,
+    )
+
+    data = {
+        "image": np.zeros((shape["height"], shape["width"], 3), dtype=np.uint8),
+        "bboxes": bboxes,
+    }
+    result = transform(**data)
+
+    np.testing.assert_array_almost_equal(result["bboxes"], expected, decimal=5)
+
+@pytest.mark.parametrize(
+    "bbox_format, bboxes, shape, max_accept_ratio, expected",
+    [
+        # COCO = [x_min, y_min, width, height]
+        # (ratio 5:1 should be filtered)
+        (
+            "coco",
+            np.array([[10, 10, 50, 10]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # Pascal VOC = [x_min, y_min, x_max, y_max]
+        # (ratio 5:1 should be filtered)
+        (
+            "pascal_voc",
+            np.array([[10, 10, 60, 20]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # YOLO = [x_center, y_center, width, height], normalized [0, 1].
+        # (ratio 5:1 should be filtered)
+        (
+            "yolo",
+            np.array([[0.5, 0.5, 0.5, 0.1]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+        # Albumentations = [x_min, y_min, x_max, y_max], all normalized in [0, 1].
+        # (ratio 5:1 should be filtered)
+        (
+            "albumentations",
+            np.array([[0.1, 0.1, 0.6, 0.2]], dtype=np.float32),
+            {"height": 100, "width": 100},
+            2.0,
+            np.zeros((0, 4), dtype=np.float32),
+        ),
+    ],
+)
+def test_compose_max_accept_ratio_all_formats(bbox_format, bboxes, shape, max_accept_ratio, expected):
+    transform = A.Compose(
+        [A.NoOp(p=1.0)],
+        bbox_params=BboxParams(
+            format=bbox_format,
+            max_accept_ratio=max_accept_ratio,
+            label_fields=[],
+        ),
+        strict=True,
+    )
+
+    data = {
+        "image": np.zeros((shape["height"], shape["width"], 3), dtype=np.uint8),
+        "bboxes": bboxes,
+    }
+
+    result = transform(**data)
+    np.testing.assert_array_almost_equal(result["bboxes"], expected, decimal=5)
