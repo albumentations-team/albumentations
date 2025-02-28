@@ -449,17 +449,15 @@ def clahe(
         >>> assert result.shape == img.shape
         >>> assert result.dtype == img.dtype
     """
-    img = img.copy()
     clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
     if is_grayscale_image(img):
         return clahe_mat.apply(img)
 
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+    img_lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+    img_lab[:, :, 0] = clahe_mat.apply(img_lab[:, :, 0])
 
-    img[:, :, 0] = clahe_mat.apply(img[:, :, 0])
-
-    return cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
+    return cv2.cvtColor(img_lab, cv2.COLOR_LAB2RGB)
 
 
 @uint8_io
