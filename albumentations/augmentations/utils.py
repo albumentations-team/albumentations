@@ -49,9 +49,7 @@ def angle_2pi_range(
     func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
     @wraps(func)
-    def wrapped_function(
-        keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs
-    ) -> np.ndarray:
+    def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         result = func(keypoints, *args, **kwargs)
         if len(result) > 0 and result.shape[1] > 3:
             result[:, 3] = angle_to_2pi_range(result[:, 3])
@@ -95,19 +93,13 @@ def non_rgb_error(image: np.ndarray) -> None:
         message = "This transformation expects 3-channel images"
         if is_grayscale_image(image):
             message += "\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))"
-        if is_multispectral_image(
-            image
-        ):  # Any image with a number of channels other than 1 and 3
-            message += (
-                "\nThis transformation cannot be applied to multi-spectral images"
-            )
+        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
+            message += "\nThis transformation cannot be applied to multi-spectral images"
 
         raise ValueError(message)
 
 
-def check_range(
-    value: tuple[float, float], lower_bound: float, upper_bound: float, name: str | None
-) -> None:
+def check_range(value: tuple[float, float], lower_bound: float, upper_bound: float, name: str | None) -> None:
     """Checks if the given value is within the specified bounds
 
     Args:
@@ -120,13 +112,9 @@ def check_range(
         ValueError: If the value is outside the bounds or if the tuple values are not ordered correctly.
     """
     if not all(lower_bound <= x <= upper_bound for x in value):
-        raise ValueError(
-            f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs."
-        )
+        raise ValueError(f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs.")
     if not value[0] <= value[1]:
-        raise ValueError(
-            f"{name!s} tuple values must be ordered as (min, max). Got: {value}"
-        )
+        raise ValueError(f"{name!s} tuple values must be ordered as (min, max). Got: {value}")
 
 
 class PCA:
@@ -139,18 +127,14 @@ class PCA:
         self.explained_variance_: np.ndarray | None = None
 
     def fit(self, x: np.ndarray) -> None:
-        x = x.astype(
-            np.float64, copy=False
-        )  # avoid unnecessary copy if already float64
+        x = x.astype(np.float64, copy=False)  # avoid unnecessary copy if already float64
         n_samples, n_features = x.shape
 
         # Determine the number of components if not set
         if self.n_components is None:
             self.n_components = min(n_samples, n_features)
 
-        self.mean, eigenvectors, eigenvalues = cv2.PCACompute2(
-            x, mean=None, maxComponents=self.n_components
-        )
+        self.mean, eigenvectors, eigenvalues = cv2.PCACompute2(x, mean=None, maxComponents=self.n_components)
         self.components_ = eigenvectors
         self.explained_variance_ = eigenvalues.flatten()
 
@@ -160,9 +144,7 @@ class PCA:
                 "This PCA instance is not fitted yet. "
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
-        x = x.astype(
-            np.float64, copy=False
-        )  # avoid unnecessary copy if already float64
+        x = x.astype(np.float64, copy=False)  # avoid unnecessary copy if already float64
         return cv2.PCAProject(x, self.mean, self.components_)
 
     def fit_transform(self, x: np.ndarray) -> np.ndarray:
