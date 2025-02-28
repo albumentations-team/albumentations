@@ -127,7 +127,7 @@ class PCA:
         self.explained_variance_: np.ndarray | None = None
 
     def fit(self, x: np.ndarray) -> None:
-        x = x.astype(np.float64)
+        x = x.astype(np.float64, copy=False)  # avoid unnecessary copy if already float64
         n_samples, n_features = x.shape
 
         # Determine the number of components if not set
@@ -144,7 +144,7 @@ class PCA:
                 "This PCA instance is not fitted yet. "
                 "Call 'fit' with appropriate arguments before using this estimator.",
             )
-        x = x.astype(np.float64)
+        x = x.astype(np.float64, copy=False)  # avoid unnecessary copy if already float64
         return cv2.PCAProject(x, self.mean, self.components_)
 
     def fit_transform(self, x: np.ndarray) -> np.ndarray:
