@@ -41,17 +41,7 @@ REPR_INDENT_STEP = 2
 TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = list[TransformType]
 
-AVAILABLE_KEYS = (
-    "image",
-    "mask",
-    "masks",
-    "bboxes",
-    "keypoints",
-    "volume",
-    "volumes",
-    "mask3d",
-    "masks3d",
-)
+AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "volume", "volumes", "mask3d", "masks3d")
 
 MASK_KEYS = (
     "mask",  # 2D mask
@@ -618,7 +608,7 @@ class Compose(BaseCompose, HubMixin):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": (bbox_processor.params.to_dict_private() if bbox_processor else None),
+                "bbox_params": bbox_processor.params.to_dict_private() if bbox_processor else None,
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
@@ -632,7 +622,7 @@ class Compose(BaseCompose, HubMixin):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": (bbox_processor.params.to_dict_private() if bbox_processor else None),
+                "bbox_params": bbox_processor.params.to_dict_private() if bbox_processor else None,
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "params": None,
@@ -887,13 +877,7 @@ class SomeOf(BaseCompose):
         >>> # This will apply 2 out of the 3 transforms with 50% probability
     """
 
-    def __init__(
-        self,
-        transforms: TransformsSeqType,
-        n: int = 1,
-        replace: bool = False,
-        p: float = 1,
-    ):
+    def __init__(self, transforms: TransformsSeqType, n: int = 1, replace: bool = False, p: float = 1):
         super().__init__(transforms, p)
         self.n = n
         if not replace and n > len(self.transforms):
@@ -969,13 +953,7 @@ class RandomOrder(SomeOf):
         - The random order of transforms will not be replayed in `ReplayCompose`.
     """
 
-    def __init__(
-        self,
-        transforms: TransformsSeqType,
-        n: int = 1,
-        replace: bool = False,
-        p: float = 1,
-    ):
+    def __init__(self, transforms: TransformsSeqType, n: int = 1, replace: bool = False, p: float = 1):
         super().__init__(transforms=transforms, n=n, replace=replace, p=p)
 
     def _get_idx(self) -> np.ndarray[np.int_]:
@@ -1085,14 +1063,7 @@ class ReplayCompose(Compose):
         is_check_shapes: bool = True,
         save_key: str = "replay",
     ):
-        super().__init__(
-            transforms,
-            bbox_params,
-            keypoint_params,
-            additional_targets,
-            p,
-            is_check_shapes,
-        )
+        super().__init__(transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes)
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
         self._available_keys.add(save_key)

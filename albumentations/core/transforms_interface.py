@@ -18,19 +18,11 @@ from .serialization import Serializable, SerializableMeta, get_shortest_class_fu
 from .type_definitions import ALL_TARGETS, Targets
 from .utils import ensure_contiguous_output, format_args
 
-__all__ = [
-    "BasicTransform",
-    "DualTransform",
-    "ImageOnlyTransform",
-    "NoOp",
-    "Transform3D",
-]
+__all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "Transform3D"]
 
 
 class Interpolation:
-    def __init__(
-        self, downscale: int = cv2.INTER_NEAREST, upscale: int = cv2.INTER_NEAREST
-    ):
+    def __init__(self, downscale: int = cv2.INTER_NEAREST, upscale: int = cv2.INTER_NEAREST):
         self.downscale = downscale
         self.upscale = upscale
 
@@ -96,12 +88,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 valid_args.update(self.InitSchema.model_fields.keys())
 
             # Check for invalid arguments
-            invalid_args = [
-                name_arg for name_arg in self._init_args if name_arg not in valid_args
-            ]
+            invalid_args = [name_arg for name_arg in self._init_args if name_arg not in valid_args]
 
             if invalid_args:
-                message = f"Argument(s) '{', '.join(invalid_args)}' are not valid for transform {self.__class__.__name__}"
+                message = (
+                    f"Argument(s) '{', '.join(invalid_args)}' are not valid for transform {self.__class__.__name__}"
+                )
                 if value:  # In strict mode
                     raise ValueError(message)
                 warn(message, stacklevel=2)
@@ -145,9 +137,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         )
         raise NotImplementedError(msg)
 
-    def set_processors(
-        self, processors: dict[str, BboxProcessor | KeypointsProcessor]
-    ) -> None:
+    def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
 
     def get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
@@ -171,15 +161,11 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
             if self.targets_as_params:  # check if all required targets are in kwargs.
                 missing_keys = set(self.targets_as_params).difference(kwargs.keys())
-                if missing_keys and not (
-                    missing_keys == {"image"} and "images" in kwargs
-                ):
+                if missing_keys and not (missing_keys == {"image"} and "images" in kwargs):
                     msg = f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
                     raise ValueError(msg)
 
-            params_dependent_on_data = self.get_params_dependent_on_data(
-                params=params, data=kwargs
-            )
+            params_dependent_on_data = self.get_params_dependent_on_data(params=params, data=kwargs)
             params.update(params_dependent_on_data)
 
             # Store the final params
@@ -204,9 +190,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             return True
         return self.py_random.random() < self.p
 
-    def apply_with_params(
-        self, params: dict[str, Any], *args: Any, **kwargs: Any
-    ) -> dict[str, Any]:
+    def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
         res = {}
         for key, arg in kwargs.items():
@@ -228,8 +212,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.deterministic = flag
         if self.deterministic and self.targets_as_params:
             warn(
-                self.get_class_fullname()
-                + " could work incorrectly in ReplayMode for other input data"
+                self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
                 " because its' params depend on targets.",
                 stacklevel=2,
             )
@@ -245,9 +228,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
-    def apply_to_images(
-        self, images: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform on images.
 
         Args:
@@ -264,9 +245,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         transformed = np.stack([self.apply(image, **params) for image in images])
         return np.require(transformed, requirements=["C_CONTIGUOUS"])
 
-    def apply_to_volume(
-        self, volume: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform slice by slice to a volume.
 
         Args:
@@ -279,9 +258,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """
         return self.apply_to_images(volume, *args, **params)
 
-    def apply_to_volumes(
-        self, volumes: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to multiple volumes."""
         return np.stack([self.apply_to_volume(vol, *args, **params) for vol in volumes])
 
@@ -289,9 +266,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns parameters independent of input."""
         return {}
 
-    def update_transform_params(
-        self, params: dict[str, Any], data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_transform_params(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """Updates parameters with input shape and transform-specific params.
 
         Args:
@@ -324,9 +299,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         return params
 
-    def get_params_dependent_on_data(
-        self, params: dict[str, Any], data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """Returns parameters dependent on input."""
         return params
 
@@ -345,18 +318,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         else:
             self._available_keys = {
                 target.value.lower()
-                for target in (
-                    self._targets
-                    if isinstance(self._targets, tuple)
-                    else [self._targets]
-                )
+                for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
             }
         self._available_keys.update(self.targets.keys())
-        self._key2func = {
-            key: self.targets[key]
-            for key in self._available_keys
-            if key in self.targets
-        }
+        self._key2func = {key: self.targets[key] for key in self._available_keys if key in self.targets}
 
     @property
     def available_keys(self) -> set[str]:
@@ -533,25 +498,17 @@ class DualTransform(BasicTransform):
             "volumes": self.apply_to_volumes,
         }
 
-    def apply_to_keypoints(
-        self, keypoints: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_keypoints(self, keypoints: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         msg = f"Method apply_to_keypoints is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-    def apply_to_bboxes(
-        self, bboxes: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
-        raise NotImplementedError(
-            f"BBoxes not implemented for {self.__class__.__name__}"
-        )
+    def apply_to_bboxes(self, bboxes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        raise NotImplementedError(f"BBoxes not implemented for {self.__class__.__name__}")
 
     def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         return self.apply(mask, *args, **params)
 
-    def apply_to_masks(
-        self, masks: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_masks(self, masks: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to multiple masks.
 
         Args:
@@ -566,9 +523,7 @@ class DualTransform(BasicTransform):
         return np.require(transformed, requirements=["C_CONTIGUOUS"])
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
-    def apply_to_mask3d(
-        self, mask3d: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to single 3D mask.
 
         Args:
@@ -582,9 +537,7 @@ class DualTransform(BasicTransform):
         return self.apply_to_mask(mask3d, *args, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
-    def apply_to_masks3d(
-        self, masks3d: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to batch of 3D masks.
 
         Args:
@@ -664,33 +617,21 @@ class Transform3D(DualTransform):
         keypoints: 3D numpy array of shape (N, 3)
     """
 
-    def apply_to_volume(
-        self, volume: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to single 3D volume."""
         raise NotImplementedError
 
-    @batch_transform(
-        "spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True
-    )
-    def apply_to_volumes(
-        self, volumes: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
+    def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to batch of 3D volumes."""
         return self.apply_to_volume(volumes, *args, **params)
 
-    def apply_to_mask3d(
-        self, mask3d: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to single 3D mask."""
         return self.apply_to_volume(mask3d, *args, **params)
 
-    @batch_transform(
-        "spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True
-    )
-    def apply_to_masks3d(
-        self, masks3d: np.ndarray, *args: Any, **params: Any
-    ) -> np.ndarray:
+    @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
+    def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform to batch of 3D masks."""
         return self.apply_to_mask3d(masks3d, *args, **params)
 
