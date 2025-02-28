@@ -163,10 +163,7 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
 
 @uint8_io
 @clipped
-def posterize(
-    img: np.ndarray,
-    bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]],
-) -> np.ndarray:
+def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]]) -> np.ndarray:
     """Reduce the number of bits for each color channel by keeping only the highest N bits.
 
     This transform performs bit-depth reduction by masking out lower bits, effectively
@@ -2478,14 +2475,7 @@ def generate_plasma_pattern(
         plasma_grid = one_diamond_square_step(plasma_grid, noise_scale)
 
     return np.clip(
-        cv2.normalize(
-            plasma_grid[: target_shape[0], : target_shape[1]],
-            None,
-            0,
-            1,
-            cv2.NORM_MINMAX,
-            dtype=cv2.CV_32F,
-        ),
+        cv2.normalize(plasma_grid[: target_shape[0], : target_shape[1]], None, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F),
         0,
         1,
     )
