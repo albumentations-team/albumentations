@@ -154,8 +154,7 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
         prev_shape = img.shape
         img = sz_lut(img, lut, inplace=False)
         return img if len(prev_shape) == img.ndim else np.expand_dims(img, -1)
-    img = np.where(img >= threshold, max_val - img, img)
-    return img
+    return np.where(img >= threshold, max_val - img, img)
 
 
 @uint8_io
