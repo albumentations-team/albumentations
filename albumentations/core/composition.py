@@ -138,18 +138,10 @@ class BaseCompose(Serializable):
         self.set_random_seed(seed)
         self.save_applied_params = save_applied_params
 
-    def _track_transform_params(
-        self, transform: TransformType, data: dict[str, Any]
-    ) -> None:
+    def _track_transform_params(self, transform: TransformType, data: dict[str, Any]) -> None:
         """Track transform parameters if tracking is enabled."""
-        if (
-            "applied_transforms" in data
-            and hasattr(transform, "params")
-            and transform.params
-        ):
-            data["applied_transforms"].append(
-                (transform.__class__.__name__, transform.params.copy())
-            )
+        if "applied_transforms" in data and hasattr(transform, "params") and transform.params:
+            data["applied_transforms"].append((transform.__class__.__name__, transform.params.copy()))
 
     def set_random_state(
         self,
@@ -191,10 +183,7 @@ class BaseCompose(Serializable):
     def _set_mask_interpolation_recursive(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
             if isinstance(transform, BasicTransform):
-                if (
-                    hasattr(transform, "mask_interpolation")
-                    and self.mask_interpolation is not None
-                ):
+                if hasattr(transform, "mask_interpolation") and self.mask_interpolation is not None:
                     transform.mask_interpolation = self.mask_interpolation
             elif isinstance(transform, BaseCompose):
                 transform.set_mask_interpolation(self.mask_interpolation)
@@ -223,23 +212,13 @@ class BaseCompose(Serializable):
         return self._available_keys
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
-        args = {
-            k: v
-            for k, v in self.to_dict_private().items()
-            if not (k.startswith("__") or k == "transforms")
-        }
+        args = {k: v for k, v in self.to_dict_private().items() if not (k.startswith("__") or k == "transforms")}
         repr_string = self.__class__.__name__ + "(["
         for t in self.transforms:
             repr_string += "\n"
-            t_repr = (
-                t.indented_repr(indent + REPR_INDENT_STEP)
-                if hasattr(t, "indented_repr")
-                else repr(t)
-            )
+            t_repr = t.indented_repr(indent + REPR_INDENT_STEP) if hasattr(t, "indented_repr") else repr(t)
             repr_string += " " * indent + t_repr + ","
-        repr_string += (
-            "\n" + " " * (indent - REPR_INDENT_STEP) + f"], {format_args(args)})"
-        )
+        repr_string += "\n" + " " * (indent - REPR_INDENT_STEP) + f"], {format_args(args)})"
         return repr_string
 
     @classmethod
@@ -292,9 +271,7 @@ class BaseCompose(Serializable):
         if self.processors:
             self._available_keys.update(["labels"])
             for proc in self.processors.values():
-                if (
-                    proc.default_data_name not in self._available_keys
-                ):  # if no transform to process this data
+                if proc.default_data_name not in self._available_keys:  # if no transform to process this data
                     warnings.warn(
                         f"Got processor for {proc.default_data_name}, but no transform to process it.",
                         stacklevel=2,
@@ -439,21 +416,15 @@ class Compose(BaseCompose, HubMixin):
             proc.ensure_transforms_valid(self.transforms)
 
         self.add_targets(additional_targets)
-        if (
-            not self.transforms
-        ):  # if no transforms -> do nothing, all keys will be available
+        if not self.transforms:  # if no transforms -> do nothing, all keys will be available
             self._available_keys.update(AVAILABLE_KEYS)
 
         self.is_check_args = True
         self.strict = strict
 
         self.is_check_shapes = is_check_shapes
-        self.check_each_transform = (
-            tuple(  # processors that checks after each transform
-                proc
-                for proc in self.processors.values()
-                if getattr(proc.params, "check_each_transform", False)
-            )
+        self.check_each_transform = tuple(  # processors that checks after each transform
+            proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
         self._set_check_args_for_transforms(self.transforms)
 
@@ -514,9 +485,7 @@ class Compose(BaseCompose, HubMixin):
         self.strict = False
         self.main_compose = False
 
-    def __call__(
-        self, *args: Any, force_apply: bool = False, **data: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -590,12 +559,7 @@ class Compose(BaseCompose, HubMixin):
 
     def _is_valid_key(self, key: str) -> bool:
         """Check if the key is valid for processing."""
-        return (
-            key in self._available_keys
-            or key in MASK_KEYS
-            or key in IMAGE_KEYS
-            or key == "applied_transforms"
-        )
+        return key in self._available_keys or key in MASK_KEYS or key in IMAGE_KEYS or key == "applied_transforms"
 
     def _preprocess_processors(self, data: dict[str, Any]) -> None:
         """Run preprocessors if this is the main compose."""
@@ -654,14 +618,8 @@ class Compose(BaseCompose, HubMixin):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": (
-                    bbox_processor.params.to_dict_private() if bbox_processor else None
-                ),
-                "keypoint_params": (
-                    keypoints_processor.params.to_dict_private()
-                    if keypoints_processor
-                    else None
-                ),
+                "bbox_params": (bbox_processor.params.to_dict_private() if bbox_processor else None),
+                "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
             },
@@ -674,14 +632,8 @@ class Compose(BaseCompose, HubMixin):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": (
-                    bbox_processor.params.to_dict_private() if bbox_processor else None
-                ),
-                "keypoint_params": (
-                    keypoints_processor.params.to_dict_private()
-                    if keypoints_processor
-                    else None
-                ),
+                "bbox_params": (bbox_processor.params.to_dict_private() if bbox_processor else None),
+                "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "params": None,
                 "is_check_shapes": self.is_check_shapes,
@@ -722,14 +674,10 @@ class Compose(BaseCompose, HubMixin):
             if not all(isinstance(m, np.ndarray) for m in data):
                 raise TypeError(f"All elements in {data_name} must be numpy arrays")
             if any(m.ndim not in {2, 3} for m in data):
-                raise TypeError(
-                    f"All masks in {data_name} must be 2D or 3D numpy arrays"
-                )
+                raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
             return data[0].shape[:2]
 
-        raise TypeError(
-            f"{data_name} must be either a numpy array or a sequence of numpy arrays"
-        )
+        raise TypeError(f"{data_name} must be either a numpy array or a sequence of numpy arrays")
 
     @staticmethod
     def _check_multi_data(data_name: str, data: Any) -> tuple[int, int]:
@@ -753,24 +701,15 @@ class Compose(BaseCompose, HubMixin):
             return data.shape[1:3]  # Return (H,W)
 
         if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
-            raise TypeError(
-                f"{data_name} must be either a numpy array or a list of numpy arrays"
-            )
+            raise TypeError(f"{data_name} must be either a numpy array or a list of numpy arrays")
         return data[0].shape[:2]
 
     @staticmethod
-    def _check_bbox_keypoint_params(
-        internal_data_name: str, processors: dict[str, Any]
-    ) -> None:
+    def _check_bbox_keypoint_params(internal_data_name: str, processors: dict[str, Any]) -> None:
         if internal_data_name in CHECK_BBOX_PARAM and processors.get("bboxes") is None:
             raise ValueError("bbox_params must be specified for bbox transformations")
-        if (
-            internal_data_name in CHECK_KEYPOINTS_PARAM
-            and processors.get("keypoints") is None
-        ):
-            raise ValueError(
-                "keypoints_params must be specified for keypoint transformations"
-            )
+        if internal_data_name in CHECK_KEYPOINTS_PARAM and processors.get("keypoints") is None:
+            raise ValueError("keypoints_params must be specified for keypoint transformations")
 
     @staticmethod
     def _check_shapes(shapes: list[tuple[int, ...]], is_check_shapes: bool) -> None:
@@ -819,9 +758,7 @@ class Compose(BaseCompose, HubMixin):
 
         self._check_shape_consistency(shapes, volume_shapes)
 
-    def _get_data_shape(
-        self, data_name: str, internal_name: str, data: Any
-    ) -> tuple[int, ...] | None:
+    def _get_data_shape(self, data_name: str, internal_name: str, data: Any) -> tuple[int, ...] | None:
         """Get shape of data based on its type."""
         if internal_name in CHECKED_SINGLE:
             if not isinstance(data, np.ndarray):
@@ -847,19 +784,13 @@ class Compose(BaseCompose, HubMixin):
 
         return None
 
-    def _check_shape_consistency(
-        self, shapes: list[tuple[int, ...]], volume_shapes: list[tuple[int, ...]]
-    ) -> None:
+    def _check_shape_consistency(self, shapes: list[tuple[int, ...]], volume_shapes: list[tuple[int, ...]]) -> None:
         """Check consistency of shapes."""
         # Check H,W consistency
         self._check_shapes(shapes, self.is_check_shapes)
 
         # Check D,H,W consistency for volumes and 3D masks
-        if (
-            self.is_check_shapes
-            and volume_shapes
-            and volume_shapes.count(volume_shapes[0]) != len(volume_shapes)
-        ):
+        if self.is_check_shapes and volume_shapes and volume_shapes.count(volume_shapes[0]) != len(volume_shapes):
             raise ValueError(
                 "Depth, Height and Width of volume, mask3d, volumes and masks3d should be equal. "
                 "You can disable shapes check by setting is_check_shapes=False.",
@@ -908,18 +839,14 @@ class OneOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(
-        self, *args: Any, force_apply: bool = False, **data: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
             return data
 
         if self.transforms_ps and (force_apply or self.py_random.random() < self.p):
-            idx: int = self.random_generator.choice(
-                len(self.transforms), p=self.transforms_ps
-            )
+            idx: int = self.random_generator.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
             self._track_transform_params(t, data)
@@ -981,9 +908,7 @@ class SomeOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(
-        self, *arg: Any, force_apply: bool = False, **data: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *arg: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -1081,9 +1006,7 @@ class OneOrOther(BaseCompose):
         if len(self.transforms) != NUM_ONEOF_TRANSFORMS:
             warnings.warn("Length of transforms is not equal to 2.", stacklevel=2)
 
-    def __call__(
-        self, *args: Any, force_apply: bool = False, **data: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -1129,9 +1052,7 @@ class SelectiveChannelTransform(BaseCompose):
         super().__init__(transforms, p)
         self.channels = channels
 
-    def __call__(
-        self, *args: Any, force_apply: bool = False, **data: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if force_apply or self.py_random.random() < self.p:
             image = data["image"]
 
@@ -1176,9 +1097,7 @@ class ReplayCompose(Compose):
         self.save_key = save_key
         self._available_keys.add(save_key)
 
-    def __call__(
-        self, *args: Any, force_apply: bool = False, **kwargs: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> dict[str, Any]:
         kwargs[self.save_key] = defaultdict(dict)
         result = super().__call__(force_apply=force_apply, **kwargs)
         serialized = self.get_dict_with_id()
@@ -1212,17 +1131,11 @@ class ReplayCompose(Compose):
             transform = lmbd
         else:
             name = transform_dict["__class_fullname__"]
-            args = {
-                k: v
-                for k, v in transform_dict.items()
-                if k not in ["__class_fullname__", "applied", "params"]
-            }
+            args = {k: v for k, v in transform_dict.items() if k not in ["__class_fullname__", "applied", "params"]}
             cls = SERIALIZABLE_REGISTRY[name]
             if "transforms" in args:
                 args["transforms"] = [
-                    ReplayCompose._restore_for_replay(
-                        t, lambda_transforms=lambda_transforms
-                    )
+                    ReplayCompose._restore_for_replay(t, lambda_transforms=lambda_transforms)
                     for t in args["transforms"]
                 ]
             transform = cls(**args)
@@ -1284,9 +1197,7 @@ class Sequential(BaseCompose):
     def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
         super().__init__(transforms, p)
 
-    def __call__(
-        self, *args: Any, force_apply: bool = False, **data: Any
-    ) -> dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode or force_apply or self.py_random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
