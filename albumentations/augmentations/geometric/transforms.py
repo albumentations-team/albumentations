@@ -55,6 +55,7 @@ __all__ = [
     "PiecewiseAffine",
     "RandomGridShuffle",
     "ShiftScaleRotate",
+    "SquareSymmetry",
     "ThinPlateSpline",
     "Transpose",
     "VerticalFlip",
@@ -2874,3 +2875,7 @@ class ThinPlateSpline(BaseDistortion):
             "num_control_points",
             *super().get_transform_init_args_names(),
         )
+
+
+## Alias for D4 for people who are not familiar with the concept of group of symmetries
+SquareSymmetry = D4

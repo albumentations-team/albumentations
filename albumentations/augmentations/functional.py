@@ -115,7 +115,15 @@ def shift_hsv(
         hue = sz_lut(hue, lut_hue, inplace=False)
 
     if sat_shift != 0:
+        # Create a mask for all grayscale pixels (S=0)
+        # These should remain grayscale regardless of saturation change
+        grayscale_mask = sat == 0
+
+        # Apply saturation shift only to non-white pixels
         sat = add_constant(sat, sat_shift, inplace=True)
+
+        # Reset saturation for white pixels
+        sat[grayscale_mask] = 0
 
     if val_shift != 0:
         val = add_constant(val, val_shift, inplace=True)
@@ -220,7 +228,7 @@ def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal
 
 def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
-    h = [_f for _f in histogram if _f]
+    h = np.array([_f for _f in histogram if _f])
 
     if len(h) <= 1:
         return img.copy()
@@ -229,13 +237,9 @@ def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray
     if not step:
         return img.copy()
 
-    lut = np.empty(256, dtype=np.uint8)
-    n = step // 2
-    for i in range(256):
-        lut[i] = min(n // step, 255)
-        n += histogram[i]
+    lut = np.minimum((np.cumsum(histogram) + step // 2) // step, 255).astype(np.uint8)
 
-    return sz_lut(img, np.array(lut), inplace=True)
+    return sz_lut(img, lut, inplace=True)
 
 
 def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
@@ -243,25 +247,17 @@ def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
         return cv2.equalizeHist(img)
 
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
-    i = 0
-    for val in histogram:
-        if val > 0:
-            break
-        i += 1
-    i = min(i, 255)
+
+    # Find the first non-zero index with a numpy operation
+    i = np.flatnonzero(histogram)[0] if np.any(histogram) else 255
 
     total = np.sum(histogram)
-    if histogram[i] == total:
-        return np.full_like(img, i)
 
     scale = 255.0 / (total - histogram[i])
-    _sum = 0
 
-    lut = np.zeros(256, dtype=np.uint8)
-
-    for idx in range(i + 1, len(histogram)):
-        _sum += histogram[idx]
-        lut[idx] = clip(round(_sum * scale), np.uint8)
+    # Optimize cumulative sum and scale to generate LUT
+    cumsum_histogram = np.cumsum(histogram)
+    lut = np.clip(((cumsum_histogram - cumsum_histogram[i]) * scale).round(), 0, 255).astype(np.uint8)
 
     return sz_lut(img, lut, inplace=True)
 
@@ -287,11 +283,15 @@ def _handle_mask(
 ) -> np.ndarray | None:
     if mask is None:
         return None
-    mask = mask.astype(np.uint8)
-    if is_grayscale_image(mask) or i is None:
-        return mask
+    mask = mask.astype(
+        np.uint8,
+        copy=False,
+    )  # Use copy=False to avoid unnecessary copying
+    # Check for grayscale image and avoid slicing if i is None
+    if i is not None and not is_grayscale_image(mask):
+        mask = mask[..., i]
 
-    return mask[..., i]
+    return mask
 
 
 @uint8_io
@@ -340,7 +340,6 @@ def equalize(
         >>> assert equalized.dtype == image.dtype
     """
     _check_preconditions(img, mask, by_channels)
-
     function = _equalize_pil if mode == "pil" else _equalize_cv
 
     if is_grayscale_image(img):
@@ -480,49 +479,35 @@ def image_compression(
     Returns:
         Compressed image with same number of channels as input
     """
+    # Determine the quality flag for compression
     quality_flag = cv2.IMWRITE_JPEG_QUALITY if image_type == ".jpg" else cv2.IMWRITE_WEBP_QUALITY
-
     num_channels = get_num_channels(img)
 
+    # Prepare to encode and decode
+    def encode_decode(src_img: np.ndarray, read_mode: int) -> np.ndarray:
+        _, encoded_img = cv2.imencode(image_type, src_img, (int(quality_flag), quality))
+        return cv2.imdecode(encoded_img, read_mode)
+
     if num_channels == 1:
-        # For grayscale, ensure we read back as single channel
-        _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
-        decoded = cv2.imdecode(encoded_img, cv2.IMREAD_GRAYSCALE)
+        # Grayscale image
+        decoded = encode_decode(img, cv2.IMREAD_GRAYSCALE)
         return decoded[..., np.newaxis]  # Add channel dimension back
 
-    if num_channels == NUM_RGB_CHANNELS:
-        # Standard RGB image
-        _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
-        return cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+    if num_channels in (2, NUM_RGB_CHANNELS):
+        # 2 channels: pad to 3, or 3 (RGB) channels
+        padded_img = np.pad(img, ((0, 0), (0, 0), (0, 1)), mode="constant") if num_channels == 2 else img
+        decoded_bgr = encode_decode(padded_img, cv2.IMREAD_UNCHANGED)
+        return decoded_bgr[..., :num_channels]  # Return only the required number of channels
 
-    # For 2,4 or more channels, we need to handle alpha/extra channels separately
-    if num_channels == 2:
-        # For 2 channels, pad to 3 channels and take only first 2 after compression
-        padded = np.pad(img, ((0, 0), (0, 0), (0, 1)), mode="constant")
-        _, encoded_bgr = cv2.imencode(image_type, padded, (int(quality_flag), quality))
-        decoded_bgr = cv2.imdecode(encoded_bgr, cv2.IMREAD_UNCHANGED)
-        return decoded_bgr[..., :2]
-
-    # Process first 3 channels together
+    # More than 3 channels
     bgr = img[..., :NUM_RGB_CHANNELS]
-    _, encoded_bgr = cv2.imencode(image_type, bgr, (int(quality_flag), quality))
-    decoded_bgr = cv2.imdecode(encoded_bgr, cv2.IMREAD_UNCHANGED)
+    decoded_bgr = encode_decode(bgr, cv2.IMREAD_UNCHANGED)
 
-    if num_channels > NUM_RGB_CHANNELS:
-        # Process additional channels one by one
-        extra_channels = []
-        for i in range(NUM_RGB_CHANNELS, num_channels):
-            channel = img[..., i]
-            _, encoded = cv2.imencode(image_type, channel, (int(quality_flag), quality))
-            decoded = cv2.imdecode(encoded, cv2.IMREAD_GRAYSCALE)
-            if len(decoded.shape) == 2:
-                decoded = decoded[..., np.newaxis]
-            extra_channels.append(decoded)
-
-        # Combine BGR with extra channels
-        return np.dstack([decoded_bgr, *extra_channels])
-
-    return decoded_bgr
+    # Process additional channels
+    extra_channels = [
+        encode_decode(img[..., i], cv2.IMREAD_GRAYSCALE)[..., np.newaxis] for i in range(NUM_RGB_CHANNELS, num_channels)
+    ]
+    return np.dstack([decoded_bgr, *extra_channels])
 
 
 @uint8_io
@@ -579,18 +564,24 @@ def add_snow_bleach(
     """
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
-    snow_point *= max_value / 2
-    snow_point += max_value / 3
+    # Precompute snow_point threshold
+    snow_point = (snow_point * max_value / 2) + (max_value / 3)
 
+    # Convert image to HLS color space once and avoid repeated dtype casting
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    image_hls = np.array(image_hls, dtype=np.float32)
+    lightness_channel = image_hls[:, :, 1].astype(np.float32)
 
-    image_hls[:, :, 1][image_hls[:, :, 1] < snow_point] *= brightness_coeff
+    # Utilize boolean indexing for efficient lightness adjustment
+    mask = lightness_channel < snow_point
+    lightness_channel[mask] *= brightness_coeff
 
-    image_hls[:, :, 1] = clip(image_hls[:, :, 1], np.uint8, inplace=True)
+    # Clip the lightness values in place
+    lightness_channel = clip(lightness_channel, np.uint8, inplace=True)
 
-    image_hls = np.array(image_hls, dtype=np.uint8)
+    # Update the lightness channel in the original image
+    image_hls[:, :, 1] = lightness_channel
 
+    # Convert back to RGB
     return cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
 

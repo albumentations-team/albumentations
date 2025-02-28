@@ -357,7 +357,7 @@ def denormalize_bboxes(
     bboxes: np.ndarray,
     shape: ShapeType | tuple[int, int],
 ) -> np.ndarray:
-    """Denormalize  array of bounding boxes.
+    """Denormalize array of bounding boxes.
 
     Args:
         bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
@@ -367,20 +367,14 @@ def denormalize_bboxes(
         Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
-    if isinstance(shape, tuple):
-        rows, cols = shape[:2]
-    else:
-        rows, cols = shape["height"], shape["width"]
+    scale_factors = (shape[1], shape[0]) if isinstance(shape, tuple) else (shape["width"], shape["height"])
 
-    denormalized = bboxes.copy().astype(float)
-    denormalized[:, [0, 2]] *= cols
-    denormalized[:, [1, 3]] *= rows
-    return denormalized
+    # Vectorized scaling of bbox coordinates
+    return bboxes * np.array([*scale_factors, *scale_factors, *[1] * (bboxes.shape[1] - 4)], dtype=float)
 
 
 def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
     """Calculate areas for multiple bounding boxes.
-
     This function computes the areas of bounding boxes given their normalized coordinates
     and the dimensions of the image they belong to. The bounding boxes are expected to be
     in the format [x_min, y_min, x_max, y_max] with normalized coordinates (0 to 1).
@@ -411,11 +405,14 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.n
     if len(bboxes) == 0:
         return np.array([], dtype=np.float32)
 
+    # Unpack shape to variables
     height, width = shape["height"], shape["width"]
-    bboxes_denorm = bboxes.copy()
-    bboxes_denorm[:, [0, 2]] *= width
-    bboxes_denorm[:, [1, 3]] *= height
-    return (bboxes_denorm[:, 2] - bboxes_denorm[:, 0]) * (bboxes_denorm[:, 3] - bboxes_denorm[:, 1])
+
+    # Directly compute denormalized bbox dimensions and areas
+    widths = (bboxes[:, 2] - bboxes[:, 0]) * width
+    heights = (bboxes[:, 3] - bboxes[:, 1]) * height
+
+    return widths * heights
 
 
 @handle_empty_array("bboxes")

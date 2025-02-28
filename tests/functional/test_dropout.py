@@ -225,7 +225,7 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
         (
             np.array([[5, 5, 8, 8]]),
             np.ones((100, 100), dtype=np.uint8),  # Full image covered
-            np.array([[5, 5, 5, 5]])  # Box collapses to point when fully covered
+            np.zeros((0, 4), dtype=np.int32)  # Empty array with correct shape
         ),
 
         # Test case 3: Box partially covered by hole
@@ -245,7 +245,6 @@ def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
             np.zeros((100, 100), dtype=np.uint8).copy(),  # Start with all visible
             np.array([
                 [0, 0, 10, 10],     # Box 1: unchanged (no hole)
-                [20, 20, 20, 20],   # Box 2: collapsed (fully covered)
                 [40, 40, 45, 50],   # Box 3: width reduced (partially covered)
             ])
         ),

@@ -1087,7 +1087,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
         if augmentation_cls not in [A.RandomCrop, A.AtLeastOneBBoxRandomCrop, A.RandomResizedCrop, A.Resize, A.RandomSizedCrop, A.RandomSizedBBoxSafeCrop,
                                     A.BBoxSafeRandomCrop, A.Transpose, A.RandomCropNearBBox, A.CenterCrop, A.Crop, A.CropAndPad,
                                     A.LongestMaxSize, A.RandomScale, A.PadIfNeeded, A.SmallestMaxSize, A.RandomCropFromBorders,
-                                    A.RandomRotate90, A.D4]:
+                                    A.RandomRotate90, A.D4, A.SquareSymmetry]:
             assert H == image.shape[0]  # Height matches input
             assert W == image.shape[1]  # Width matches input
     else:

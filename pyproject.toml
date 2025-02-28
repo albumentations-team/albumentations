@@ -6,9 +6,9 @@ requires = [ "setuptools>=45", "wheel" ]
 [project]
 name = "albumentations"
 
-version = "2.0.4"
+version = "2.0.5"
 
-description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks) data, with optimized performance and seamless integration into ML workflows."
+description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks, keypoints) data, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
 keywords = [
   "2D augmentation",
