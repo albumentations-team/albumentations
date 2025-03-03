@@ -124,6 +124,15 @@ class BaseDistortion(DualTransform):
             cv2.INTER_LANCZOS4,
         ]
         keypoint_remapping_method: Literal["direct", "mask"]
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
@@ -143,11 +152,23 @@ class BaseDistortion(DualTransform):
         ],
         keypoint_remapping_method: Literal["direct", "mask"],
         p: float,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
     ):
         super().__init__(p=p)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
         self.keypoint_remapping_method = keypoint_remapping_method
+        self.border_mode = border_mode
+        self.fill = fill
+        self.fill_mask = fill_mask
 
     def apply(
         self,
@@ -161,8 +182,8 @@ class BaseDistortion(DualTransform):
             map_x,
             map_y,
             self.interpolation,
-            cv2.BORDER_CONSTANT,
-            0,
+            self.border_mode,
+            self.fill,
         )
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
@@ -193,8 +214,8 @@ class BaseDistortion(DualTransform):
             map_x,
             map_y,
             self.mask_interpolation,
-            cv2.BORDER_CONSTANT,
-            0,
+            self.border_mode,
+            self.fill_mask,
         )
 
     def apply_to_bboxes(
@@ -226,7 +247,7 @@ class BaseDistortion(DualTransform):
         return fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "interpolation", "mask_interpolation", "keypoint_remapping_method"
+        return "interpolation", "mask_interpolation", "keypoint_remapping_method", "border_mode", "fill", "fill_mask"
 
 
 class ElasticTransform(BaseDistortion):
@@ -301,6 +322,15 @@ class ElasticTransform(BaseDistortion):
         same_dxdy: bool
         noise_distribution: Literal["gaussian", "uniform"]
         keypoint_remapping_method: Literal["direct", "mask"]
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ]
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
@@ -324,6 +354,15 @@ class ElasticTransform(BaseDistortion):
         ] = cv2.INTER_NEAREST,
         noise_distribution: Literal["gaussian", "uniform"] = "gaussian",
         keypoint_remapping_method: Literal["direct", "mask"] = "mask",
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
         super().__init__(
@@ -331,12 +370,18 @@ class ElasticTransform(BaseDistortion):
             mask_interpolation=mask_interpolation,
             keypoint_remapping_method=keypoint_remapping_method,
             p=p,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
         )
         self.alpha = alpha
         self.sigma = sigma
         self.approximate = approximate
         self.same_dxdy = same_dxdy
         self.noise_distribution = noise_distribution
+        self.border_mode = border_mode
+        self.fill = fill
+        self.fill_mask = fill_mask
 
     def get_params_dependent_on_data(
         self,
@@ -344,7 +389,7 @@ class ElasticTransform(BaseDistortion):
         data: dict[str, Any],
     ) -> dict[str, Any]:
         height, width = params["shape"][:2]
-        kernel_size = (0, 0) if self.approximate else (17, 17)
+        kernel_size = (17, 17) if self.approximate else (0, 0)
 
         # Generate displacement fields
         dx, dy = fgeometric.generate_displacement_fields(
@@ -373,6 +418,10 @@ class ElasticTransform(BaseDistortion):
             "approximate",
             "same_dxdy",
             "noise_distribution",
+            "keypoint_remapping_method",
+            "border_mode",
+            "fill",
+            "fill_mask",
         )
 
 
