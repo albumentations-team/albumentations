@@ -3435,3 +3435,18 @@ def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 def separable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     conv_fn = maybe_process_in_chunks(cv2.sepFilter2D, ddepth=-1, kernelX=kernel, kernelY=kernel)
     return conv_fn(img)
+
+
+def sorterv2(arr):
+    for i in range(len(arr)):
+        for j in range(len(arr) - 1):
+            if arr[j] > arr[j + 1]:
+                temp = arr[j]
+                arr[j] = arr[j + 1]
+                arr[j + 1] = temp
+
+    total_sum = sum(arr)
+
+    max_value = max(arr)
+
+    return arr, total_sum, max_value
