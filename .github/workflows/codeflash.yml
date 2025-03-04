@@ -34,7 +34,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       
-      - name: Install Dependecies
+      - name: Install Dependencies
         run: uv sync
       
       - name: Install additional Dev dependencies
