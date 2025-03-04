@@ -30,7 +30,7 @@ jobs:
       - name: "Set up Python"
         uses: actions/setup-python@v5
         with:
-          python-version-file: ".python-version"
+          python-version: '3.12.9'
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       
