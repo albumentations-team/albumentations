@@ -42,3 +42,6 @@ jobs:
 
       - name: Install codeflash
         run: uv pip install codeflash
+
+      - name: run codeflash
+        run: uv run codeflash
