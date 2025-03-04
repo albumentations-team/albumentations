@@ -40,8 +40,5 @@ jobs:
       - name: Install additional Dev dependencies
         run: uv pip install -r requirements-dev.txt
 
-      - name: Install codeflash
-        run: uv pip install codeflash
-
       - name: run codeflash
-        run: uv run codeflash
+        run: uvx run codeflash
