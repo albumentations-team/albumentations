@@ -41,4 +41,4 @@ jobs:
         run: uv pip install -r requirements-dev.txt
 
       - name: run codeflash
-        run: uvx run codeflash
+        run: uvx codeflash
