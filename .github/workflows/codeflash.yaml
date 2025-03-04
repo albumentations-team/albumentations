@@ -27,14 +27,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Python
+      - name: "Set up Python"
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Install Project Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install codeflash
-      - name: Run Codeflash to optimize code
-        run: codeflash
+          python-version-file: ".python-version"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      
+      - name: Install Dependecies
+        run: uv sync
+      
+      - name: Install additional Dev dependencies
+        run: uv pip install -r requirements-dev.txt
+
+      - name: Install codeflash
+        run: uv pip install codeflash
