@@ -389,8 +389,8 @@ AUGMENTATION_CLS_PARAMS = [
         dict(
             font_path="./tests/files/LiberationSerif-Bold.ttf",
             font_size_fraction_range=(0.8, 0.9),
-            font_color="red",
-            stopwords=[
+            font_color=(255, 0, 0),  # red in RGB
+            stopwords=(
                 "a",
                 "the",
                 "is",
@@ -404,7 +404,7 @@ AUGMENTATION_CLS_PARAMS = [
                 "for",
                 "at",
                 "by",
-            ],
+            ),
         ),
     ],
     [A.GridElasticDeform, {"num_grid_xy": (10, 10), "magnitude": 10}],

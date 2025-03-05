@@ -25,7 +25,7 @@ class TextImage(ImageOnlyTransform):
     Args:
         font_path (str | Path): Path to the font file to use for rendering text.
         stopwords (list[str] | None): List of stopwords for text augmentation.
-        augmentations (tuple[str | None, ...] | list[str | None]): List of text augmentations to apply.
+        augmentations (tuple[str | None, ...]): List of text augmentations to apply.
             None: text is printed as is
             "insertion": insert random stop words into the text.
             "swap": swap random words in the text.
@@ -33,7 +33,7 @@ class TextImage(ImageOnlyTransform):
         fraction_range (tuple[float, float]): Range for selecting a fraction of bounding boxes to modify.
         font_size_fraction_range (tuple[float, float]): Range for selecting the font size as a fraction of
             bounding box height.
-        font_color (list[str] | str): List of possible font colors or a single font color.
+        font_color (tuple[float, ...]): Font color as RGB values (e.g., (0, 0, 0) for black).
         clear_bg (bool): Whether to clear the background before rendering text.
         metadata_key (str): Key to access metadata in the parameters.
         p (float): Probability of applying the transform.
@@ -52,11 +52,11 @@ class TextImage(ImageOnlyTransform):
         >>> transform = A.Compose([
             A.TextImage(
                 font_path=Path("/path/to/font.ttf"),
-                stopwords=["the", "is", "in"],
+                stopwords=("the", "is", "in"),
                 augmentations=("insertion", "deletion"),
                 fraction_range=(0.5, 1.0),
                 font_size_fraction_range=(0.5, 0.9),
-                font_color=["red", "green", "blue"],
+                font_color=(255, 0, 0),  # red in RGB
                 metadata_key="text_metadata",
                 p=0.5
             )
@@ -69,7 +69,7 @@ class TextImage(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         font_path: str | Path
         stopwords: tuple[str, ...]
-        augmentations: tuple[str | None, ...] | list[str | None]
+        augmentations: tuple[str | None, ...]
         fraction_range: Annotated[
             tuple[float, float],
             AfterValidator(nondecreasing),
@@ -80,7 +80,7 @@ class TextImage(ImageOnlyTransform):
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(0, 1)),
         ]
-        font_color: list[tuple[float, ...] | float | str] | tuple[float, ...] | float | str
+        font_color: tuple[float, ...]
         clear_bg: bool
         metadata_key: str
 
@@ -88,10 +88,10 @@ class TextImage(ImageOnlyTransform):
         self,
         font_path: str | Path,
         stopwords: tuple[str, ...] = ("the", "is", "in", "at", "of"),
-        augmentations: tuple[Literal["insertion", "swap", "deletion"] | None] = (None,),
+        augmentations: tuple[Literal["insertion", "swap", "deletion"] | None, ...] = (None,),
         fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
-        font_color: list[tuple[float, ...] | float | str] | tuple[float, ...] | float | str = "black",
+        font_color: tuple[float, ...] = (0, 0, 0),  # black in RGB
         clear_bg: bool = False,
         metadata_key: str = "textimage_metadata",
         p: float = 0.5,
@@ -174,7 +174,7 @@ class TextImage(ImageOnlyTransform):
 
             augmented_text = text if augmentation is None else self.random_aug(text, 0.5, choice=augmentation)
 
-        font_color = self.py_random.choice(self.font_color) if isinstance(self.font_color, list) else self.font_color
+        font_color = self.font_color
 
         return {
             "bbox_coords": (x_min, y_min, x_max, y_max),

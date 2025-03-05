@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import cv2
@@ -75,7 +74,7 @@ def convert_image_to_pil(image: np.ndarray) -> Image:
 
 
 def draw_text_on_pil_image(pil_image: Image, metadata_list: list[dict[str, Any]]) -> Image:
-    """Draw text on a PIL image using metadata information."""
+    """Draw text on a PIL image."""
     try:
         from PIL import ImageDraw
     except ImportError:
@@ -87,10 +86,20 @@ def draw_text_on_pil_image(pil_image: Image, metadata_list: list[dict[str, Any]]
         text = metadata["text"]
         font = metadata["font"]
         font_color = metadata["font_color"]
-        if isinstance(font_color, (list, tuple)):
+
+        # Adapt font_color based on image mode
+        if pil_image.mode == "L":  # Grayscale
+            # For grayscale images, use only the first value or average the RGB values
+            if isinstance(font_color, tuple):
+                if len(font_color) >= 3:
+                    # Average RGB values for grayscale
+                    font_color = int(sum(font_color[:3]) / 3)
+                elif len(font_color) == 1:
+                    font_color = int(font_color[0])
+        # For RGB and other modes, ensure font_color is a tuple of integers
+        elif isinstance(font_color, tuple):
             font_color = tuple(int(c) for c in font_color)
-        elif isinstance(font_color, float):
-            font_color = int(font_color)
+
         position = bbox_coords[:2]
         draw.text(position, text, font=font, fill=font_color)
     return pil_image
@@ -112,27 +121,23 @@ def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict
         font = metadata["font"]
         font_color = metadata["font_color"]
 
-        # Handle different font_color types
-        if isinstance(font_color, str):
-            # If it's a string, use it as is for all channels
-            font_color = [font_color] * image.shape[2]
-        elif isinstance(font_color, (int, float)):
-            # If it's a single number, convert to int and use for all channels
-            font_color = [int(font_color)] * image.shape[2]
-        elif isinstance(font_color, Sequence):
-            # If it's a sequence, ensure it has the right length and convert to int
-            if len(font_color) != image.shape[2]:
-                raise ValueError(
-                    f"font_color sequence length ({len(font_color)}) "
-                    f"must match the number of image channels ({image.shape[2]})",
-                )
-            font_color = [int(c) for c in font_color]
-        else:
-            raise TypeError(f"Unsupported font_color type: {type(font_color)}")
+        # Handle font_color as tuple[float, ...]
+        # Ensure we have enough color values for all channels
+        if len(font_color) < image.shape[2]:
+            # If fewer values than channels, pad with zeros
+            font_color = tuple(list(font_color) + [0] * (image.shape[2] - len(font_color)))
+        elif len(font_color) > image.shape[2]:
+            # If more values than channels, truncate
+            font_color = font_color[: image.shape[2]]
+
+        # Convert to integers for PIL
+        font_color = [int(c) for c in font_color]
 
         position = bbox_coords[:2]
 
+        # For each channel, use the corresponding color value
         for channel_id, pil_image in enumerate(pil_images):
+            # For single-channel PIL images, color must be an integer
             pil_image.text(position, text, font=font, fill=font_color[channel_id])
 
     return np.stack([np.array(channel) for channel in channels], axis=2)

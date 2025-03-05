@@ -128,7 +128,7 @@ dummy_metadata = {
                     "bbox_coords": (10, 10, 100, 50),
                     "text": "Test",
                     "font": font,
-                    "font_color": 127,  # Red color
+                    "font_color": (127,),  # Grayscale color
                 },
             ],
         ),  # Grayscale image
@@ -139,7 +139,7 @@ dummy_metadata = {
                     "bbox_coords": (10, 10, 100, 50),
                     "text": "Test",
                     "font": font,
-                    "font_color": 127,  # Red color
+                    "font_color": (127,),  # Single channel color
                 },
             ],
         ),  # Single channel image
@@ -150,16 +150,16 @@ dummy_metadata = {
                     "bbox_coords": (10, 10, 100, 50),
                     "text": "Test",
                     "font": font,
-                    "font_color": (127, 127, 127),  # Red color
+                    "font_color": (127, 127, 127),  # RGB color
                 },
                 {
                     "bbox_coords": (20, 20, 110, 60),
                     "text": "Test",
                     "font": font,
-                    "font_color": "red",  # Red color
+                    "font_color": (255, 0, 0),  # Red color
                 },
             ],
-        ),  # RGB image with tuple and string font color
+        ),  # RGB image with tuple colors
         (
             (100, 100, 5),
             [
@@ -167,7 +167,7 @@ dummy_metadata = {
                     "bbox_coords": (20, 20, 110, 60),
                     "text": "Test",
                     "font": font,
-                    "font_color": (127, 127, 127, 127, 127),
+                    "font_color": (127, 127, 127, 127, 127),  # 5-channel color
                 },
             ],
         ),
@@ -178,7 +178,7 @@ dummy_metadata = {
                     "bbox_coords": (20, 20, 110, 60),
                     "text": "Test",
                     "font": font,
-                    "font_color": "red",
+                    "font_color": (255, 0, 0),  # RGB color (will be padded for 5 channels)
                 },
             ],
         ),
