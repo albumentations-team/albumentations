@@ -4582,12 +4582,11 @@ class Spatter(ImageOnlyTransform):
             If tuple of float intensity will be sampled from range `(intensity[0], intensity[1])`.
             If you want constant value use `(intensity, intensity)`.
             Default: (0.6, 0.6).
-        mode (Literal["rain", "mud"], or list[Literal["rain", "mud"]]): Type of corruption. Currently, supported options
-            are 'rain' and 'mud'. If list is provided type of corruption will be sampled list. Default: ("rain").
-        color (list of (r, g, b) or dict or None): Corruption elements color.
-            If list uses provided list as color for specified mode.
-            If dict uses provided color for specified mode. Color for each specified mode should be provided in dict.
-            If None uses default colors (rain: (238, 238, 175), mud: (20, 42, 63)).
+        mode (Literal["rain", "mud"]): Type of corruption. Currently, supported options
+            are 'rain' and 'mud'. Default: "rain".
+        color (tuple[int, ...] | None): Corruption elements color.
+            If list uses provided list as color for the effect.
+            If None uses default colors based on mode (rain: (238, 238, 175), mud: (20, 42, 63)).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -4608,41 +4607,20 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: NonNegativeFloatRangeType
         cutout_threshold: ZeroOneRangeType
         intensity: ZeroOneRangeType
-        mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]]
-        color: Sequence[int] | dict[str, Sequence[int]] | None = None
-
-        @field_validator("mode")
-        @classmethod
-        def check_mode(
-            cls,
-            mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]],
-        ) -> Sequence[Literal["rain", "mud"]]:
-            if isinstance(mode, str):
-                return [mode]
-            return mode
+        mode: Literal["rain", "mud"]
+        color: Sequence[int] | None = None
 
         @model_validator(mode="after")
         def check_color(self) -> Self:
-            if self.color is None:
-                self.color = {"rain": [238, 238, 175], "mud": [20, 42, 63]}
+            # Default colors for each mode
+            default_colors = {"rain": [238, 238, 175], "mud": [20, 42, 63]}
 
-            elif isinstance(self.color, (list, tuple)) and len(self.mode) == 1:
-                if len(self.color) != NUM_RGB_CHANNELS:
-                    msg = "Color must be a list of three integers for RGB format."
-                    raise ValueError(msg)
-                self.color = {self.mode[0]: self.color}
-            elif isinstance(self.color, dict):
-                result = {}
-                for mode in self.mode:
-                    if mode not in self.color:
-                        raise ValueError(f"Color for mode {mode} is not specified.")
-                    if len(self.color[mode]) != NUM_RGB_CHANNELS:
-                        raise ValueError(
-                            f"Color for mode {mode} must be in RGB format.",
-                        )
-                    result[mode] = self.color[mode]
-            else:
-                msg = "Color must be a list of RGB values or a dict mapping mode to RGB values."
+            if self.color is None:
+                # Use default color for the selected mode
+                self.color = default_colors[self.mode]
+            # Validate the provided color
+            elif len(self.color) != NUM_RGB_CHANNELS:
+                msg = "Color must be a list of three integers for RGB format."
                 raise ValueError(msg)
             return self
 
@@ -4653,8 +4631,8 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: tuple[float, float] | float = (2, 2),
         cutout_threshold: tuple[float, float] | float = (0.68, 0.68),
         intensity: tuple[float, float] | float = (0.6, 0.6),
-        mode: Literal["rain", "mud"] | Sequence[Literal["rain", "mud"]] = "rain",
-        color: Sequence[int] | dict[str, Sequence[int]] | None = None,
+        mode: Literal["rain", "mud"] = "rain",
+        color: tuple[int, ...] | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p)
@@ -4664,7 +4642,7 @@ class Spatter(ImageOnlyTransform):
         self.cutout_threshold = cast(tuple[float, float], cutout_threshold)
         self.intensity = cast(tuple[float, float], intensity)
         self.mode = mode
-        self.color = cast(dict[str, Sequence[int]], color)
+        self.color = cast(tuple[int, ...], color)
 
     def apply(
         self,
@@ -4689,9 +4667,9 @@ class Spatter(ImageOnlyTransform):
         std = self.py_random.uniform(*self.std)
         cutout_threshold = self.py_random.uniform(*self.cutout_threshold)
         sigma = self.py_random.uniform(*self.gauss_sigma)
-        mode = self.py_random.choice(self.mode)
+        mode = self.mode
         intensity = self.py_random.uniform(*self.intensity)
-        color = np.array(self.color[mode]) / 255.0
+        color = np.array(self.color) / 255.0
 
         liquid_layer = self.random_generator.normal(
             size=(height, width),
