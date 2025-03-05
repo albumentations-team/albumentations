@@ -5896,6 +5896,11 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             - 0 means no contrast change
             Default: (-0.3, 0.3)
 
+        plasma_size (int): Size of the initial plasma pattern grid.
+            Larger values create more detailed patterns but are slower to compute.
+            The pattern will be resized to match the input image dimensions.
+            Default: 256
+
         roughness (float): Controls how quickly the noise amplitude increases at each iteration.
             Must be greater than 0:
             - Low values (< 1.0): Smoother, more gradual pattern
@@ -5962,7 +5967,8 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         >>> transform = A.PlasmaBrightnessContrast(
         ...     brightness_range=(-0.5, 0.5),
         ...     contrast_range=(-0.3, 0.3),
-        ...     roughness=0.7,    # Smoother transitions
+        ...     plasma_size=512,    # More detailed pattern
+        ...     roughness=0.7,      # Smoother transitions
         ...     p=1.0
         ... )
 
@@ -5990,6 +5996,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             tuple[float, float],
             AfterValidator(check_range_bounds(-1, 1)),
         ]
+        plasma_size: int = Field(default=256, ge=1)
         roughness: float = Field(default=3.0, gt=0)
 
     def __init__(
@@ -6058,7 +6065,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         return self.apply(volumes, **params)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "brightness_range", "contrast_range", "roughness"
+        return "brightness_range", "contrast_range", "plasma_size", "roughness"
 
 
 class PlasmaShadow(ImageOnlyTransform):
