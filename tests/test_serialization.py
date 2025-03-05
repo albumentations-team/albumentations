@@ -24,7 +24,6 @@ from tests.conftest import (
 from .utils import (
     OpenMock,
     check_all_augs_exists,
-    get_2d_transforms,
     get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
@@ -40,7 +39,6 @@ AUGMENTATION_CLS_EXCEPT = {
     A.Lambda,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
-    A.TemplateTransform,
 }
 
 
@@ -58,7 +56,6 @@ TEST_SEEDS = (137,)
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
-            A.TemplateTransform,
         },
     ),
 )
@@ -201,7 +198,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CoarseDropout,
-            A.TemplateTransform,
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
             A.TextImage,
@@ -252,7 +248,6 @@ def test_augmentations_for_bboxes_serialization(
             A.CropNonEmptyMaskIfExists,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
-            A.TemplateTransform,
             A.OverlayElements,
             A.TextImage,
         },
@@ -513,7 +508,6 @@ def test_transform_pipeline_serialization_with_keypoints(
             A.HistogramMatching,
             A.FDA,
             A.PixelDistributionAdaptation,
-            A.TemplateTransform,
             A.TextImage,
         },
     ),
@@ -722,27 +716,6 @@ def test_shorten_class_name(class_fullname, expected_short_class_name):
     assert shorten_class_name(class_fullname) == expected_short_class_name
 
 
-@pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("p", [1])
-def test_template_transform_serialization(
-    template: np.ndarray, seed: int, p: float
-) -> None:
-    image = SQUARE_UINT8_IMAGE
-    template_transform = A.TemplateTransform(name="template", templates=template, p=p)
-
-    aug = A.Compose([A.HorizontalFlip(p=1), template_transform, A.Blur(p=1)])
-    aug.set_random_seed(seed)
-    serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(
-        serialized_aug, nonserializable={"template": template_transform}
-    )
-    deserialized_aug.set_random_seed(seed)
-    aug_data = aug(image=image)
-    deserialized_aug_data = deserialized_aug(image=image)
-
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_transforms(
@@ -753,7 +726,6 @@ def test_template_transform_serialization(
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
-            A.TemplateTransform,
         },
     ),
 )

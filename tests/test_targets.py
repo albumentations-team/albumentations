@@ -78,9 +78,6 @@ str2target = {
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
-            },
             A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf"),
         },
     ),
