@@ -35,9 +35,6 @@ from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transf
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.TemplateTransform: {
-                "templates": SQUARE_UINT8_IMAGE,
-            },
         },
         except_augmentations={
             A.FromFloat,
@@ -81,9 +78,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
                 "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
-            },
-            A.TemplateTransform: {
-                "templates": SQUARE_FLOAT_IMAGE,
             },
         },
         except_augmentations={
@@ -176,9 +170,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.TemplateTransform: {
-                "templates": SQUARE_UINT8_IMAGE,
-            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -228,9 +219,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.TemplateTransform: {
-                "templates": SQUARE_FLOAT_IMAGE,
-            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -277,9 +265,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.FDA: {
                 "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
                 "read_fn": lambda x: x,
-            },
-            A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=255, size=(100, 100), dtype=np.uint8),
             },
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 1], dtype=np.uint8)],
@@ -365,9 +350,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                 "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
-            },
-            A.TemplateTransform: {
-                "templates": SQUARE_UINT8_IMAGE,
             },
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
@@ -478,9 +460,6 @@ def test_mask_fill_value(augmentation_cls, params):
                 "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
-            A.TemplateTransform: {
-                "templates": SQUARE_MULTI_UINT8_IMAGE,
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
                 "read_fn": lambda x: x,
@@ -557,9 +536,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                 "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
-            A.TemplateTransform: {
-                "templates": SQUARE_MULTI_FLOAT_IMAGE,
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
                 "read_fn": lambda x: x,
@@ -626,9 +602,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.TemplateTransform: {
-                "templates": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
                 "read_fn": lambda x: x,
@@ -702,9 +675,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.TemplateTransform: {
-                "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
                 "read_fn": lambda x: x,
@@ -1006,7 +976,6 @@ def test_pad_if_needed_position(params, image_shape):
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
-            A.TemplateTransform,
             A.OverlayElements,
             A.TextImage,
             A.RGBShift,

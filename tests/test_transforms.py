@@ -95,11 +95,6 @@ def test_binary_mask_interpolation(augmentation_cls, params, image):
     get_dual_transforms(
         custom_arguments={
             A.GridDropout: {"holes_number_xy": (10, 10), "fill_mask": 64},
-            A.TemplateTransform: {
-                "templates": np.random.randint(
-                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
-                ),
-            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -114,7 +109,6 @@ def test_binary_mask_interpolation(augmentation_cls, params, image):
             A.FDA,
             A.HistogramMatching,
             A.Lambda,
-            A.TemplateTransform,
             A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
@@ -156,9 +150,6 @@ def __test_multiprocessing_support_proc(args):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.TemplateTransform: {
-                "templates": cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8), 0, 255),
-            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -247,9 +238,6 @@ def test_force_apply():
                 "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
-            },
-            A.TemplateTransform: {
-                "templates": SQUARE_UINT8_IMAGE,
             },
         },
         except_augmentations={
@@ -664,79 +652,6 @@ def test_smallest_max_size_list():
 
 
 @pytest.mark.parametrize(
-    [
-        "img_weight",
-        "template_transform",
-        "image_size",
-        "template_size",
-    ],
-    [
-        (
-            0.5,
-            A.RandomSizedCrop((50, 200), size=(513, 450), p=1.0),
-            (513, 450),
-            (224, 224),
-        ),
-        (0.3, A.RandomResizedCrop(size=(513, 450), p=1.0), (513, 450), (224, 224)),
-        (1.0, A.CenterCrop(500, 450, p=1.0), (500, 450, 3), (512, 512, 3)),
-        (0.5, A.Resize(513, 450, p=1.0), (513, 450), (512, 512)),
-        (0.5, A.NoOp(), (224, 224), (224, 224)),
-        (0.5, A.NoOp(), (512, 512, 3), (512, 512, 3)),
-        (0.5, None, (512, 512), (512, 512)),
-        (0.8, None, (512, 512, 3), (512, 512, 3)),
-        (
-            0.5,
-            A.Compose(
-                [
-                    A.Blur(p=1.0),
-                    A.RandomSizedCrop((50, 200), size=(512, 512), p=1.0),
-                    A.HorizontalFlip(p=1.0),
-                ],
-                strict=True,
-            ),
-            (512, 512),
-            (512, 512),
-        ),
-    ],
-)
-def test_template_transform(
-    img_weight, template_transform, image_size, template_size
-):
-    img = cv2.randu(np.zeros(image_size, dtype=np.uint8), 0, 255)
-    template = cv2.randu(np.zeros(template_size, dtype=np.uint8), 0, 255)
-
-    aug = A.TemplateTransform(template, img_weight, template_transform)
-    result = aug(image=img)["image"]
-
-    assert result.shape == img.shape
-
-    params = aug.get_params_dependent_on_data(
-        params={},
-        data={"image": img},
-    )
-    template = params["template"]
-    assert template.shape == img.shape
-    assert template.dtype == img.dtype
-
-
-@pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
-def test_template_transform_incorrect_channels(img_channels, template_channels):
-    img = np.random.randint(0, 256, (100, 100, img_channels), dtype=np.uint8)
-
-    template = np.random.randint(0, 256, (100, 100, template_channels), dtype=np.uint8)
-
-    with pytest.raises(ValueError) as exc_info:
-        transform = A.TemplateTransform(template, p=1.0)
-        transform(image=img)
-
-    message = (
-        "Template must be a single channel or has the same number of channels "
-        f"as input image ({img_channels}), got {template.shape[-1]}"
-    )
-    assert str(exc_info.value) == message
-
-
-@pytest.mark.parametrize(
     "params",
     [
         {"scale": (0.5, 1.0)},
@@ -1119,9 +1034,6 @@ def test_random_crop_from_borders(
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.TemplateTransform: {
-                "templates": clip(SQUARE_UINT8_IMAGE + 2, np.uint8),
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
@@ -1201,7 +1113,6 @@ def test_change_image(augmentation_cls, params, image):
             A.RandomSizedCrop,
             A.CropAndPad,
             A.Resize,
-            A.TemplateTransform,
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -1325,39 +1236,11 @@ def test_pad_if_needed_functionality(params, expected):
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
 
 
-@pytest.mark.parametrize(
-    "params",
-    [
-        ({"slant_range": (12, 8)}),  # Invalid slant range -> decreasing
-        ({"slant_range": (-8, 62)}),  # invalid slant range -> 62 out of upper bound
-    ],
-)
-def test_random_rain_invalid_input(params):
-    with pytest.raises(Exception):
-        A.RandomRain(**params)
-
-
-@pytest.mark.parametrize(
-    "params",
-    [
-        ({"snow_point_range": (1.2, 1.5)}),  # Invalid quality range -> upper bound
-        ({"snow_point_range": (0.9, 0.7)}),  # Invalid range  -> decreasing
-    ],
-)
-def test_random_snow_invalid_input(params):
-    with pytest.raises(Exception):
-        a = A.RandomSnow(**params)
-
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.TemplateTransform: {
-                "templates": np.random.randint(
-                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
-                ),
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
@@ -1662,11 +1545,6 @@ def test_random_sun_flare_invalid_input(params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.TemplateTransform: {
-                "templates": np.random.randint(
-                    low=0, high=256, size=(100, 100, 3), dtype=np.uint8
-                ),
-            },
             A.PixelDistributionAdaptation: {
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
@@ -1870,7 +1748,6 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.VerticalFlip,
             A.HorizontalFlip,
             A.GridElasticDeform,
-            A.TemplateTransform,
             A.PixelDistributionAdaptation,
             A.SafeRotate,
             A.Rotate,

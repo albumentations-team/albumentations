@@ -523,7 +523,6 @@ def test2d_3d(volume, mask3d):
             A.OverlayElements,
             A.PixelDistributionAdaptation,
             A.HistogramMatching,
-            A.TemplateTransform,
             A.RandomCropNearBBox,
         },
     ),
