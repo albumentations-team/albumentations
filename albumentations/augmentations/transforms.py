@@ -681,7 +681,10 @@ class RandomRain(ImageOnlyTransform):
     Args:
         slant_range (tuple[float, float]): Range for the rain slant angle in degrees.
             Negative values slant to the left, positive to the right. Default: (-10, 10).
-        drop_length (int): Length of the rain drops in pixels. Default: 20.
+        drop_length (int | None): Length of the rain drops in pixels.
+            If None, drop length will be automatically calculated as height // 8.
+            This allows the rain effect to scale with the image size.
+            Default: None
         drop_width (int): Width of the rain drops in pixels. Default: 1.
         drop_color (tuple[int, int, int]): Color of the rain drops in RGB format. Default: (200, 200, 200).
         blur_value (int): Blur value for simulating rain effect. Rainy views are typically blurry. Default: 7.
@@ -698,7 +701,6 @@ class RandomRain(ImageOnlyTransform):
 
     Number of channels:
         3
-
     Note:
         - The rain effect is created by drawing semi-transparent lines on the image.
         - The slant of the rain can be controlled to simulate wind effects.
@@ -708,7 +710,6 @@ class RandomRain(ImageOnlyTransform):
           * Augmenting datasets for autonomous driving in rainy conditions
           * Testing the robustness of computer vision models to weather effects
           * Creating realistic rainy scenes for image editing or film production
-
     Mathematical Formulation:
         For each raindrop:
         1. Start position (x1, y1) is randomly generated within the image.
@@ -722,11 +723,9 @@ class RandomRain(ImageOnlyTransform):
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-
         # Default usage
         >>> transform = A.RandomRain(p=1.0)
         >>> rainy_image = transform(image=image)["image"]
-
         # Custom rain parameters
         >>> transform = A.RandomRain(
         ...     slant_range=(-15, 15),
@@ -738,7 +737,6 @@ class RandomRain(ImageOnlyTransform):
         ...     p=1.0
         ... )
         >>> rainy_image = transform(image=image)["image"]
-
         # Simulating heavy rain
         >>> transform = A.RandomRain(rain_type="heavy", p=1.0)
         >>> heavy_rain_image = transform(image=image)["image"]
@@ -754,7 +752,7 @@ class RandomRain(ImageOnlyTransform):
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(-MAX_RAIN_ANGLE, MAX_RAIN_ANGLE)),
         ]
-        drop_length: int = Field(ge=1)
+        drop_length: int | None = None
         drop_width: int = Field(ge=1)
         drop_color: tuple[int, int, int]
         blur_value: int = Field(ge=1)
@@ -764,7 +762,7 @@ class RandomRain(ImageOnlyTransform):
     def __init__(
         self,
         slant_range: tuple[float, float] = (-10, 10),
-        drop_length: int = 20,
+        drop_length: int | None = None,
         drop_width: int = 1,
         drop_color: tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
@@ -819,8 +817,7 @@ class RandomRain(ImageOnlyTransform):
         else:
             num_drops = height // 3
 
-        # Fixed proportion for drop length (like Kornia)
-        drop_length = max(1, height // 8)
+        drop_length = max(1, height // 8) if self.drop_length is None else self.drop_length
 
         # Simplified slant calculation
         slant = self.py_random.uniform(*self.slant_range)
