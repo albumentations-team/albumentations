@@ -322,15 +322,6 @@ class ElasticTransform(BaseDistortion):
         same_dxdy: bool
         noise_distribution: Literal["gaussian", "uniform"]
         keypoint_remapping_method: Literal["direct", "mask"]
-        border_mode: Literal[
-            cv2.BORDER_CONSTANT,
-            cv2.BORDER_REPLICATE,
-            cv2.BORDER_REFLECT,
-            cv2.BORDER_WRAP,
-            cv2.BORDER_REFLECT_101,
-        ]
-        fill: tuple[float, ...] | float
-        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
@@ -379,9 +370,6 @@ class ElasticTransform(BaseDistortion):
         self.approximate = approximate
         self.same_dxdy = same_dxdy
         self.noise_distribution = noise_distribution
-        self.border_mode = border_mode
-        self.fill = fill
-        self.fill_mask = fill_mask
 
     def get_params_dependent_on_data(
         self,
@@ -418,10 +406,10 @@ class ElasticTransform(BaseDistortion):
             "approximate",
             "same_dxdy",
             "noise_distribution",
-            "keypoint_remapping_method",
-            "border_mode",
-            "fill",
-            "fill_mask",
+            # "keypoint_remapping_method",
+            # "border_mode",
+            # "fill",
+            # "fill_mask",
         )
 
 
@@ -1407,26 +1395,11 @@ class PiecewiseAffine(BaseDistortion):
         >>> transformed_image = transformed["image"]
     """
 
-    class InitSchema(BaseTransformInitSchema):
+    class InitSchema(BaseDistortion.InitSchema):
         scale: NonNegativeFloatRangeType
         nb_rows: tuple[int, int] | int
         nb_cols: tuple[int, int] | int
-        interpolation: Literal[
-            cv2.INTER_NEAREST,
-            cv2.INTER_LINEAR,
-            cv2.INTER_CUBIC,
-            cv2.INTER_AREA,
-            cv2.INTER_LANCZOS4,
-        ]
-        mask_interpolation: Literal[
-            cv2.INTER_NEAREST,
-            cv2.INTER_LINEAR,
-            cv2.INTER_CUBIC,
-            cv2.INTER_AREA,
-            cv2.INTER_LANCZOS4,
-        ]
         absolute_scale: bool
-        keypoint_remapping_method: Literal["direct", "mask"]
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
@@ -1462,12 +1435,24 @@ class PiecewiseAffine(BaseDistortion):
         absolute_scale: bool = False,
         keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
     ):
         super().__init__(
             p=p,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
             keypoint_remapping_method=keypoint_remapping_method,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
         )
 
         warn(
@@ -1789,12 +1774,24 @@ class OpticalDistortion(BaseDistortion):
         mode: Literal["camera", "fisheye"] = "camera",
         keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
             keypoint_remapping_method=keypoint_remapping_method,
             p=p,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
         )
         self.distort_limit = cast(tuple[float, float], distort_limit)
         self.mode = mode
@@ -1925,12 +1922,24 @@ class GridDistortion(BaseDistortion):
         ] = cv2.INTER_NEAREST,
         keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
             keypoint_remapping_method=keypoint_remapping_method,
             p=p,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
         )
         self.num_steps = num_steps
         self.distort_limit = cast(tuple[float, float], distort_limit)
@@ -2870,12 +2879,24 @@ class ThinPlateSpline(BaseDistortion):
         ] = cv2.INTER_NEAREST,
         keypoint_remapping_method: Literal["direct", "mask"] = "mask",
         p: float = 0.5,
+        border_mode: Literal[
+            cv2.BORDER_CONSTANT,
+            cv2.BORDER_REPLICATE,
+            cv2.BORDER_REFLECT,
+            cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101,
+        ] = cv2.BORDER_CONSTANT,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
     ):
         super().__init__(
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
             keypoint_remapping_method=keypoint_remapping_method,
             p=p,
+            border_mode=border_mode,
+            fill=fill,
+            fill_mask=fill_mask,
         )
         self.scale_range = scale_range
         self.num_control_points = num_control_points
