@@ -1,0 +1,47 @@
+name: Codeflash
+
+on:
+  pull_request:
+    paths:
+      # So that this workflow only runs when code within the target module is modified
+      - 'albumentations/**'
+  workflow_dispatch:
+
+concurrency:
+  # Any new push to the PR will cancel the previous run, so that only the latest code is optimized
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+jobs:
+  optimize:
+    name: Optimize new Python code in this PR
+    # Don't run codeflash on codeflash-ai[bot] commits, prevent duplicate optimizations
+    if: ${{ github.actor != 'codeflash-ai[bot]' }}
+    runs-on: ubuntu-latest
+    env:
+      CODEFLASH_API_KEY: ${{ secrets.CODEFLASH_API_KEY }}
+      CODEFLASH_PR_NUMBER: ${{ github.event.number }}
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.9'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      
+      - name: Install Dependencies
+        run: uv sync
+      
+      - name: Install additional Dev dependencies
+        run: uv pip install -r requirements-dev.txt
+
+      - name: Install codeflash and ruff
+        run: uv pip install codeflash ruff
+
+      - name: run codeflash
+        run: uv run python -m codeflash.main
