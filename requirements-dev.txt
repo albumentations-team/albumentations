@@ -12,5 +12,3 @@ torch>=2.3.1
 torchvision>=0.18.1
 types-PyYAML
 types-setuptools
-codeflash
-ruff
