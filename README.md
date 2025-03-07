@@ -23,8 +23,8 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 - **Complete Computer Vision Support**: Works with [all major CV tasks](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation) including classification, segmentation (semantic & instance), object detection, and pose estimation.
 - **Simple, Unified API**: [One consistent interface](#a-simple-example) for all data types - RGB/grayscale/multispectral images, masks, bounding boxes, and keypoints.
-- **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/api_reference/transforms/) to enhance your training data.
-- **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarks/), with optimizations for production use.
+- **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/api_reference/augmentations/transforms/) to enhance your training data.
+- **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarking_results/#performance-comparison) also shown [below section](#performance-comparison), with optimizations for production use.
 - **Deep Learning Integration**: Works with [PyTorch](https://pytorch.org/), [TensorFlow](https://www.tensorflow.org/), and other frameworks. Part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
 - **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](#authors).
 
