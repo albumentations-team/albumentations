@@ -3561,7 +3561,7 @@ class ColorJitter(ImageOnlyTransform):
         >>> jittered_image = result['image']
 
     References:
-        - https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.ColorJitter
+        - https://pytorch.org/vision/stable/generated/torchvision.transforms.ColorJitter.html#torchvision.transforms.ColorJitter
         - https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
     """
 
