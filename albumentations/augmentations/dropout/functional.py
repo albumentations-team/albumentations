@@ -474,19 +474,28 @@ def mask_dropout_bboxes(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
-    """Filter out bounding boxes based on their intersection with the dropout mask.
+    """Filter bounding boxes based on their intersection with a dropout mask.
 
     Args:
-        bboxes (np.ndarray): Array of bounding boxes with shape (N, 4+) in format [x_min, y_min, x_max, y_max, ...].
-        dropout_mask (np.ndarray): Boolean mask of shape (height, width) where True values indicate dropped out regions.
-        image_shape (Tuple[int, int]): The shape of the original image as (height, width).
-        min_area (float): Minimum area of the bounding box to be kept.
-        min_visibility (float): Minimum visibility ratio of the bounding box to be kept.
+        bboxes: Array of bounding boxes in format [x_min, y_min, x_max, y_max]
+        dropout_mask: Binary mask where True indicates dropped pixels
+        image_shape: Height and width of the image
+        min_area: Minimum area (in pixels) for a box to be kept
+        min_visibility: Minimum visibility ratio (visible area / total area) for a box to be kept
 
     Returns:
-        np.ndarray: Filtered array of bounding boxes.
+        Filtered array of bounding boxes
     """
     height, width = image_shape
+
+    # Ensure dropout_mask is 2D
+    if dropout_mask.ndim > 2:
+        if dropout_mask.shape[0] == 1:  # Shape is (1, H, W)
+            dropout_mask = dropout_mask.squeeze(0)
+        elif dropout_mask.shape[-1] <= 4:  # Shape is (H, W, C)
+            dropout_mask = np.any(dropout_mask, axis=-1)
+        else:  # Shape is (C, H, W)
+            dropout_mask = np.any(dropout_mask, axis=0)
 
     # Create binary masks for each bounding box
     y, x = np.ogrid[:height, :width]
@@ -501,7 +510,7 @@ def mask_dropout_bboxes(
     box_areas = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1])
 
     # Calculate the visible area of each box (non-intersecting area with dropout mask)
-    visible_areas = np.sum(box_masks & ~dropout_mask.squeeze(), axis=(1, 2))
+    visible_areas = np.sum(box_masks & ~dropout_mask, axis=(1, 2))
 
     # Calculate visibility ratio (visible area / total box area)
     visibility_ratio = visible_areas / box_areas
@@ -524,14 +533,34 @@ def mask_dropout_keypoints(
         dropout_mask: 2D or 3D boolean mask indicating dropped pixels
 
     Returns:
-        Filtered keypoints array. Keeps keypoints where not all channels are dropped.
+        Filtered array of keypoints
     """
-    # Vectorized operation to check where dropout_mask is not fully true at keypoint locations
-    rows = keypoints[:, 1].astype(int)
-    cols = keypoints[:, 0].astype(int)
-    mask_values = dropout_mask[rows, cols]
-    keep_indices = ~mask_values.all(axis=-1) if dropout_mask.ndim == 3 else ~mask_values
-    return keypoints[keep_indices]
+    # Ensure dropout_mask is 2D
+    if dropout_mask.ndim > 2:
+        if dropout_mask.shape[0] == 1:  # Shape is (1, H, W)
+            dropout_mask = dropout_mask.squeeze(0)
+        elif dropout_mask.shape[-1] <= 4:  # Shape is (H, W, C)
+            dropout_mask = np.any(dropout_mask, axis=-1)
+        else:  # Shape is (C, H, W)
+            dropout_mask = np.any(dropout_mask, axis=0)
+
+    # Get coordinates as integers
+    coords = keypoints[:, :2].astype(int)
+
+    # Filter out keypoints that are outside the mask dimensions
+    valid_mask = (
+        (coords[:, 0] >= 0)
+        & (coords[:, 0] < dropout_mask.shape[1])
+        & (coords[:, 1] >= 0)
+        & (coords[:, 1] < dropout_mask.shape[0])
+    )
+
+    # For valid keypoints, check if they fall on non-dropped pixels
+    if np.any(valid_mask):
+        valid_coords = coords[valid_mask]
+        valid_mask[valid_mask] = ~dropout_mask[valid_coords[:, 1], valid_coords[:, 0]]
+
+    return keypoints[valid_mask]
 
 
 def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> np.ndarray | tuple[np.ndarray, int]:
