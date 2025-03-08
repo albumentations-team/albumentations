@@ -7,6 +7,7 @@ from .dropout.coarse_dropout import *
 from .dropout.functional import *
 from .dropout.grid_dropout import *
 from .dropout.mask_dropout import *
+from .dropout.transforms import *
 from .dropout.xy_masking import *
 from .functional import *
 from .geometric.functional import *
