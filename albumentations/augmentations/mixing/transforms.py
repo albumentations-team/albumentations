@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import random
-from typing import Any
+import types
+from collections.abc import Generator, Iterable, Iterator, Sequence
+from typing import Annotated, Any, Callable
+from warnings import warn
 
 import cv2
 import numpy as np
+from pydantic import AfterValidator
 
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
+from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.type_definitions import LENGTH_RAW_BBOX, Targets
+from albumentations.core.type_definitions import LENGTH_RAW_BBOX, ReferenceImage, Targets
 
 __all__ = ["OverlayElements"]
 
@@ -205,12 +210,41 @@ class Mosaic(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        pass
+        reference_data: Generator[Any, None, None] | Sequence[Any] | None = None
+        read_fn: Callable[[ReferenceImage], Any]
+        mosaic_size: int
+        center_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, 1)),
+            AfterValidator(nondecreasing),
+        ]
 
     def __init__(
         self,
+        reference_data: Generator[Any, None, None] | Sequence[Any] | None = None,
+        read_fn: Callable[[ReferenceImage], Any] = lambda x: x,
+        mosaic_size: int = 512,
+        center_range: tuple[float, float] = (0.3, 0.7),
+        p: float = 0.5,
     ) -> None:
-        pass
+        super().__init__(p=p)
+        self.read_fn = read_fn
+        self.mosaic_size = mosaic_size
+        self.center_range = center_range
+        # Specifies how many images to use from reference_data to make the mosaic
+        self.n = 3  # For now we focus on 2x2 mosaic
+
+        if reference_data is None:
+            warn("No reference data provided for Mosaic. This transform will act as a no-op.", stacklevel=2)
+            # Create an empty generator
+            self.reference_data: Generator[Any, None, None] | Sequence[Any] = []
+        elif isinstance(reference_data, types.GeneratorType) or (
+            isinstance(reference_data, Iterable) and not isinstance(reference_data, (str, bytes))
+        ):
+            self.reference_data = reference_data
+        else:
+            msg = "reference_data must be a list, tuple, generator, or None."
+            raise TypeError(msg)
 
     @property
     def targets_as_params(self) -> list[str]:
@@ -219,12 +253,35 @@ class Mosaic(DualTransform):
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
 
-    def get_params_dependent_on_data(
-        self,
-        params: dict[str, Any],
-        data: dict[str, Any],
-    ) -> dict[str, Any]:
-        return params
+    def get_params(self) -> dict[str, list[None | dict[str, Any]]]:
+        mosaic_data = []
+
+        # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
+        if isinstance(self.reference_data, Sequence) and not isinstance(self.reference_data, (str, bytes)):
+            if len(self.reference_data) >= self.n:  # Additional check to ensure it's not empty and has enough elements
+                mosaic_idxes = self.py_random.sample(range(len(self.reference_data)), self.n)
+                mosaic_data = [self.reference_data[mosaic_idx] for mosaic_idx in mosaic_idxes]
+
+        # Check if reference_data is an iterator or generator
+        elif isinstance(self.reference_data, Iterator):
+            try:
+                for _ in range(self.n):
+                    mosaic_data.append(next(self.reference_data))  # Attempt to get the next item
+            except StopIteration:
+                warn(
+                    "Reference data iterator/generator has been exhausted. "
+                    "Further mosaic augmentations will not be applied.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                return {"mosaic_data": []}
+
+        # If mosaic_data has not enough data after the above checks, return default values
+        if len(mosaic_data) < self.n:
+            return {"mosaic_data": []}
+
+        # If mosaic_data is not empty, apply read_fn
+        return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]]}
 
     def apply(
         self,
