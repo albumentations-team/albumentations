@@ -180,3 +180,80 @@ class OverlayElements(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("metadata_key",)
+
+
+class Mosaic(DualTransform):
+    """Combine four images into one in a mosaic style. This transformation requires a sequence of four images
+    and their corresponding properties such as masks, bounding boxes, and keypoints.
+
+    Args:
+        #TODO
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Example:
+        #TODO
+
+    Reference:
+        YOLOv4: Optimal Speed and Accuracy of Object Detection: https://arxiv.org/pdf/2004.10934
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
+    def __init__(
+        self,
+    ) -> None:
+        pass
+
+    @property
+    def targets_as_params(self) -> list[str]:
+        return []
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return ()
+
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
+        return params
+
+    def apply(
+        self,
+        img: np.ndarray,
+        *args: Any,
+        **params: Any,
+    ) -> np.ndarray:
+        return img
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        *args: Any,
+        **params: Any,
+    ) -> np.ndarray:
+        return mask
+
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        *args: Any,
+        **params: Any,
+    ) -> np.ndarray:
+        return bboxes
+
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        *args: Any,
+        **params: Any,
+    ) -> np.ndarray:
+        return keypoints
