@@ -1038,7 +1038,7 @@ class RandomSunFlare(ImageOnlyTransform):
         src_color (tuple[int, int, int]): Color of the sun in RGB format. Default: (255, 255, 255).
         method (Literal["overlay", "physics_based"]): Method to use for generating the sun flare.
             "overlay" uses a simple alpha blending technique, while "physics_based" simulates
-            more realistic optical phenomena. Default: "physics_based".
+            more realistic optical phenomena. Default: "overlay".
 
         p (float): Probability of applying the transform. Default: 0.5.
 
