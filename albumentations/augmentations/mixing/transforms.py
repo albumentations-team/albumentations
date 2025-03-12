@@ -376,10 +376,41 @@ class Mosaic(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        *args: Any,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
-        return mask
+        if len(mosaic_data) == 0:  # No-op
+            return mask
+
+        add_masks = [md.get("mask") for md in mosaic_data]
+
+        for add_mask in add_masks:
+            if add_mask is None:
+                return mask  # No-op
+
+            if get_num_channels(add_mask) != get_num_channels(mask):
+                msg = "The number of channels of the mosaic mask should be the same as the input mask."
+                raise ValueError(msg)
+
+            if add_mask.dtype != mask.dtype:
+                msg = "The data type of the mosaic mask should be the same as the input mask."
+                raise ValueError(msg)
+
+        four_masks = [mask]
+        four_masks.extend(add_masks)
+
+        if self.fill_mask is None:  # Handles incompatible type Union[tuple[float, ...], float, None]
+            self.fill_mask = 0.0
+
+        return fmixing.create_2x2_mosaic_image(
+            four_masks,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+            keep_aspect_ratio=self.keep_aspect_ratio,
+            interpolation=self.mask_interpolation,
+            fill=self.fill_mask,
+        )
 
     def apply_to_bboxes(
         self,
