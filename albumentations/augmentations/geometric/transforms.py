@@ -1732,10 +1732,8 @@ class OpticalDistortion(BaseDistortion):
     Note:
         - The distortion is applied using OpenCV's initUndistortRectifyMap and remap functions.
         - The distortion coefficient (k) is randomly sampled from the distort_limit range.
-        - The image center is shifted by dx and dy, randomly sampled from the shift_limit range.
         - Bounding boxes and keypoints are transformed along with the image to maintain consistency.
         - Fisheye model directly applies radial distortion
-        - Both models use shift_limit to control distortion center
 
     Example:
         >>> import albumentations as A
