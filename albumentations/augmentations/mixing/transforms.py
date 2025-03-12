@@ -430,7 +430,7 @@ class Mosaic(DualTransform):
                 continue
 
             if isinstance(add_bboxes, tuple):
-                add_bboxes = np.array(add_bboxes, dtype=np.float32)
+                add_bboxes = np.array([add_bboxes], dtype=np.float32)
 
             if add_bboxes.shape[1] != bboxes.shape[1]:
                 msg = "The length of the mosaic bboxes should be the same as the input bboxes."
@@ -452,7 +452,35 @@ class Mosaic(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        *args: Any,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
-        return keypoints
+        if len(mosaic_data) == 0:  # No-op
+            return keypoints
+
+        all_keypoints = [keypoints]
+        for md in mosaic_data:
+            add_keypoints = md.get("keypoints")
+            if add_keypoints is None:
+                all_keypoints.append(None)  # Need to know which quadrant does not have keypoints
+                continue
+
+            if isinstance(add_keypoints, tuple):
+                add_keypoints = np.array([add_keypoints], dtype=np.float32)
+
+            if add_keypoints.shape[1] != add_keypoints.shape[1]:
+                msg = "The length of the mosaic keypoints should be the same as the input keypoints."
+                raise ValueError(msg)
+
+            all_keypoints.append(add_keypoints)
+
+        all_img_shapes = [params["shape"][:2]]
+        all_img_shapes.extend([md["image"].shape[:2] for md in mosaic_data])
+
+        return fmixing.get_mosaic_keypoints(
+            all_keypoints,
+            all_img_shapes,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+        )
