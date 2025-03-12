@@ -9,11 +9,12 @@ from __future__ import annotations
 import random
 import types
 from collections.abc import Generator, Iterable, Iterator, Sequence
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, Literal
 from warnings import warn
 
 import cv2
 import numpy as np
+from albucore import get_num_channels
 from pydantic import AfterValidator
 
 from albumentations.augmentations.mixing import functional as fmixing
@@ -268,27 +269,81 @@ class Mosaic(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         reference_data: Generator[Any, None, None] | Sequence[Any] | None = None
         read_fn: Callable[[ReferenceImage], Any]
-        mosaic_size: int
+        mosaic_size: int | tuple[int, int]
         center_range: Annotated[
             tuple[float, float],
             AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
     def __init__(
         self,
         reference_data: Generator[Any, None, None] | Sequence[Any] | None = None,
         read_fn: Callable[[ReferenceImage], Any] = lambda x: x,
-        mosaic_size: int = 512,
+        mosaic_size: int | tuple[int, int] = 512,
         center_range: tuple[float, float] = (0.3, 0.7),
+        keep_aspect_ratio: bool = False,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ) -> None:
         super().__init__(p=p)
         self.read_fn = read_fn
-        self.mosaic_size = mosaic_size
         self.center_range = center_range
+        self.keep_aspect_ratio = keep_aspect_ratio
+        self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
+        self.fill = fill
+        self.fill_mask = fill_mask
         # Specifies how many images to use from reference_data to make the mosaic
         self.n = 3  # For now we focus on 2x2 mosaic
+
+        if isinstance(mosaic_size, (list, tuple)):
+            if len(mosaic_size) >= 2:
+                self.mosaic_size = mosaic_size[:2]
+            else:
+                msg = "mosaic_size provided as a list or tuple must have at least two elements (height, width)."
+                raise TypeError(msg)
+        else:
+            self.mosaic_size = (mosaic_size, mosaic_size)
 
         if reference_data is None:
             warn("No reference data provided for Mosaic. This transform will act as a no-op.", stacklevel=2)
@@ -309,7 +364,7 @@ class Mosaic(DualTransform):
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
 
-    def get_params(self) -> dict[str, list[None | dict[str, Any]]]:
+    def get_params(self) -> dict[str, tuple[int, int] | list[None | dict[str, Any]]]:
         mosaic_data = []
 
         # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
@@ -330,22 +385,49 @@ class Mosaic(DualTransform):
                     RuntimeWarning,
                     stacklevel=2,
                 )
-                return {"mosaic_data": []}
+                return {"mosaic_data": [], "center_pt": (0, 0)}
 
         # If mosaic_data has not enough data after the above checks, return default values
         if len(mosaic_data) < self.n:
-            return {"mosaic_data": []}
+            return {"mosaic_data": [], "center_pt": (0, 0)}
 
-        # If mosaic_data is not empty, apply read_fn
-        return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]]}
+        # If mosaic_data is not empty, calculate center_pt and apply read_fn
+        mosaic_h, mosaic_w = self.mosaic_size  # We force the center to be in the left half of the 2x2 mosaic
+        center_x = int(mosaic_w * self.py_random.uniform(*self.center_range))
+        center_y = int(mosaic_h * self.py_random.uniform(*self.center_range))
+        return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]], "center_pt": (center_x, center_y)}
 
     def apply(
         self,
         img: np.ndarray,
-        *args: Any,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
-        return img
+        if len(mosaic_data) == 0:  # No-op
+            return img
+
+        add_images = [md["image"] for md in mosaic_data]
+        for add_img in add_images:
+            if get_num_channels(add_img) != get_num_channels(img):
+                msg = "The number of channels of the mosaic image should be the same as the input image."
+                raise ValueError(msg)
+
+            if add_img.dtype != img.dtype:
+                msg = "The data type of the mosaic image should be the same as the input image."
+                raise ValueError(msg)
+
+        four_imgs = [img]
+        four_imgs.extend(add_images)
+
+        return fmixing.create_2x2_mosaic_image(
+            four_imgs,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+            keep_aspect_ratio=self.keep_aspect_ratio,
+            interpolation=self.interpolation,
+            fill=self.fill,
+        )
 
     def apply_to_mask(
         self,
