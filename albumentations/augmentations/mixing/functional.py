@@ -176,15 +176,15 @@ def create_2x2_mosaic_image(
                                           (in case aspect ratio preserving resizing).
 
     Returns:
-        np.ndarray: The mosaic image with shape (`mosaic_size[0]`, `mosaic_size[1]`)
+        np.ndarray: The final cropped mosaic image with shape (`mosaic_size[0]`, `mosaic_size[1]`)
                     or (`mosaic_size[0]`, `mosaic_size[1]`, C).
 
     Notes: In case of `keep_aspect_ratio` set to `True`, the processing is expected to be longer.
 
     Example:
         >>> images = [np.full((100, 100, 3), fill_value=(255.0, 255.0, 255.0), dtype=np.uint8),
-        ...           np.full((200, 100, 3), fill_value=(255.0, 0.0, 0.0), dtype=np.uint8),
-        ...           np.full((50, 100, 3), fill_value=(0.0, 255.0, 0.0), dtype=np.uint8),
+        ...           np.full((100, 200, 3), fill_value=(255.0, 0.0, 0.0), dtype=np.uint8),
+        ...           np.full((100, 50, 3), fill_value=(0.0, 255.0, 0.0), dtype=np.uint8),
         ...           np.full((50, 50, 3), fill_value=(0.0, 0.0, 255.0), dtype=np.uint8)]
         >>> mosaic = create_2x2_mosaic_image(
         ...     four_images=images,
@@ -235,6 +235,37 @@ def get_mosaic_bboxes(
     mosaic_size: tuple[int, int],
     keep_aspect_ratio: bool,
 ) -> np.ndarray:
+    """Gets all bounding boxes from a 2x2 cropped mosaic image.
+
+    This function applies the necessary transformations to the 4 images' bounding boxes when creating
+    a mosaic image through the function `A.augmentations.mixing.functional.create_2x2_mosaic_image()`.
+
+    Args:
+        all_bboxes (list[np.ndarray | None]): List of all bounding boxes (shape (N, 4+)) from the 4 images.
+        all_img_shapes (list[tuple[int, int]]): List of all 4 images (height, width).
+        center_pt (tuple[int, int]): The (x,y) position of the center point around which
+                                     the final mosaic has been cropped.
+        mosaic_size (tuple[int, int]): The (height, width) of the final cropped mosaic
+                                       (and also the one of each quadrant).
+        keep_aspect_ratio (bool): Whether resizing preserved the aspect ratio when creating the mosaic.
+
+    Returns:
+        np.ndarray: The bounding boxes of the final cropped mosaic image (shape (M, 4+), M <= N).
+
+    Notes:
+        Bounding boxes that fall completely outside the crop area will be removed.
+        Bounding boxes that partially overlap with the crop area will be adjusted to fit within it.
+
+    Example:
+        >>> bboxes = [np.array([[0, 0, 0.2, 0.2], [0.9, 0.9, 1.0, 1.0], [0.25, 0.25, 0.75, 0.75]])] * 4
+        >>> mosaic_bboxes = get_mosaic_bboxes(
+        ...     all_bboxes=bboxes,
+        ...     all_img_shapes=[(100, 100), (100, 200), (100, 50), (50, 50)],
+        ...     center_pt=(100, 100),
+        ...     mosaic_size=(100, 100),
+        ...     keep_aspect_ratio=True
+        ... )
+    """
     target_h, target_w = mosaic_size
 
     mosaic_bboxes = []
