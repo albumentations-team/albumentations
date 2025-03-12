@@ -9,7 +9,9 @@ from __future__ import annotations
 import numpy as np
 from albucore import get_num_channels
 
+import albumentations.augmentations.crops.functional as fcrops
 import albumentations.augmentations.geometric.functional as fgeometric
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 
 __all__ = ["copy_and_paste_blend", "create_2x2_mosaic_image"]
 
@@ -224,3 +226,83 @@ def create_2x2_mosaic_image(
     y1, y2 = min(y1, target_h), min(y2, 2 * target_h)
 
     return mosaic[y1:y2, x1:x2]
+
+
+def get_mosaic_bboxes(
+    all_bboxes: list[np.ndarray | None],
+    all_img_shapes: list[tuple[int, int]],
+    center_pt: tuple[int, int],
+    mosaic_size: tuple[int, int],
+    keep_aspect_ratio: bool,
+) -> np.ndarray:
+    target_h, target_w = mosaic_size
+
+    mosaic_bboxes = []
+    for idx, bboxes in enumerate(all_bboxes):
+        if bboxes is None:
+            continue
+
+        # Bounding box coordinates are scale invariant.
+        # Only the padding operation has an effect.
+        # Furthermore, the fourth image has been aligned on top-left corner
+        # when padding, so bbox coordinates are not changed for this one.
+        if keep_aspect_ratio:
+            h, w = all_img_shapes[idx]
+            x_pad_offset, y_pad_offset = 0, 0
+            scale = min(target_h / h, target_w / w)
+            resized_h, resized_w = int(h * scale), int(w * scale)
+
+            if idx == 0:  # Top-left quadrant -> resized image has been aligned on bottom-right corner
+                y_pad_offset = max(0, target_h - resized_h)
+                x_pad_offset = max(0, target_w - resized_w)
+            elif idx == 1:  # Top-right quadrant -> resized image has been aligned on bottom-left corner
+                y_pad_offset = max(0, target_h - resized_h)
+            else:  # Bottom-left quadrant -> resized image has been aligned on top-right corner
+                x_pad_offset = max(0, target_w - resized_w)
+
+            denorm_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), (resized_h, resized_w))
+            denorm_bboxes[:, [0, 2]] += x_pad_offset
+            denorm_bboxes[:, [1, 3]] += y_pad_offset
+        else:
+            denorm_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), (target_h, target_w))
+
+        # Handle effect of placing each image in its corresponding quadrant.
+        # The mosaic has shape (2 * target_h, 2 * target_w), so coordinates need to be translated
+        # left/down by target_h and/or target_w depending on the quadrant.
+        # No effect for top-left quadrant (idx 0).
+        x_offset, y_offset = 0, 0
+        if idx == 1:  # Top-right quadrant
+            x_offset = target_w
+        elif idx == 2:  # Bottom-left quadrant
+            y_offset = target_h
+        elif idx == 3:  # Bottom-right quadrant
+            x_offset = target_w
+            y_offset = target_h
+
+        denorm_bboxes[:, [0, 2]] += x_offset
+        denorm_bboxes[:, [1, 3]] += y_offset
+
+        mosaic_bboxes.append(denorm_bboxes)
+
+    mosaic_bboxes = np.concatenate(mosaic_bboxes, axis=0)
+
+    # Handle center crop effect
+    x1, y1 = max(0, center_pt[0] - target_w // 2), max(0, center_pt[1] - target_h // 2)
+    x2, y2 = x1 + target_w, y1 + target_h
+    x1, x2 = min(x1, target_w), min(x2, 2 * target_w)
+    y1, y2 = min(y1, target_h), min(y2, 2 * target_h)
+    crop_coords = (x1, y1, x2, y2)
+    mosaic_bboxes = fcrops.crop_bboxes_by_coords(
+        mosaic_bboxes,
+        crop_coords=crop_coords,
+        image_shape=(2 * target_h, 2 * target_w),
+        normalized_input=False,
+    )
+
+    norm_mosaic_bboxes = normalize_bboxes(mosaic_bboxes, (target_h, target_w))
+
+    # Filter bboxes falling completely outside or partially overlapping
+    norm_mosaic_bboxes[:, :4] = np.clip(norm_mosaic_bboxes[:, :4], 0.0, 1.0)
+    keep_mosaic_bboxes = [bbox for bbox in norm_mosaic_bboxes if (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > 0]
+
+    return np.array(keep_mosaic_bboxes)
