@@ -51,6 +51,63 @@ def copy_and_paste_blend(
     return blended_image
 
 
+def get_2x2_mosaic_quadrant_pad_after_resize(
+    target_shape: tuple[int, int],
+    resized_shape: tuple[int, int],
+    quadrant_idx: int,
+) -> tuple[int, int]:
+    target_h, target_w = target_shape
+    resized_h, resized_w = resized_shape
+
+    # Bottom-right quadrant (idx 3) -> resized image should be aligned on top-left corner, no effect
+    x_pad_offset, y_pad_offset = 0, 0
+    if quadrant_idx == 0:  # Top-left quadrant -> resized image should be aligned on bottom-right corner
+        y_pad_offset = max(0, target_h - resized_h)
+        x_pad_offset = max(0, target_w - resized_w)
+    elif quadrant_idx == 1:  # Top-right quadrant -> resized image should be aligned on bottom-left corner
+        y_pad_offset = max(0, target_h - resized_h)
+    elif quadrant_idx == 2:  # Bottom-left quadrant -> resized image should be aligned on top-right corner
+        x_pad_offset = max(0, target_w - resized_w)
+
+    return (x_pad_offset, y_pad_offset)
+
+
+def get_2x2_mosaic_quadrant_offset(
+    target_shape: tuple[int, int],
+    quadrant_idx: int,
+) -> tuple[int, int]:
+    target_h, target_w = target_shape
+
+    # The mosaic has shape (2 * target_h, 2 * target_w), so coordinates need to be translated
+    # left/down by target_h and/or target_w depending on the quadrant.
+    x_offset, y_offset = 0, 0  # No effect for top-left quadrant (idx 0).
+    if quadrant_idx == 1:  # Top-right quadrant
+        x_offset = target_w
+    elif quadrant_idx == 2:  # Bottom-left quadrant
+        y_offset = target_h
+    elif quadrant_idx == 3:  # Bottom-right quadrant
+        x_offset = target_w
+        y_offset = target_h
+
+    return (x_offset, y_offset)
+
+
+def get_2x2_mosaic_center_crop(
+    center_pt: tuple[int, int],
+    target_shape: tuple[int, int],
+) -> tuple[int, int, int, int]:
+    target_h, target_w = target_shape
+
+    # Extract the final (target_h, target_w) crop centered at center_pt
+    x1, y1 = max(0, center_pt[0] - target_w // 2), max(0, center_pt[1] - target_h // 2)
+    x2, y2 = x1 + target_w, y1 + target_h
+    # Ensure the crop is within bounds
+    x1, x2 = min(x1, target_w), min(x2, 2 * target_w)
+    y1, y2 = min(y1, target_h), min(y2, 2 * target_h)
+
+    return (x1, y1, x2, y2)
+
+
 def resize_and_pad_for_2x2_mosaic(
     four_images: list[np.ndarray],
     target_h: int,
@@ -129,19 +186,14 @@ def resize_and_pad_for_2x2_mosaic(
                 fill_value,
                 dtype=img.dtype,
             )  # We checked that all images have same type before
-            if idx == 0:  # Top-left quadrant -> resized image should be aligned on bottom-right corner
-                top = max(0, target_h - resized_h)
-                left = max(0, target_w - resized_w)
-            elif idx == 1:  # Top-right quadrant -> resized image should be aligned on bottom-left corner
-                top = max(0, target_h - resized_h)
-                left = 0
-            elif idx == 2:  # Bottom-left quadrant -> resized image should be aligned on top-right corner
-                top = 0
-                left = max(0, target_w - resized_w)
-            else:  # Bottom-right quadrant -> resized image should be aligned on top-left corner
-                top = 0
-                left = 0
-            canvas[top : top + resized_h, left : left + resized_w] = resized_img
+
+            x_pad_offset, y_pad_offset = get_2x2_mosaic_quadrant_pad_after_resize(
+                target_shape=(target_h, target_w),
+                resized_shape=(resized_h, resized_w),
+                quadrant_idx=idx,
+            )
+
+            canvas[y_pad_offset : y_pad_offset + resized_h, x_pad_offset : x_pad_offset + resized_w] = resized_img
 
             resized_images.append(canvas)
 
@@ -218,12 +270,10 @@ def create_2x2_mosaic_image(
     mosaic[target_h:, :target_w] = resized_images[2]  # Bottom-left quadrant
     mosaic[target_h:, target_w:] = resized_images[3]  # Bottom-right quadrant
 
-    # Extract the final (target_h, target_w) crop centered at center_pt
-    x1, y1 = max(0, center_pt[0] - target_w // 2), max(0, center_pt[1] - target_h // 2)
-    x2, y2 = x1 + target_w, y1 + target_h
-    # Ensure the crop is within bounds
-    x1, x2 = min(x1, target_w), min(x2, 2 * target_w)
-    y1, y2 = min(y1, target_h), min(y2, 2 * target_h)
+    x1, y1, x2, y2 = get_2x2_mosaic_center_crop(
+        center_pt=center_pt,
+        target_shape=(target_h, target_w),
+    )
 
     return mosaic[y1:y2, x1:x2]
 
@@ -279,17 +329,14 @@ def get_mosaic_bboxes(
         # when padding, so bbox coordinates are not changed for this one.
         if keep_aspect_ratio:
             h, w = all_img_shapes[idx]
-            x_pad_offset, y_pad_offset = 0, 0
             scale = min(target_h / h, target_w / w)
             resized_h, resized_w = int(h * scale), int(w * scale)
 
-            if idx == 0:  # Top-left quadrant -> resized image has been aligned on bottom-right corner
-                y_pad_offset = max(0, target_h - resized_h)
-                x_pad_offset = max(0, target_w - resized_w)
-            elif idx == 1:  # Top-right quadrant -> resized image has been aligned on bottom-left corner
-                y_pad_offset = max(0, target_h - resized_h)
-            else:  # Bottom-left quadrant -> resized image has been aligned on top-right corner
-                x_pad_offset = max(0, target_w - resized_w)
+            x_pad_offset, y_pad_offset = get_2x2_mosaic_quadrant_pad_after_resize(
+                target_shape=(target_h, target_w),
+                resized_shape=(resized_h, resized_w),
+                quadrant_idx=idx,
+            )
 
             denorm_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), (resized_h, resized_w))
             denorm_bboxes[:, [0, 2]] += x_pad_offset
@@ -298,42 +345,138 @@ def get_mosaic_bboxes(
             denorm_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), (target_h, target_w))
 
         # Handle effect of placing each image in its corresponding quadrant.
-        # The mosaic has shape (2 * target_h, 2 * target_w), so coordinates need to be translated
-        # left/down by target_h and/or target_w depending on the quadrant.
-        # No effect for top-left quadrant (idx 0).
-        x_offset, y_offset = 0, 0
-        if idx == 1:  # Top-right quadrant
-            x_offset = target_w
-        elif idx == 2:  # Bottom-left quadrant
-            y_offset = target_h
-        elif idx == 3:  # Bottom-right quadrant
-            x_offset = target_w
-            y_offset = target_h
+        x_offset, y_offset = get_2x2_mosaic_quadrant_offset(
+            target_shape=(target_h, target_w),
+            quadrant_idx=idx,
+        )
 
         denorm_bboxes[:, [0, 2]] += x_offset
         denorm_bboxes[:, [1, 3]] += y_offset
 
         mosaic_bboxes.append(denorm_bboxes)
 
-    mosaic_bboxes = np.concatenate(mosaic_bboxes, axis=0)
+    mosaic_bboxes_np = np.concatenate(mosaic_bboxes, axis=0)
+    if mosaic_bboxes_np.size == 0:
+        return mosaic_bboxes_np
 
     # Handle center crop effect
-    x1, y1 = max(0, center_pt[0] - target_w // 2), max(0, center_pt[1] - target_h // 2)
-    x2, y2 = x1 + target_w, y1 + target_h
-    x1, x2 = min(x1, target_w), min(x2, 2 * target_w)
-    y1, y2 = min(y1, target_h), min(y2, 2 * target_h)
-    crop_coords = (x1, y1, x2, y2)
-    mosaic_bboxes = fcrops.crop_bboxes_by_coords(
-        mosaic_bboxes,
+    crop_coords = get_2x2_mosaic_center_crop(
+        center_pt=center_pt,
+        target_shape=(target_h, target_w),
+    )
+    crop_mosaic_bboxes = fcrops.crop_bboxes_by_coords(
+        mosaic_bboxes_np,
         crop_coords=crop_coords,
         image_shape=(2 * target_h, 2 * target_w),
         normalized_input=False,
     )
 
-    norm_mosaic_bboxes = normalize_bboxes(mosaic_bboxes, (target_h, target_w))
+    norm_mosaic_bboxes = normalize_bboxes(crop_mosaic_bboxes, (target_h, target_w))
 
     # Filter bboxes falling completely outside or partially overlapping
     norm_mosaic_bboxes[:, :4] = np.clip(norm_mosaic_bboxes[:, :4], 0.0, 1.0)
     keep_mosaic_bboxes = [bbox for bbox in norm_mosaic_bboxes if (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > 0]
 
     return np.array(keep_mosaic_bboxes)
+
+
+def ensure_full_keypoints(
+    kps: np.ndarray,
+) -> tuple[np.ndarray, int]:
+    original_keypoints_len = kps.shape[1]  # We ensured before all keypoints have same length
+
+    # Need to ensure at least 5 elements in keypoints
+    if original_keypoints_len in (2, 4):  # In case we have (x, y) or (x, y, angle, scale)
+        for _ in range(5 - original_keypoints_len):  # --> becomes (x, y, 0, 0, 0) or (x, y, 0, angle, scale)
+            keypoints = np.insert(kps, 2, 0, axis=1)
+    elif original_keypoints_len == 3:  # In case we have (x, y, z)
+        for _ in range(5 - original_keypoints_len):  # --> (x, y, z, 0, 0)
+            keypoints = np.insert(kps, 3, 0, axis=1)
+    else:
+        keypoints = kps
+
+    return keypoints, original_keypoints_len
+
+
+def get_mosaic_keypoints(
+    all_keypoints: list[np.ndarray | None],
+    all_img_shapes: list[tuple[int, int]],
+    center_pt: tuple[int, int],
+    mosaic_size: tuple[int, int],
+) -> np.ndarray:
+    target_h, target_w = mosaic_size
+    original_keypoints_len = 0
+
+    mosaic_keypoints = []
+    for idx, kps in enumerate(all_keypoints):
+        if kps is None:
+            continue
+
+        keypoints, original_keypoints_len = ensure_full_keypoints(kps)
+
+        # Handle effect of resize and pad each image.
+        # For a resizing without keeping aspect ratio, it is not really accurate,
+        # but anyway in that case the keypoint is not a circle anymore, but an ellipse.
+        h, w = all_img_shapes[idx]
+        scale = min(target_h / h, target_w / w)
+        resized_h, resized_w = int(h * scale), int(w * scale)
+
+        x_pad_offset, y_pad_offset = get_2x2_mosaic_quadrant_pad_after_resize(
+            target_shape=(target_h, target_w),
+            resized_shape=(resized_h, resized_w),
+            quadrant_idx=idx,
+        )
+
+        keypoints[:, [0, 1, 2, 4]] *= scale
+        keypoints = fcrops.crop_and_pad_keypoints(
+            keypoints,
+            pad_params=(y_pad_offset, y_pad_offset + resized_h, x_pad_offset, x_pad_offset + resized_w),
+        )
+
+        # Handle effect of placing each image in its corresponding quadrant.
+        x_offset, y_offset = get_2x2_mosaic_quadrant_offset(
+            target_shape=(target_h, target_w),
+            quadrant_idx=idx,
+        )
+
+        keypoints[:, 0] += x_offset
+        keypoints[:, 1] += y_offset
+
+        mosaic_keypoints.append(keypoints)
+
+    mosaic_keypoints_np = np.concatenate(mosaic_keypoints, axis=0)
+    if mosaic_keypoints_np.size == 0:
+        return mosaic_keypoints_np
+
+    # Handle center crop effect
+    crop_coords = get_2x2_mosaic_center_crop(
+        center_pt=center_pt,
+        target_shape=(target_h, target_w),
+    )
+
+    crop_mosaic_keypoints = fcrops.crop_and_pad_keypoints(
+        mosaic_keypoints_np,
+        crop_params=crop_coords,
+    )
+
+    # Filter keypoints falling completely outside or disappearing
+    keep_mosaic_keypoints = [
+        keypoints
+        for keypoints in crop_mosaic_keypoints
+        if keypoints[0] >= 0
+        and keypoints[0] < target_w
+        and keypoints[1] >= 0
+        and keypoints[1] < target_h
+        and keypoints[4] > 0
+    ]
+    keep_mosaic_keypoints_np = np.array(keep_mosaic_keypoints)
+    if keep_mosaic_keypoints_np.size == 0:
+        return keep_mosaic_keypoints_np
+
+    # Set back keypoints to their original length
+    if original_keypoints_len in (2, 3):  # In case we had (x, y) or (x, y, z)
+        return keep_mosaic_keypoints_np[:, :original_keypoints_len]
+    if original_keypoints_len == 4:  # In case we had (x, y, angle, scale)
+        return np.delete(keep_mosaic_keypoints_np, 2, axis=1)
+
+    return keep_mosaic_keypoints_np
