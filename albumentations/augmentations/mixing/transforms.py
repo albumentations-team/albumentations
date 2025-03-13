@@ -393,8 +393,8 @@ class Mosaic(DualTransform):
 
         # If mosaic_data is not empty, calculate center_pt and apply read_fn
         mosaic_h, mosaic_w = self.mosaic_size  # We force the center to be in the left half of the 2x2 mosaic
-        center_x = int(mosaic_w * self.py_random.uniform(*self.center_range))
-        center_y = int(mosaic_h * self.py_random.uniform(*self.center_range))
+        center_x = int((mosaic_w - 1) * self.py_random.uniform(*self.center_range))
+        center_y = int((mosaic_h - 1) * self.py_random.uniform(*self.center_range))
         return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]], "center_pt": (center_x, center_y)}
 
     def apply(
