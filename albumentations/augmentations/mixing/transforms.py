@@ -9,7 +9,7 @@ from warnings import warn
 import cv2
 import numpy as np
 from albucore import get_num_channels
-from pydantic import AfterValidator
+from pydantic import AfterValidator, field_validator
 
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
@@ -190,7 +190,7 @@ class OverlayElements(DualTransform):
 
 class Mosaic(DualTransform):
     """Combine four images into one in a 2x2 mosaic style. This transformation requires a sequence of four images
-    and their corresponding properties such as masks, bounding boxes, and keypoints.
+    and their corresponding properties such as masks, bounding boxes, class labels, and keypoints.
 
     Args:
         reference_data (Optional[Generator[ReferenceImage, None, None] | Sequence[Any]]):
@@ -218,17 +218,21 @@ class Mosaic(DualTransform):
         fill_mask (tuple[float, ...] | float):
             Same as fill but only for masks.
 
-    Note: The process used to create a 2x2 mosaic image goes through the following steps:
-          1. Randomly selects 3 images and their properties from the reference data.
-          2. Randomly samples a center point to perform the final crop.
-             The center point is chosen to ensure all 4 images will appear in the final crop.
-          3. Resizes the input image and the 3 additional images to match the desired mosaic size.
-             Resizing may be preserve the aspect ratio (with padding) or not.
-          4. Builds an empty oversized 2x2 mosaic of twice the desired mosaic size.
-             This oversized mosaic is made of 4 quadrants (each one with the desired mosaic size).
-          5. Place the input image and the 3 additional images in each quadrant of the oversized mosaic.
-             The order is top-left, top-right, bottom-left, and bottom-right.
-          6. Crops the oversized mosaic around the center point with the desired mosaic shape.
+    Note: Bounding boxes and keypoints of the reference data must be formatted in the same way as specified in
+        BboxParams and KeypointParams of the Compose() method. Especially, bounding boxes must include at least
+        a fifth element encoding the bbox label.
+
+    Algorithm description: The process used to create a 2x2 mosaic image goes through the following steps:
+        1. Randomly selects 3 images and their properties from the reference data.
+        2. Randomly samples a center point to perform the final crop.
+            The center point is chosen to ensure all 4 images will appear in the final crop.
+        3. Resizes the input image and the 3 additional images to match the desired mosaic size.
+            Resizing may be preserve the aspect ratio (with padding) or not.
+        4. Builds an empty oversized 2x2 mosaic of twice the desired mosaic size.
+            This oversized mosaic is made of 4 quadrants (each one with the desired mosaic size).
+        5. Place the input image and the 3 additional images in each quadrant of the oversized mosaic.
+            The order is top-left, top-right, bottom-left, and bottom-right.
+        6. Crops the oversized mosaic around the center point with the desired mosaic shape.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -317,11 +321,28 @@ class Mosaic(DualTransform):
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
 
+        @field_validator("mosaic_size")
+        @classmethod
+        def convert_mosaic_size(cls, value: int | tuple[int, int]) -> tuple[int, int]:
+            if isinstance(value, (list, tuple)):
+                if len(value) >= 2:
+                    value = value[:2]
+                else:
+                    msg = "Mosaic size provided as a list or tuple must have at least two elements (height, width)."
+                    raise TypeError(msg)
+            else:
+                value = (value, value)
+
+            if value[0] < 2 or value[1] < 2:
+                raise ValueError(f"Mosaic size must be greater than 2 in both dimension, but got {value}.")
+
+            return value
+
     def __init__(
         self,
         reference_data: Generator[Any, None, None] | Sequence[Any] | None = None,
         read_fn: Callable[[ReferenceImage], Any] = lambda x: x,
-        mosaic_size: int | tuple[int, int] = 512,
+        mosaic_size: tuple[int, int] = (512, 512),
         center_range: tuple[float, float] = (0.3, 0.7),
         keep_aspect_ratio: bool = False,
         interpolation: Literal[
@@ -348,6 +369,7 @@ class Mosaic(DualTransform):
     ) -> None:
         super().__init__(p=p)
         self.read_fn = read_fn
+        self.mosaic_size = mosaic_size
         self.center_range = center_range
         self.keep_aspect_ratio = keep_aspect_ratio
         self.interpolation = interpolation
@@ -356,15 +378,6 @@ class Mosaic(DualTransform):
         self.fill_mask = fill_mask
         # Specifies how many images to use from reference_data to make the mosaic
         self.n = 3  # For now we focus on 2x2 mosaic
-
-        if isinstance(mosaic_size, (list, tuple)):
-            if len(mosaic_size) >= 2:
-                self.mosaic_size = mosaic_size[:2]
-            else:
-                msg = "mosaic_size provided as a list or tuple must have at least two elements (height, width)."
-                raise TypeError(msg)
-        else:
-            self.mosaic_size = (mosaic_size, mosaic_size)
 
         if reference_data is None:
             warn("No reference data provided for Mosaic. This transform will act as a no-op.", stacklevel=2)
@@ -518,11 +531,12 @@ class Mosaic(DualTransform):
                 all_bboxes.append(None)  # Need to know which quadrant does not have bbox
                 continue
 
-            if isinstance(add_bboxes, tuple):
-                add_bboxes = np.array([add_bboxes], dtype=np.float32)
+            if isinstance(add_bboxes, (tuple, list)):
+                add_bboxes = np.array(add_bboxes, dtype=np.float32)
 
             if add_bboxes.shape[1] != bboxes.shape[1]:
-                msg = "The length of the mosaic bboxes should be the same as the input bboxes."
+                msg = f"The length of the mosaic bboxes should be the same as the input bboxes, \
+                    but got {add_bboxes.shape[1]} vs {bboxes.shape[1]}."
                 raise ValueError(msg)
 
             all_bboxes.append(add_bboxes)
@@ -555,11 +569,12 @@ class Mosaic(DualTransform):
                 all_keypoints.append(None)  # Need to know which quadrant does not have keypoints
                 continue
 
-            if isinstance(add_keypoints, tuple):
-                add_keypoints = np.array([add_keypoints], dtype=np.float32)
+            if isinstance(add_keypoints, (tuple, list)):
+                add_keypoints = np.array(add_keypoints, dtype=np.float32)
 
-            if add_keypoints.shape[1] != add_keypoints.shape[1]:
-                msg = "The length of the mosaic keypoints should be the same as the input keypoints."
+            if add_keypoints.shape[1] != keypoints.shape[1]:
+                msg = f"The length of the mosaic keypoints should be the same as the input keypoints, \
+                    but got {add_keypoints.shape[1]} vs {keypoints.shape[1]}."
                 raise ValueError(msg)
 
             all_keypoints.append(add_keypoints)
