@@ -209,7 +209,7 @@ class DataProcessor(ABC):
             for label_field in self.params.label_fields:
                 self._validate_label_field_length(data, data_name, label_field)
                 encoded_labels = self.label_manager.process_field(data_name, label_field, data[label_field])
-                data_array = np.hstack((data_array, encoded_labels))
+                data_array = np.hstack((data_array, encoded_labels)) if encoded_labels.size else np.array(data_array)
                 del data[label_field]
         return data_array
 
