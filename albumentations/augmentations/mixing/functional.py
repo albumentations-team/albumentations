@@ -10,7 +10,6 @@ from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 __all__ = [
     "copy_and_paste_blend",
     "create_2x2_mosaic_image",
-    "ensure_full_keypoints",
     "get_2x2_mosaic_bboxes",
     "get_2x2_mosaic_center_crop",
     "get_2x2_mosaic_keypoints",
@@ -401,39 +400,6 @@ def get_2x2_mosaic_bboxes(
     return np.array(keep_mosaic_bboxes)
 
 
-def ensure_full_keypoints(
-    keypoints: np.ndarray,
-) -> tuple[np.ndarray, int]:
-    """Ensures keypoints have at least 5 elements (x, y, z, angle, scale, ...).
-
-    This function converts a keypoint with format (x, y), (x, y, z) or (x, y, angle, scale) into format
-    (x, y, 0, 0, 0), (x, y, z, 0, 0) or (x, y, 0, angle, scale) respectively.
-    It adds dummy value (0) to missing elements.
-
-    Args:
-        keypoints (np.ndarray): The keypoints potentially missing elements (shape (N, 2+)).
-
-    Returns:
-        tuple[np.ndarray, int]: The keypoints with dummy values (shape (N, 5+)), and the number of
-            elements in the original keypoints.
-
-    Notes:
-        Do not forget to apply the inverse transformation removing the dummy elements before returning
-            the final object.
-    """
-    original_keypoints_len = keypoints.shape[1]  # We ensured before all keypoints have same length
-
-    # Need to ensure at least 5 elements in keypoints
-    if original_keypoints_len in (2, 4):  # In case we have (x, y) or (x, y, angle, scale)
-        for _ in range(5 - original_keypoints_len):  # --> becomes (x, y, 0, 0, 0) or (x, y, 0, angle, scale)
-            keypoints = np.insert(keypoints, 2, 0, axis=1)
-    elif original_keypoints_len == 3:  # In case we have (x, y, z)
-        for _ in range(5 - original_keypoints_len):  # --> (x, y, z, 0, 0)
-            keypoints = np.insert(keypoints, 3, 0, axis=1)
-
-    return keypoints, original_keypoints_len
-
-
 def get_2x2_mosaic_keypoints(
     all_keypoints: list[np.ndarray | None],
     all_img_shapes: list[tuple[int, int]],
@@ -476,14 +442,11 @@ def get_2x2_mosaic_keypoints(
         ... )
     """
     target_h, target_w = mosaic_size
-    original_keypoints_len = 0
 
     mosaic_keypoints = []
     for idx, kps in enumerate(all_keypoints):
         if kps is None:
             continue
-
-        keypoints, original_keypoints_len = ensure_full_keypoints(kps)
 
         # Handle effect of resize and pad each image.
         # For a resizing without keeping aspect ratio, it is not really accurate,
@@ -498,9 +461,9 @@ def get_2x2_mosaic_keypoints(
             quadrant_idx=idx,
         )
 
-        keypoints[:, [0, 1, 2, 4]] *= scale
+        kps[:, [0, 1, 2, 4]] *= scale
         keypoints = fcrops.crop_and_pad_keypoints(
-            keypoints,
+            kps,
             pad_params=(y_pad_offset, y_pad_offset + resized_h, x_pad_offset, x_pad_offset + resized_w),
         )
 
@@ -540,14 +503,4 @@ def get_2x2_mosaic_keypoints(
         and keypoints[1] < target_h
         and keypoints[4] > 0
     ]
-    keep_mosaic_keypoints_np = np.array(keep_mosaic_keypoints)
-    if keep_mosaic_keypoints_np.size == 0:
-        return keep_mosaic_keypoints_np
-
-    # Set back keypoints to their original length
-    if original_keypoints_len in (2, 3):  # In case we had (x, y) or (x, y, z)
-        return keep_mosaic_keypoints_np[:, :original_keypoints_len]
-    if original_keypoints_len == 4:  # In case we had (x, y, angle, scale)
-        return np.delete(keep_mosaic_keypoints_np, 2, axis=1)
-
-    return keep_mosaic_keypoints_np
+    return np.array(keep_mosaic_keypoints)
