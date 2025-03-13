@@ -74,12 +74,12 @@ def get_2x2_mosaic_center_crop(
 ) -> tuple[int, int, int, int]:
     target_h, target_w = target_shape
 
-    # Extract the final (target_h, target_w) crop centered at center_pt
+    # Extract the final (target_h, target_w) crop centered at center_pt.
+    # Make sure it does not become negative. It cannot go beyond (2 * target_h - 1, 2 * target_w - 1).
+    # We already ensured center_pt[0] is in [0, target_w - 1].
+    # We already ensured center_pt[1] is in [0, target_h - 1].
     x1, y1 = max(0, center_pt[0] - target_w // 2), max(0, center_pt[1] - target_h // 2)
     x2, y2 = x1 + target_w, y1 + target_h
-    # Ensure the crop is within bounds
-    x1, x2 = min(x1, target_w), min(x2, 2 * target_w)
-    y1, y2 = min(y1, target_h), min(y2, 2 * target_h)
 
     return (x1, y1, x2, y2)
 
