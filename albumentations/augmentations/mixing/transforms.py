@@ -17,7 +17,7 @@ from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.type_definitions import LENGTH_RAW_BBOX, ReferenceImage, Targets
 
-__all__ = ["OverlayElements"]
+__all__ = ["Mosaic", "OverlayElements"]
 
 
 class OverlayElements(DualTransform):
@@ -189,11 +189,46 @@ class OverlayElements(DualTransform):
 
 
 class Mosaic(DualTransform):
-    """Combine four images into one in a mosaic style. This transformation requires a sequence of four images
+    """Combine four images into one in a 2x2 mosaic style. This transformation requires a sequence of four images
     and their corresponding properties such as masks, bounding boxes, and keypoints.
 
     Args:
-        #TODO
+        reference_data (Optional[Generator[ReferenceImage, None, None] | Sequence[Any]]):
+            A sequence or generator of dictionaries containing the reference data and their properties for the mosaic.
+            If None or an empty sequence is provided, no operation is performed and a warning is issued.
+        read_fn (Callable[[ReferenceImage], dict[str, Any]]):
+            A function to process items from reference_data. It should accept items from reference_data
+            and return a dictionary containing processed data:
+                - The returned dictionary must include an 'image' key with a numpy array value.
+                - It may also include 'mask', 'bbox' and 'keypoints' each associated with numpy array values.
+            Defaults to a function that assumes input is already in the good format and returns it.
+        mosaic_size (int | tuple[int, int]):
+            The desired (height, width) for the final mosaic image.
+        center_range (tuple[float, float]):
+            The range to sample the center point.
+        keep_aspect_ratio (bool):
+            Whether to preserve the aspect ratio when resizing each image.
+        interpolation (OpenCV flag):
+            OpenCV interpolation flag.
+        mask_interpolation (OpenCV flag):
+            Same as interpolation but only for masks.
+        fill (tuple[float, ...] | float):
+            The constant value to use when padding resized image.
+            The expected value range is ``[0, 255]`` for ``uint8`` images.
+        fill_mask (tuple[float, ...] | float):
+            Same as fill but only for masks.
+
+    Note: The process used to create a 2x2 mosaic image goes through the following steps:
+          1. Randomly selects 3 images and their properties from the reference data.
+          2. Randomly samples a center point to perform the final crop.
+             The center point is chosen to ensure all 4 images will appear in the final crop.
+          3. Resizes the input image and the 3 additional images to match the desired mosaic size.
+             Resizing may be preserve the aspect ratio (with padding) or not.
+          4. Builds an empty oversized 2x2 mosaic of twice the desired mosaic size.
+             This oversized mosaic is made of 4 quadrants (each one with the desired mosaic size).
+          5. Place the input image and the 3 additional images in each quadrant of the oversized mosaic.
+             The order is top-left, top-right, bottom-left, and bottom-right.
+          6. Crops the oversized mosaic around the center point with the desired mosaic shape.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -202,7 +237,48 @@ class Mosaic(DualTransform):
         uint8, float32
 
     Example:
-        #TODO
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> from albumentations.core.type_definitions import ReferenceImage
+
+        >>> # Prepare reference data
+        >>> reference_data = [
+        ...     ReferenceImage(image=np.full((200, 100, 3), fill_value=(255, 255, 0), dtype=np.uint8)),
+        ...     ReferenceImage(image=np.full((50, 100, 3), fill_value=(255, 0, 255), dtype=np.uint8)),
+        ...     ReferenceImage(image=np.full((50, 50, 3), fill_value=(0, 255, 255), dtype=np.uint8))
+        ... ]
+
+        >>> # In this example, the lambda function simply returns its input, which works well for data already in the
+        >>> # expected format. For more complex scenarios, where the data might not be in the required format or
+        >>> # additional processing is needed, a more sophisticated function can be implemented.
+        >>> # Below is an example where the input data is a filepath, and the function reads the image file,
+        >>> # converts it to a specific format, and possibly performs other preprocessing steps.
+
+        >>> # Example of a more complex read_fn reading an image from a filepath, converts it to RGB, and resizes it.
+        >>> # def custom_read_fn(file_path):
+        ... #     from PIL import Image
+        ... #     from albumentations.core.types import ReferenceImage
+        ... #     image = Image.open(file_path).convert('RGB')
+        ... #     image = image.resize((100, 100))  # Example resize, adjust as needed.
+        ... #     return ReferenceImage(image=np.array(image))
+
+        >>> transform = A.Compose([
+        ...     A.Mosaic(
+        ...         p=1,
+        ...         reference_data=reference_data,
+        ...         read_fn=lambda x: x,
+        ...         mosaic_size=(100, 100),
+        ...         keep_aspect_ratio=True
+        ...     )
+        ... ])
+
+        >>> # For simplicity, the original lambda function is used in this example.
+            # Replace `lambda x: x` with `custom_read_fn` if you need to process the data more extensively.
+
+        >>> # Apply augmentations
+        >>> image = np.full((100, 100, 3), fill_value=(255, 255, 255), dtype=np.uint8)
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed["image"]
 
     Reference:
         YOLOv4: Optimal Speed and Accuracy of Object Detection: https://arxiv.org/pdf/2004.10934
@@ -219,6 +295,7 @@ class Mosaic(DualTransform):
             AfterValidator(check_range_bounds(0, 1)),
             AfterValidator(nondecreasing),
         ]
+        keep_aspect_ratio: bool
         interpolation: Literal[
             cv2.INTER_NEAREST,
             cv2.INTER_NEAREST_EXACT,
@@ -301,12 +378,18 @@ class Mosaic(DualTransform):
             msg = "reference_data must be a list, tuple, generator, or None."
             raise TypeError(msg)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return []
-
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ()
+        return (
+            "reference_data",
+            "read_fn",
+            "mosaic_size",
+            "center_range",
+            "keep_aspect_ratio",
+            "interpolation",
+            "mask_interpolation",
+            "fill",
+            "fill_mask",
+        )
 
     def get_params(self) -> dict[str, tuple[int, int] | list[None | dict[str, Any]]]:
         mosaic_data = []
@@ -329,17 +412,23 @@ class Mosaic(DualTransform):
                     RuntimeWarning,
                     stacklevel=2,
                 )
-                return {"mosaic_data": [], "center_pt": (0, 0)}
+                return {"mosaic_data": [], "center_point": (0, 0)}
 
         # If mosaic_data has not enough data after the above checks, return default values
         if len(mosaic_data) < self.n:
-            return {"mosaic_data": [], "center_pt": (0, 0)}
+            return {"mosaic_data": [], "center_point": (0, 0)}
 
         # If mosaic_data is not empty, calculate center_pt and apply read_fn
-        mosaic_h, mosaic_w = self.mosaic_size  # We force the center to be in the left half of the 2x2 mosaic
-        center_x = int((mosaic_w - 1) * self.py_random.uniform(*self.center_range))
-        center_y = int((mosaic_h - 1) * self.py_random.uniform(*self.center_range))
-        return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]], "center_pt": (center_x, center_y)}
+        mosaic_h, mosaic_w = self.mosaic_size
+        # Need to account that pixels coordinates go through 0 to mosaic_shape - 1,
+        # and we want to ensure at least one pixel from the left quadrants => mosaic_shape - 2.
+        center_x = int((mosaic_w - 2) * self.py_random.uniform(*self.center_range))
+        center_y = int((mosaic_h - 2) * self.py_random.uniform(*self.center_range))
+        # We force center_x to be in [mosaic_w // 2, (mosaic_w - 2) + mosaic_w // 2]
+        center_x += mosaic_w // 2
+        # We force center_h to be in [mosaic_h // 2, (mosaic_h - 2) + mosaic_h // 2]
+        center_y += mosaic_h // 2
+        return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]], "center_point": (center_x, center_y)}
 
     def apply(
         self,

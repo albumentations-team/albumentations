@@ -119,10 +119,9 @@ def get_2x2_mosaic_center_crop(
     target_h, target_w = target_shape
 
     # Extract the final (target_h, target_w) crop centered at center_pt.
-    # Make sure it does not become negative. It cannot go beyond (2 * target_h - 1, 2 * target_w - 1).
-    # We already ensured center_pt[0] is in [0, target_w - 1].
-    # We already ensured center_pt[1] is in [0, target_h - 1].
-    x1, y1 = max(0, center_pt[0] - target_w // 2), max(0, center_pt[1] - target_h // 2)
+    # We already ensured center_pt[0] is in [target_w // 2, (target_w - 2) + target_w // 2].
+    # We already ensured center_pt[1] is in [target_h // 2, (target_h - 2) + target_h // 2].
+    x1, y1 = center_pt[0] - (target_w - 1) // 2, center_pt[1] - (target_h - 1) // 2
     x2, y2 = x1 + target_w, y1 + target_h
 
     return (x1, y1, x2, y2)
@@ -429,10 +428,10 @@ def get_2x2_mosaic_keypoints(
 
     Example:
         >>> keypoints = [
-        ...     np.array([[0, 0, 45, 2.0], [99, 99, 45, 2.0], [80, 80, 45, 2.0]]),
-        ...     np.array([[0, 80, 45, 2.0], [199, 0, 45, 2.0], [40, 80, 45, 2.0]]),
-        ...     np.array([[0, 99, 45, 2.0], [49, 20, 45, 2.0], [40, 20, 45, 2.0]]),
-        ...     np.array([[15, 15, 45, 2.0], [49, 49, 45, 2.0]])
+        ...     np.array([[0, 0, 0, 45, 2.0], [99, 99, 0, 45, 2.0], [80, 80, 0, 45, 2.0]]),
+        ...     np.array([[0, 80, 0, 45, 2.0], [199, 0, 0, 45, 2.0], [40, 80, 0, 45, 2.0]]),
+        ...     np.array([[0, 99, 0, 45, 2.0], [49, 20, 0, 45, 2.0], [40, 20, 0, 45, 2.0]]),
+        ...     np.array([[15, 15, 0, 45, 2.0], [49, 49, 0, 45, 2.0]])
         ... ]
         >>> mosaic_keypoints = get_2x2_mosaic_keypoints(
         ...     all_keypoints=keypoints,
