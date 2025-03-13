@@ -35,6 +35,19 @@ from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transf
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_UINT8_IMAGE
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.FromFloat,
@@ -79,6 +92,19 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_FLOAT_IMAGE
+                    },
+                    {
+                        "image": SQUARE_FLOAT_IMAGE
+                    },
+                    {
+                        "image": SQUARE_FLOAT_IMAGE
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.FromFloat,
@@ -103,6 +129,22 @@ def test_image_only_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_UINT8_IMAGE + 1,
+                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE + 1,
+                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE + 1,
+                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -128,6 +170,22 @@ def test_dual_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_dual_transforms(
         custom_arguments={
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_FLOAT_IMAGE,
+                        "mask": SQUARE_FLOAT_IMAGE.copy()[:, :, 0].astype(np.uint8)
+                    },
+                    {
+                        "image": SQUARE_FLOAT_IMAGE,
+                        "mask": SQUARE_FLOAT_IMAGE.copy()[:, :, 0].astype(np.uint8)
+                    },
+                    {
+                        "image": SQUARE_FLOAT_IMAGE,
+                        "mask": SQUARE_FLOAT_IMAGE.copy()[:, :, 0].astype(np.uint8)
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -169,6 +227,22 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
+            },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_UINT8_IMAGE,
+                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE,
+                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE,
+                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
+                    }],
+                "read_fn": lambda x: x,
             },
         },
         except_augmentations={
@@ -468,7 +542,20 @@ def test_mask_fill_value(augmentation_cls, params):
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
-            }
+            },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_MULTI_UINT8_IMAGE
+                    },
+                    {
+                        "image": SQUARE_MULTI_UINT8_IMAGE
+                    },
+                    {
+                        "image": SQUARE_MULTI_UINT8_IMAGE
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -544,7 +631,20 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
-            }
+            },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_MULTI_FLOAT_IMAGE,
+                    },
+                    {
+                        "image": SQUARE_MULTI_FLOAT_IMAGE,
+                    },
+                    {
+                        "image": SQUARE_MULTI_FLOAT_IMAGE,
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -610,6 +710,19 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
+            },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_MULTI_UINT8_IMAGE,
+                    },
+                    {
+                        "image": SQUARE_MULTI_UINT8_IMAGE
+                    },
+                    {
+                        "image": SQUARE_MULTI_UINT8_IMAGE,
+                    }],
+                "read_fn": lambda x: x,
             },
         },
         except_augmentations={
@@ -687,7 +800,20 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
-            }
+            },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_MULTI_FLOAT_IMAGE,
+                    },
+                    {
+                        "image": SQUARE_MULTI_FLOAT_IMAGE,
+                    },
+                    {
+                        "image": SQUARE_MULTI_FLOAT_IMAGE,
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.CLAHE,
