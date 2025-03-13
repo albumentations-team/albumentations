@@ -7,7 +7,17 @@ import albumentations.augmentations.crops.functional as fcrops
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 
-__all__ = ["copy_and_paste_blend", "create_2x2_mosaic_image"]
+__all__ = [
+    "copy_and_paste_blend",
+    "create_2x2_mosaic_image",
+    "ensure_full_keypoints",
+    "get_2x2_mosaic_bboxes",
+    "get_2x2_mosaic_center_crop",
+    "get_2x2_mosaic_keypoints",
+    "get_2x2_mosaic_quadrant_offset",
+    "get_2x2_mosaic_quadrant_pad_after_resize",
+    "resize_and_pad_for_2x2_mosaic",
+]
 
 
 def copy_and_paste_blend(
@@ -32,6 +42,18 @@ def get_2x2_mosaic_quadrant_pad_after_resize(
     resized_shape: tuple[int, int],
     quadrant_idx: int,
 ) -> tuple[int, int]:
+    """Gets the padding offset in pixels to apply when padding a quadrant of a 2x2 mosaic image
+    that has been resized while preserving the aspect ratio.
+
+    Args:
+        target_shape (tuple[int, int]): The (height, width) of the quadrant after padding.
+        resized_shape (tuple[int, int]): The current (height, width) of the quadrant (resized).
+        quadrant_idx (int): The quadran index (0 for top-left, 1 for top-right, 2 for bottom-left, and
+                            3 for bottom-right).
+
+    Returns:
+        tuple[int, int]: The (x, y) padding offset to apply to coordinates (bboxes, keypoints...).
+    """
     target_h, target_w = target_shape
     resized_h, resized_w = resized_shape
 
@@ -52,6 +74,17 @@ def get_2x2_mosaic_quadrant_offset(
     target_shape: tuple[int, int],
     quadrant_idx: int,
 ) -> tuple[int, int]:
+    """Gets the offset in pixels to apply when placing the quadrant in a 2x2 mosaic image
+    of shape 2 * target_shape.
+
+    Args:
+        target_shape (tuple[int, int]): The (height, width) of the quadrant.
+        quadrant_idx (int): The quadran index (0 for top-left, 1 for top-right, 2 for bottom-left, and
+                            3 for bottom-right).
+
+    Returns:
+        tuple[int, int]: The (x, y) offset to apply to coordinates (bboxes, keypoints...).
+    """
     target_h, target_w = target_shape
 
     # The mosaic has shape (2 * target_h, 2 * target_w), so coordinates need to be translated
@@ -72,6 +105,18 @@ def get_2x2_mosaic_center_crop(
     center_pt: tuple[int, int],
     target_shape: tuple[int, int],
 ) -> tuple[int, int, int, int]:
+    """Gets the cropping area (shape `target_shape`) around a center point.
+
+    Args:
+        center_pt (tuple[int, int]): The center point coordinates (x, y).
+        target_shape (tuple[int, int]): The (height, width) of the cropping area.
+
+    Returns:
+        tuple[int, int, int, int]: The cropping area coordinates
+                                   (x_min, x_min + width, y_min, y_min + height).
+
+    Notes: When cropping, take the area from [y_min:y_min + height, x_min:x_min + width].
+    """
     target_h, target_w = target_shape
 
     # Extract the final (target_h, target_w) crop centered at center_pt.
@@ -254,7 +299,7 @@ def create_2x2_mosaic_image(
     return mosaic[y1:y2, x1:x2]
 
 
-def get_mosaic_bboxes(
+def get_2x2_mosaic_bboxes(
     all_bboxes: list[np.ndarray | None],
     all_img_shapes: list[tuple[int, int]],
     center_pt: tuple[int, int],
@@ -284,7 +329,7 @@ def get_mosaic_bboxes(
 
     Example:
         >>> bboxes = [np.array([[0, 0, 0.2, 0.2], [0.9, 0.9, 1.0, 1.0], [0.25, 0.25, 0.75, 0.75]])] * 4
-        >>> mosaic_bboxes = get_mosaic_bboxes(
+        >>> mosaic_bboxes = get_2x2_mosaic_bboxes(
         ...     all_bboxes=bboxes,
         ...     all_img_shapes=[(100, 100), (100, 200), (100, 50), (50, 50)],
         ...     center_pt=(100, 100),
@@ -357,29 +402,79 @@ def get_mosaic_bboxes(
 
 
 def ensure_full_keypoints(
-    kps: np.ndarray,
+    keypoints: np.ndarray,
 ) -> tuple[np.ndarray, int]:
-    original_keypoints_len = kps.shape[1]  # We ensured before all keypoints have same length
+    """Ensures keypoints have at least 5 elements (x, y, z, angle, scale, ...).
+
+    This function converts a keypoint with format (x, y), (x, y, z) or (x, y, angle, scale) into format
+    (x, y, 0, 0, 0), (x, y, z, 0, 0) or (x, y, 0, angle, scale) respectively.
+    It adds dummy value (0) to missing elements.
+
+    Args:
+        keypoints (np.ndarray): The keypoints potentially missing elements (shape (N, 2+)).
+
+    Returns:
+        tuple[np.ndarray, int]: The keypoints with dummy values (shape (N, 5+)), and the number of
+            elements in the original keypoints.
+
+    Notes:
+        Do not forget to apply the inverse transformation removing the dummy elements before returning
+            the final object.
+    """
+    original_keypoints_len = keypoints.shape[1]  # We ensured before all keypoints have same length
 
     # Need to ensure at least 5 elements in keypoints
     if original_keypoints_len in (2, 4):  # In case we have (x, y) or (x, y, angle, scale)
         for _ in range(5 - original_keypoints_len):  # --> becomes (x, y, 0, 0, 0) or (x, y, 0, angle, scale)
-            keypoints = np.insert(kps, 2, 0, axis=1)
+            keypoints = np.insert(keypoints, 2, 0, axis=1)
     elif original_keypoints_len == 3:  # In case we have (x, y, z)
         for _ in range(5 - original_keypoints_len):  # --> (x, y, z, 0, 0)
-            keypoints = np.insert(kps, 3, 0, axis=1)
-    else:
-        keypoints = kps
+            keypoints = np.insert(keypoints, 3, 0, axis=1)
 
     return keypoints, original_keypoints_len
 
 
-def get_mosaic_keypoints(
+def get_2x2_mosaic_keypoints(
     all_keypoints: list[np.ndarray | None],
     all_img_shapes: list[tuple[int, int]],
     center_pt: tuple[int, int],
     mosaic_size: tuple[int, int],
 ) -> np.ndarray:
+    """Gets all keypoints from a 2x2 cropped mosaic image.
+
+    This function applies the necessary transformations to the 4 images' keypoints when creating
+    a mosaic image through the function `A.augmentations.mixing.functional.create_2x2_mosaic_image()`.
+
+    Args:
+        all_keypoints (list[np.ndarray | None]): List of all keypoints (shape (N, 4+)) from the 4 images.
+        all_img_shapes (list[tuple[int, int]]): List of all 4 images (height, width).
+        center_pt (tuple[int, int]): The (x,y) position of the center point around which
+                                     the final mosaic has been cropped.
+        mosaic_size (tuple[int, int]): The (height, width) of the final cropped mosaic
+                                       (and also the one of each quadrant).
+
+    Returns:
+        np.ndarray: The keypoints of the final cropped mosaic image (shape (M, 4+), M <= N).
+
+    Notes:
+        Keypoints that fall completely outside the crop area will be removed.
+        Keypoints scale cannot be strictly preserved when images have been resized without preserving
+            the aspect ratio, as they become ellipses instead of circles.
+
+    Example:
+        >>> keypoints = [
+        ...     np.array([[0, 0, 45, 2.0], [99, 99, 45, 2.0], [80, 80, 45, 2.0]]),
+        ...     np.array([[0, 80, 45, 2.0], [199, 0, 45, 2.0], [40, 80, 45, 2.0]]),
+        ...     np.array([[0, 99, 45, 2.0], [49, 20, 45, 2.0], [40, 20, 45, 2.0]]),
+        ...     np.array([[15, 15, 45, 2.0], [49, 49, 45, 2.0]])
+        ... ]
+        >>> mosaic_keypoints = get_2x2_mosaic_keypoints(
+        ...     all_keypoints=keypoints,
+        ...     all_img_shapes=[(100, 100), (100, 200), (100, 50), (50, 50)],
+        ...     center_pt=(100, 100),
+        ...     mosaic_size=(100, 100)
+        ... )
+    """
     target_h, target_w = mosaic_size
     original_keypoints_len = 0
 

@@ -441,7 +441,7 @@ class Mosaic(DualTransform):
         all_img_shapes = [params["shape"][:2]]
         all_img_shapes.extend([md["image"].shape[:2] for md in mosaic_data])
 
-        return fmixing.get_mosaic_bboxes(
+        return fmixing.get_2x2_mosaic_bboxes(
             all_bboxes,
             all_img_shapes,
             center_pt=center_point,
@@ -478,7 +478,7 @@ class Mosaic(DualTransform):
         all_img_shapes = [params["shape"][:2]]
         all_img_shapes.extend([md["image"].shape[:2] for md in mosaic_data])
 
-        return fmixing.get_mosaic_keypoints(
+        return fmixing.get_2x2_mosaic_keypoints(
             all_keypoints,
             all_img_shapes,
             center_pt=center_point,
