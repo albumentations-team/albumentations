@@ -39,6 +39,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.Lambda,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
+    A.Mosaic,  # Takes read_fn as argument, but object of type function are not JSON/YAML serializable
 }
 
 

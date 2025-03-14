@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import random
-from typing import Any
+import types
+from collections.abc import Generator, Iterable, Iterator, Sequence
+from typing import Annotated, Any, Callable, Literal
+from warnings import warn
 
 import cv2
 import numpy as np
+from albucore import get_num_channels
+from pydantic import AfterValidator, field_validator
 
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.bbox_utils import check_bboxes, denormalize_bboxes
+from albumentations.core.pydantic import check_range_bounds, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.type_definitions import LENGTH_RAW_BBOX, Targets
+from albumentations.core.type_definitions import LENGTH_RAW_BBOX, ReferenceImage, Targets
 
-__all__ = ["OverlayElements"]
+__all__ = ["Mosaic", "OverlayElements"]
 
 
 class OverlayElements(DualTransform):
@@ -180,3 +186,405 @@ class OverlayElements(DualTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("metadata_key",)
+
+
+class Mosaic(DualTransform):
+    """Combine four images into one in a 2x2 mosaic style. This transformation requires a sequence of four images
+    and their corresponding properties such as masks, bounding boxes, class labels, and keypoints.
+
+    Args:
+        reference_data (Optional[Generator[ReferenceImage, None, None] | Sequence[Any]]):
+            A sequence or generator of dictionaries containing the reference data and their properties for the mosaic.
+            If None or an empty sequence is provided, no operation is performed and a warning is issued.
+        read_fn (Callable[[ReferenceImage], dict[str, Any]]):
+            A function to process items from reference_data. It should accept items from reference_data
+            and return a dictionary containing processed data:
+                - The returned dictionary must include an 'image' key with a numpy array value.
+                - It may also include 'mask', 'bbox' and 'keypoints' each associated with numpy array values.
+            Defaults to a function that assumes input is already in the good format and returns it.
+        mosaic_size (int | tuple[int, int]):
+            The desired (height, width) for the final mosaic image.
+        center_range (tuple[float, float]):
+            The range to sample the center point.
+        keep_aspect_ratio (bool):
+            Whether to preserve the aspect ratio when resizing each image.
+        interpolation (OpenCV flag):
+            OpenCV interpolation flag.
+        mask_interpolation (OpenCV flag):
+            Same as interpolation but only for masks.
+        fill (tuple[float, ...] | float):
+            The constant value to use when padding resized image.
+            The expected value range is ``[0, 255]`` for ``uint8`` images.
+        fill_mask (tuple[float, ...] | float):
+            Same as fill but only for masks.
+
+    Note: Bounding boxes and keypoints of the reference data must be formatted in the same way as specified in
+        BboxParams and KeypointParams of the Compose() method. Especially, bounding boxes must include at least
+        a fifth element encoding the bbox label.
+
+    Algorithm description: The process used to create a 2x2 mosaic image goes through the following steps:
+        1. Randomly selects 3 images and their properties from the reference data.
+        2. Randomly samples a center point to perform the final crop.
+            The center point is chosen to ensure all 4 images will appear in the final crop.
+        3. Resizes the input image and the 3 additional images to match the desired mosaic size.
+            Resizing may be preserve the aspect ratio (with padding) or not.
+        4. Builds an empty oversized 2x2 mosaic of twice the desired mosaic size.
+            This oversized mosaic is made of 4 quadrants (each one with the desired mosaic size).
+        5. Place the input image and the 3 additional images in each quadrant of the oversized mosaic.
+            The order is top-left, top-right, bottom-left, and bottom-right.
+        6. Crops the oversized mosaic around the center point with the desired mosaic shape.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> from albumentations.core.type_definitions import ReferenceImage
+
+        >>> # Prepare reference data
+        >>> reference_data = [
+        ...     ReferenceImage(image=np.full((200, 100, 3), fill_value=(255, 255, 0), dtype=np.uint8)),
+        ...     ReferenceImage(image=np.full((50, 100, 3), fill_value=(255, 0, 255), dtype=np.uint8)),
+        ...     ReferenceImage(image=np.full((50, 50, 3), fill_value=(0, 255, 255), dtype=np.uint8))
+        ... ]
+
+        >>> # In this example, the lambda function simply returns its input, which works well for data already in the
+        >>> # expected format. For more complex scenarios, where the data might not be in the required format or
+        >>> # additional processing is needed, a more sophisticated function can be implemented.
+        >>> # Below is an example where the input data is a filepath, and the function reads the image file,
+        >>> # converts it to a specific format, and possibly performs other preprocessing steps.
+
+        >>> # Example of a more complex read_fn reading an image from a filepath, converts it to RGB, and resizes it.
+        >>> # def custom_read_fn(file_path):
+        ... #     from PIL import Image
+        ... #     from albumentations.core.types import ReferenceImage
+        ... #     image = Image.open(file_path).convert('RGB')
+        ... #     image = image.resize((100, 100))  # Example resize, adjust as needed.
+        ... #     return ReferenceImage(image=np.array(image))
+
+        >>> transform = A.Compose([
+        ...     A.Mosaic(
+        ...         p=1,
+        ...         reference_data=reference_data,
+        ...         read_fn=lambda x: x,
+        ...         mosaic_size=(100, 100),
+        ...         keep_aspect_ratio=True
+        ...     )
+        ... ])
+
+        >>> # For simplicity, the original lambda function is used in this example.
+            # Replace `lambda x: x` with `custom_read_fn` if you need to process the data more extensively.
+
+        >>> # Apply augmentations
+        >>> image = np.full((100, 100, 3), fill_value=(255, 255, 255), dtype=np.uint8)
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed["image"]
+
+    Reference:
+        YOLOv4: Optimal Speed and Accuracy of Object Detection: https://arxiv.org/pdf/2004.10934
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        reference_data: Generator[Any, None, None] | Sequence[Any] | None = None
+        read_fn: Callable[[ReferenceImage], Any]
+        mosaic_size: int | tuple[int, int]
+        center_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_range_bounds(0, 1)),
+            AfterValidator(nondecreasing),
+        ]
+        keep_aspect_ratio: bool
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ]
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
+
+        @field_validator("mosaic_size")
+        @classmethod
+        def convert_mosaic_size(cls, value: int | tuple[int, int]) -> tuple[int, int]:
+            if isinstance(value, (list, tuple)):
+                if len(value) >= 2:
+                    value = value[:2]
+                else:
+                    msg = "Mosaic size provided as a list or tuple must have at least two elements (height, width)."
+                    raise TypeError(msg)
+            else:
+                value = (value, value)
+
+            if value[0] < 2 or value[1] < 2:
+                raise ValueError(f"Mosaic size must be greater than 2 in both dimension, but got {value}.")
+
+            return value
+
+    def __init__(
+        self,
+        reference_data: Generator[Any, None, None] | Sequence[Any] | None = None,
+        read_fn: Callable[[ReferenceImage], Any] = lambda x: x,
+        mosaic_size: tuple[int, int] = (512, 512),
+        center_range: tuple[float, float] = (0.3, 0.7),
+        keep_aspect_ratio: bool = False,
+        interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_LINEAR,
+        mask_interpolation: Literal[
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_CUBIC,
+            cv2.INTER_AREA,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_LINEAR_EXACT,
+        ] = cv2.INTER_NEAREST,
+        fill: tuple[float, ...] | float = 0,
+        fill_mask: tuple[float, ...] | float = 0,
+        p: float = 0.5,
+    ) -> None:
+        super().__init__(p=p)
+        self.read_fn = read_fn
+        self.mosaic_size = mosaic_size
+        self.center_range = center_range
+        self.keep_aspect_ratio = keep_aspect_ratio
+        self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
+        self.fill = fill
+        self.fill_mask = fill_mask
+        # Specifies how many images to use from reference_data to make the mosaic
+        self.n = 3  # For now we focus on 2x2 mosaic
+
+        if reference_data is None:
+            warn("No reference data provided for Mosaic. This transform will act as a no-op.", stacklevel=2)
+            # Create an empty generator
+            self.reference_data: Generator[Any, None, None] | Sequence[Any] = []
+        elif isinstance(reference_data, types.GeneratorType) or (
+            isinstance(reference_data, Iterable) and not isinstance(reference_data, (str, bytes))
+        ):
+            self.reference_data = reference_data
+        else:
+            msg = "reference_data must be a list, tuple, generator, or None."
+            raise TypeError(msg)
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            "reference_data",
+            "read_fn",
+            "mosaic_size",
+            "center_range",
+            "keep_aspect_ratio",
+            "interpolation",
+            "mask_interpolation",
+            "fill",
+            "fill_mask",
+        )
+
+    def get_params(self) -> dict[str, tuple[int, int] | list[None | dict[str, Any]]]:
+        mosaic_data = []
+
+        # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
+        if isinstance(self.reference_data, Sequence) and not isinstance(self.reference_data, (str, bytes)):
+            if len(self.reference_data) >= self.n:  # Additional check to ensure it's not empty and has enough elements
+                mosaic_idxes = self.py_random.sample(range(len(self.reference_data)), self.n)
+                mosaic_data = [self.reference_data[mosaic_idx] for mosaic_idx in mosaic_idxes]
+
+        # Check if reference_data is an iterator or generator
+        elif isinstance(self.reference_data, Iterator):
+            try:
+                for _ in range(self.n):
+                    mosaic_data.append(next(self.reference_data))  # Attempt to get the next item
+            except StopIteration:
+                warn(
+                    "Reference data iterator/generator has been exhausted. "
+                    "Further mosaic augmentations will not be applied.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                return {"mosaic_data": [], "center_point": (0, 0)}
+
+        # If mosaic_data has not enough data after the above checks, return default values
+        if len(mosaic_data) < self.n:
+            return {"mosaic_data": [], "center_point": (0, 0)}
+
+        # If mosaic_data is not empty, calculate center_pt and apply read_fn
+        mosaic_h, mosaic_w = self.mosaic_size
+        # Need to account that pixels coordinates go through 0 to mosaic_shape - 1,
+        # and we want to ensure at least one pixel from the left quadrants => mosaic_shape - 2.
+        center_x = int((mosaic_w - 2) * self.py_random.uniform(*self.center_range))
+        center_y = int((mosaic_h - 2) * self.py_random.uniform(*self.center_range))
+        # We force center_x to be in [mosaic_w // 2, (mosaic_w - 2) + mosaic_w // 2]
+        center_x += mosaic_w // 2
+        # We force center_h to be in [mosaic_h // 2, (mosaic_h - 2) + mosaic_h // 2]
+        center_y += mosaic_h // 2
+        return {"mosaic_data": [self.read_fn(md) for md in mosaic_data[: self.n]], "center_point": (center_x, center_y)}
+
+    def apply(
+        self,
+        img: np.ndarray,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        if len(mosaic_data) == 0:  # No-op
+            return img
+
+        add_images = [md["image"] for md in mosaic_data]
+        for add_img in add_images:
+            if get_num_channels(add_img) != get_num_channels(img):
+                msg = "The number of channels of the mosaic image should be the same as the input image."
+                raise ValueError(msg)
+
+            if add_img.dtype != img.dtype:
+                msg = "The data type of the mosaic image should be the same as the input image."
+                raise ValueError(msg)
+
+        four_imgs = [img]
+        four_imgs.extend(add_images)
+
+        return fmixing.create_2x2_mosaic_image(
+            four_imgs,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+            keep_aspect_ratio=self.keep_aspect_ratio,
+            interpolation=self.interpolation,
+            fill=self.fill,
+        )
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        if len(mosaic_data) == 0:  # No-op
+            return mask
+
+        add_masks = [md.get("mask") for md in mosaic_data]
+
+        for add_mask in add_masks:
+            if add_mask is None:
+                return mask  # No-op
+
+            if get_num_channels(add_mask) != get_num_channels(mask):
+                msg = "The number of channels of the mosaic mask should be the same as the input mask."
+                raise ValueError(msg)
+
+            if add_mask.dtype != mask.dtype:
+                msg = "The data type of the mosaic mask should be the same as the input mask."
+                raise ValueError(msg)
+
+        four_masks = [mask]
+        four_masks.extend(add_masks)
+
+        if self.fill_mask is None:  # Handles incompatible type Union[tuple[float, ...], float, None]
+            self.fill_mask = 0.0
+
+        return fmixing.create_2x2_mosaic_image(
+            four_masks,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+            keep_aspect_ratio=self.keep_aspect_ratio,
+            interpolation=self.mask_interpolation,
+            fill=self.fill_mask,
+        )
+
+    def apply_to_bboxes(
+        self,
+        bboxes: np.ndarray,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        if len(mosaic_data) == 0:  # No-op
+            return bboxes
+
+        all_bboxes = [bboxes]
+        for md in mosaic_data:
+            add_bboxes = md.get("bbox")
+            if add_bboxes is None:
+                all_bboxes.append(None)  # Need to know which quadrant does not have bbox
+                continue
+
+            if isinstance(add_bboxes, (tuple, list)):
+                add_bboxes = np.array(add_bboxes, dtype=np.float32)
+
+            if add_bboxes.shape[1] != bboxes.shape[1]:
+                msg = f"The length of the mosaic bboxes should be the same as the input bboxes, \
+                    but got {add_bboxes.shape[1]} vs {bboxes.shape[1]}."
+                raise ValueError(msg)
+
+            all_bboxes.append(add_bboxes)
+
+        all_img_shapes = [params["shape"][:2]]
+        all_img_shapes.extend([md["image"].shape[:2] for md in mosaic_data])
+
+        return fmixing.get_2x2_mosaic_bboxes(
+            all_bboxes,
+            all_img_shapes,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+            keep_aspect_ratio=self.keep_aspect_ratio,
+        )
+
+    def apply_to_keypoints(
+        self,
+        keypoints: np.ndarray,
+        mosaic_data: list[ReferenceImage],
+        center_point: tuple[int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        if len(mosaic_data) == 0:  # No-op
+            return keypoints
+
+        all_keypoints = [keypoints]
+        for md in mosaic_data:
+            add_keypoints = md.get("keypoints")
+            if add_keypoints is None:
+                all_keypoints.append(None)  # Need to know which quadrant does not have keypoints
+                continue
+
+            if isinstance(add_keypoints, (tuple, list)):
+                add_keypoints = np.array(add_keypoints, dtype=np.float32)
+
+            if add_keypoints.shape[1] != keypoints.shape[1]:
+                msg = f"The length of the mosaic keypoints should be the same as the input keypoints, \
+                    but got {add_keypoints.shape[1]} vs {keypoints.shape[1]}."
+                raise ValueError(msg)
+
+            all_keypoints.append(add_keypoints)
+
+        all_img_shapes = [params["shape"][:2]]
+        all_img_shapes.extend([md["image"].shape[:2] for md in mosaic_data])
+
+        return fmixing.get_2x2_mosaic_keypoints(
+            all_keypoints,
+            all_img_shapes,
+            center_pt=center_point,
+            mosaic_size=self.mosaic_size,
+        )

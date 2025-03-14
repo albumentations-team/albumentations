@@ -6,6 +6,7 @@ import pytest
 import albumentations as A
 from albumentations.core.type_definitions import ALL_TARGETS, Targets
 
+from tests.conftest import SQUARE_FLOAT_IMAGE
 from .utils import get_dual_transforms, get_image_only_transforms
 
 
@@ -48,6 +49,7 @@ def extract_targets_from_docstring(cls):
 
 DUAL_TARGETS = {
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
+    A.Mosaic: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
 }
 
 
@@ -110,6 +112,7 @@ def test_image_only(augmentation_cls, params):
                 "fill": 0,
             },
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.Mosaic: {},
         },
     ),
 )

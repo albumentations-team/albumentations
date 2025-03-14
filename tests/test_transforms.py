@@ -162,6 +162,7 @@ def __test_multiprocessing_support_proc(args):
             A.OverlayElements,
             A.TextImage,
             A.MaskDropout,
+            A.Mosaic,
         },
     ),
 )
@@ -1047,6 +1048,19 @@ def test_random_crop_from_borders(
                 "reference_images": [SQUARE_UINT8_IMAGE + 1],
                 "read_fn": lambda x: x,
             },
+            A.Mosaic: {
+                "reference_data": [
+                    {
+                        "image": SQUARE_UINT8_IMAGE + 1,
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE + 1,
+                    },
+                    {
+                        "image": SQUARE_UINT8_IMAGE + 1,
+                    }],
+                "read_fn": lambda x: x,
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1141,6 +1155,7 @@ def test_change_image(augmentation_cls, params, image):
             A.RandomRotate90,
             A.FrequencyMasking,
             A.TimeMasking,
+            A.Mosaic,
         },
     ),
 )
