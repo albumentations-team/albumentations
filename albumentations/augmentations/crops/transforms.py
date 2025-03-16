@@ -278,6 +278,10 @@ class RandomCrop(BaseCropAndPad):
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
         fill (tuple[float, ...] | float): Padding value for images if border_mode is
             cv2.BORDER_CONSTANT. Default: 0.
+        fill_mask (tuple[float, ...] | float): Padding value for masks if border_mode is
+            cv2.BORDER_CONSTANT. Default: 0.
+        pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
+            Position of padding. Default: 'center'.
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:

@@ -113,23 +113,9 @@ class BaseDropout(DualTransform):
         return filter_keypoints_in_holes(keypoints, holes)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Get parameters of the transform conditioned on the input image.
-
-        Args:
-            params (dict): Parameters given to the transform.
-            data (dict): Additional data given to the transform.
-
-        Returns:
-            dict: Parameters required to apply the transform.
-        """
         raise NotImplementedError("Subclasses must implement this method.")
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the names of the arguments used in __init__.
-
-        Returns:
-            tuple: Names of the arguments.
-        """
         return "fill", "fill_mask"
 
 

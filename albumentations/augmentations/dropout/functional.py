@@ -89,7 +89,7 @@ def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpain
     Args:
         img (np.ndarray): Input image (grayscale or BGR)
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        method (Literal["inpaint_telea", "inpaint_ns"]): Inpainting method to use ("inpaint_telea" or "inpaint_ns")
+        method (Literal["inpaint_telea", "inpaint_ns"]): Inpainting method to use
 
     Returns:
         np.ndarray: Inpainted image
@@ -519,12 +519,7 @@ def mask_dropout_bboxes(
     # Create a boolean mask for boxes to keep
     keep_mask = (visible_areas >= min_area) & (visibility_ratio >= min_visibility)
 
-    filtered_boxes = bboxes[keep_mask]
-    if len(filtered_boxes) == 0:
-        return np.empty((0, bboxes.shape[1]), dtype=bboxes.dtype)
-
-    # Try to resize filtered boxes
-    return resize_boxes_to_visible_area(filtered_boxes, dropout_mask)
+    return bboxes[keep_mask]
 
 
 @handle_empty_array("keypoints")
