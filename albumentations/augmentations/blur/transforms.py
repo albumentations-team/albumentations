@@ -106,7 +106,7 @@ class Blur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.blur_limit = cast(tuple[int, int], blur_limit)
+        self.blur_limit = cast("tuple[int, int]", blur_limit)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
         return fblur.blur(img, kernel)
@@ -256,7 +256,7 @@ class MotionBlur(Blur):
     ):
         super().__init__(blur_limit=blur_limit, p=p)
         self.allow_shifted = allow_shifted
-        self.blur_limit = cast(tuple[int, int], blur_limit)
+        self.blur_limit = cast("tuple[int, int]", blur_limit)
         self.angle_range = angle_range
         self.direction_range = direction_range
 
@@ -365,7 +365,7 @@ class GaussianBlur(ImageOnlyTransform):
 
     Args:
         sigma_limit (tuple[float, float] | float): Range for the Gaussian kernel standard
-            deviation (sigma). Must be in range [0, inf).
+            deviation (sigma). Must be more or equal than 0.
             - If a single float is provided, sigma will be randomly chosen
               between 0 and that value.
             - If a tuple of two floats is provided, it defines the inclusive range
@@ -439,8 +439,8 @@ class GaussianBlur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.blur_limit = cast(tuple[int, int], blur_limit)
-        self.sigma_limit = cast(tuple[float, float], sigma_limit)
+        self.blur_limit = cast("tuple[int, int]", blur_limit)
+        self.sigma_limit = cast("tuple[float, float]", sigma_limit)
 
     def apply(
         self,
@@ -704,12 +704,12 @@ class AdvancedBlur(ImageOnlyTransform):
     ):
         super().__init__(p=p)
 
-        self.blur_limit = cast(tuple[int, int], blur_limit)
-        self.sigma_x_limit = cast(tuple[float, float], sigma_x_limit)
-        self.sigma_y_limit = cast(tuple[float, float], sigma_y_limit)
-        self.rotate_limit = cast(tuple[int, int], rotate_limit)
-        self.beta_limit = cast(tuple[float, float], beta_limit)
-        self.noise_limit = cast(tuple[float, float], noise_limit)
+        self.blur_limit = cast("tuple[int, int]", blur_limit)
+        self.sigma_x_limit = cast("tuple[float, float]", sigma_x_limit)
+        self.sigma_y_limit = cast("tuple[float, float]", sigma_y_limit)
+        self.rotate_limit = cast("tuple[int, int]", rotate_limit)
+        self.beta_limit = cast("tuple[float, float]", beta_limit)
+        self.noise_limit = cast("tuple[float, float]", noise_limit)
 
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.convolve(img, kernel=kernel)
@@ -831,8 +831,8 @@ class Defocus(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.radius = cast(tuple[int, int], radius)
-        self.alias_blur = cast(tuple[float, float], alias_blur)
+        self.radius = cast("tuple[int, int]", radius)
+        self.alias_blur = cast("tuple[float, float]", alias_blur)
 
     def apply(
         self,
@@ -886,8 +886,8 @@ class ZoomBlur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.max_factor = cast(tuple[float, float], max_factor)
-        self.step_factor = cast(tuple[float, float], step_factor)
+        self.max_factor = cast("tuple[float, float]", max_factor)
+        self.step_factor = cast("tuple[float, float]", step_factor)
 
     def apply(
         self,

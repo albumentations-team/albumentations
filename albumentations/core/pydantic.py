@@ -80,10 +80,14 @@ def check_range_bounds(
     """Validates that all values in a tuple are within specified bounds.
 
     Args:
-        min_val: Minimum allowed value
-        max_val: Maximum allowed value. If None, only lower bound is checked.
-        min_inclusive: If True, min_val is inclusive (>=). If False, exclusive (>).
-        max_inclusive: If True, max_val is inclusive (<=). If False, exclusive (<).
+        min_val (int | float):
+            Minimum allowed value.
+        max_val (int | float | None):
+            Maximum allowed value. If None, only lower bound is checked.
+        min_inclusive (bool):
+            If True, min_val is inclusive (>=). If False, exclusive (>).
+        max_inclusive (bool):
+            If True, max_val is inclusive (<=). If False, exclusive (<).
 
     Returns:
         Validator function that checks if all values in tuple are within bounds.

@@ -43,6 +43,17 @@ class BasePad3D(Transform3D):
         padding: tuple[int, int, int, int, int, int],
         **params: Any,
     ) -> np.ndarray:
+        """Apply padding to a 3D volume.
+
+        Args:
+            volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
+            padding (tuple[int, int, int, int, int, int]): Padding values in format:
+                (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Padded volume with same number of dimensions as input
+        """
         if padding == (0, 0, 0, 0, 0, 0):
             return volume
         return f3d.pad_3d_with_params(
@@ -57,15 +68,36 @@ class BasePad3D(Transform3D):
         padding: tuple[int, int, int, int, int, int],
         **params: Any,
     ) -> np.ndarray:
+        """Apply padding to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): Input mask with shape (depth, height, width) or (depth, height, width, channels)
+            padding (tuple[int, int, int, int, int, int]): Padding values in format:
+                (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Padded mask with same number of dimensions as input
+        """
         if padding == (0, 0, 0, 0, 0, 0):
             return mask3d
         return f3d.pad_3d_with_params(
             volume=mask3d,
             padding=padding,
-            value=cast(Union[tuple[float, ...], float], self.fill_mask),
+            value=cast("Union[tuple[float, ...], float]", self.fill_mask),
         )
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply padding to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).
+                                   The first three columns are x, y, z coordinates.
+            **params (Any): Additional parameters containing padding values
+
+        Returns:
+            np.ndarray: Shifted keypoints with same shape as input
+        """
         padding = params["padding"]
         shift_vector = np.array([padding[4], padding[2], padding[0]])
         return fgeometric.shift_keypoints(keypoints, shift_vector)
@@ -257,7 +289,14 @@ class BaseCropAndPad3D(Transform3D):
         self.pad_position = pad_position
 
     def _random_pad(self, pad: int) -> tuple[int, int]:
-        """Helper function to calculate random padding for one dimension."""
+        """Generate random padding values.
+
+        Args:
+            pad (int): Total padding value to distribute
+
+        Returns:
+            tuple[int, int]: Random padding values (front, back)
+        """
         if pad > 0:
             pad_start = self.py_random.randint(0, pad)
             pad_end = pad - pad_start
@@ -266,7 +305,14 @@ class BaseCropAndPad3D(Transform3D):
         return pad_start, pad_end
 
     def _center_pad(self, pad: int) -> tuple[int, int]:
-        """Helper function to calculate center padding for one dimension."""
+        """Generate centered padding values.
+
+        Args:
+            pad (int): Total padding value to distribute
+
+        Returns:
+            tuple[int, int]: Centered padding values (front, back)
+        """
         pad_start = pad // 2
         pad_end = pad - pad_start
         return pad_start, pad_end
@@ -275,8 +321,16 @@ class BaseCropAndPad3D(Transform3D):
         self,
         image_shape: tuple[int, int, int],
         target_shape: tuple[int, int, int],
-    ) -> dict[str, Any] | None:
-        """Calculate padding parameters if needed for 3D volumes."""
+    ) -> dict[str, int] | None:
+        """Calculate padding parameters to reach target shape.
+
+        Args:
+            image_shape (tuple[int, int, int]): Current shape (depth, height, width)
+            target_shape (tuple[int, int, int]): Target shape (depth, height, width)
+
+        Returns:
+            dict[str, int] | None: Padding parameters or None if no padding needed
+        """
         if not self.pad_if_needed:
             return None
 
@@ -318,6 +372,17 @@ class BaseCropAndPad3D(Transform3D):
         pad_params: dict[str, int] | None,
         **params: Any,
     ) -> np.ndarray:
+        """Apply cropping and padding to a 3D volume.
+
+        Args:
+            volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
+            crop_coords (tuple[int, int, int, int, int, int]): Crop coordinates (z1, z2, y1, y2, x1, x2)
+            pad_params (dict[str, int] | None): Padding parameters or None if no padding needed
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Cropped and padded volume with same number of dimensions as input
+        """
         # First crop
         cropped = f3d.crop3d(volume, crop_coords)
 
@@ -346,6 +411,17 @@ class BaseCropAndPad3D(Transform3D):
         pad_params: dict[str, int] | None,
         **params: Any,
     ) -> np.ndarray:
+        """Apply cropping and padding to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): Input mask with shape (depth, height, width) or (depth, height, width, channels)
+            crop_coords (tuple[int, int, int, int, int, int]): Crop coordinates (z1, z2, y1, y2, x1, x2)
+            pad_params (dict[str, int] | None): Padding parameters or None if no padding needed
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Cropped and padded mask with same number of dimensions as input
+        """
         # First crop
         cropped = f3d.crop3d(mask3d, crop_coords)
 
@@ -362,7 +438,7 @@ class BaseCropAndPad3D(Transform3D):
             return f3d.pad_3d_with_params(
                 cropped,
                 padding=padding,
-                value=cast(Union[tuple[float, ...], float], self.fill_mask),
+                value=cast("Union[tuple[float, ...], float]", self.fill_mask),
             )
 
         return cropped
@@ -374,6 +450,18 @@ class BaseCropAndPad3D(Transform3D):
         pad_params: dict[str, int] | None,
         **params: Any,
     ) -> np.ndarray:
+        """Apply cropping and padding to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).
+                                   The first three columns are x, y, z coordinates.
+            crop_coords (tuple[int, int, int, int, int, int]): Crop coordinates (z1, z2, y1, y2, x1, x2)
+            pad_params (dict[str, int] | None): Padding parameters or None if no padding needed
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Shifted keypoints with same shape as input
+        """
         # Extract crop start coordinates (z1,y1,x1)
         crop_z1, _, crop_y1, _, crop_x1, _ = crop_coords
 
@@ -706,7 +794,18 @@ class CoarseDropout3D(Transform3D):
         width_range: tuple[float, float],
         size: int,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Calculate random hole dimensions based on the provided ranges."""
+        """Calculate dimensions for dropout holes.
+
+        Args:
+            volume_shape (tuple[int, int, int]): Shape of the volume (depth, height, width)
+            depth_range (tuple[float, float]): Range for hole depth as fraction of volume depth
+            height_range (tuple[float, float]): Range for hole height as fraction of volume height
+            width_range (tuple[float, float]): Range for hole width as fraction of volume width
+            size (int): Number of holes to generate
+
+        Returns:
+            tuple[np.ndarray, np.ndarray, np.ndarray]: Arrays of hole dimensions (depths, heights, widths)
+        """
         depth, height, width = volume_shape[:3]
 
         hole_depths = np.maximum(1, np.ceil(depth * self.random_generator.uniform(*depth_range, size=size))).astype(int)
@@ -744,12 +843,34 @@ class CoarseDropout3D(Transform3D):
         return {"holes": holes}
 
     def apply_to_volume(self, volume: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply dropout to a 3D volume.
+
+        Args:
+            volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
+            holes (np.ndarray): Array of holes with shape (num_holes, 6).
+                Each hole is represented as [z1, y1, x1, z2, y2, x2]
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Volume with holes filled with the given value
+        """
         if holes.size == 0:
             return volume
 
         return f3d.cutout3d(volume, holes, self.fill)
 
     def apply_to_mask(self, mask: np.ndarray, holes: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply dropout to a 3D mask.
+
+        Args:
+            mask (np.ndarray): Input mask with shape (depth, height, width) or (depth, height, width, channels)
+            holes (np.ndarray): Array of holes with shape (num_holes, 6).
+                Each hole is represented as [z1, y1, x1, z2, y2, x2]
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Mask with holes filled with the given value
+        """
         if self.fill_mask is None or holes.size == 0:
             return mask
 
@@ -761,10 +882,21 @@ class CoarseDropout3D(Transform3D):
         holes: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Remove keypoints that fall within dropout regions."""
+        """Apply dropout to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).
+                                   The first three columns are x, y, z coordinates.
+            holes (np.ndarray): Array of holes with shape (num_holes, 6).
+                Each hole is represented as [z1, y1, x1, z2, y2, x2]
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Filtered keypoints with same shape as input
+        """
         if holes.size == 0:
             return keypoints
-        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+        processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
             return keypoints
@@ -852,9 +984,30 @@ class CubicSymmetry(Transform3D):
         return {"index": self.py_random.randint(0, 47), "volume_shape": volume_shape}
 
     def apply_to_volume(self, volume: np.ndarray, index: int, **params: Any) -> np.ndarray:
+        """Apply cubic symmetry transformation to a 3D volume.
+
+        Args:
+            volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
+            index (int): Index of the transformation to apply (0-47)
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Transformed volume with same shape as input
+        """
         return f3d.transform_cube(volume, index)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, index: int, **params: Any) -> np.ndarray:
+        """Apply cubic symmetry transformation to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).
+                                   The first three columns are x, y, z coordinates.
+            index (int): Index of the transformation to apply (0-47)
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Transformed keypoints with same shape as input
+        """
         return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume_shape"])
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:

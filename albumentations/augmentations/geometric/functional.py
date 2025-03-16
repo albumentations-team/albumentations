@@ -70,16 +70,15 @@ ROT90_270_FACTOR = 3
 
 
 @handle_empty_array("bboxes")
-def bboxes_rot90(bboxes: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
-    """Rotates bounding boxes by 90 degrees CCW (see np.rot90)
+def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
+    """Rotate bounding boxes by 90 degrees.
 
     Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-        factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
+        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
+        factor (int): Number of 90-degree rotations (1, 2, or 3)
 
     Returns:
-        np.ndarray: A numpy array of rotated bounding boxes with the same shape as input.
+        np.ndarray: Rotated bounding boxes
     """
     if factor == 0:
         return bboxes
@@ -279,19 +278,15 @@ def keypoints_scale(
     scale_x: float,
     scale_y: float,
 ) -> np.ndarray:
-    """Scales keypoints by scale_x and scale_y.
+    """Scale keypoints by given factors.
 
     Args:
-        keypoints: A numpy array of keypoints with shape (N, 5+) in the format
-                  (x, y, z, angle, scale, ...).
-        scale_x: Scale coefficient x-axis.
-        scale_y: Scale coefficient y-axis.
+        keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
+        scale_x (float): Scale factor for x coordinates
+        scale_y (float): Scale factor for y coordinates
 
     Returns:
-        A numpy array of scaled keypoints with the same shape as input.
-        X and Y coordinates are scaled by their respective scale factors,
-        Z coordinate remains unchanged, and the keypoint scale is multiplied
-        by max(scale_x, scale_y).
+        np.ndarray: Scaled keypoints
     """
     # Extract x, y, z, angle, and scale
     x, y, z, angle, scale = (
@@ -459,16 +454,15 @@ def perspective_keypoints(
     """Apply perspective transformation to keypoints.
 
     Args:
-        keypoints: Array of shape (N, 5+) in format [x, y, z, angle, scale, ...].
-        image_shape: Original image shape (height, width).
-        matrix: 3x3 perspective transformation matrix.
-        max_width: Maximum width after transformation.
-        max_height: Maximum height after transformation.
-        keep_size: Whether to keep original size.
+        keypoints (np.ndarray): Array of shape (N, 5+) in format [x, y, z, angle, scale, ...]
+        image_shape (tuple[int, int]): Original image shape (height, width)
+        matrix (np.ndarray): 3x3 perspective transformation matrix
+        max_width (int): Maximum width after transformation
+        max_height (int): Maximum height after transformation
+        keep_size (bool): Whether to keep original size
 
     Returns:
-        Transformed keypoints array with same shape as input.
-        Z coordinate remains unchanged through the transformation.
+        np.ndarray: Transformed keypoints array with same shape as input
     """
     keypoints = keypoints.copy().astype(np.float32)
 
@@ -938,30 +932,15 @@ def to_distance_maps(
     image_shape: tuple[int, int],
     inverted: bool = False,
 ) -> np.ndarray:
-    """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
-
-    The ``n``-th distance map contains at every location ``(y, x)`` the
-    euclidean distance to the ``n``-th keypoint.
-
-    This function can be used as a helper when augmenting keypoints with a
-    method that only supports the augmentation of images.
+    """Generate a (H,W,N) array of distance maps for N keypoints.
 
     Args:
-        keypoints: A numpy array of shape (N, 2+) where N is the number of keypoints.
-                   Each row represents a keypoint's (x, y) coordinates.
-        image_shape: tuple[int, int] shape of the image (height, width)
-        inverted (bool): If ``True``, inverted distance maps are returned where each
-            distance value d is replaced by ``d/(d+1)``, i.e. the distance
-            maps have values in the range ``(0.0, 1.0]`` with ``1.0`` denoting
-            exactly the position of the respective keypoint.
+        keypoints (np.ndarray): A numpy array of shape (N, 2+) where N is the number of keypoints
+        image_shape (tuple[int, int]): Shape of the image (height, width)
+        inverted (bool): If True, inverted distance maps are returned
 
     Returns:
-        np.ndarray: A ``float32`` array of shape (H, W, N) containing ``N`` distance maps for ``N``
-            keypoints. Each location ``(y, x, n)`` in the array denotes the
-            euclidean distance at ``(y, x)`` to the ``n``-th keypoint.
-            If `inverted` is ``True``, the distance ``d`` is replaced
-            by ``d/(d+1)``. The height and width of the array match the
-            height and width in ``image_shape``.
+        np.ndarray: A float32 array of shape (H, W, N) containing N distance maps
     """
     height, width = image_shape[:2]
     if len(keypoints) == 0:
@@ -1186,14 +1165,13 @@ def rot90(img: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
 
 @handle_empty_array("bboxes")
 def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
-    """Flip bounding boxes vertically around the x-axis.
+    """Flip bounding boxes vertically.
 
     Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
 
     Returns:
-        np.ndarray: A numpy array of vertically flipped bounding boxes with the same shape as input.
+        np.ndarray: Vertically flipped bounding boxes
     """
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 1] = 1 - bboxes[:, 3]  # new y_min = 1 - y_max
@@ -1204,14 +1182,13 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
 
 @handle_empty_array("bboxes")
 def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
-    """Flip bounding boxes horizontally around the y-axis.
+    """Flip bounding boxes horizontally.
 
     Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
 
     Returns:
-        np.ndarray: A numpy array of horizontally flipped bounding boxes with the same shape as input.
+        np.ndarray: Horizontally flipped bounding boxes
     """
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 0] = 1 - bboxes[:, 2]  # new x_min = 1 - x_max
@@ -1222,14 +1199,13 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
 
 @handle_empty_array("bboxes")
 def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
-    """Transpose bounding boxes by swapping x and y coordinates.
+    """Transpose bounding boxes along the main diagonal.
 
     Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
 
     Returns:
-        np.ndarray: A numpy array of transposed bounding boxes with the same shape as input.
+        np.ndarray: Transposed bounding boxes
     """
     transposed_bboxes = bboxes.copy()
     transposed_bboxes[:, [0, 1, 2, 3]] = bboxes[:, [1, 0, 3, 2]]
@@ -1240,14 +1216,14 @@ def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
 @handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
-    """Flip keypoints vertically around the x-axis.
+    """Flip keypoints vertically.
 
     Args:
-        keypoints: A numpy array of shape (N, 4+) where each row represents a keypoint (x, y, angle, scale, ...).
-        rows: Image height.
+        keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
+        rows (int): Number of rows in the image
 
     Returns:
-        np.ndarray: An array of flipped keypoints with the same shape as the input.
+        np.ndarray: Vertically flipped keypoints
     """
     flipped_keypoints = keypoints.copy().astype(np.float32)
 
@@ -1263,14 +1239,14 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
 @handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
-    """Flip keypoints horizontally around the y-axis.
+    """Flip keypoints horizontally.
 
     Args:
-        keypoints: A numpy array of shape (N, 4+) where each row represents a keypoint (x, y, angle, scale, ...).
-        cols: Image width.
+        keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
+        cols (int): Number of columns in the image
 
     Returns:
-        np.ndarray: An array of flipped keypoints with the same shape as the input.
+        np.ndarray: Horizontally flipped keypoints
     """
     flipped_keypoints = keypoints.copy().astype(np.float32)
 
@@ -1286,13 +1262,13 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
 @handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
-    """Transposes keypoints along the main diagonal.
+    """Transpose keypoints along the main diagonal.
 
     Args:
-        keypoints: A numpy array of shape (N, 4+) where each row represents a keypoint (x, y, angle, scale, ...).
+        keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
 
     Returns:
-        np.ndarray: An array of transposed keypoints with the same shape as the input.
+        np.ndarray: Transposed keypoints
     """
     transposed_keypoints = keypoints.copy()
 
@@ -2383,7 +2359,7 @@ def compute_affine_warp_output_shape(
     height, width = input_shape[:2]
 
     if height == 0 or width == 0:
-        return matrix, cast(tuple[int, int], input_shape[:2])
+        return matrix, cast("tuple[int, int]", input_shape[:2])
 
     min_coords, max_coords = compute_transformed_image_bounds(matrix, (height, width))
     minc, minr = min_coords
@@ -2403,7 +2379,7 @@ def compute_affine_warp_output_shape(
     translation = np.array([[1, 0, -minc], [0, 1, -minr], [0, 0, 1]])
     matrix = translation @ matrix
 
-    return matrix, cast(tuple[int, int], output_shape_tuple)
+    return matrix, cast("tuple[int, int]", output_shape_tuple)
 
 
 def center(image_shape: tuple[int, int]) -> tuple[float, float]:
@@ -2831,9 +2807,9 @@ def get_dimension_padding(
     """Calculate padding for a single dimension.
 
     Args:
-        current_size: Current size of the dimension
-        min_size: Minimum size requirement, if any
-        divisor: Divisor for padding to make size divisible, if any
+        current_size (int): Current size of the dimension
+        min_size (int | None): Minimum size requirement, if any
+        divisor (int | None): Divisor for padding to make size divisible, if any
 
     Returns:
         tuple[int, int]: (pad_before, pad_after)
@@ -2864,11 +2840,11 @@ def get_padding_params(
     """Calculate padding parameters based on target dimensions.
 
     Args:
-        image_shape: (height, width) of the image
-        min_height: Minimum height requirement, if any
-        min_width: Minimum width requirement, if any
-        pad_height_divisor: Divisor for height padding, if any
-        pad_width_divisor: Divisor for width padding, if any
+        image_shape (tuple[int, int]): (height, width) of the image
+        min_height (int | None): Minimum height requirement, if any
+        min_width (int | None): Minimum width requirement, if any
+        pad_height_divisor (int | None): Divisor for height padding, if any
+        pad_width_divisor (int | None): Divisor for width padding, if any
 
     Returns:
         tuple[int, int, int, int]: (pad_top, pad_bottom, pad_left, pad_right)
@@ -3003,9 +2979,9 @@ def swap_tiles_on_image(
     """Swap tiles on the image according to the new format.
 
     Args:
-        image: Input image.
-        tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
-        mapping: list of new tile indices.
+        image (np.ndarray): Input image.
+        tiles (np.ndarray): Array of tiles with each tile as [start_y, start_x, end_y, end_x].
+        mapping (list[int] | None): list of new tile indices.
 
     Returns:
         np.ndarray: Output image with tiles swapped according to the random shuffle.
@@ -3048,57 +3024,18 @@ def bboxes_grid_shuffle(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
-    """Apply grid shuffle transformation to bounding boxes.
-
-    This function transforms bounding boxes according to a grid shuffle operation. It handles cases
-    where bounding boxes may be split into multiple components after shuffling and applies
-    filtering based on minimum area and visibility requirements.
+    """Shuffle bounding boxes according to grid mapping.
 
     Args:
-        bboxes: Array of bounding boxes with shape (N, 4+) where N is the number of boxes.
-               Each box is in format [x_min, y_min, x_max, y_max, ...], where ... represents
-               optional additional fields (e.g., class_id, score).
-        tiles: Array of tile coordinates with shape (M, 4) where M is the number of tiles.
-               Each tile is in format [start_y, start_x, end_y, end_x].
-        mapping: List of indices defining how tiles should be rearranged. Each index i in the list
-                contains the index of the tile that should be moved to position i.
-        image_shape: Shape of the image as (height, width).
-        min_area: Minimum area threshold in pixels. If a component's area after shuffling is
-                 smaller than this value, it will be filtered out. If None, no area filtering
-                 is applied.
-        min_visibility: Minimum visibility ratio threshold in range [0, 1]. Calculated as
-                       (component_area / original_area). If a component's visibility is lower
-                       than this value, it will be filtered out. If None, no visibility
-                       filtering is applied.
+        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
+        tiles (np.ndarray): Array of grid tiles
+        mapping (list[int]): Mapping of tile indices
+        image_shape (tuple[int, int]): Shape of the image (height, width)
+        min_area (float): Minimum area of a bounding box to keep
+        min_visibility (float): Minimum visibility ratio of a bounding box to keep
 
     Returns:
-        np.ndarray: Array of transformed bounding boxes with shape (K, 4+) where K is the
-                   number of valid components after shuffling and filtering. The format of
-                   each box matches the input format, preserving any additional fields.
-                   If no valid components remain after filtering, returns an empty array
-                   with shape (0, C) where C matches the input column count.
-
-    Note:
-        - The function converts bboxes to masks before applying the transformation to handle
-          cases where boxes may be split into multiple components.
-        - After shuffling, each component is validated against min_area and min_visibility
-          requirements independently.
-        - Additional bbox fields (beyond x_min, y_min, x_max, y_max) are preserved and
-          copied to all components derived from the same original bbox.
-        - Empty input arrays are handled gracefully and return empty arrays of the
-          appropriate shape.
-
-    Example:
-        >>> bboxes = np.array([[10, 10, 90, 90]])  # Single box crossing multiple tiles
-        >>> tiles = np.array([
-        ...     [0, 0, 50, 50],    # top-left tile
-        ...     [0, 50, 50, 100],  # top-right tile
-        ...     [50, 0, 100, 50],  # bottom-left tile
-        ...     [50, 50, 100, 100] # bottom-right tile
-        ... ])
-        >>> mapping = [3, 2, 1, 0]  # Rotate tiles counter-clockwise
-        >>> result = bboxes_grid_shuffle(bboxes, tiles, mapping, (100, 100), 100, 0.2)
-        >>> # Result may contain multiple boxes if the original box was split
+        np.ndarray: Shuffled bounding boxes
     """
     # Convert bboxes to masks
     masks = masks_from_bboxes(bboxes, image_shape)
@@ -3196,14 +3133,14 @@ def compute_pairwise_distances(
     points1: np.ndarray,
     points2: np.ndarray,
 ) -> np.ndarray:
-    """Compute pairwise squared Euclidean distances between two point sets.
+    """Compute pairwise distances between two sets of points.
 
     Args:
-        points1: First set of points with shape (N, 2)
-        points2: Second set of points with shape (M, 2)
+        points1 (np.ndarray): First set of points with shape (N, 2)
+        points2 (np.ndarray): Second set of points with shape (M, 2)
 
     Returns:
-        Distance matrix with shape (N, M)
+        np.ndarray: Matrix of pairwise distances with shape (N, M)
     """
     points1 = np.ascontiguousarray(points1, dtype=np.float32)
     points2 = np.ascontiguousarray(points2, dtype=np.float32)
@@ -3225,19 +3162,11 @@ def compute_tps_weights(
     """Compute Thin Plate Spline weights.
 
     Args:
-        src_points: Source control points with shape (num_points, 2)
-        dst_points: Destination control points with shape (num_points, 2)
+        src_points (np.ndarray): Source control points with shape (num_points, 2)
+        dst_points (np.ndarray): Destination control points with shape (num_points, 2)
 
     Returns:
-        tuple of:
-        - nonlinear_weights: TPS kernel weights for nonlinear deformation (num_points, 2)
-        - affine_weights: Weights for affine transformation (3, 2)
-            [constant term, x scale/shear, y scale/shear]
-
-    Note:
-        The TPS interpolation is decomposed into:
-        1. Nonlinear part (controlled by kernel weights)
-        2. Affine part (global scaling, rotation, translation)
+        tuple[np.ndarray, np.ndarray]: Tuple of (nonlinear_weights, affine_weights)
     """
     num_points = src_points.shape[0]
 
@@ -3312,13 +3241,11 @@ def get_camera_matrix_distortion_maps(
     """Generate distortion maps using camera matrix model.
 
     Args:
-        image_shape: Image shape
-        k: Distortion coefficient
-        center_xy: Center of distortion
+        image_shape (tuple[int, int]): Image shape (height, width)
+        k (float): Distortion coefficient
+
     Returns:
-        tuple of:
-        - map_x: Horizontal displacement map
-        - map_y: Vertical displacement map
+        tuple[np.ndarray, np.ndarray]: Tuple of (map_x, map_y) distortion maps
     """
     height, width = image_shape[:2]
 
@@ -3346,13 +3273,11 @@ def get_fisheye_distortion_maps(
     """Generate distortion maps using fisheye model.
 
     Args:
-        image_shape: Image shape
-        k: Distortion coefficient
-        center_xy: Center of distortion
+        image_shape (tuple[int, int]): Image shape (height, width)
+        k (float): Distortion coefficient
+
     Returns:
-        tuple of:
-        - map_x: Horizontal displacement map
-        - map_y: Vertical displacement map
+        tuple[np.ndarray, np.ndarray]: Tuple of (map_x, map_y) distortion maps
     """
     height, width = image_shape[:2]
 
@@ -3385,14 +3310,10 @@ def generate_control_points(num_control_points: int) -> np.ndarray:
     """Generate control points for TPS transformation.
 
     Args:
-        num_control_points: Number of control points per side.
-            If 2, generates 4 corner points + 1 center point.
-            Otherwise generates a grid of num_control_points x num_control_points.
+        num_control_points (int): Number of control points per side
 
     Returns:
-        np.ndarray: Control points with shape (N, 2) where N is:
-            - 5 points when num_control_points=2 (4 corners + center)
-            - num_control_points² points otherwise
+        np.ndarray: Control points with shape (N, 2)
     """
     if num_control_points == 2:
         # Generate 4 corners + center point similar to Kornia

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import random
 from collections.abc import Sequence
 from itertools import product
 from math import ceil
-from random import Random
 from typing import Literal
 from warnings import warn
 
@@ -164,19 +164,19 @@ def create_motion_kernel(
     angle: float,
     direction: float,
     allow_shifted: bool,
-    random_state: Random,
+    random_state: random.Random,
 ) -> np.ndarray:
     """Create a motion blur kernel.
 
     Args:
-        kernel_size: Size of the kernel (must be odd)
-        angle: Angle in degrees (counter-clockwise)
-        direction: Blur direction (-1.0 to 1.0)
-        allow_shifted: Allow kernel to be randomly shifted from center
-        random_state: Python's random.Random instance
+        kernel_size (int): Size of the kernel (must be odd)
+        angle (float): Angle in degrees (counter-clockwise)
+        direction (float): Blur direction (-1.0 to 1.0)
+        allow_shifted (bool): Allow kernel to be randomly shifted from center
+        random_state (random.Random): Python's random.Random instance
 
     Returns:
-        Motion blur kernel
+        np.ndarray: Motion blur kernel
     """
     kernel = np.zeros((kernel_size, kernel_size), dtype=np.float32)
     center = kernel_size // 2
@@ -224,16 +224,16 @@ def create_motion_kernel(
     return kernel
 
 
-def sample_odd_from_range(random_state: Random, low: int, high: int) -> int:
+def sample_odd_from_range(random_state: random.Random, low: int, high: int) -> int:
     """Sample an odd number from the range [low, high] (inclusive).
 
     Args:
-        random_state: instance of random.Random
-        low: lower bound (will be converted to nearest valid odd number)
-        high: upper bound (will be converted to nearest valid odd number)
+        random_state (random.Random): instance of random.Random
+        low (int): lower bound (will be converted to nearest valid odd number)
+        high (int): upper bound (will be converted to nearest valid odd number)
 
     Returns:
-        Randomly sampled odd number from the range
+        int: Randomly sampled odd number from the range
 
     Note:
         - Input values will be converted to nearest valid odd numbers:
@@ -263,8 +263,8 @@ def create_gaussian_kernel(sigma: float, ksize: int = 0) -> np.ndarray:
     """Create a Gaussian kernel following PIL's approach.
 
     Args:
-        sigma: Standard deviation for Gaussian kernel.
-        ksize: Kernel size. If 0, size is computed as int(sigma * 3.5) * 2 + 1
+        sigma (float): Standard deviation for Gaussian kernel.
+        ksize (int): Kernel size. If 0, size is computed as int(sigma * 3.5) * 2 + 1
                to match PIL's implementation. Otherwise, must be positive and odd.
 
     Returns:
@@ -291,8 +291,8 @@ def create_gaussian_kernel_1d(sigma: float, ksize: int = 0) -> np.ndarray:
     """Create a 1D Gaussian kernel following PIL's approach.
 
     Args:
-        sigma: Standard deviation for Gaussian kernel.
-        ksize: Kernel size. If 0, size is computed as int(sigma * 3.5) * 2 + 1
+        sigma (float): Standard deviation for Gaussian kernel.
+        ksize (int): Kernel size. If 0, size is computed as int(sigma * 3.5) * 2 + 1
                to match PIL's implementation. Otherwise, must be positive and odd.
 
     Returns:
@@ -320,7 +320,7 @@ def create_gaussian_kernel_input_array(size: int) -> np.ndarray:
     for values of size < 100
 
     Args:
-        size: kernel size
+        size (int): kernel size
 
     Returns:
         np.ndarray: x-coordinate array which will be input for gaussian function that will be used for

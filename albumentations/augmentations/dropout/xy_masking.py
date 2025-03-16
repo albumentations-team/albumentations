@@ -90,11 +90,11 @@ class XYMasking(BaseDropout):
         p: float = 0.5,
     ):
         super().__init__(p=p, fill=fill, fill_mask=fill_mask)
-        self.num_masks_x = cast(tuple[int, int], num_masks_x)
-        self.num_masks_y = cast(tuple[int, int], num_masks_y)
+        self.num_masks_x = cast("tuple[int, int]", num_masks_x)
+        self.num_masks_y = cast("tuple[int, int]", num_masks_y)
 
-        self.mask_x_length = cast(tuple[int, int], mask_x_length)
-        self.mask_y_length = cast(tuple[int, int], mask_y_length)
+        self.mask_x_length = cast("tuple[int, int]", mask_x_length)
+        self.mask_y_length = cast("tuple[int, int]", mask_y_length)
 
     def validate_mask_length(
         self,

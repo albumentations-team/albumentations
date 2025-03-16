@@ -87,9 +87,9 @@ def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpain
     """Apply OpenCV inpainting to fill the holes in the image.
 
     Args:
-        img: Input image (grayscale or BGR)
-        holes: Array of [x1, y1, x2, y2] coordinates
-        method: Inpainting method to use ("inpaint_telea" or "inpaint_ns")
+        img (np.ndarray): Input image (grayscale or BGR)
+        holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
+        method (Literal["inpaint_telea", "inpaint_ns"]): Inpainting method to use ("inpaint_telea" or "inpaint_ns")
 
     Returns:
         np.ndarray: Inpainted image
@@ -124,9 +124,9 @@ def fill_holes_with_value(img: np.ndarray, holes: np.ndarray, fill_value: np.nda
     """Fill holes with a constant value.
 
     Args:
-        img: Input image
-        holes: Array of [x1, y1, x2, y2] coordinates
-        fill_value: Value to fill the holes with
+        img (np.ndarray): Input image
+        holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
+        fill_value (np.ndarray): Value to fill the holes with
     """
     for x_min, y_min, x_max, y_max in holes:
         img[y_min:y_max, x_min:x_max] = fill_value
@@ -142,10 +142,10 @@ def fill_holes_with_random(
     """Fill holes with random values.
 
     Args:
-        img: Input image
-        holes: Array of [x1, y1, x2, y2] coordinates
-        random_generator: Random number generator
-        uniform: If True, use same random value for entire hole
+        img (np.ndarray): Input image
+        holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
+        random_generator (np.random.Generator): Random number generator
+        uniform (bool): If True, use same random value for entire hole
     """
     for x_min, y_min, x_max, y_max in holes:
         shape = (1,) if uniform else (y_max - y_min, x_max - x_min)
@@ -166,15 +166,16 @@ def cutout(
     """Apply cutout augmentation to the image by cutting out holes and filling them.
 
     Args:
-        img: The image to augment
-        holes: Array of [x1, y1, x2, y2] coordinates
-        fill_value: Value to fill holes with. Can be:
+        img (np.ndarray): The image to augment
+        holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
+        fill_value (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+            Value to fill holes with. Can be:
             - number (int/float): Will be broadcast to all channels
             - sequence (tuple/list/ndarray): Must match number of channels
             - "random": Different random values for each pixel
             - "random_uniform": Same random value for entire hole
             - "inpaint_telea"/"inpaint_ns": OpenCV inpainting methods
-        random_generator: Random number generator for random fills
+        random_generator (np.random.Generator): Random number generator for random fills
 
     Raises:
         ValueError: If fill_value length doesn't match number of channels
@@ -184,7 +185,7 @@ def cutout(
     # Handle inpainting methods
     if isinstance(fill_value, str):
         if fill_value in {"inpaint_telea", "inpaint_ns"}:
-            return apply_inpainting(img, holes, cast(Literal["inpaint_telea", "inpaint_ns"], fill_value))
+            return apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill_value))
         if fill_value == "random":
             return fill_holes_with_random(img, holes, random_generator, uniform=False)
         if fill_value == "random_uniform":
@@ -474,17 +475,17 @@ def mask_dropout_bboxes(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
-    """Filter bounding boxes based on their intersection with a dropout mask.
+    """Filter and resize bounding boxes based on dropout mask.
 
     Args:
-        bboxes: Array of bounding boxes in format [x_min, y_min, x_max, y_max]
-        dropout_mask: Binary mask where True indicates dropped pixels
-        image_shape: Height and width of the image
-        min_area: Minimum area (in pixels) for a box to be kept
-        min_visibility: Minimum visibility ratio (visible area / total area) for a box to be kept
+        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
+        dropout_mask (np.ndarray): Binary mask indicating dropped areas
+        image_shape (tuple[int, int]): Shape of the image (height, width)
+        min_area (float): Minimum area of a bounding box to keep
+        min_visibility (float): Minimum visibility ratio of a bounding box to keep
 
     Returns:
-        Filtered array of bounding boxes
+        np.ndarray: Filtered and resized bounding boxes
     """
     height, width = image_shape
 
@@ -518,7 +519,12 @@ def mask_dropout_bboxes(
     # Create a boolean mask for boxes to keep
     keep_mask = (visible_areas >= min_area) & (visibility_ratio >= min_visibility)
 
-    return bboxes[keep_mask]
+    filtered_boxes = bboxes[keep_mask]
+    if len(filtered_boxes) == 0:
+        return np.empty((0, bboxes.shape[1]), dtype=bboxes.dtype)
+
+    # Try to resize filtered boxes
+    return resize_boxes_to_visible_area(filtered_boxes, dropout_mask)
 
 
 @handle_empty_array("keypoints")
@@ -526,14 +532,14 @@ def mask_dropout_keypoints(
     keypoints: np.ndarray,
     dropout_mask: np.ndarray,
 ) -> np.ndarray:
-    """Filter keypoints that fall on dropped pixels.
+    """Filter keypoints based on dropout mask.
 
     Args:
-        keypoints: Array of keypoints in [x, y] or [x, y, z] format
-        dropout_mask: 2D or 3D boolean mask indicating dropped pixels
+        keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
+        dropout_mask (np.ndarray): Binary mask indicating dropped areas
 
     Returns:
-        Filtered array of keypoints
+        np.ndarray: Filtered keypoints
     """
     # Ensure dropout_mask is 2D
     if dropout_mask.ndim > 2:
@@ -661,18 +667,15 @@ def sample_points_from_components(
     num_points: int,
     random_generator: np.random.Generator,
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """Sample points from connected components and get their sizes.
+    """Sample points from connected components in a mask.
 
     Args:
-        mask: Binary mask where non-zero pixels are foreground
-        num_points: Number of points to sample per connected component
-        random_generator: Random generator to use for sampling
+        mask (np.ndarray): Binary mask
+        num_points (int): Number of points to sample
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Tuple of:
-            - Array of shape (N, 2) containing (x, y) coordinates of sampled points
-            - Array of shape (N,) containing sqrt(area) for each point's component
-        or None if no valid regions found
+        tuple[np.ndarray, np.ndarray] | None: Tuple of (x_coordinates, y_coordinates) or None if no valid components
     """
     num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
 

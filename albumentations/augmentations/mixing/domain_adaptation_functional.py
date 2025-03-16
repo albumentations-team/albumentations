@@ -375,10 +375,10 @@ def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
     The adjustment is applied separately for each channel.
 
     Args:
-        image: Input image. Can be gray-scale or in color.
-        reference: Image to match histogram of. Must have the same number of channels as image.
-        channel_axis: If None, the image is assumed to be a grayscale (single channel) image.
-            Otherwise, this parameter indicates which axis of the array corresponds to channels.
+        image (np.ndarray): Input image. Can be gray-scale or in color.
+        reference (np.ndarray): Image to match histogram of. Must have the same number of channels as image.
+        channel_axis (int | None): If None, the image is assumed to be a grayscale (single channel) image.
+            Otherwise, this indicates which axis of the array corresponds to channels.
 
     Returns:
         np.ndarray: Transformed input image.

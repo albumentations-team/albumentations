@@ -141,8 +141,8 @@ class BaseCompose(Serializable):
         """Set random state directly from generators.
 
         Args:
-            random_generator: numpy random generator to use
-            py_random: python random generator to use
+            random_generator (np.random.Generator): numpy random generator to use
+            py_random (random.Random): python random generator to use
         """
         self.random_generator = random_generator
         self.py_random = py_random
@@ -156,7 +156,7 @@ class BaseCompose(Serializable):
         """Set random state from seed.
 
         Args:
-            seed: Random seed to use
+            seed (int | None): Random seed to use
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
@@ -276,10 +276,10 @@ class BaseCompose(Serializable):
         """Check and filter data after transformation.
 
         Args:
-            data: Dictionary containing transformed data
+            data (dict[str, Any]): Dictionary containing transformed data
 
         Returns:
-            Filtered data dictionary
+            dict[str, Any]: Filtered data dictionary
         """
         if self.check_each_transform:
             shape = get_shape(data)
@@ -637,60 +637,41 @@ class Compose(BaseCompose, HubMixin):
 
     @staticmethod
     def _check_masks_data(data_name: str, data: Any) -> tuple[int, int]:
-        """Check masks data format and return shape.
+        """Check masks data.
 
         Args:
-            data_name: Name of the data field being checked
-            data: Input data in one of these formats:
-                - List of numpy arrays, each of shape (H, W) or (H, W, C)
-                - Numpy array of shape (N, H, W) or (N, H, W, C)
+            data_name (str): Name of the data field
+            data (Any): Data to check
 
         Returns:
-            tuple: (height, width) of the first mask
-
-        Raises:
-            TypeError: If data format is invalid
+            tuple[int, int]: Shape of the data
         """
-        if isinstance(data, np.ndarray):
-            if data.ndim not in [3, 4]:  # (N,H,W) or (N,H,W,C)
-                raise TypeError(f"{data_name} as numpy array must be 3D or 4D")
-            return data.shape[1:3]  # Return (H,W)
-
-        if isinstance(data, (list, tuple)):
-            if not data:
-                raise ValueError(f"{data_name} cannot be empty")
-            if not all(isinstance(m, np.ndarray) for m in data):
-                raise TypeError(f"All elements in {data_name} must be numpy arrays")
-            if any(m.ndim not in {2, 3} for m in data):
-                raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
-            return data[0].shape[:2]
-
-        raise TypeError(f"{data_name} must be either a numpy array or a sequence of numpy arrays")
+        if not isinstance(data, np.ndarray):
+            raise TypeError(f"{data_name} must be numpy array. Got: {type(data)}")
+        if len(data.shape) not in (2, 3):
+            raise ValueError(f"{data_name} must be 2 or 3 dimensional. Got shape: {data.shape}")
+        if len(data.shape) == 3 and data.shape[0] == 0:
+            raise ValueError(f"{data_name} first dimension must be non-zero. Got shape: {data.shape}")
+        return data.shape[1:]
 
     @staticmethod
     def _check_multi_data(data_name: str, data: Any) -> tuple[int, int]:
-        """Check multi-image data format and return shape.
+        """Check multi-channel data.
 
         Args:
-            data_name: Name of the data field being checked
-            data: Input data in one of these formats:
-                - List-like of numpy arrays
-                - Numpy array of shape (N, H, W, C) or (N, H, W)
+            data_name (str): Name of the data field
+            data (Any): Data to check
 
         Returns:
-            tuple: (height, width) of the first image
-
-        Raises:
-            TypeError: If data format is invalid
+            tuple[int, int]: Shape of the data
         """
-        if isinstance(data, np.ndarray):
-            if data.ndim not in {3, 4}:  # (N,H,W) or (N,H,W,C)
-                raise TypeError(f"{data_name} as numpy array must be 3D or 4D")
-            return data.shape[1:3]  # Return (H,W)
-
-        if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
-            raise TypeError(f"{data_name} must be either a numpy array or a list of numpy arrays")
-        return data[0].shape[:2]
+        if not isinstance(data, np.ndarray):
+            raise TypeError(f"{data_name} must be numpy array. Got: {type(data)}")
+        if len(data.shape) not in (2, 3):
+            raise ValueError(f"{data_name} must be 2 or 3 dimensional. Got shape: {data.shape}")
+        if len(data.shape) == 3 and data.shape[0] == 0:
+            raise ValueError(f"{data_name} first dimension must be non-zero. Got shape: {data.shape}")
+        return data.shape[1:]
 
     @staticmethod
     def _check_bbox_keypoint_params(internal_data_name: str, processors: dict[str, Any]) -> None:
@@ -1109,7 +1090,7 @@ class ReplayCompose(Compose):
                 ]
             transform = cls(**args)
 
-        transform = cast(BasicTransform, transform)
+        transform = cast("BasicTransform", transform)
         if isinstance(transform, BasicTransform):
             transform.params = params
         transform.replay_mode = True

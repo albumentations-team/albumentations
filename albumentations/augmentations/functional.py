@@ -139,13 +139,13 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
     """Invert all pixel values above a threshold.
 
     Args:
-        img: The image to solarize. Can be uint8 or float32.
-        threshold: Normalized threshold value in range [0, 1].
+        img (np.ndarray): The image to solarize. Can be uint8 or float32.
+        threshold (float): Normalized threshold value in range [0, 1].
             For uint8 images: pixels above threshold * 255 are inverted
             For float32 images: pixels above threshold are inverted
 
     Returns:
-        Solarized image.
+        np.ndarray: Solarized image.
 
     Note:
         The threshold is normalized to [0, 1] range for both uint8 and float32 images.
@@ -170,13 +170,9 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
 def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]]) -> np.ndarray:
     """Reduce the number of bits for each color channel by keeping only the highest N bits.
 
-    This transform performs bit-depth reduction by masking out lower bits, effectively
-    reducing the number of possible values per channel. This creates a posterization
-    effect where similar colors are merged together.
-
     Args:
-        img: Input image. Can be single or multi-channel.
-        bits: Number of high bits to keep. Must be in range [1, 7].
+        img (np.ndarray): Input image. Can be single or multi-channel.
+        bits (Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]]): Number of high bits to keep..
             Can be either:
             - A single value to apply the same bit reduction to all channels
             - A list of values to apply different bit reduction per channel.
@@ -363,12 +359,14 @@ def move_tone_curve(
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-        img: np.ndarray. Any number of channels
-        low_y: per-channel or single y-position of a Bezier control point used
+        img (np.ndarray): Any number of channels
+        low_y (float | np.ndarray): per-channel or single y-position of a Bezier control point used
             to adjust the tone curve, must be in range [0, 1]
-        high_y: per-channel or single y-position of a Bezier control point used
+        high_y (float | np.ndarray): per-channel or single y-position of a Bezier control point used
             to adjust image tone curve, must be in range [0, 1]
 
+    Returns:
+        np.ndarray: Image with adjusted tone curve
     """
     t = np.linspace(0.0, 1.0, 256)
 
@@ -463,15 +461,15 @@ def image_compression(
     quality: int,
     image_type: Literal[".jpg", ".webp"],
 ) -> np.ndarray:
-    """Apply compression to image.
+    """Compress the image using JPEG or WebP compression.
 
     Args:
-        img: Input image
-        quality: Compression quality (0-100)
-        image_type: Type of compression ('.jpg' or '.webp')
+        img (np.ndarray): Input image
+        quality (int): Quality of compression in range [1, 100]
+        image_type (Literal[".jpg", ".webp"]): Type of compression to use
 
     Returns:
-        Compressed image with same number of channels as input
+        np.ndarray: Compressed image
     """
     # Determine the quality flag for compression
     quality_flag = cv2.IMWRITE_JPEG_QUALITY if image_type == ".jpg" else cv2.IMWRITE_WEBP_QUALITY
@@ -1691,15 +1689,15 @@ def pixel_dropout(
     drop_mask: np.ndarray,
     drop_values: np.ndarray,
 ) -> np.ndarray:
-    """Apply pixel dropout to an image.
+    """Apply pixel dropout to the image.
 
     Args:
-        image: Input image
-        drop_mask: Boolean mask of same shape as image indicating pixels to drop
-        drop_values: Values to use for dropped pixels, same shape as image
+        image (np.ndarray): Input image
+        drop_mask (np.ndarray): Boolean mask indicating which pixels to drop
+        drop_values (np.ndarray): Values to replace dropped pixels with
 
     Returns:
-        Image with pixels dropped according to mask
+        np.ndarray: Image with dropped pixels
     """
     return np.where(drop_mask, drop_values, image)
 
@@ -2016,45 +2014,15 @@ def shot_noise(
     scale: float,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Apply shot noise to the image by simulating photon counting in linear light space.
-
-    This function simulates photon shot noise, which occurs due to the quantum nature of light.
-    The process:
-    1. Converts image to linear light space (removes gamma correction)
-    2. Scales pixel values to represent expected photon counts
-    3. Samples actual photon counts from Poisson distribution
-    4. Converts back to display space (reapplies gamma)
-
-    The simulation is performed in linear light space because photon shot noise is a physical
-    process that occurs before gamma correction is applied by cameras/displays.
+    """Apply shot noise to the image.
 
     Args:
-        img: Input image in range [0, 1]. Can be single or multi-channel.
-        scale: Reciprocal of the number of photons (noise intensity).
-            - Larger values = fewer photons = more noise
-            - Smaller values = more photons = less noise
-            For example:
-            - scale = 0.1 simulates ~100 photons per unit intensity
-            - scale = 10.0 simulates ~0.1 photons per unit intensity
-        random_generator: NumPy random generator for Poisson sampling
+        img (np.ndarray): Input image
+        scale (float): Scale factor for the noise
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Image with shot noise applied, same shape and range [0, 1] as input.
-        The noise characteristics will follow Poisson statistics in linear space:
-        - Variance equals mean in linear space
-        - More noise in brighter regions (but less relative noise)
-        - Less noise in darker regions (but more relative noise)
-
-    Note:
-        - Uses gamma value of 2.2 for linear/display space conversion
-        - Adds small constant (1e-6) to avoid issues with zero values
-        - Clips final values to [0, 1] range
-        - Operates on the image in-place for memory efficiency
-        - Preserves float32 precision throughout calculations
-
-    References:
-        - https://en.wikipedia.org/wiki/Shot_noise
-        - https://en.wikipedia.org/wiki/Gamma_correction
+        np.ndarray: Image with shot noise
     """
     # Apply inverse gamma correction to work in linear space
     img_linear = cv2.pow(img, 2.2)
@@ -2078,17 +2046,15 @@ def get_safe_brightness_contrast_params(
     beta: float,
     max_value: float,
 ) -> tuple[float, float]:
-    """Calculate safe alpha and beta values to prevent overflow/underflow.
-
-    For any pixel value x, we want: 0 <= alpha * x + beta <= max_value
+    """Get safe brightness and contrast parameters.
 
     Args:
-        alpha: Contrast factor (1 means no change)
-        beta: Brightness offset
-        max_value: Maximum allowed value (255 for uint8, 1 for float32)
+        alpha (float): Contrast factor
+        beta (float): Brightness factor
+        max_value (float): Maximum pixel value
 
     Returns:
-        tuple[float, float]: Safe (alpha, beta) values that prevent overflow/underflow
+        tuple[float, float]: Safe alpha and beta values
     """
     if alpha > 0:
         # For x = max_value: alpha * max_value + beta <= max_value
@@ -2233,14 +2199,12 @@ def sample_uniform(
     """Sample from uniform distribution.
 
     Args:
-        size: Output shape. If length is 1, generates constant noise per channel.
-        params: Must contain 'ranges' key with list of (min, max) tuples.
-            If only one range is provided, it will be used for all channels.
-        random_generator: NumPy random generator instance
+        size (tuple[int, ...]): Size of the output array
+        params (dict[str, Any]): Distribution parameters
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Noise array of specified size. For single-channel constant mode,
-        returns scalar instead of array with shape (1,).
+        np.ndarray | float: Sampled values
     """
     if len(size) == 1:  # constant mode
         ranges = params["ranges"]
@@ -2328,18 +2292,17 @@ def generate_shared_noise(
     max_value: float,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Generate one noise map and broadcast to all channels.
+    """Generate shared noise.
 
     Args:
-        noise_type: Type of noise distribution to use
-        shape: Shape of the input image (H, W) or (H, W, C)
-        params: Parameters for the noise distribution
-        max_value: Maximum value for the noise distribution
-        random_generator: NumPy random generator instance
+        noise_type (Literal["uniform", "gaussian", "laplace", "beta"]): Type of noise to generate
+        shape (tuple[int, ...]): Shape of the output array
+        params (dict[str, Any]): Distribution parameters
+        max_value (float): Maximum value for the noise
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Noise array of shape (H, W) or (H, W, C) where the same noise
-        pattern is shared across all channels
+        np.ndarray: Generated noise
     """
     # Generate noise for (H, W)
     height, width = shape[:2]
@@ -2511,15 +2474,15 @@ def apply_plasma_shadow(
     intensity: float,
     plasma_pattern: np.ndarray,
 ) -> np.ndarray:
-    """Apply plasma-based shadow effect by darkening.
+    """Apply plasma shadow to the image.
 
     Args:
-        img: Input image
-        intensity: Shadow intensity in [0, 1]
-        plasma_pattern: Generated plasma pattern of shape (H, W)
+        img (np.ndarray): Input image
+        intensity (float): Shadow intensity
+        plasma_pattern (np.ndarray): Plasma pattern to use
 
     Returns:
-        Image with applied shadow effect
+        np.ndarray: Image with plasma shadow
     """
     # Scale plasma pattern by intensity first (scalar operation)
     scaled_pattern = plasma_pattern * intensity
@@ -2583,43 +2546,15 @@ def create_directional_gradient(height: int, width: int, angle: float) -> np.nda
 
 @float32_io
 def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -> np.ndarray:
-    """Apply directional illumination effect to an image using a linear gradient.
-
-    The function creates a directional gradient and uses it to modulate image brightness.
-    The gradient direction is controlled by the angle parameter, and the strength of the
-    effect is controlled by the intensity parameter.
-
-    The illumination is applied by multiplying the image with a scale factor that varies
-    linearly across the image. The scale factor ranges from (1-|intensity|) to (1+|intensity|).
+    """Apply linear illumination to the image.
 
     Args:
-        img: Input image in range [0, 1]. Can be single or multi-channel.
-        intensity: Strength and direction of the illumination effect, range [-1, 1].
-            - Positive values brighten in gradient direction
-            - Negative values darken in gradient direction
-            - Magnitude determines strength of the effect
-        angle: Direction of the gradient in degrees.
-            - 0: left to right
-            - 90: bottom to top
-            - 180: right to left
-            - 270: top to bottom
+        img (np.ndarray): Input image
+        intensity (float): Illumination intensity
+        angle (float): Illumination angle in radians
 
     Returns:
-        Image with applied illumination effect, same shape and range as input.
-
-    Implementation details:
-        1. Creates a directional gradient in range [0, 1]
-        2. For negative intensity, inverts the gradient (1 - gradient)
-        3. For multi-channel images, repeats gradient across channels
-        4. Computes scale factor in-place:
-           scale = 1 - |intensity| + 2 * |intensity| * gradient
-           This maps gradient [0, 1] to scale [(1-|i|), (1+|i|)]
-        5. Multiplies image by scale factor
-
-    Note:
-        Uses in-place operations where possible for memory efficiency.
-        The @float32_io decorator ensures float32 precision.
-        The @clipped decorator ensures output values stay in valid range.
+        np.ndarray: Image with linear illumination
     """
     height, width = img.shape[:2]
     abs_intensity = abs(intensity)
@@ -2733,20 +2668,16 @@ def auto_contrast(
     ignore: int | None,
     method: Literal["cdf", "pil"],
 ) -> np.ndarray:
-    """Apply auto contrast to the image.
+    """Apply automatic contrast enhancement.
 
     Args:
-        img: Input image in uint8 or float32 format.
-        cutoff: Percentage of pixels to cut off from the histogram edges.
-               Range: 0-100. Default: 0 (no cutoff)
-        ignore: Pixel value to ignore in auto contrast calculation.
-               Useful for handling alpha channels or other special values.
-        method: Method to use for contrast enhancement:
-               - "cdf": Uses cumulative distribution function (original albumentations method)
-               - "pil": Uses linear scaling like PIL.ImageOps.autocontrast
+        img (np.ndarray): Input image
+        cutoff (float): Cutoff percentage for histogram
+        ignore (int | None): Value to ignore in histogram
+        method (Literal["cdf", "pil"]): Method to use for contrast enhancement
 
     Returns:
-        Contrast-enhanced image in the same dtype as input.
+        np.ndarray: Image with enhanced contrast
     """
     result = img.copy()
     num_channels = get_num_channels(img)
@@ -2884,16 +2815,16 @@ def get_drop_mask(
     dropout_prob: float,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Generate a boolean mask for pixel dropout.
+    """Generate dropout mask.
 
     Args:
-        shape: Shape of the input array
-        per_channel: Whether to generate independent masks per channel
-        dropout_prob: Probability of dropping a pixel
-        random_generator: Random number generator
+        shape (tuple[int, ...]): Shape of the output mask
+        per_channel (bool): Whether to apply dropout per channel
+        dropout_prob (float): Dropout probability
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Boolean mask matching input shape
+        np.ndarray: Dropout mask
     """
     if per_channel or len(shape) == 2:
         return random_generator.choice(
@@ -2922,12 +2853,12 @@ def generate_random_values(
     dtype: np.dtype,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Generate random values for dropped pixels.
+    """Generate random values.
 
     Args:
-        channels: Number of channels in the image
-        dtype: Data type of the image
-        random_generator: Random number generator
+        channels (int): Number of channels
+        dtype (np.dtype): Data type of the output array
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
         Array of random values
@@ -2953,12 +2884,12 @@ def prepare_drop_values(
     """Prepare values to fill dropped pixels.
 
     Args:
-        array: Input array to determine shape and dtype
-        value: User-specified drop values or None for random
-        random_generator: Random number generator
+        array (np.ndarray): Input array to determine shape and dtype
+        value (float | Sequence[float] | np.ndarray | None): User-specified drop values or None for random
+        random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Array of values matching input shape
+        np.ndarray: Array of values matching input shape
     """
     if value is None:
         channels = get_num_channels(array)
@@ -3357,15 +3288,14 @@ class MacenkoNormalizer(StainNormalizer):
 
 
 def get_tissue_mask(img: np.ndarray, threshold: float = 0.85) -> np.ndarray:
-    """Get binary mask of tissue regions based on luminosity.
+    """Get tissue mask from image.
 
     Args:
-        img: RGB image in float32 format, range [0, 1]
-        threshold: Luminosity threshold. Pixels with luminosity below this value
-                  are considered tissue. Range: 0 to 1. Default: 0.85
+        img (np.ndarray): Input image
+        threshold (float): Threshold for tissue detection. Default: 0.85
 
     Returns:
-        Binary mask where True indicates tissue regions
+        np.ndarray: Binary mask where True indicates tissue regions
     """
     # Convert to grayscale using RGB weights: R*0.299 + G*0.587 + B*0.114
     luminosity = img[..., 0] * 0.299 + img[..., 1] * 0.587 + img[..., 2] * 0.114

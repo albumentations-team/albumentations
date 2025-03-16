@@ -1,13 +1,12 @@
 import argparse
 import inspect
 import os
+import re
 import sys
 from pathlib import Path
-import re
 
 sys.path.append("..")
 import albumentations
-
 from albumentations.core.type_definitions import Targets
 
 IGNORED_CLASSES = {
@@ -19,9 +18,7 @@ IGNORED_CLASSES = {
 
 
 def make_augmentation_docs_link(cls) -> str:
-    return (
-        f"[{cls.__name__}](https://explore.albumentations.ai/transform/{cls.__name__})"
-    )
+    return f"[{cls.__name__}](https://explore.albumentations.ai/transform/{cls.__name__})"
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,34 +37,31 @@ def make_separator(width: int, align_center: bool) -> str:
 
 
 def is_deprecated(cls) -> bool:
-    """
-    Check if a given class is deprecated by looking for deprecation notices at the start of the docstring,
+    """Check if a given class is deprecated by looking for deprecation notices at the start of the docstring,
     not in the Args section.
     """
     if not cls.__doc__:
         return False
 
     # Split docstring into sections and look only at the first section (before Args:)
-    main_desc = cls.__doc__.split('Args:')[0]
+    main_desc = cls.__doc__.split("Args:")[0]
 
     # Check if there's a deprecation notice in the main description
-    return any(
-        "deprecated" in line.lower()
-        for line in main_desc.split('\n')
-        if line.strip()
-    )
+    return any("deprecated" in line.lower() for line in main_desc.split("\n") if line.strip())
 
 
 def get_image_only_transforms_info():
     image_only_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
-        if (inspect.isclass(cls) and
-            issubclass(cls, albumentations.ImageOnlyTransform) and
-            not issubclass(cls, albumentations.Transform3D) and
-            name not in IGNORED_CLASSES) and not is_deprecated(cls):
+        if (
+            inspect.isclass(cls)
+            and issubclass(cls, albumentations.ImageOnlyTransform)
+            and not issubclass(cls, albumentations.Transform3D)
+            and name not in IGNORED_CLASSES
+        ) and not is_deprecated(cls):
             image_only_info[name] = {
-                "docs_link": make_augmentation_docs_link(cls)
+                "docs_link": make_augmentation_docs_link(cls),
             }
     return image_only_info
 
@@ -76,14 +70,16 @@ def get_dual_transforms_info():
     dual_transforms_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
-        if (inspect.isclass(cls) and
-            issubclass(cls, albumentations.DualTransform) and
-            not issubclass(cls, albumentations.Transform3D) and  # Exclude 3D transforms
-            name not in IGNORED_CLASSES):
+        if (
+            inspect.isclass(cls)
+            and issubclass(cls, albumentations.DualTransform)
+            and not issubclass(cls, albumentations.Transform3D)  # Exclude 3D transforms
+            and name not in IGNORED_CLASSES
+        ):
             if not is_deprecated(cls):
                 dual_transforms_info[name] = {
                     "targets": cls._targets,
-                    "docs_link": make_augmentation_docs_link(cls)
+                    "docs_link": make_augmentation_docs_link(cls),
                 }
     return dual_transforms_info
 
@@ -92,12 +88,11 @@ def get_3d_transforms_info():
     transforms_3d_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
-        if (inspect.isclass(cls) and
-            issubclass(cls, albumentations.Transform3D) and
-            name not in IGNORED_CLASSES) and not is_deprecated(cls):
-
+        if (
+            inspect.isclass(cls) and issubclass(cls, albumentations.Transform3D) and name not in IGNORED_CLASSES
+        ) and not is_deprecated(cls):
             # Get targets from class or parent class if not defined
-            if hasattr(cls, '_targets'):
+            if hasattr(cls, "_targets"):
                 targets = cls._targets
             else:
                 # Get from Transform3D base class
@@ -105,7 +100,7 @@ def get_3d_transforms_info():
 
             transforms_3d_info[name] = {
                 "targets": targets if isinstance(targets, tuple) else (targets,),
-                "docs_link": make_augmentation_docs_link(cls)
+                "docs_link": make_augmentation_docs_link(cls),
             }
     return transforms_3d_info
 
@@ -134,25 +129,25 @@ def make_transforms_targets_table(transforms_info, header, targets_to_check=None
         lines.append(
             " | ".join(
                 "{column: <{width}}".format(width=width, column=column) for width, column in zip(column_widths, row)
-            )
+            ),
         )
     return "\n".join(f"| {line} |" for line in lines)
 
 
 def make_transforms_targets_links(transforms_info):
-    return "\n".join(
-        "- " + info["docs_link"] for _, info in sorted(transforms_info.items(), key=lambda kv: kv[0])
-    )
+    return "\n".join("- " + info["docs_link"] for _, info in sorted(transforms_info.items(), key=lambda kv: kv[0]))
 
 
-def check_docs(filepath, image_only_transforms_links, dual_transforms_table, transforms_3d_table) -> None:
+def check_docs(
+    filepath: str, image_only_transforms_links: str, dual_transforms_table: str, transforms_3d_table: str
+) -> None:
     """Check if the documentation file is up to date with the current transforms.
 
     Args:
-        filepath: Path to the documentation file (README.md)
-        image_only_transforms_links: Generated links for pixel-level transforms
-        dual_transforms_table: Generated table for spatial-level transforms
-        transforms_3d_table: Generated table for 3D transforms
+        filepath (str): Path to the documentation file (README.md)
+        image_only_transforms_links (str): Generated links for pixel-level transforms
+        dual_transforms_table (str): Generated table for spatial-level transforms
+        transforms_3d_table (str): Generated table for 3D transforms
 
     Raises:
         ValueError: If any section is outdated with detailed information about missing lines
@@ -176,7 +171,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table, tra
             "pattern": r"### 3D transforms\n\n(.*?)(?=###|\Z)",
             "generated": transforms_3d_table,
             "lines_not_in_text": [],
-        }
+        },
     }
 
     outdated_docs = set()
@@ -188,7 +183,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table, tra
         if not match:
             outdated_docs.add(section_name)
             section_info["lines_not_in_text"].extend(
-                section_info["generated"].split("\n")
+                section_info["generated"].split("\n"),
             )
             continue
 
@@ -234,13 +229,14 @@ def main() -> None:
 
     image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
     dual_transforms_table = make_transforms_targets_table(
-        dual_transforms, header=["Transform"] + [target.value for target in Targets]
+        dual_transforms,
+        header=["Transform"] + [target.value for target in Targets],
     )
 
     transforms_3d_table = make_transforms_targets_table(
         transforms_3d,
         header=["Transform"] + [target.value for target in [Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS]],
-        targets_to_check=[Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS]
+        targets_to_check=[Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS],
     )
 
     if command == "make":
@@ -260,7 +256,7 @@ def main() -> None:
             args.filepath,
             image_only_transforms_links,
             dual_transforms_table,
-            transforms_3d_table
+            transforms_3d_table,
         )
 
 

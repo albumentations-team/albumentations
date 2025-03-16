@@ -530,7 +530,7 @@ class Perspective(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p)
-        self.scale = cast(tuple[float, float], scale)
+        self.scale = cast("tuple[float, float]", scale)
         self.keep_size = keep_size
         self.border_mode = border_mode
         self.fill = fill
@@ -925,12 +925,12 @@ class Affine(DualTransform):
         self.fill = fill
         self.fill_mask = fill_mask
         self.border_mode = border_mode
-        self.scale = cast(dict[str, tuple[float, float]], scale)
-        self.translate_percent = cast(dict[str, tuple[float, float]], translate_percent)
-        self.translate_px = cast(dict[str, tuple[int, int]], translate_px)
-        self.rotate = cast(tuple[float, float], rotate)
+        self.scale = cast("dict[str, tuple[float, float]]", scale)
+        self.translate_percent = cast("dict[str, tuple[float, float]]", translate_percent)
+        self.translate_px = cast("dict[str, tuple[int, int]]", translate_px)
+        self.rotate = cast("tuple[float, float]", rotate)
         self.fit_output = fit_output
-        self.shear = cast(dict[str, tuple[float, float]], shear)
+        self.shear = cast("dict[str, tuple[float, float]]", shear)
         self.keep_ratio = keep_ratio
         self.rotate_method = rotate_method
         self.balanced_scale = balanced_scale
@@ -1143,10 +1143,10 @@ class Affine(DualTransform):
         if self.translate_percent is not None:
             translate = {key: self.py_random.uniform(*value) for key, value in self.translate_percent.items()}
             return cast(
-                dict[str, int],
+                "dict[str, int]",
                 {"x": int(translate["x"] * width), "y": int(translate["y"] * height)},
             )
-        return cast(dict[str, int], {"x": 0, "y": 0})
+        return cast("dict[str, int]", {"x": 0, "y": 0})
 
     def _get_shear_params(self) -> dict[str, float]:
         return {
@@ -1288,8 +1288,8 @@ class ShiftScaleRotate(Affine):
         fill_mask: tuple[float, ...] | float = 0,
         p: float = 0.5,
     ):
-        shift_limit_x = cast(tuple[float, float], shift_limit_x)
-        shift_limit_y = cast(tuple[float, float], shift_limit_y)
+        shift_limit_x = cast("tuple[float, float]", shift_limit_x)
+        shift_limit_y = cast("tuple[float, float]", shift_limit_y)
         super().__init__(
             scale=scale_limit,
             translate_percent={"x": shift_limit_x, "y": shift_limit_y},
@@ -1313,8 +1313,8 @@ class ShiftScaleRotate(Affine):
         self.shift_limit_x = shift_limit_x
         self.shift_limit_y = shift_limit_y
 
-        self.scale_limit = cast(tuple[float, float], scale_limit)
-        self.rotate_limit = cast(tuple[int, int], rotate_limit)
+        self.scale_limit = cast("tuple[float, float]", scale_limit)
+        self.rotate_limit = cast("tuple[int, int]", rotate_limit)
         self.border_mode = border_mode
         self.fill = fill
         self.fill_mask = fill_mask
@@ -1460,9 +1460,9 @@ class PiecewiseAffine(BaseDistortion):
             stacklevel=2,
         )
 
-        self.scale = cast(tuple[float, float], scale)
-        self.nb_rows = cast(tuple[int, int], nb_rows)
-        self.nb_cols = cast(tuple[int, int], nb_cols)
+        self.scale = cast("tuple[float, float]", scale)
+        self.nb_rows = cast("tuple[int, int]", nb_rows)
+        self.nb_cols = cast("tuple[int, int]", nb_cols)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
         self.absolute_scale = absolute_scale
@@ -1791,7 +1791,7 @@ class OpticalDistortion(BaseDistortion):
             fill=fill,
             fill_mask=fill_mask,
         )
-        self.distort_limit = cast(tuple[float, float], distort_limit)
+        self.distort_limit = cast("tuple[float, float]", distort_limit)
         self.mode = mode
 
     def get_params_dependent_on_data(
@@ -1940,7 +1940,7 @@ class GridDistortion(BaseDistortion):
             fill_mask=fill_mask,
         )
         self.num_steps = num_steps
-        self.distort_limit = cast(tuple[float, float], distort_limit)
+        self.distort_limit = cast("tuple[float, float]", distort_limit)
         self.normalized = normalized
 
     def get_params_dependent_on_data(
@@ -2358,7 +2358,7 @@ class RandomGridShuffle(DualTransform):
     ) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self.get_processor("bboxes"))
         if processor is None:
             return bboxes
         bboxes_returned = fgeometric.bboxes_grid_shuffle(

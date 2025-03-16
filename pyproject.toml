@@ -174,7 +174,6 @@ exclude = [
   ".vscode",
   "__pypackages__",
   "_build",
-  "benchmark",
   "buck-out",
   "build",
   "dist",
@@ -277,5 +276,11 @@ warn_required_dynamic_aliases = true
 module-root = "albumentations"
 tests-root = "tests"
 test-framework = "pytest"
-ignore-paths = []
-formatter-cmds = ["ruff check --exit-zero --fix $file", "ruff format $file"]
+ignore-paths = [  ]
+formatter-cmds = [ "ruff check --exit-zero --fix $file", "ruff format $file" ]
+
+[tool.docstring_checker]
+paths = [ "albumentations", "tools" ] # Directories or files to scan
+require_param_types = true            # Require parameter types in docstrings
+exclude_files = [ "__init__.py" ]     # Files to exclude from checks
+verbose = false                       # Enable verbose output

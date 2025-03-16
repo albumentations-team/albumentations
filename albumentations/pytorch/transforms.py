@@ -68,14 +68,14 @@ class ToTensorV2(BasicTransform):
         """Convert numpy array or list of numpy array masks to torch tensor(s).
 
         Args:
-            masks: Numpy array of shape (N, H, W) or (N, H, W, C),
+            masks (np.ndarray | list[np.ndarray]): Numpy array of shape (N, H, W) or (N, H, W, C),
                 or a list of numpy arrays with shape (H, W) or (H, W, C).
-            params: Additional parameters.
+            **params (Any): Additional parameters.
 
         Returns:
-            If transpose_mask is True and input is (N, H, W, C), returns tensor of shape (N, C, H, W).
-            If transpose_mask is True and input is (H, W, C), returns a list of tensors with shape (C, H, W).
-            Otherwise, returns tensors with the same shape as input.
+            torch.Tensor | list[torch.Tensor]: If transpose_mask is True and input is (N, H, W, C),
+                returns tensor of shape (N, C, H, W). If transpose_mask is True and input is (H, W, C), r
+                eturns a list of tensors with shape (C, H, W). Otherwise, returns tensors with the same shape as input.
         """
         if isinstance(masks, list):
             return [self.apply_to_mask(mask, **params) for mask in masks]

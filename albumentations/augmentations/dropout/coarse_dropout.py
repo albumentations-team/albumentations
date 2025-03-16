@@ -319,8 +319,8 @@ class Erasing(BaseDropout):
         aspect_ratio = self.py_random.uniform(min_r, max_r)
 
         # Calculate dimensions
-        h = int(round(np.sqrt(erase_area / aspect_ratio)))
-        w = int(round(np.sqrt(erase_area * aspect_ratio)))
+        h = round(np.sqrt(erase_area / aspect_ratio))
+        w = round(np.sqrt(erase_area * aspect_ratio))
 
         # Sample position
         top = self.py_random.randint(0, height - h)
