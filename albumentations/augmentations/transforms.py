@@ -1652,9 +1652,9 @@ class HueSaturationValue(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.hue_shift_limit = cast(tuple[float, float], hue_shift_limit)
-        self.sat_shift_limit = cast(tuple[float, float], sat_shift_limit)
-        self.val_shift_limit = cast(tuple[float, float], val_shift_limit)
+        self.hue_shift_limit = cast("tuple[float, float]", hue_shift_limit)
+        self.sat_shift_limit = cast("tuple[float, float]", sat_shift_limit)
+        self.val_shift_limit = cast("tuple[float, float]", val_shift_limit)
 
     def apply(
         self,
@@ -1864,7 +1864,7 @@ class Posterize(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.num_bits = cast(Union[tuple[int, int], list[tuple[int, int]]], num_bits)
+        self.num_bits = cast("Union[tuple[int, int], list[tuple[int, int]]]", num_bits)
 
     def apply(
         self,
@@ -2127,8 +2127,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.brightness_limit = cast(tuple[float, float], brightness_limit)
-        self.contrast_limit = cast(tuple[float, float], contrast_limit)
+        self.brightness_limit = cast("tuple[float, float]", brightness_limit)
+        self.contrast_limit = cast("tuple[float, float]", contrast_limit)
         self.brightness_by_max = brightness_by_max
         self.ensure_safe_range = ensure_safe_range
 
@@ -2451,7 +2451,7 @@ class CLAHE(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.clip_limit = cast(tuple[float, float], clip_limit)
+        self.clip_limit = cast("tuple[float, float]", clip_limit)
         self.tile_grid_size = tile_grid_size
 
     def apply(self, img: np.ndarray, clip_limit: float, **params: Any) -> np.ndarray:
@@ -2472,7 +2472,7 @@ class ChannelShuffle(ImageOnlyTransform):
     """Randomly rearrange channels of the image.
 
     Args:
-        p: probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -2516,7 +2516,7 @@ class InvertImg(ImageOnlyTransform):
     i.e., 255 for uint8 and 1.0 for float32.
 
     Args:
-        p: probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, volume
@@ -2550,7 +2550,7 @@ class RandomGamma(ImageOnlyTransform):
             the lower and upper bounds for gamma adjustment. Values are in terms of percentage change,
             e.g., (80, 120) means the gamma will be between 80% and 120% of the original.
             Default: (80, 120).
-        eps: A small value added to the gamma to avoid division by zero or log of zero errors.
+        eps (float): A small value added to the gamma to avoid division by zero or log of zero errors.
             Default: 1e-7.
         p (float): Probability of applying the transform. Default: 0.5.
 
@@ -2616,7 +2616,7 @@ class RandomGamma(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.gamma_limit = cast(tuple[float, float], gamma_limit)
+        self.gamma_limit = cast("tuple[float, float]", gamma_limit)
 
     def apply(self, img: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
         return fmain.gamma_transform(img, gamma=gamma)
@@ -3084,16 +3084,9 @@ class Downscale(ImageOnlyTransform):
             Lower values result in more aggressive downscaling.
             Default: (0.25, 0.25)
 
-        interpolation_pair (dict[Literal["downscale", "upscale"],
-                                Literal[ cv2.INTER_NEAREST,
-                                        cv2.INTER_NEAREST_EXACT,
-                                        cv2.INTER_LINEAR,
-                                        cv2.INTER_CUBIC,
-                                        cv2.INTER_AREA,
-                                        cv2.INTER_LANCZOS4,
-                                        cv2.INTER_LINEAR_EXACT,
-                                    ]]): A dictionary specifying the interpolation methods to use for
-            downscaling and upscaling. Should contain two keys:
+        interpolation_pair (dict[Literal["downscale", "upscale"], int]): A dictionary specifying
+            the interpolation methods to use for downscaling and upscaling.
+            Should contain two keys:
             - 'downscale': Interpolation method for downscaling
             - 'upscale': Interpolation method for upscaling
             Values should be OpenCV interpolation flags (e.g., cv2.INTER_NEAREST, cv2.INTER_LINEAR, etc.)
@@ -3189,11 +3182,11 @@ class Lambda(NoOp):
     Function signature must include **kwargs to accept optional arguments like interpolation method, image size, etc:
 
     Args:
-        image: Image transformation function.
-        mask: Mask transformation function.
-        keypoints: Keypoints transformation function.
-        bboxes: BBoxes transformation function.
-        p: probability of applying the transform. Default: 1.0.
+        image (Callable[..., Any] | None): Image transformation function.
+        mask (Callable[..., Any] | None): Mask transformation function.
+        keypoints (Callable[..., Any] | None): Keypoints transformation function.
+        bboxes (Callable[..., Any] | None): BBoxes transformation function.
+        p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
@@ -3218,7 +3211,7 @@ class Lambda(NoOp):
         super().__init__(p=p)
 
         self.name = name
-        self.custom_apply_fns = {target_name: fmain.noop for target_name in ("image", "mask", "keypoints", "bboxes")}
+        self.custom_apply_fns = dict.fromkeys(("image", "mask", "keypoints", "bboxes"), fmain.noop)
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
@@ -3361,7 +3354,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.multiplier = cast(tuple[float, float], multiplier)
+        self.multiplier = cast("tuple[float, float]", multiplier)
         self.elementwise = elementwise
         self.per_channel = per_channel
 
@@ -3596,7 +3589,7 @@ class ColorJitter(ImageOnlyTransform):
             elif isinstance(value, tuple) and len(value) == PAIR:
                 check_range(value, *bounds, info.field_name)
 
-            return cast(tuple[float, float], value)
+            return cast("tuple[float, float]", value)
 
     def __init__(
         self,
@@ -3608,10 +3601,10 @@ class ColorJitter(ImageOnlyTransform):
     ):
         super().__init__(p=p)
 
-        self.brightness = cast(tuple[float, float], brightness)
-        self.contrast = cast(tuple[float, float], contrast)
-        self.saturation = cast(tuple[float, float], saturation)
-        self.hue = cast(tuple[float, float], hue)
+        self.brightness = cast("tuple[float, float]", brightness)
+        self.contrast = cast("tuple[float, float]", contrast)
+        self.saturation = cast("tuple[float, float]", saturation)
+        self.hue = cast("tuple[float, float]", hue)
 
         self.transforms = [
             fmain.adjust_brightness_torchvision,
@@ -4070,8 +4063,8 @@ class Superpixels(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.p_replace = cast(tuple[float, float], p_replace)
-        self.n_segments = cast(tuple[int, int], n_segments)
+        self.p_replace = cast("tuple[float, float]", p_replace)
+        self.n_segments = cast("tuple[int, int]", n_segments)
         self.max_size = max_size
         self.interpolation = interpolation
 
@@ -4200,7 +4193,7 @@ class RingingOvershoot(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.blur_limit = cast(tuple[int, int], blur_limit)
+        self.blur_limit = cast("tuple[int, int]", blur_limit)
         self.cutoff = cutoff
 
     def get_params(self) -> dict[str, np.ndarray]:
@@ -4248,7 +4241,7 @@ class UnsharpMask(ImageOnlyTransform):
             as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
             If set single value `blur_limit` will be in range (0, blur_limit).
             Default: (3, 7).
-        sigma_limit (tuple[float, float] | float): Gaussian kernel standard deviation. Must be in range [0, inf).
+        sigma_limit (tuple[float, float] | float): Gaussian kernel standard deviation. Must be more or equal to 0.
             If set single value `sigma_limit` will be in range (0, sigma_limit).
             If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
         alpha (tuple[float, float]): range to choose the visibility of the sharpened image.
@@ -4321,9 +4314,9 @@ class UnsharpMask(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.blur_limit = cast(tuple[int, int], blur_limit)
-        self.sigma_limit = cast(tuple[float, float], sigma_limit)
-        self.alpha = cast(tuple[float, float], alpha)
+        self.blur_limit = cast("tuple[int, int]", blur_limit)
+        self.sigma_limit = cast("tuple[float, float]", sigma_limit)
+        self.alpha = cast("tuple[float, float]", alpha)
         self.threshold = threshold
 
     def get_params_dependent_on_data(
@@ -4445,13 +4438,13 @@ class Spatter(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.mean = cast(tuple[float, float], mean)
-        self.std = cast(tuple[float, float], std)
-        self.gauss_sigma = cast(tuple[float, float], gauss_sigma)
-        self.cutout_threshold = cast(tuple[float, float], cutout_threshold)
-        self.intensity = cast(tuple[float, float], intensity)
+        self.mean = cast("tuple[float, float]", mean)
+        self.std = cast("tuple[float, float]", std)
+        self.gauss_sigma = cast("tuple[float, float]", gauss_sigma)
+        self.cutout_threshold = cast("tuple[float, float]", cutout_threshold)
+        self.intensity = cast("tuple[float, float]", intensity)
         self.mode = mode
-        self.color = cast(tuple[int, ...], color)
+        self.color = cast("tuple[int, ...]", color)
 
     def apply(
         self,
@@ -4631,11 +4624,11 @@ class ChromaticAberration(ImageOnlyTransform):
     ):
         super().__init__(p=p)
         self.primary_distortion_limit = cast(
-            tuple[float, float],
+            "tuple[float, float]",
             primary_distortion_limit,
         )
         self.secondary_distortion_limit = cast(
-            tuple[float, float],
+            "tuple[float, float]",
             secondary_distortion_limit,
         )
         self.mode = mode
@@ -4781,7 +4774,7 @@ class Morphological(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.scale = cast(tuple[int, int], scale)
+        self.scale = cast("tuple[int, int]", scale)
         self.operation = operation
 
     def apply(
@@ -4979,7 +4972,7 @@ class PlanckianJitter(ImageOnlyTransform):
         super().__init__(p=p)
 
         self.mode = mode
-        self.temperature_limit = cast(tuple[int, int], temperature_limit)
+        self.temperature_limit = cast("tuple[int, int]", temperature_limit)
         self.sampling_method = sampling_method
 
     def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
@@ -5209,25 +5202,25 @@ class AdditiveNoise(ImageOnlyTransform):
     multiple noise distributions, each with configurable parameters.
 
     Args:
-        noise_type: Type of noise distribution to use. Options:
+        noise_type(Literal["uniform", "gaussian", "laplace", "beta"]): Type of noise distribution to use. Options:
             - "uniform": Uniform distribution, good for simple random perturbations
             - "gaussian": Normal distribution, models natural random processes
             - "laplace": Similar to Gaussian but with heavier tails, good for outliers
             - "beta": Flexible bounded distribution, can be symmetric or skewed
 
-        spatial_mode: How to generate and apply the noise. Options:
+        spatial_mode(Literal["constant", "per_pixel", "shared"]): How to generate and apply the noise. Options:
             - "constant": One noise value per channel, fastest
             - "per_pixel": Independent noise value for each pixel and channel, slowest
             - "shared": One noise map shared across all channels, medium speed
 
-        approximation: float in [0, 1], default=1.0
+        approximation(float): float in [0, 1], default=1.0
             Controls noise generation speed vs quality tradeoff.
             - 1.0: Generate full resolution noise (slowest, highest quality)
             - 0.5: Generate noise at half resolution and upsample
             - 0.25: Generate noise at quarter resolution and upsample
             Only affects 'per_pixel' and 'shared' spatial modes.
 
-        noise_params: Parameters for the chosen noise distribution.
+        noise_params(dict[str, Any] | None): Parameters for the chosen noise distribution.
             Must match the noise_type:
 
             uniform:
@@ -5489,9 +5482,9 @@ class RGBShift(AdditiveNoise):
             return limit
 
         ranges = [
-            normalize_range(cast(tuple[float, float], r_shift_limit)),
-            normalize_range(cast(tuple[float, float], g_shift_limit)),
-            normalize_range(cast(tuple[float, float], b_shift_limit)),
+            normalize_range(cast("tuple[float, float]", r_shift_limit)),
+            normalize_range(cast("tuple[float, float]", g_shift_limit)),
+            normalize_range(cast("tuple[float, float]", b_shift_limit)),
         ]
 
         # Initialize with fixed noise type and spatial mode
@@ -5504,9 +5497,9 @@ class RGBShift(AdditiveNoise):
         )
 
         # Store original limits for get_transform_init_args
-        self.r_shift_limit = cast(tuple[float, float], r_shift_limit)
-        self.g_shift_limit = cast(tuple[float, float], g_shift_limit)
-        self.b_shift_limit = cast(tuple[float, float], b_shift_limit)
+        self.r_shift_limit = cast("tuple[float, float]", r_shift_limit)
+        self.g_shift_limit = cast("tuple[float, float]", g_shift_limit)
+        self.b_shift_limit = cast("tuple[float, float]", b_shift_limit)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "r_shift_limit", "g_shift_limit", "b_shift_limit"
@@ -6346,14 +6339,14 @@ class HEStain(ImageOnlyTransform):
     4. Custom stain matrices
 
     Args:
-        method: Method to use for stain augmentation:
+        method(Literal["preset", "random_preset", "vahadane", "macenko"]): Method to use for stain augmentation:
             - "preset": Use predefined stain matrices
             - "random_preset": Randomly select a preset matrix each time
             - "vahadane": Extract using Vahadane method
             - "macenko": Extract using Macenko method
             Default: "preset"
 
-        preset: Preset stain matrix to use when method="preset":
+        preset(str | None): Preset stain matrix to use when method="preset":
             - "ruifrok": Standard reference from Ruifrok & Johnston
             - "macenko": Reference from Macenko's method
             - "standard": Typical bright-field microscopy
@@ -6364,21 +6357,21 @@ class HEStain(ImageOnlyTransform):
             - "light": Lighter staining
             Default: "standard"
 
-        intensity_scale_range: Range for multiplicative stain intensity variation.
+        intensity_scale_range(tuple[float, float]): Range for multiplicative stain intensity variation.
             Values are multipliers between 0.5 and 1.5. For example:
             - (0.7, 1.3) means stain intensities will vary from 70% to 130%
             - (0.9, 1.1) gives subtle variations
             - (0.5, 1.5) gives dramatic variations
             Default: (0.7, 1.3)
 
-        intensity_shift_range: Range for additive stain intensity variation.
+        intensity_shift_range(tuple[float, float]): Range for additive stain intensity variation.
             Values between -0.3 and 0.3. For example:
             - (-0.2, 0.2) means intensities will be shifted by -20% to +20%
             - (-0.1, 0.1) gives subtle shifts
             - (-0.3, 0.3) gives dramatic shifts
             Default: (-0.2, 0.2)
 
-        augment_background: Whether to apply augmentation to background regions.
+        augment_background(bool): Whether to apply augmentation to background regions.
             Default: False
 
     Targets:
@@ -6464,7 +6457,7 @@ class HEStain(ImageOnlyTransform):
         # Initialize stain extractor here if needed
         if method in ["vahadane", "macenko"]:
             self.stain_extractor = fmain.get_normalizer(
-                cast(Literal["vahadane", "macenko"], method),
+                cast("Literal['vahadane', 'macenko']", method),
             )
 
         self.preset_names = [

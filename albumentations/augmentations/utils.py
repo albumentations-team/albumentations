@@ -103,10 +103,10 @@ def check_range(value: tuple[float, float], lower_bound: float, upper_bound: flo
     """Checks if the given value is within the specified bounds
 
     Args:
-        value: The value to check and convert. Can be a single float or a tuple of floats.
-        lower_bound: The lower bound for the range check.
-        upper_bound: The upper bound for the range check.
-        name: The name of the parameter being checked. Used for error messages.
+        value (tuple[float, float]): The value to check and convert. Can be a single float or a tuple of floats.
+        lower_bound (float): The lower bound for the range check.
+        upper_bound (float): The upper bound for the range check.
+        name (str | None): The name of the parameter being checked. Used for error messages.
 
     Raises:
         ValueError: If the value is outside the bounds or if the tuple values are not ordered correctly.
@@ -188,6 +188,6 @@ def handle_empty_array(param_name: str) -> Callable[[F], F]:
                 return array
             return func(*args, **kwargs)
 
-        return cast(F, wrapper)
+        return cast("F", wrapper)
 
     return decorator

@@ -85,7 +85,7 @@ class Serializable(metaclass=SerializableMeta):
         python data types: dictionaries, lists, strings, integers, and floats.
 
         Args:
-            self: A transform that should be serialized. If the transform doesn't implement the `to_dict`
+            self (Serializable): A transform that should be serialized. If the transform doesn't implement the `to_dict`
                 method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
                 If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
                 but no transform parameters will be serialized.
@@ -118,8 +118,8 @@ def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") ->
     python data types: dictionaries, lists, strings, integers, and floats.
 
     Args:
-        transform: A transform that should be serialized. If the transform doesn't implement the `to_dict`
-            method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
+        transform (Serializable): A transform that should be serialized. If the transform doesn't implement
+            the `to_dict` method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
             If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
             but no transform parameters will be serialized.
         on_not_implemented_error (str): `raise` or `warn`.

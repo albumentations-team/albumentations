@@ -4,6 +4,7 @@ pre_commit>=3.5.0
 pytest>=8.3.3
 pytest_cov>=5.0.0
 pytest_mock>=3.14.0
+pytz
 requests>=2.31.0
 scikit-image
 scikit-learn

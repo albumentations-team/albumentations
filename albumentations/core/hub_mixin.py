@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import os
 from pathlib import Path
 from typing import Any, Callable
 
@@ -103,7 +102,7 @@ class HubMixin:
             repo_id (`str`, *optional*):
                 ID of your repository on the Hub. Used only if `push_to_hub=True`. Will default to the folder name if
                 not provided.
-            push_to_hub_kwargs:
+            push_to_hub_kwargs (`dict`, *optional*):
                 Additional key word arguments passed along to the [`push_to_hub`] method.
 
         Returns:
@@ -172,10 +171,10 @@ class HubMixin:
 
         # check if the file is already present locally
         if directory_or_repo_id.is_dir():
-            if filename in os.listdir(directory_or_repo_id):
+            if filename in [f.name for f in directory_or_repo_id.iterdir()]:
                 transform = cls._from_pretrained(save_directory=directory_or_repo_id, filename=filename)
             elif is_huggingface_hub_available:
-                logging.info(
+                logger.info(
                     f"{filename} not found in {Path(directory_or_repo_id).resolve()}, trying to load from the Hub.",
                 )
             else:

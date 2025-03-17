@@ -201,7 +201,7 @@ class FDA(ImageOnlyTransform):
         super().__init__(p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        self.beta_limit = cast(tuple[float, float], beta_limit)
+        self.beta_limit = cast("tuple[float, float]", beta_limit)
 
     def apply(
         self,

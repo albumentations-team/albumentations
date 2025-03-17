@@ -87,7 +87,7 @@ class MaskDropout(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.max_objects = cast(tuple[int, int], max_objects)
+        self.max_objects = cast("tuple[int, int]", max_objects)
         self.fill = fill  # type: ignore[assignment]
         self.fill_mask = fill_mask
 
@@ -124,7 +124,7 @@ class MaskDropout(DualTransform):
             dropout_mask = dropout_mask.astype(np.uint8)
             _, _, width, height = cv2.boundingRect(dropout_mask)
             radius = min(3, max(width, height) // 2)
-            return cv2.inpaint(img, dropout_mask, radius, cast(Literal["inpaint_telea", "inpaint_ns"], self.fill))
+            return cv2.inpaint(img, dropout_mask, radius, cast("Literal['inpaint_telea', 'inpaint_ns']", self.fill))
 
         img = img.copy()
         img[dropout_mask] = self.fill
@@ -143,7 +143,7 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return bboxes
 
-        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self.get_processor("bboxes"))
         if processor is None:
             return bboxes
 
@@ -165,7 +165,7 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return keypoints
 
-        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+        processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
             return keypoints

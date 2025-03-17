@@ -230,7 +230,7 @@ class Rotate(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.limit = cast(tuple[float, float], limit)
+        self.limit = cast("tuple[float, float]", limit)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
         self.border_mode = border_mode
@@ -539,7 +539,7 @@ class SafeRotate(Affine):
             mask_interpolation=mask_interpolation,
             p=p,
         )
-        self.limit = cast(tuple[float, float], limit)
+        self.limit = cast("tuple[float, float]", limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.fill = fill

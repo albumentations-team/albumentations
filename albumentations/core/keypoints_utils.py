@@ -116,8 +116,8 @@ class KeypointsProcessor(DataProcessor):
         """Filter keypoints based on visibility within given shape.
 
         Args:
-            data: Keypoints in [x, y, z, angle, scale] format
-            shape: Shape to check against as {'height': height, 'width': width, 'depth': depth}
+            data (np.ndarray): Keypoints in [x, y, z, angle, scale] format
+            shape (ShapeType): Shape to check against as {'height': height, 'width': width, 'depth': depth}
 
         Returns:
             Filtered keypoints
@@ -241,10 +241,10 @@ def filter_keypoints(
     """Filter keypoints to remove those outside the boundaries.
 
     Args:
-        keypoints: A numpy array of shape (N, 5+) where N is the number of keypoints.
-                   Each row represents a keypoint (x, y, z, angle, scale, ...).
-        shape: Shape to check against as {'height': height, 'width': width, 'depth': depth}.
-        remove_invisible: If True, remove keypoints outside the boundaries.
+        keypoints (np.ndarray): A numpy array of shape (N, 5+) where N is the number of keypoints.
+                               Each row represents a keypoint (x, y, z, angle, scale, ...).
+        shape (ShapeType): Shape to check against as {'height': height, 'width': width, 'depth': depth}.
+        remove_invisible (bool): If True, remove keypoints outside the boundaries.
 
     Returns:
         A numpy array of filtered keypoints.

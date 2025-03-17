@@ -272,8 +272,8 @@ class RandomCrop(BaseCropAndPad):
     """Crop a random part of the input.
 
     Args:
-        height: height of the crop.
-        width: width of the crop.
+        height (int): height of the crop.
+        width (int): width of the crop.
         pad_if_needed (bool): Whether to pad if crop size exceeds image size. Default: False.
         border_mode (OpenCV flag): OpenCV border mode used for padding. Default: cv2.BORDER_CONSTANT.
         fill (tuple[float, ...] | float): Padding value for images if border_mode is
@@ -282,7 +282,7 @@ class RandomCrop(BaseCropAndPad):
             cv2.BORDER_CONSTANT. Default: 0.
         pad_position (Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']):
             Position of padding. Default: 'center'.
-        p: probability of applying the transform. Default: 1.
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
@@ -1175,8 +1175,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(self.py_random.uniform(*log_ratio))
 
-            width = int(round(math.sqrt(target_area * aspect_ratio)))
-            height = int(round(math.sqrt(target_area / aspect_ratio)))
+            width = round(math.sqrt(target_area * aspect_ratio))
+            height = round(math.sqrt(target_area / aspect_ratio))
 
             if 0 < width <= image_width and 0 < height <= image_height:
                 i = self.py_random.randint(0, image_height - height)
@@ -1195,10 +1195,10 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         in_ratio = image_width / image_height
         if in_ratio < min(self.ratio):
             width = image_width
-            height = int(round(image_width / min(self.ratio)))
+            height = round(image_width / min(self.ratio))
         elif in_ratio > max(self.ratio):
             height = image_height
-            width = int(round(height * max(self.ratio)))
+            width = round(height * max(self.ratio))
         else:  # whole image
             width = image_width
             height = image_height
@@ -1256,7 +1256,7 @@ class RandomCropNearBBox(BaseCrop):
         p: float = 1.0,
     ):
         super().__init__(p=p)
-        self.max_part_shift = cast(tuple[float, float], max_part_shift)
+        self.max_part_shift = cast("tuple[float, float]", max_part_shift)
         self.cropping_bbox_key = cropping_bbox_key
 
     def get_params_dependent_on_data(
@@ -1890,7 +1890,7 @@ class CropAndPad(DualTransform):
             "fill": None if pad_params is None else self._get_pad_value(self.fill),
             "fill_mask": None
             if pad_params is None
-            else self._get_pad_value(cast(Union[tuple[float, ...], float], self.fill_mask)),
+            else self._get_pad_value(cast("Union[tuple[float, ...], float]", self.fill_mask)),
             "result_shape": (result_rows, result_cols),
         }
 

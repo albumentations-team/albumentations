@@ -79,7 +79,7 @@ class BaseDropout(DualTransform):
     ) -> np.ndarray:
         if holes.size == 0:
             return bboxes
-        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self.get_processor("bboxes"))
         if processor is None:
             return bboxes
 
@@ -105,7 +105,7 @@ class BaseDropout(DualTransform):
     ) -> np.ndarray:
         if holes.size == 0:
             return keypoints
-        processor = cast(KeypointsProcessor, self.get_processor("keypoints"))
+        processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
             return keypoints
@@ -113,23 +113,9 @@ class BaseDropout(DualTransform):
         return filter_keypoints_in_holes(keypoints, holes)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Get parameters of the transform conditioned on the input image.
-
-        Args:
-            params (dict): Parameters given to the transform.
-            data (dict): Additional data given to the transform.
-
-        Returns:
-            dict: Parameters required to apply the transform.
-        """
         raise NotImplementedError("Subclasses must implement this method.")
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the names of the arguments used in __init__.
-
-        Returns:
-            tuple: Names of the arguments.
-        """
         return "fill", "fill_mask"
 
 
@@ -238,7 +224,7 @@ class PixelDropout(DualTransform):
         if drop_mask is None or self.per_channel:
             return bboxes
 
-        processor = cast(BboxProcessor, self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self.get_processor("bboxes"))
         if processor is None:
             return bboxes
 
@@ -283,11 +269,11 @@ class PixelDropout(DualTransform):
         """Generate parameters for pixel dropout based on input data.
 
         Args:
-            params: Transform parameters
-            data: Input data dictionary
+            params (dict[str, Any]): Transform parameters
+            data (dict[str, Any]): Input data dictionary
 
         Returns:
-            Dictionary of parameters for applying the transform
+            dict[str, Any]: Dictionary of parameters for applying the transform
         """
         reference_array = data["image"] if "image" in data else data["images"][0]
 

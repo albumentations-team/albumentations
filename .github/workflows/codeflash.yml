@@ -22,7 +22,7 @@ jobs:
     env:
       CODEFLASH_API_KEY: ${{ secrets.CODEFLASH_API_KEY }}
       CODEFLASH_PR_NUMBER: ${{ github.event.number }}
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,10 +33,10 @@ jobs:
           python-version: '3.12.9'
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      
+
       - name: Install Dependencies
         run: uv sync
-      
+
       - name: Install additional Dev dependencies
         run: uv pip install -r requirements-dev.txt
 

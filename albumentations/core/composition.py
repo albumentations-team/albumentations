@@ -141,8 +141,8 @@ class BaseCompose(Serializable):
         """Set random state directly from generators.
 
         Args:
-            random_generator: numpy random generator to use
-            py_random: python random generator to use
+            random_generator (np.random.Generator): numpy random generator to use
+            py_random (random.Random): python random generator to use
         """
         self.random_generator = random_generator
         self.py_random = py_random
@@ -156,7 +156,7 @@ class BaseCompose(Serializable):
         """Set random state from seed.
 
         Args:
-            seed: Random seed to use
+            seed (int | None): Random seed to use
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
@@ -276,10 +276,10 @@ class BaseCompose(Serializable):
         """Check and filter data after transformation.
 
         Args:
-            data: Dictionary containing transformed data
+            data (dict[str, Any]): Dictionary containing transformed data
 
         Returns:
-            Filtered data dictionary
+            dict[str, Any]: Filtered data dictionary
         """
         if self.check_each_transform:
             shape = get_shape(data)
@@ -640,14 +640,13 @@ class Compose(BaseCompose, HubMixin):
         """Check masks data format and return shape.
 
         Args:
-            data_name: Name of the data field being checked
-            data: Input data in one of these formats:
+            data_name (str): Name of the data field being checked
+            data (Any): Input data in one of these formats:
                 - List of numpy arrays, each of shape (H, W) or (H, W, C)
                 - Numpy array of shape (N, H, W) or (N, H, W, C)
 
         Returns:
-            tuple: (height, width) of the first mask
-
+            tuple[int, int]: (height, width) of the first mask
         Raises:
             TypeError: If data format is invalid
         """
@@ -672,14 +671,13 @@ class Compose(BaseCompose, HubMixin):
         """Check multi-image data format and return shape.
 
         Args:
-            data_name: Name of the data field being checked
-            data: Input data in one of these formats:
+            data_name (str): Name of the data field being checked
+            data (Any): Input data in one of these formats:
                 - List-like of numpy arrays
                 - Numpy array of shape (N, H, W, C) or (N, H, W)
 
         Returns:
-            tuple: (height, width) of the first image
-
+            tuple[int, int]: (height, width) of the first image
         Raises:
             TypeError: If data format is invalid
         """
@@ -1109,7 +1107,7 @@ class ReplayCompose(Compose):
                 ]
             transform = cls(**args)
 
-        transform = cast(BasicTransform, transform)
+        transform = cast("BasicTransform", transform)
         if isinstance(transform, BasicTransform):
             transform.params = params
         transform.replay_mode = True

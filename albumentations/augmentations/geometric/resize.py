@@ -115,7 +115,7 @@ class RandomScale(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p)
-        self.scale_limit = cast(tuple[float, float], scale_limit)
+        self.scale_limit = cast("tuple[float, float]", scale_limit)
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
 

@@ -108,8 +108,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Set random state directly from generators.
 
         Args:
-            random_generator: numpy random generator to use
-            py_random: python random generator to use
+            random_generator (np.random.Generator): numpy random generator to use
+            py_random (random.Random): python random generator to use
         """
         self.random_generator = random_generator
         self.py_random = py_random
@@ -118,7 +118,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Set random state from seed.
 
         Args:
-            seed: Random seed to use
+            seed (int | None): Random seed to use
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
@@ -232,11 +232,11 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on images.
 
         Args:
-            images: Input images as numpy array of shape:
+            images (np.ndarray): Input images as numpy array of shape:
                 - (num_images, height, width, channels)
                 - (num_images, height, width) for grayscale
-            *args: Additional positional arguments
-            **params: Additional parameters specific to the transform
+            *args (Any): Additional positional arguments
+            **params (Any): Additional parameters specific to the transform
 
         Returns:
             Transformed images as numpy array in the same format as input
@@ -249,9 +249,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform slice by slice to a volume.
 
         Args:
-            volume: Input volume of shape (depth, height, width) or (depth, height, width, channels)
-            *args: Additional positional arguments
-            **params: Additional parameters specific to the transform
+            volume (np.ndarray): Input volume of shape (depth, height, width) or (depth, height, width, channels)
+            *args (Any): Additional positional arguments
+            **params (Any): Additional parameters specific to the transform
 
         Returns:
             Transformed volume as numpy array in the same format as input
@@ -270,8 +270,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Updates parameters with input shape and transform-specific params.
 
         Args:
-            params: Parameters to be updated
-            data: Input data dictionary containing images/volumes
+            params (dict[str, Any]): Parameters to be updated
+            data (dict[str, Any]): Input data dictionary containing images/volumes
 
         Returns:
             Updated parameters dictionary with shape and transform-specific params
@@ -509,43 +509,42 @@ class DualTransform(BasicTransform):
         """Apply transform to multiple masks.
 
         Args:
-            masks: Array of shape (N, H, W) or (N, H, W, C) where N is number of masks
-            *args: Additional positional arguments
-            **params: Additional parameters specific to the transform
+            masks (np.ndarray): Input masks as numpy array
+            *args (Any): Additional positional arguments
+            **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Array of transformed masks with same shape as input
+            Transformed masks as numpy array
         """
-        transformed = np.stack([self.apply_to_mask(mask, **params) for mask in masks])
-        return np.require(transformed, requirements=["C_CONTIGUOUS"])
+        return np.stack([self.apply_to_mask(mask, **params) for mask in masks])
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to single 3D mask.
+        """Apply transform to a 3D mask.
 
         Args:
-            mask3d: Input 3D mask of shape (D, H, W) or (D, H, W, C)
-            *args: Additional positional arguments
-            **params: Additional parameters specific to the transform
+            mask3d (np.ndarray): Input 3D mask as numpy array
+            *args (Any): Additional positional arguments
+            **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed 3D mask in the same format as input
+            Transformed 3D mask as numpy array
         """
-        return self.apply_to_mask(mask3d, *args, **params)
+        return self.apply_to_mask(mask3d, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to batch of 3D masks.
+        """Apply transform to multiple 3D masks.
 
         Args:
-            masks3d: Input 3D masks of shape (N, D, H, W) or (N, D, H, W, C)
-            *args: Additional positional arguments
-            **params: Additional parameters specific to the transform
+            masks3d (np.ndarray): Input 3D masks as numpy array
+            *args (Any): Additional positional arguments
+            **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed 3D masks in the same format as input
+            Transformed 3D masks as numpy array
         """
-        return self.apply_to_mask(masks3d, *args, **params)
+        return np.stack([self.apply_to_mask3d(mask3d, **params) for mask3d in masks3d])
 
 
 class ImageOnlyTransform(BasicTransform):

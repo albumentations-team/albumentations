@@ -48,7 +48,7 @@ def get_shape(data: dict[str, Any]) -> ShapeType:
     """Extract spatial dimensions from input data dictionary containing image or volume.
 
     Args:
-        data: Dictionary containing image or volume data with one of:
+        data (dict[str, Any]): Dictionary containing image or volume data with one of:
             - 'volume': 3D array of shape (D, H, W, C) [numpy] or (C, D, H, W) [torch]
             - 'image': 2D array of shape (H, W, C) [numpy] or (C, H, W) [torch]
             - 'images': Batch of arrays of shape (N, H, W, C) [numpy] or (N, C, H, W) [torch]
@@ -361,7 +361,7 @@ def to_tuple(
     if isinstance(param, Sequence):
         min_val, max_val = process_sequence(param)
     elif isinstance(param, Real):
-        min_val, max_val = process_scalar(param, cast(Real, low))
+        min_val, max_val = process_scalar(param, cast("Real", low))
     else:
         raise TypeError("Argument 'param' must be either a scalar or a sequence of 2 elements.")
 

@@ -217,7 +217,7 @@ class BboxProcessor(DataProcessor):
         - All specified label_fields exist in the data
 
         Args:
-            data: Dict with bounding boxes and optional label fields.
+            data (dict[str, Any]): Dict with bounding boxes and optional label fields.
 
         Raises:
             ValueError: If bounding boxes don't have labels or if label_fields are invalid.
@@ -255,9 +255,9 @@ class BboxProcessor(DataProcessor):
         """Converts bounding boxes between formats and applies preprocessing/postprocessing.
 
         Args:
-            data: Array of bounding boxes to process.
-            shape: Image shape as dict with height and width keys.
-            direction: Direction of conversion:
+            data (np.ndarray): Array of bounding boxes to process.
+            shape (ShapeType): Image shape as dict with height and width keys.
+            direction (Literal["to", "from"]): Direction of conversion:
                 - "to": Convert from original format to albumentations format
                 - "from": Convert from albumentations format to original format
                 Default: "to".
@@ -334,8 +334,8 @@ def normalize_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) -> 
     """Normalize array of bounding boxes.
 
     Args:
-        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
-        shape: Image shape `(height, width)`.
+        bboxes (np.ndarray): Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
+        shape (ShapeType | tuple[int, int]): Image shape `(height, width)`.
 
     Returns:
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
@@ -360,8 +360,8 @@ def denormalize_bboxes(
     """Denormalize array of bounding boxes.
 
     Args:
-        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
-        shape: Image shape `(height, width)`.
+        bboxes (np.ndarray): Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
+        shape (ShapeType | tuple[int, int]): Image shape `(height, width)`.
 
     Returns:
         Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
@@ -427,10 +427,10 @@ def convert_bboxes_to_albumentations(
     `(x_min, y_min, x_max, y_max)` e.g. `(0.15, 0.27, 0.67, 0.5)`.
 
     Args:
-        bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-        source_format: Format of the input bounding boxes. Should be 'coco', 'pascal_voc', or 'yolo'.
-        shape: Image shape (height, width).
-        check_validity: Check if all boxes are valid boxes.
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+        source_format (Literal["coco", "pascal_voc", "yolo"]): Format of the input bounding boxes.
+        shape (ShapeType): Image shape (height, width).
+        check_validity (bool): Check if all boxes are valid boxes.
 
     Returns:
         np.ndarray: An array of bounding boxes in albumentations format with shape (num_bboxes, 4+).
@@ -484,11 +484,11 @@ def convert_bboxes_from_albumentations(
     """Convert bounding boxes from the format used by albumentations to a specified format.
 
     Args:
-        bboxes: A numpy array of albumentations bounding boxes with shape (num_bboxes, 4+).
+        bboxes (np.ndarray): A numpy array of albumentations bounding boxes with shape (num_bboxes, 4+).
                 The first 4 columns are [x_min, y_min, x_max, y_max].
-        target_format: Required format of the output bounding boxes. Should be 'coco', 'pascal_voc' or 'yolo'.
-        shape: Image shape (height, width).
-        check_validity: Check if all boxes are valid boxes.
+        target_format (Literal["coco", "pascal_voc", "yolo"]): Required format of the output bounding boxes.
+        shape (ShapeType): Image shape (height, width).
+        check_validity (bool): Check if all boxes are valid boxes.
 
     Returns:
         np.ndarray: An array of bounding boxes in the target format with shape (num_bboxes, 4+).
@@ -527,13 +527,13 @@ def convert_bboxes_from_albumentations(
 
 @handle_empty_array("bboxes")
 def check_bboxes(bboxes: np.ndarray) -> None:
-    """Check if bboxes boundaries are in range 0, 1 and minimums are lesser than maximums.
+    """Check if bounding boxes are valid.
 
     Args:
-        bboxes: numpy array of shape (num_bboxes, 4+) where first 4 coordinates are x_min, y_min, x_max, y_max.
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
 
     Raises:
-        ValueError: If any bbox is invalid.
+        ValueError: If any bounding box is invalid.
     """
     # Check if all values are in range [0, 1]
     in_range = (bboxes[:, :4] >= 0) & (bboxes[:, :4] <= 1)
@@ -617,17 +617,15 @@ def filter_bboxes(
     or whose area in pixels is under the threshold set by `min_area`. Also crops boxes to final image size.
 
     Args:
-        bboxes: numpy array of bounding boxes with shape (num_bboxes, 4+).
-                The first 4 columns are [x_min, y_min, x_max, y_max].
-        shape (dict[str, int]): The shape of the image/volume:
-                               - For 2D: {'height': int, 'width': int}
-                               - For 3D: {'height': int, 'width': int, 'depth': int}
-
-        min_area: Minimum area of a bounding box in pixels. Default: 0.0.
-        min_visibility: Minimum fraction of area for a bounding box to remain. Default: 0.0.
-        min_width: Minimum width of a bounding box in pixels. Default: 0.0.
-        min_height: Minimum height of a bounding box in pixels. Default: 0.0.
-        max_accept_ratio: Maximum allowed aspect ratio, calculated as max(width/height, height/width).
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+        shape (ShapeType): The shape of the image/volume:
+                           - For 2D: {'height': int, 'width': int}
+                           - For 3D: {'height': int, 'width': int, 'depth': int}
+        min_area (float): Minimum area of a bounding box in pixels. Default: 0.0.
+        min_visibility (float): Minimum fraction of area for a bounding box to remain. Default: 0.0.
+        min_width (float): Minimum width of a bounding box in pixels. Default: 0.0.
+        min_height (float): Minimum height of a bounding box in pixels. Default: 0.0.
+        max_accept_ratio (float | None): Maximum allowed aspect ratio, calculated as max(width/height, height/width).
             Boxes with higher ratios will be filtered out. Default: None.
 
     Returns:
@@ -754,15 +752,14 @@ def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
 
 
 def masks_from_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) -> np.ndarray:
-    """Create binary masks from multiple bounding boxes
+    """Convert bounding boxes to masks.
 
     Args:
-        bboxes: Array of bounding boxes with shape (N, 4), where N is the number of boxes
-        shape: {"height": int, "width": int} or tuple[int, int]
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+        shape (ShapeType | tuple[int, int]): Image shape (height, width).
 
     Returns:
-        masks: Array of binary masks with shape (N, height, width)
-
+        np.ndarray: A numpy array of masks with shape (num_bboxes, height, width).
     """
     if isinstance(shape, dict):
         height, width = shape["height"], shape["width"]
@@ -782,14 +779,14 @@ def bboxes_to_mask(
     bboxes: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    """Convert bounding boxes to multi-channel binary mask.
+    """Convert bounding boxes to a single mask.
 
     Args:
-        bboxes: Array of bboxes in format [x_min, y_min, x_max, y_max, ...]
-        image_shape: (height, width) of the target mask
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+        image_shape (tuple[int, int]): Image shape (height, width).
 
     Returns:
-        Binary mask of shape (height, width, num_boxes)
+        np.ndarray: A numpy array of shape (height, width) with 1s where any bounding box is present.
     """
     height, width = image_shape[:2]
     num_boxes = len(bboxes)
@@ -813,14 +810,14 @@ def mask_to_bboxes(
     masks: np.ndarray,
     original_bboxes: np.ndarray,
 ) -> np.ndarray:
-    """Convert multi-channel binary mask back to bounding boxes.
+    """Convert masks back to bounding boxes.
 
     Args:
-        masks: Binary mask of shape (height, width, num_boxes)
-        original_bboxes: Original bboxes array to preserve extra columns
+        masks (np.ndarray): A numpy array of masks with shape (num_masks, height, width).
+        original_bboxes (np.ndarray): Original bounding boxes with shape (num_bboxes, 4+).
 
     Returns:
-        Array of bboxes in format [x_min, y_min, x_max, y_max, ...]
+        np.ndarray: A numpy array of bounding boxes with shape (num_masks, 4+).
     """
     num_boxes = masks.shape[-1]
     new_bboxes = []
