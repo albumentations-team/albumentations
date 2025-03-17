@@ -2141,15 +2141,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     ) -> np.ndarray:
         return albucore.multiply_add(img, alpha, beta, inplace=False)
 
-    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        return albucore.multiply_add(volume, **params)
-
-    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        return albucore.multiply_add(volumes, **params)
-
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        return albucore.multiply_add(images, **params)
-
     def get_params_dependent_on_data(
         self,
         params: dict[str, Any],
@@ -2540,15 +2531,6 @@ class InvertImg(ImageOnlyTransform):
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.invert(img)
-
-    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.invert(volume)
-
-    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.invert(volumes)
-
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        return fmain.invert(images)
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()

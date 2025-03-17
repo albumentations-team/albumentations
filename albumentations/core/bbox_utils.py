@@ -613,19 +613,23 @@ def filter_bboxes(
     min_height: float = 1.0,
     max_accept_ratio: float | None = None,
 ) -> np.ndarray:
-    """Filter bounding boxes based on various criteria.
+    """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
+    or whose area in pixels is under the threshold set by `min_area`. Also crops boxes to final image size.
 
     Args:
         bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
-        shape (ShapeType): Image shape (height, width).
-        min_area (float): Minimum area of a bounding box.
-        min_visibility (float): Minimum visibility of a bounding box.
-        min_width (float): Minimum width of a bounding box.
-        min_height (float): Minimum height of a bounding box.
-        max_accept_ratio (float | None): Maximum ratio of accepted bounding boxes.
+        shape (ShapeType): The shape of the image/volume:
+                           - For 2D: {'height': int, 'width': int}
+                           - For 3D: {'height': int, 'width': int, 'depth': int}
+        min_area (float): Minimum area of a bounding box in pixels. Default: 0.0.
+        min_visibility (float): Minimum fraction of area for a bounding box to remain. Default: 0.0.
+        min_width (float): Minimum width of a bounding box in pixels. Default: 0.0.
+        min_height (float): Minimum height of a bounding box in pixels. Default: 0.0.
+        max_accept_ratio (float | None): Maximum allowed aspect ratio, calculated as max(width/height, height/width).
+            Boxes with higher ratios will be filtered out. Default: None.
 
     Returns:
-        np.ndarray: Filtered bounding boxes.
+        numpy array of filtered bounding boxes.
     """
     epsilon = 1e-7
 

@@ -637,41 +637,58 @@ class Compose(BaseCompose, HubMixin):
 
     @staticmethod
     def _check_masks_data(data_name: str, data: Any) -> tuple[int, int]:
-        """Check masks data.
+        """Check masks data format and return shape.
 
         Args:
-            data_name (str): Name of the data field
-            data (Any): Data to check
+            data_name (str): Name of the data field being checked
+            data (Any): Input data in one of these formats:
+                - List of numpy arrays, each of shape (H, W) or (H, W, C)
+                - Numpy array of shape (N, H, W) or (N, H, W, C)
 
         Returns:
-            tuple[int, int]: Shape of the data
+            tuple[int, int]: (height, width) of the first mask
+        Raises:
+            TypeError: If data format is invalid
         """
-        if not isinstance(data, np.ndarray):
-            raise TypeError(f"{data_name} must be numpy array. Got: {type(data)}")
-        if len(data.shape) not in (2, 3):
-            raise ValueError(f"{data_name} must be 2 or 3 dimensional. Got shape: {data.shape}")
-        if len(data.shape) == 3 and data.shape[0] == 0:
-            raise ValueError(f"{data_name} first dimension must be non-zero. Got shape: {data.shape}")
-        return data.shape[1:]
+        if isinstance(data, np.ndarray):
+            if data.ndim not in [3, 4]:  # (N,H,W) or (N,H,W,C)
+                raise TypeError(f"{data_name} as numpy array must be 3D or 4D")
+            return data.shape[1:3]  # Return (H,W)
+
+        if isinstance(data, (list, tuple)):
+            if not data:
+                raise ValueError(f"{data_name} cannot be empty")
+            if not all(isinstance(m, np.ndarray) for m in data):
+                raise TypeError(f"All elements in {data_name} must be numpy arrays")
+            if any(m.ndim not in {2, 3} for m in data):
+                raise TypeError(f"All masks in {data_name} must be 2D or 3D numpy arrays")
+            return data[0].shape[:2]
+
+        raise TypeError(f"{data_name} must be either a numpy array or a sequence of numpy arrays")
 
     @staticmethod
     def _check_multi_data(data_name: str, data: Any) -> tuple[int, int]:
-        """Check multi-channel data.
+        """Check multi-image data format and return shape.
 
         Args:
-            data_name (str): Name of the data field
-            data (Any): Data to check
+            data_name (str): Name of the data field being checked
+            data (Any): Input data in one of these formats:
+                - List-like of numpy arrays
+                - Numpy array of shape (N, H, W, C) or (N, H, W)
 
         Returns:
-            tuple[int, int]: Shape of the data
+            tuple[int, int]: (height, width) of the first image
+        Raises:
+            TypeError: If data format is invalid
         """
-        if not isinstance(data, np.ndarray):
-            raise TypeError(f"{data_name} must be numpy array. Got: {type(data)}")
-        if len(data.shape) not in (2, 3):
-            raise ValueError(f"{data_name} must be 2 or 3 dimensional. Got shape: {data.shape}")
-        if len(data.shape) == 3 and data.shape[0] == 0:
-            raise ValueError(f"{data_name} first dimension must be non-zero. Got shape: {data.shape}")
-        return data.shape[1:]
+        if isinstance(data, np.ndarray):
+            if data.ndim not in {3, 4}:  # (N,H,W) or (N,H,W,C)
+                raise TypeError(f"{data_name} as numpy array must be 3D or 4D")
+            return data.shape[1:3]  # Return (H,W)
+
+        if not isinstance(data, Sequence) or not isinstance(data[0], np.ndarray):
+            raise TypeError(f"{data_name} must be either a numpy array or a list of numpy arrays")
+        return data[0].shape[:2]
 
     @staticmethod
     def _check_bbox_keypoint_params(internal_data_name: str, processors: dict[str, Any]) -> None:
