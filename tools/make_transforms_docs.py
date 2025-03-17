@@ -75,8 +75,7 @@ def get_dual_transforms_info():
             and issubclass(cls, albumentations.DualTransform)
             and not issubclass(cls, albumentations.Transform3D)  # Exclude 3D transforms
             and name not in IGNORED_CLASSES
-        ):
-            if not is_deprecated(cls):
+        ) and not is_deprecated(cls):
                 dual_transforms_info[name] = {
                     "targets": cls._targets,
                     "docs_link": make_augmentation_docs_link(cls),
