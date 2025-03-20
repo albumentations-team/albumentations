@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 import numpy as np
+from albucore import get_num_channels
 from pydantic import AfterValidator
 
 from albumentations.core.pydantic import check_range_bounds
@@ -117,24 +118,17 @@ class ChannelDropout(ImageOnlyTransform):
             dict[str, list[int]]: Dictionary with channels to drop.
         """
         image = data["image"] if "image" in data else data["images"][0]
-        num_channels = image.shape[2] if len(image.shape) > 2 else 1
-
+        num_channels = get_num_channels(image)
         if num_channels == 1:
-            # Cannot drop the only channel.
-            return {"channels_to_drop": []}
+            msg = "Images has one channel. ChannelDropout is not defined."
+            raise NotImplementedError(msg)
 
-        # Sample the number of channels to drop
-        channel_drop_range = self.channel_drop_range
-        if isinstance(channel_drop_range, int):
-            channel_drop_range = (channel_drop_range, channel_drop_range)
-        if min(*channel_drop_range) >= num_channels:
-            # All channels would be dropped, which would result in an invalid image.
-            # Let's drop all except one channel.
-            num_drop = num_channels - 1
-        else:
-            num_drop = min(self.py_random.randint(*channel_drop_range), num_channels - 1)
+        if self.channel_drop_range[1] >= num_channels:
+            msg = "Can not drop all channels in ChannelDropout."
+            raise ValueError(msg)
+        num_drop_channels = self.py_random.randint(*self.channel_drop_range)
+        channels_to_drop = self.py_random.sample(range(num_channels), k=num_drop_channels)
 
-        channels_to_drop = self.py_random.choices(list(range(num_channels)), k=num_drop)
         return {"channels_to_drop": channels_to_drop}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
