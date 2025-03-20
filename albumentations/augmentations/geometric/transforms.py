@@ -254,7 +254,7 @@ class BaseDistortion(DualTransform):
             return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
         return fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, params["shape"])
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "interpolation", "mask_interpolation", "keypoint_remapping_method", "border_mode", "fill", "fill_mask"
 
 
@@ -406,9 +406,9 @@ class ElasticTransform(BaseDistortion):
             "map_y": maps[1].astype(np.float32),
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
             "alpha",
             "sigma",
             "approximate",
@@ -669,7 +669,7 @@ class Perspective(DualTransform):
             "matrix_bbox": matrix,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "scale",
             "keep_size",
@@ -948,7 +948,7 @@ class Affine(DualTransform):
                 f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}",
             )
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "interpolation",
             "mask_interpolation",
@@ -1475,13 +1475,13 @@ class PiecewiseAffine(BaseDistortion):
         self.mask_interpolation = mask_interpolation
         self.absolute_scale = absolute_scale
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "scale",
             "nb_rows",
             "nb_cols",
             "absolute_scale",
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
         )
 
     def get_params_dependent_on_data(
@@ -1580,7 +1580,7 @@ class VerticalFlip(DualTransform):
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         return self.apply(mask3d, **params)
 
-    def _get_transform_init_args_names(self) -> tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1625,7 +1625,7 @@ class HorizontalFlip(DualTransform):
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         return self.apply(mask3d, **params)
 
-    def _get_transform_init_args_names(self) -> tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1690,7 +1690,7 @@ class Transpose(DualTransform):
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_transpose(keypoints)
 
-    def _get_transform_init_args_names(self) -> tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1826,11 +1826,11 @@ class OpticalDistortion(BaseDistortion):
 
         return {"map_x": map_x, "map_y": map_y}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "distort_limit",
             "mode",
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
         )
 
 
@@ -1981,9 +1981,9 @@ class GridDistortion(BaseDistortion):
 
         return {"map_x": map_x, "map_y": map_y}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
             "num_steps",
             "distort_limit",
             "normalized",
@@ -2094,7 +2094,7 @@ class D4(DualTransform):
             "group_element": self.random_generator.choice(d4_group_elements),
         }
 
-    def _get_transform_init_args_names(self) -> tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -2270,7 +2270,7 @@ class GridElasticDeform(DualTransform):
             params["shape"][:2],
         )
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_grid_xy", "magnitude", "interpolation", "mask_interpolation"
 
 
@@ -2424,7 +2424,7 @@ class RandomGridShuffle(DualTransform):
 
         return {"tiles": original_tiles, "mapping": mapping}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("grid",)
 
 
@@ -2599,7 +2599,7 @@ class Pad(DualTransform):
             "pad_right": pad_right,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "padding",
             "fill",
@@ -2753,7 +2753,7 @@ class PadIfNeeded(Pad):
             "pad_right": w_pad_right,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "min_height",
             "min_width",
@@ -2945,11 +2945,11 @@ class ThinPlateSpline(BaseDistortion):
             "map_y": transformed[:, 1].reshape(height, width).astype(np.float32),
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "scale_range",
             "num_control_points",
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
         )
 
 

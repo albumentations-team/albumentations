@@ -154,9 +154,9 @@ class GridDropout(BaseDropout):
         )
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
             "ratio",
             "unit_size_range",
             "holes_number_xy",

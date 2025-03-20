@@ -338,7 +338,7 @@ class MaxSizeTransform(DualTransform):
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         return self.apply_to_mask(masks3d, *args, **params)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_size", "max_size_hw", "interpolation", "mask_interpolation"
 
 
@@ -697,7 +697,7 @@ class Resize(DualTransform):
         scale_y = self.height / height
         return fgeometric.keypoints_scale(keypoints, scale_x, scale_y)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the argument names for the transform constructor.
 
         Returns:

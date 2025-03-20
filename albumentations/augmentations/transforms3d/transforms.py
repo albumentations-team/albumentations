@@ -178,7 +178,7 @@ class Pad3D(BasePad3D):
 
         return {"padding": padding}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "padding", "fill", "fill_mask"
 
 
@@ -262,7 +262,7 @@ class PadIfNeeded3D(BasePad3D):
 
         return {"padding": padding}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "min_zyx",
             "pad_divisor_zyx",
@@ -590,7 +590,7 @@ class CenterCrop3D(BaseCropAndPad3D):
             "pad_params": pad_params,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "size", "pad_if_needed", "fill", "fill_mask"
 
 
@@ -679,7 +679,7 @@ class RandomCrop3D(BaseCropAndPad3D):
             "pad_params": pad_params,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "size", "pad_if_needed", "fill", "fill_mask"
 
 
@@ -911,7 +911,7 @@ class CoarseDropout3D(Transform3D):
             return keypoints
         return f3d.filter_keypoints_in_holes3d(keypoints, holes)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "num_holes_range",
             "hole_depth_range",
@@ -1019,5 +1019,5 @@ class CubicSymmetry(Transform3D):
         """
         return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume_shape"])
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()

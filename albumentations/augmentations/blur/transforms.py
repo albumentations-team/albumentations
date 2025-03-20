@@ -142,7 +142,7 @@ class Blur(ImageOnlyTransform):
         )
         return {"kernel": kernel}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
@@ -288,14 +288,14 @@ class MotionBlur(Blur):
         self.angle_range = angle_range
         self.direction_range = direction_range
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
             tuple[str, ...]: Tuple of argument names.
         """
         return (
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
             "allow_shifted",
             "angle_range",
             "direction_range",
@@ -532,7 +532,7 @@ class GaussianBlur(ImageOnlyTransform):
         ksize = self.py_random.randint(*self.blur_limit)
         return {"kernel": fblur.create_gaussian_kernel_1d(sigma, ksize)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
@@ -665,12 +665,19 @@ class GlassBlur(ImageOnlyTransform):
             dict[str, np.ndarray]: Dictionary with parameters.
         """
         height, width = params["shape"][:2]
+        # generate array containing all necessary values for transformations
+        width_pixels = height - self.max_delta * 2
+        height_pixels = width - self.max_delta * 2
+        total_pixels = int(width_pixels * height_pixels)
+        dxy = self.random_generator.integers(
+            -self.max_delta,
+            self.max_delta,
+            size=(total_pixels, self.iterations, 2),
+        )
 
-        # generate array containing random shift vectors as (dx, dy)
-        dxy = self.random_generator.randint(0, 2 * self.max_delta + 1, size=(height, width, 2)) - self.max_delta
         return {"dxy": dxy}
 
-    def _get_transform_init_args_names(self) -> tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
@@ -771,15 +778,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
         @field_validator("beta_limit")
         @classmethod
-        def check_beta_limit(cls, value: tuple[float, float] | float) -> tuple[float, float]:
-            """Validate the beta_limit parameter.
-
-            Args:
-                value (tuple[float, float] | float): Beta limit value.
-
-            Returns:
-                tuple[float, float]: Validated beta limit value.
-            """
+        def _check_beta_limit(cls, value: tuple[float, float] | float) -> tuple[float, float]:
             result = to_tuple(value, low=0)
             if not (result[0] < 1.0 < result[1]):
                 raise ValueError(
@@ -788,12 +787,7 @@ class AdvancedBlur(ImageOnlyTransform):
             return result
 
         @model_validator(mode="after")
-        def validate_limits(self) -> Self:
-            """Validate all limit parameters.
-
-            Returns:
-                Self: The validated model instance.
-            """
+        def _validate_limits(self) -> Self:
             if (
                 isinstance(self.sigma_x_limit, (tuple, list))
                 and isinstance(self.sigma_y_limit, (tuple, list))
@@ -889,7 +883,7 @@ class AdvancedBlur(ImageOnlyTransform):
         kernel = kernel.astype(np.float32) / np.sum(kernel)
         return {"kernel": kernel}
 
-    def _get_transform_init_args_names(self) -> tuple[str, str, str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str, str, str]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
@@ -998,7 +992,7 @@ class Defocus(ImageOnlyTransform):
             "alias_blur": self.py_random.uniform(*self.alias_blur),
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
@@ -1071,7 +1065,7 @@ class ZoomBlur(ImageOnlyTransform):
         max_factor = max(1 + step_factor, self.py_random.uniform(*self.max_factor))
         return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:

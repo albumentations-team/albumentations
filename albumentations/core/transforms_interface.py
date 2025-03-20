@@ -160,7 +160,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         d["id"] = id(self)
         return d
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Returns names of arguments that are used in __init__ method of the transform."""
         msg = (
             f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
@@ -401,7 +401,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def _get_transform_init_args(self) -> dict[str, Any]:
         """Exclude seed from init args during serialization"""
-        args = {k: getattr(self, k) for k in self._get_transform_init_args_names()}
+        args = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
         args.pop("seed", None)  # Remove seed from args
         return args
 
@@ -626,7 +626,7 @@ class NoOp(DualTransform):
     def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
         return masks3d
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
 
 

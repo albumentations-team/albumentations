@@ -123,7 +123,7 @@ class BaseDropout(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "fill", "fill_mask"
 
 
@@ -322,5 +322,5 @@ class PixelDropout(DualTransform):
             "mask_drop_values": mask_drop_values if mask_drop_values is not None else None,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "dropout_prob", "per_channel", "drop_value", "mask_drop_value"

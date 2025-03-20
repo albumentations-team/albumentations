@@ -184,5 +184,5 @@ class OverlayElements(DualTransform):
 
         return mask
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("metadata_key",)

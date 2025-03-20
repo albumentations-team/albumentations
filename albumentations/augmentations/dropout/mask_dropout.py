@@ -180,5 +180,5 @@ class MaskDropout(DualTransform):
 
         return fdropout.mask_dropout_keypoints(keypoints, dropout_mask)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_objects", "fill", "fill_mask"

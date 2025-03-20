@@ -180,8 +180,8 @@ class CoarseDropout(BaseDropout):
 
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (*super()._get_transform_init_args_names(), "num_holes_range", "hole_height_range", "hole_width_range")
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (*super().get_transform_init_args_names(), "num_holes_range", "hole_height_range", "hole_width_range")
 
 
 class Erasing(BaseDropout):
@@ -338,7 +338,7 @@ class Erasing(BaseDropout):
         holes = np.array([[left, top, left + w, top + h]], dtype=np.int32)
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "scale", "ratio", "fill", "fill_mask"
 
 
@@ -559,9 +559,9 @@ class ConstrainedCoarseDropout(BaseDropout):
             "seed": self.random_generator.integers(0, 2**32 - 1),
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
-            *super()._get_transform_init_args_names(),
+            *super().get_transform_init_args_names(),
             "num_holes_range",
             "hole_height_range",
             "hole_width_range",

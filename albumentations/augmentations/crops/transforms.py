@@ -491,7 +491,7 @@ class RandomCrop(BaseCropAndPad):
             "pad_params": pad_params,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the argument names for the transform constructor.
 
         Returns:
@@ -581,7 +581,7 @@ class CenterCrop(BaseCropAndPad):
         self.height = height
         self.width = width
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -795,7 +795,7 @@ class Crop(BaseCropAndPad):
             "pad_params": pad_params,
         }
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -953,7 +953,7 @@ class CropNonEmptyMaskIfExists(BaseCrop):
 
         return {"crop_coords": (x_min, y_min, x_max, y_max)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:
@@ -1099,7 +1099,7 @@ class _BaseRandomSizedCrop(DualTransform):
         # Scale the cropped keypoints
         return fgeometric.keypoints_scale(cropped_keypoints, scale_x, scale_y)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -1260,13 +1260,13 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
         return {"crop_coords": crop_coords}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
             tuple[str, ...]: The names of the arguments for the transform.
         """
-        return (*super()._get_transform_init_args_names(), "min_max_height", "w2h_ratio")
+        return (*super().get_transform_init_args_names(), "min_max_height", "w2h_ratio")
 
 
 class RandomResizedCrop(_BaseRandomSizedCrop):
@@ -1464,7 +1464,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
         return {"crop_coords": crop_coords}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -1563,7 +1563,7 @@ class RandomCropNearBBox(BaseCrop):
         """
         return [self.cropping_bbox_key]
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -1704,7 +1704,7 @@ class BBoxSafeRandomCrop(BaseCrop):
 
         return {"crop_coords": (crop_x_min, crop_y_min, crop_x_max, crop_y_max)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -1899,13 +1899,13 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         scale_x = self.width / crop_width
         return fgeometric.keypoints_scale(keypoints, scale_x=scale_x, scale_y=scale_y)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
             tuple[str, ...]: The names of the arguments for the transform.
         """
-        return (*super()._get_transform_init_args_names(), "height", "width", "interpolation", "mask_interpolation")
+        return (*super().get_transform_init_args_names(), "height", "width", "interpolation", "mask_interpolation")
 
 
 class CropAndPad(DualTransform):
@@ -2356,7 +2356,7 @@ class CropAndPad(DualTransform):
         msg = "fill should be a number or list, or tuple of two numbers."
         raise ValueError(msg)
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -2493,7 +2493,7 @@ class RandomCropFromBorders(BaseCrop):
 
         return {"crop_coords": crop_coords}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
@@ -2687,7 +2687,7 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
 
         return {"crop_coords": (crop_x1, crop_y1, crop_x2, crop_y2)}
 
-    def _get_transform_init_args_names(self) -> tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the names of the arguments for the transform.
 
         Returns:
