@@ -147,6 +147,19 @@ class Pad3D(BasePad3D):
             cls,
             v: int | tuple[int, int, int] | tuple[int, int, int, int, int, int],
         ) -> int | tuple[int, int, int] | tuple[int, int, int, int, int, int]:
+            """Validate the padding parameter.
+
+            Args:
+                cls (type): The class object
+                v (int | tuple[int, int, int] | tuple[int, int, int, int, int, int]): The padding value to validate,
+                    can be an integer or tuple of integers
+
+            Returns:
+                int | tuple[int, int, int] | tuple[int, int, int, int, int, int]: The validated padding value
+
+            Raises:
+                ValueError: If padding is negative or contains negative values
+            """
             if isinstance(v, int) and v < 0:
                 raise ValueError("Padding value must be non-negative")
             if isinstance(v, tuple) and not all(isinstance(i, int) and i >= 0 for i in v):
@@ -167,6 +180,16 @@ class Pad3D(BasePad3D):
         self.fill_mask = fill_mask
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Get parameters dependent on input data.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with volume, mask, etc.
+
+        Returns:
+            dict[str, Any]: Dictionary containing the padding parameter tuple in format:
+                (depth_front, depth_back, height_top, height_bottom, width_left, width_right)
+        """
         if isinstance(self.padding, int):
             pad_d = pad_h = pad_w = self.padding
             padding = (pad_d, pad_d, pad_h, pad_h, pad_w, pad_w)
@@ -215,6 +238,14 @@ class PadIfNeeded3D(BasePad3D):
 
         @model_validator(mode="after")
         def validate_params(self) -> Self:
+            """Validate that either min_zyx or pad_divisor_zyx is provided.
+
+            Returns:
+                Self: Self reference for method chaining
+
+            Raises:
+                ValueError: If both min_zyx and pad_divisor_zyx are None
+            """
             if self.min_zyx is None and self.pad_divisor_zyx is None:
                 msg = "At least one of min_zyx or pad_divisor_zyx must be set"
                 raise ValueError(msg)
@@ -239,6 +270,15 @@ class PadIfNeeded3D(BasePad3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """Calculate padding parameters based on input data dimensions.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with volume, mask, etc.
+
+        Returns:
+            dict[str, Any]: Dictionary containing calculated padding parameters
+        """
         depth, height, width = data["volume"].shape[:3]
         sizes = (depth, height, width)
 
@@ -535,6 +575,15 @@ class CenterCrop3D(BaseCropAndPad3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """Calculate crop coordinates for center cropping.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with volume, mask, etc.
+
+        Returns:
+            dict[str, Any]: Dictionary containing crop coordinates and optional padding parameters
+        """
         volume = data["volume"]
         z, h, w = volume.shape[:3]
         target_z, target_h, target_w = self.size
@@ -629,6 +678,15 @@ class RandomCrop3D(BaseCropAndPad3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """Calculate random crop coordinates.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with volume, mask, etc.
+
+        Returns:
+            dict[str, Any]: Dictionary containing randomly generated crop coordinates and optional padding parameters
+        """
         volume = data["volume"]
         z, h, w = volume.shape[:3]
         target_z, target_h, target_w = self.size
@@ -746,6 +804,15 @@ class CoarseDropout3D(Transform3D):
 
         @staticmethod
         def validate_range(range_value: tuple[float, float], range_name: str) -> None:
+            """Validate that range values are between 0 and 1 and in non-decreasing order.
+
+            Args:
+                range_value (tuple[float, float]): Tuple of (min, max) values to check
+                range_name (str): Name of the range for error reporting
+
+            Raises:
+                ValueError: If range values are invalid
+            """
             if not 0 <= range_value[0] <= range_value[1] <= 1:
                 raise ValueError(
                     f"All values in {range_name} should be in [0, 1] range and first value "
@@ -808,6 +875,15 @@ class CoarseDropout3D(Transform3D):
         return hole_depths, hole_heights, hole_widths
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Generate parameters for coarse dropout based on input data.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with volume, mask, etc.
+
+        Returns:
+            dict[str, Any]: Dictionary containing generated hole parameters for dropout
+        """
         volume_shape = data["volume"].shape[:3]
 
         num_holes = self.py_random.randint(*self.num_holes_range)
@@ -959,8 +1035,16 @@ class CubicSymmetry(Transform3D):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        # Randomly select one of 48 possible transformations
+        """Generate parameters for cubic symmetry transformation.
 
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with volume, mask, etc.
+
+        Returns:
+            dict[str, Any]: Dictionary containing the randomly selected transformation index
+        """
+        # Randomly select one of 48 possible transformations
         volume_shape = data["volume"].shape
         return {"index": self.py_random.randint(0, 47), "volume_shape": volume_shape}
 
