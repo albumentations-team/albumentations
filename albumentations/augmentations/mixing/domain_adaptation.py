@@ -126,9 +126,6 @@ class HistogramMatching(ImageOnlyTransform):
             "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "reference_images", "blend_ratio", "read_fn"
-
     def to_dict_private(self) -> dict[str, Any]:
         msg = "HistogramMatching can not be serialized."
         raise NotImplementedError(msg)
@@ -225,9 +222,6 @@ class FDA(ImageOnlyTransform):
         target_img = cv2.resize(target_img, dsize=(width, height))
 
         return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
-
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return "reference_images", "beta_limit", "read_fn"
 
     def to_dict_private(self) -> dict[str, Any]:
         msg = "FDA can not be serialized."
@@ -340,9 +334,6 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
             "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        return "reference_images", "blend_ratio", "read_fn", "transform_type"
 
     def to_dict_private(self) -> dict[str, Any]:
         msg = "PixelDistributionAdaptation can not be serialized."

@@ -178,9 +178,6 @@ class Pad3D(BasePad3D):
 
         return {"padding": padding}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "padding", "fill", "fill_mask"
-
 
 class PadIfNeeded3D(BasePad3D):
     """Pads the sides of a 3D volume if its dimensions are less than specified minimum dimensions.
@@ -261,15 +258,6 @@ class PadIfNeeded3D(BasePad3D):
         )
 
         return {"padding": padding}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "min_zyx",
-            "pad_divisor_zyx",
-            "position",
-            "fill",
-            "fill_mask",
-        )
 
 
 class BaseCropAndPad3D(Transform3D):
@@ -679,9 +667,6 @@ class RandomCrop3D(BaseCropAndPad3D):
             "pad_params": pad_params,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "size", "pad_if_needed", "fill", "fill_mask"
-
 
 class CoarseDropout3D(Transform3D):
     """CoarseDropout3D randomly drops out cuboid regions from a 3D volume and optionally,
@@ -771,7 +756,7 @@ class CoarseDropout3D(Transform3D):
                 )
 
         @model_validator(mode="after")
-        def check_ranges(self) -> Self:
+        def _check_ranges(self) -> Self:
             self.validate_range(self.hole_depth_range, "hole_depth_range")
             self.validate_range(self.hole_height_range, "hole_height_range")
             self.validate_range(self.hole_width_range, "hole_width_range")
@@ -911,16 +896,6 @@ class CoarseDropout3D(Transform3D):
             return keypoints
         return f3d.filter_keypoints_in_holes3d(keypoints, holes)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "num_holes_range",
-            "hole_depth_range",
-            "hole_height_range",
-            "hole_width_range",
-            "fill",
-            "fill_mask",
-        )
-
 
 class CubicSymmetry(Transform3D):
     """Applies a random cubic symmetry transformation to a 3D volume.
@@ -1018,6 +993,3 @@ class CubicSymmetry(Transform3D):
             np.ndarray: Transformed keypoints with same shape as input
         """
         return f3d.transform_cube_keypoints(keypoints, index, volume_shape=params["volume_shape"])
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ()

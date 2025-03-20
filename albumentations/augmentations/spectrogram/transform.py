@@ -145,9 +145,6 @@ class TimeMasking(XYMasking):
         )
         self.time_mask_param = time_mask_param
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("time_mask_param",)
-
 
 class FrequencyMasking(XYMasking):
     """Apply masking to a spectrogram in the frequency domain.
@@ -218,6 +215,3 @@ class FrequencyMasking(XYMasking):
             num_masks_y=1,
         )
         self.freq_mask_param = freq_mask_param
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("freq_mask_param",)
