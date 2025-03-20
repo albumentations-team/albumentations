@@ -131,14 +131,6 @@ class ToTensorV2(BasicTransform):
             raise ValueError(f"Expected 4D array (N,H,W,C), got {images.ndim}D array")
         return torch.from_numpy(images.transpose(0, 3, 1, 2))  # -> (N,C,H,W)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the transform initialization argument names.
-
-        Returns:
-            tuple[str, ...]: Tuple of argument names required to recreate the transform
-        """
-        return ("transpose_mask",)
-
 
 class ToTensor3D(BasicTransform):
     """Convert 3D volumes and masks to PyTorch tensors.
@@ -188,11 +180,3 @@ class ToTensor3D(BasicTransform):
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> torch.Tensor:
         """Convert 3D mask to channels-first tensor."""
         return self.apply_to_volume(mask3d, **params)
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the transform initialization argument names.
-
-        Returns:
-            tuple[str, ...]: Empty tuple as this transform has no required arguments
-        """
-        return ()

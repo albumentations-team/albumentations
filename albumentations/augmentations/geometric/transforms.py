@@ -115,9 +115,6 @@ class BaseDistortion(DualTransform):
             def get_params_dependent_on_data(self, params, data):
                 # Generate and return map_x and map_y based on the distortion logic
                 return {"map_x": map_x, "map_y": map_y}
-
-            def get_transform_init_args_names(self):
-                return super().get_transform_init_args_names() + ("custom_param1", "custom_param2")
     """
 
     _targets = ALL_TARGETS
@@ -1521,9 +1518,6 @@ class VerticalFlip(DualTransform):
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         return self.apply(mask3d, **params)
-
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
 
 
 class HorizontalFlip(DualTransform):

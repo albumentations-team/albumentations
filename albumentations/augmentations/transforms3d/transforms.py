@@ -578,9 +578,6 @@ class CenterCrop3D(BaseCropAndPad3D):
             "pad_params": pad_params,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "size", "pad_if_needed", "fill", "fill_mask"
-
 
 class RandomCrop3D(BaseCropAndPad3D):
     """Crop random part of 3D volume.
