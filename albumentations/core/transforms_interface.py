@@ -1,3 +1,12 @@
+"""Module containing base interfaces for all transform implementations.
+
+This module defines the fundamental transform interfaces that form the base hierarchy for
+all transformation classes in Albumentations. It provides abstract classes and mixins that
+define common behavior for image, keypoint, bounding box, and volumetric transformations.
+The interfaces handle parameter validation, random state management, target type checking,
+and serialization capabilities that are inherited by concrete transform implementations.
+"""
+
 from __future__ import annotations
 
 import random

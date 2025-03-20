@@ -1,3 +1,11 @@
+"""Module containing Pydantic validation utilities for Albumentations.
+
+This module provides a collection of validators and utility functions used for validating
+parameters in the Pydantic models throughout the Albumentations library. It includes
+functions for ensuring numeric ranges are valid, handling type conversions, and creating
+standardized validation patterns that are reused across the codebase.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable

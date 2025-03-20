@@ -1,3 +1,12 @@
+"""Module containing type definitions and constants used throughout Albumentations.
+
+This module defines common types, constants, and enumerations that are used across the
+Albumentations library. It includes type aliases for numeric types, enumerations for
+targets supported by transforms, and constants that define standard dimensions or values
+used in image and volumetric data processing. These definitions help ensure type safety
+and provide a centralized location for commonly used values.
+"""
+
 from __future__ import annotations
 
 from enum import Enum

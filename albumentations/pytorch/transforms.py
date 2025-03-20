@@ -1,3 +1,12 @@
+"""Module containing PyTorch-specific transforms for Albumentations.
+
+This module provides transforms that convert NumPy arrays to PyTorch tensors in
+the appropriate format. It handles both 2D image data and 3D volumetric data,
+ensuring that the tensor dimensions are correctly arranged according to PyTorch's
+expected format (channels first). These transforms are typically used as the final
+step in an augmentation pipeline before feeding data to a PyTorch model.
+"""
+
 from __future__ import annotations
 
 from typing import Any, overload

@@ -1,3 +1,12 @@
+"""Module containing utility functions and classes for the core Albumentations framework.
+
+This module provides a collection of helper functions and base classes used throughout
+the Albumentations library. It includes utilities for shape handling, parameter processing,
+data conversion, and serialization. The module defines abstract base classes for data
+processors that implement the conversion logic between different data formats used in
+the transformation pipeline.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

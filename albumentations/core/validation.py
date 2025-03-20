@@ -1,3 +1,12 @@
+"""Module containing validation mechanisms for transform parameters.
+
+This module provides a metaclass that enables parameter validation for transforms using
+Pydantic models. It intercepts the initialization of transform classes to validate their
+parameters against schema definitions, raising appropriate errors for invalid values and
+providing type conversion capabilities. This validation layer helps prevent runtime errors
+by catching configuration issues at initialization time.
+"""
+
 from __future__ import annotations
 
 from inspect import Parameter, signature
