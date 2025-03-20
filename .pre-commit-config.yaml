@@ -89,7 +89,7 @@ repos:
         args:
           [ --config-file=pyproject.toml ]
   - repo: https://github.com/ternaus/google-docstring-parser
-    rev: 081dcc5ab37112be66b95ce6ad7ed3d4ada3c371  # Use the latest version
+    rev: 0.0.4  # Use the latest version
     hooks:
       - id: check-google-docstrings
         additional_dependencies: ["tomli>=2.0.0"]

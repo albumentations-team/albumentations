@@ -44,8 +44,8 @@ class TextImage(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/danaaubakirova/doc-augmentation
+    References:
+        doc-augmentation: https://github.com/danaaubakirova/doc-augmentation
 
     Examples:
         >>> import albumentations as A

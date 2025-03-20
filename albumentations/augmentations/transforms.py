@@ -1511,8 +1511,8 @@ class RandomToneCurve(ImageOnlyTransform):
         >>> augmented_image = transform(image=image)['image']
 
     References:
-        - "What Else Can Fool Deep Learning? Addressing Color Constancy Errors on Deep Neural Network Performance"
-          by Mahmoud Afifi and Michael S. Brown, ICCV 2019.
+        - "What Else Can Fool Deep Learning? Addressing Color Constancy Errors on Deep Neural Network Performance":
+          https://arxiv.org/abs/1912.06960
         - Bézier curve: https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
         - Tone mapping: https://en.wikipedia.org/wiki/Tone_mapping
     """
@@ -1636,7 +1636,7 @@ class HueSaturationValue(ImageOnlyTransform):
         >>> augmented_image = result["image"]
 
     References:
-        - HSV color space: https://en.wikipedia.org/wiki/HSL_and_HSV
+        HSV color space: https://en.wikipedia.org/wiki/HSL_and_HSV
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2338,8 +2338,7 @@ class ISONoise(ImageOnlyTransform):
         >>> noisy_image = result["image"]
 
     References:
-        - ISO noise in digital photography:
-          https://en.wikipedia.org/wiki/Image_noise#In_digital_cameras
+        ISO noise in digital photography: https://en.wikipedia.org/wiki/Image_noise#In_digital_cameras
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2444,9 +2443,9 @@ class CLAHE(ImageOnlyTransform):
         >>> clahe_image = result["image"]
 
     References:
-        - https://docs.opencv.org/master/d5/daf/tutorial_py_histogram_equalization.html
-        - Zuiderveld, Karel. "Contrast Limited Adaptive Histogram Equalization."
-          Graphic Gems IV. Academic Press Professional, Inc., 1994.
+        - Tutorial: https://docs.opencv.org/master/d5/daf/tutorial_py_histogram_equalization.html
+        - "Contrast Limited Adaptive Histogram Equalization.": https://ieeexplore.ieee.org/document/109340
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3352,7 +3351,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         >>> noisy_image = result["image"]
 
     References:
-        - Multiplicative noise: https://en.wikipedia.org/wiki/Multiplicative_noise
+        Multiplicative noise: https://en.wikipedia.org/wiki/Multiplicative_noise
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3459,9 +3458,8 @@ class FancyPCA(ImageOnlyTransform):
         >>> augmented_image = result["image"]
 
     References:
-        - Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012). ImageNet classification with deep
-          convolutional neural networks. In Advances in neural information processing systems (pp. 1097-1105).
-        - https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+        ImageNet Classification with Deep Convolutional Neural Networks: In Advances in Neural Information
+        Processing Systems (Vol. 25). Curran Associates, Inc.
 
     """
 
@@ -3569,8 +3567,8 @@ class ColorJitter(ImageOnlyTransform):
         >>> jittered_image = result['image']
 
     References:
-        - https://pytorch.org/vision/stable/generated/torchvision.transforms.ColorJitter.html#torchvision.transforms.ColorJitter
-        - https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
+        - ColorJitter: https://pytorch.org/vision/stable/generated/torchvision.transforms.ColorJitter.html
+        - Color Conversions: https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3764,23 +3762,13 @@ class Sharpen(ImageOnlyTransform):
         ... )
 
     References:
-        .. [1] R. C. Gonzalez and R. E. Woods, "Digital Image Processing (4th Edition),"
-               Chapter 3: Intensity Transformations and Spatial Filtering.
-
-        .. [2] J. C. Russ, "The Image Processing Handbook (7th Edition),"
-               Chapter 4: Image Enhancement.
-
-        .. [3] T. Acharya and A. K. Ray, "Image Processing: Principles and Applications,"
-               Chapter 5: Image Enhancement.
-
-        .. [4] Unsharp masking:
-               https://en.wikipedia.org/wiki/Unsharp_masking
-
-        .. [5] Laplacian operator:
-               https://en.wikipedia.org/wiki/Laplace_operator
-
-        .. [6] Gaussian blur:
-               https://en.wikipedia.org/wiki/Gaussian_blur
+        - R. C. Gonzalez and R. E. Woods, "Digital Image Processing (4th Edition),": Chapter 3:
+            Intensity Transformations and Spatial Filtering.
+        - J. C. Russ, "The Image Processing Handbook (7th Edition),": Chapter 4: Image Enhancement.
+        - T. Acharya and A. K. Ray, "Image Processing: Principles and Applications,": Chapter 5: Image Enhancement.
+        - Unsharp masking: https://en.wikipedia.org/wiki/Unsharp_masking
+        - Laplacian operator: https://en.wikipedia.org/wiki/Laplace_operator
+        - Gaussian blur: https://en.wikipedia.org/wiki/Gaussian_blur
 
     See Also:
         - Blur: For Gaussian blurring
@@ -3906,8 +3894,8 @@ class Emboss(ImageOnlyTransform):
         >>> embossed_image = result['image']
 
     References:
-        - https://en.wikipedia.org/wiki/Image_embossing
-        - https://www.researchgate.net/publication/303412455_Application_of_Emboss_Filtering_in_Image_Processing
+        - Image Embossing: https://en.wikipedia.org/wiki/Image_embossing
+        - Application of Emboss Filtering in Image Processing: https://www.researchgate.net/publication/303412455_Application_of_Emboss_Filtering_in_Image_Processing
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4192,8 +4180,7 @@ class RingingOvershoot(ImageOnlyTransform):
     References:
         - Ringing artifacts: https://en.wikipedia.org/wiki/Ringing_artifacts
         - Sinc filter: https://en.wikipedia.org/wiki/Sinc_filter
-        - "The Importance of Ringing Artifacts in Image Processing" by Jae S. Lim, 1981
-        - "Digital Image Processing" by Rafael C. Gonzalez and Richard E. Woods, 4th Edition
+        - Digital Image Processing: Rafael C. Gonzalez and Richard E. Woods, 4th Edition
     """
 
     class InitSchema(BlurInitSchema):
@@ -4285,8 +4272,7 @@ class UnsharpMask(ImageOnlyTransform):
         - The blur_limit and sigma_limit parameters control the Gaussian blur used to create the mask.
 
     References:
-        - https://en.wikipedia.org/wiki/Unsharp_masking
-        - https://arxiv.org/pdf/2107.10833.pdf
+        Unsharp Masking: https://en.wikipedia.org/wiki/Unsharp_masking
 
     Examples:
         >>> import numpy as np
@@ -4415,9 +4401,8 @@ class Spatter(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://arxiv.org/abs/1903.12261
-        https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    References:
+        Benchmarking Neural Network Robustness to Common Corruptions and Perturbations: https://arxiv.org/abs/1903.12261
 
     """
 
@@ -4606,8 +4591,7 @@ class ChromaticAberration(ImageOnlyTransform):
         >>> aberrated_image = transformed['image']
 
     References:
-        - https://en.wikipedia.org/wiki/Chromatic_aberration
-        - https://www.researchgate.net/publication/320691320_Chromatic_Aberration_in_Digital_Images
+        Chromatic Aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4768,8 +4752,8 @@ class Morphological(DualTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/facebookresearch/nougat
+    References:
+        Nougat: https://github.com/facebookresearch/nougat
 
     Example:
         >>> import albumentations as A
@@ -5592,14 +5576,10 @@ class SaltAndPepper(ImageOnlyTransform):
         >>> noisy_image = transform(image=image)["image"]
 
     References:
-        .. [1] R. C. Gonzalez and R. E. Woods, "Digital Image Processing (4th Edition),"
-               Chapter 5: Image Restoration and Reconstruction.
-
-        .. [2] A. K. Jain, "Fundamentals of Digital Image Processing,"
-               Chapter 7: Image Degradation and Restoration.
-
-        .. [3] Salt and pepper noise:
-               https://en.wikipedia.org/wiki/Salt-and-pepper_noise
+        - Digital Image Processing: Rafael C. Gonzalez and Richard E. Woods, 4th Edition,
+            Chapter 5: Image Restoration and Reconstruction.
+        - Fundamentals of Digital Image Processing: A. K. Jain, Chapter 7: Image Degradation and Restoration.
+        - Salt and pepper noise: https://en.wikipedia.org/wiki/Salt-and-pepper_noise
 
     See Also:
         - GaussNoise: For additive Gaussian noise
@@ -5768,12 +5748,9 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         ... )
 
     References:
-        .. [1] Fournier, Fussell, and Carpenter, "Computer rendering of stochastic models,"
-               Communications of the ACM, 1982.
-               Paper introducing the Diamond-Square algorithm.
-
-        .. [2] Diamond-Square algorithm:
-               https://en.wikipedia.org/wiki/Diamond-square_algorithm
+        - Fournier, Fussell, and Carpenter, "Computer rendering of stochastic models,": Communications of
+            the ACM, 1982. Paper introducing the Diamond-Square algorithm.
+        - Diamond-Square algorithm: https://en.wikipedia.org/wiki/Diamond-square_algorithm
 
     See Also:
         - RandomBrightnessContrast: For uniform brightness/contrast adjustments
@@ -5948,12 +5925,9 @@ class PlasmaShadow(ImageOnlyTransform):
         ... )
 
     References:
-        .. [1] Fournier, Fussell, and Carpenter, "Computer rendering of stochastic models,"
-               Communications of the ACM, 1982.
-               Paper introducing the Diamond-Square algorithm.
-
-        .. [2] Diamond-Square algorithm:
-               https://en.wikipedia.org/wiki/Diamond-square_algorithm
+        - Fournier, Fussell, and Carpenter, "Computer rendering of stochastic models,": Communications of
+            the ACM, 1982. Paper introducing the Diamond-Square algorithm.
+        - Diamond-Square algorithm: https://en.wikipedia.org/wiki/Diamond-square_algorithm
 
     See Also:
         - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
@@ -6402,12 +6376,10 @@ class HEStain(ImageOnlyTransform):
         uint8, float32
 
     References:
-        .. [1] A. C. Ruifrok and D. A. Johnston, "Quantification of histochemical
-               staining by color deconvolution," Analytical and quantitative
-               cytology and histology, 2001.
-        .. [2] M. Macenko et al., "A method for normalizing histology slides for
-               quantitative analysis," 2009 IEEE International Symposium on
-               Biomedical Imaging, 2009.
+        - A. C. Ruifrok and D. A. Johnston, "Quantification of histochemical": Analytical and quantitative
+            cytology and histology, 2001.
+        - M. Macenko et al., "A method for normalizing histology slides for: 2009 IEEE International Symposium on
+            quantitative analysis," 2009 IEEE International Symposium on Biomedical Imaging, 2009.
     """
 
     class InitSchema(BaseTransformInitSchema):

@@ -816,8 +816,7 @@ class Defocus(ImageOnlyTransform):
         >>> defocused_image = result['image']
 
     References:
-        - https://en.wikipedia.org/wiki/Defocus_aberration
-        - https://www.researchgate.net/publication/261311609_Realistic_Defocus_Blur_for_Multiplane_Computer-Generated_Holography
+        Defocus aberration: https://en.wikipedia.org/wiki/Defocus_aberration
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -872,7 +871,7 @@ class ZoomBlur(ImageOnlyTransform):
         unit8, float32
 
     Reference:
-        https://arxiv.org/abs/1903.12261
+        Zoom Blur: https://arxiv.org/abs/1903.12261
     """
 
     class InitSchema(BaseTransformInitSchema):

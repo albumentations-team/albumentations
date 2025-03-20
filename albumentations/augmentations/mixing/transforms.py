@@ -41,8 +41,8 @@ class OverlayElements(DualTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/danaaubakirova/doc-augmentation
+    References:
+        doc-augmentation: https://github.com/danaaubakirova/doc-augmentation
 
     """
 

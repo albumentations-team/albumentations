@@ -344,8 +344,8 @@ class Rotate(DualTransform):
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
-        Reference:
-            https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
+        References:
+            Rotate image and crop out black borders: https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
         """
         angle = math.radians(angle)
         width_is_longer = width >= height

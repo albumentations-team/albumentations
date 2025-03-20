@@ -1053,8 +1053,8 @@ def add_shadow(
     Returns:
         np.ndarray: Image with shadows added.
 
-    Reference:
-        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    References:
+        Automold--Road-Augmentation-Library: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     num_channels = get_num_channels(img)
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
@@ -1468,10 +1468,9 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
         - The augmentation preserves the correlation between channels while adding controlled noise.
         - Computation time may increase significantly for images with a large number of channels.
 
-    Reference:
-        Krizhevsky, A., Sutskever, I., & Hinton, G. E. (2012).
-        ImageNet classification with deep convolutional neural networks.
-        In Advances in neural information processing systems (pp. 1097-1105).
+    References:
+        ImageNet classification with deep convolutional neural networks: Krizhevsky, A., Sutskever, I.,
+            & Hinton, G. E. (2012): In Advances in neural information processing systems (pp. 1097-1105).
     """
     orig_shape = img.shape
     num_channels = get_num_channels(img)
