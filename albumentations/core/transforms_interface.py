@@ -675,9 +675,6 @@ class NoOp(DualTransform):
     def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
         return masks3d
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ()
-
 
 class Transform3D(DualTransform):
     """Base class for all 3D transforms.

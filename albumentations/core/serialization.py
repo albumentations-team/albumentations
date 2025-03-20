@@ -114,9 +114,8 @@ class Serializable(metaclass=SerializableMeta):
             transform_dict = {}
             warnings.warn(
                 f"Got NotImplementedError while trying to serialize {self}. Object arguments are not preserved. "
-                f"Implement either '{self.__class__.__name__}.get_transform_init_args_names' "
-                f"or '{self.__class__.__name__}.get_transform_init_args' "
-                "method to make the transform serializable",
+                f"The transform class '{self.__class__.__name__}' needs to implement 'to_dict_private' or inherit from "
+                f"BasicTransform to be properly serialized.",
                 stacklevel=2,
             )
         return {"__version__": __version__, "transform": transform_dict}
