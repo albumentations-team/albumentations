@@ -17,6 +17,7 @@ from collections.abc import Mapping, Sequence
 from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
+from warnings import warn
 
 try:
     import yaml
@@ -172,6 +173,12 @@ def from_dict(
         return lmbd
     name = transform["__class_fullname__"]
     args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
+
+    # Ensure 'p' is included, default to 0.5 if missing for backward compatibility
+    if "p" not in args and name not in ("Compose", "Sequential"):
+        warn(f"Transform {name} has no 'p' parameter in serialized data, defaulting to 0.5", stacklevel=2)
+        args["p"] = 0.5
+
     cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
     if "transforms" in args:
         args["transforms"] = [from_dict({"transform": t}, nonserializable=nonserializable) for t in args["transforms"]]
