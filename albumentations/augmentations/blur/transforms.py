@@ -280,19 +280,6 @@ class MotionBlur(Blur):
         self.angle_range = angle_range
         self.direction_range = direction_range
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, ...]: Tuple of argument names.
-        """
-        return (
-            *super().get_transform_init_args_names(),
-            "allow_shifted",
-            "angle_range",
-            "direction_range",
-        )
-
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
         """Apply motion blur to the input image.
 
@@ -524,14 +511,6 @@ class GaussianBlur(ImageOnlyTransform):
         ksize = self.py_random.randint(*self.blur_limit)
         return {"kernel": fblur.create_gaussian_kernel_1d(sigma, ksize)}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, ...]: Tuple of argument names.
-        """
-        return "blur_limit", "sigma_limit"
-
 
 class GlassBlur(ImageOnlyTransform):
     """Apply a glass blur effect to the input image.
@@ -668,14 +647,6 @@ class GlassBlur(ImageOnlyTransform):
         )
 
         return {"dxy": dxy}
-
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, str, str, str]: Tuple of argument names.
-        """
-        return "sigma", "max_delta", "iterations", "mode"
 
 
 class AdvancedBlur(ImageOnlyTransform):
@@ -873,21 +844,6 @@ class AdvancedBlur(ImageOnlyTransform):
         kernel = kernel.astype(np.float32) / np.sum(kernel)
         return {"kernel": kernel}
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str, str, str]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, str, str, str, str, str]: Tuple of argument names.
-        """
-        return (
-            "blur_limit",
-            "sigma_x_limit",
-            "sigma_y_limit",
-            "rotate_limit",
-            "beta_limit",
-            "noise_limit",
-        )
-
 
 class Defocus(ImageOnlyTransform):
     """Apply defocus blur to the input image.
@@ -982,14 +938,6 @@ class Defocus(ImageOnlyTransform):
             "alias_blur": self.py_random.uniform(*self.alias_blur),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, str]: Tuple of argument names.
-        """
-        return ("radius", "alias_blur")
-
 
 class ZoomBlur(ImageOnlyTransform):
     """Apply zoom blur transform.
@@ -1054,11 +1002,3 @@ class ZoomBlur(ImageOnlyTransform):
         step_factor = self.py_random.uniform(*self.step_factor)
         max_factor = max(1 + step_factor, self.py_random.uniform(*self.max_factor))
         return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
-
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, str]: Tuple of argument names.
-        """
-        return ("max_factor", "step_factor")
