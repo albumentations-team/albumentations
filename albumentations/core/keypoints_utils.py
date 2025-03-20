@@ -78,6 +78,11 @@ class KeypointParams(Params):
         self.check_each_transform = check_each_transform
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Get the private dictionary representation of keypoint parameters.
+
+        Returns:
+            dict[str, Any]: Dictionary containing the keypoint parameters.
+        """
         data = super().to_dict_private()
         data.update(
             {
@@ -90,10 +95,20 @@ class KeypointParams(Params):
 
     @classmethod
     def is_serializable(cls) -> bool:
+        """Check if the keypoint parameters are serializable.
+
+        Returns:
+            bool: Always returns True as KeypointParams is serializable.
+        """
         return True
 
     @classmethod
     def get_class_fullname(cls) -> str:
+        """Get the full name of the class.
+
+        Returns:
+            str: The string "KeypointParams".
+        """
         return "KeypointParams"
 
     def __repr__(self) -> str:
@@ -121,9 +136,22 @@ class KeypointsProcessor(DataProcessor):
 
     @property
     def default_data_name(self) -> str:
+        """Get the default name for keypoint data.
+
+        Returns:
+            str: The string "keypoints".
+        """
         return "keypoints"
 
     def ensure_data_valid(self, data: dict[str, Any]) -> None:
+        """Ensure the provided data dictionary contains all required label fields.
+
+        Args:
+            data (dict[str, Any]): The data dictionary to validate.
+
+        Raises:
+            ValueError: If any label field specified in params is missing from the data.
+        """
         if self.params.label_fields and not all(i in data for i in self.params.label_fields):
             msg = "Your 'label_fields' are not valid - them must have same names as params in 'keypoint_params' dict"
             raise ValueError(msg)
@@ -146,6 +174,12 @@ class KeypointsProcessor(DataProcessor):
         return filter_keypoints(data, shape, remove_invisible=self.params.remove_invisible)
 
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
+        """Check if keypoints are valid within the given shape.
+
+        Args:
+            data (np.ndarray): Keypoints to validate.
+            shape (ShapeType): Shape to check against.
+        """
         check_keypoints(data, shape)
 
     def convert_from_albumentations(
@@ -153,6 +187,15 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
+        """Convert keypoints from internal Albumentations format to the specified format.
+
+        Args:
+            data (np.ndarray): Keypoints in Albumentations format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Converted keypoints in the target format.
+        """
         if not data.size:
             return data
 
@@ -170,6 +213,15 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
+        """Convert keypoints from the specified format to internal Albumentations format.
+
+        Args:
+            data (np.ndarray): Keypoints in source format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Converted keypoints in Albumentations format.
+        """
         if not data.size:
             return data
         params = self.params
