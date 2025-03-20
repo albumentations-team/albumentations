@@ -134,6 +134,11 @@ class BboxParams(Params):
         self.max_accept_ratio = max_accept_ratio  # e.g., 5.0
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Get the private dictionary representation of bounding box parameters.
+
+        Returns:
+            dict[str, Any]: Dictionary containing the bounding box parameters.
+        """
         data = super().to_dict_private()
         data.update(
             {
@@ -150,10 +155,20 @@ class BboxParams(Params):
 
     @classmethod
     def is_serializable(cls) -> bool:
+        """Check if the bounding box parameters are serializable.
+
+        Returns:
+            bool: Always returns True as BboxParams is serializable.
+        """
         return True
 
     @classmethod
     def get_class_fullname(cls) -> str:
+        """Get the full name of the class.
+
+        Returns:
+            str: The string "BboxParams".
+        """
         return "BboxParams"
 
     def __repr__(self) -> str:
@@ -244,6 +259,15 @@ class BboxProcessor(DataProcessor):
             raise ValueError(msg)
 
     def filter(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
+        """Filter bounding boxes based on size and visibility criteria.
+
+        Args:
+            data (np.ndarray): Array of bounding boxes in Albumentations format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Filtered bounding boxes that meet the criteria.
+        """
         self.params: BboxParams
         return filter_bboxes(
             data,
@@ -320,15 +344,39 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_from_albumentations(data, self.params.format, shape)
 
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
+        """Check if bounding boxes are valid.
+
+        Args:
+            data (np.ndarray): Array of bounding boxes to validate.
+            shape (ShapeType): Shape to check against.
+        """
         check_bboxes(data)
 
     def convert_from_albumentations(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
+        """Convert bounding boxes from internal Albumentations format to the specified format.
+
+        Args:
+            data (np.ndarray): Bounding boxes in Albumentations format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Converted bounding boxes in the target format.
+        """
         return np.array(
             convert_bboxes_from_albumentations(data, self.params.format, shape, check_validity=True),
-            dtype=np.float32,
+            dtype=data.dtype,
         )
 
     def convert_to_albumentations(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
+        """Convert bounding boxes from the specified format to internal Albumentations format.
+
+        Args:
+            data (np.ndarray): Bounding boxes in source format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Converted bounding boxes in Albumentations format.
+        """
         if self.params.clip:
             data_np = convert_bboxes_to_albumentations(data, self.params.format, shape, check_validity=False)
             data_np = filter_bboxes(data_np, shape, min_area=0, min_visibility=0, min_width=0, min_height=0)
