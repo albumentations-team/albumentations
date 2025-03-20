@@ -161,12 +161,35 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return d
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Returns names of arguments that are used in __init__ method of the transform."""
-        msg = (
-            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
-            "method is not implemented"
-        )
-        raise NotImplementedError(msg)
+        """Returns names of arguments that are used in __init__ method of the transform.
+
+        This inspects the constructor signatures throughout the inheritance chain
+        to collect all possible parameters, excluding 'self', 'p', and 'strict'
+        which are handled separately.
+        """
+        import inspect
+
+        # Gather constructor parameter names from the entire inheritance chain
+        all_param_names = set()
+        for cls in self.__class__.__mro__:
+            # Check if the class has its own __init__ and it's not the one from object
+            if cls.__init__ is not object.__init__:  # type: ignore[misc]
+                try:
+                    # Access the signature through the class's __init__ method directly
+                    signature = inspect.signature(cls.__init__)  # type: ignore[misc]
+                    for param_name, param in signature.parameters.items():
+                        # Only include normal positional/keyword parameters
+                        if param.kind in {param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY}:
+                            all_param_names.add(param_name)
+                except (ValueError, TypeError):
+                    # Skip if we can't get the signature for some reason
+                    continue
+
+        # Exclude self, p, and strict which are handled separately
+        excluded_params = {"self", "p", "strict"}
+
+        # Return all parameter names except the excluded ones, sorted for consistency
+        return tuple(sorted(all_param_names - excluded_params))
 
     def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
@@ -400,18 +423,44 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return {"p": self.p}
 
     def get_transform_init_args(self) -> dict[str, Any]:
-        """Exclude seed from init args during serialization"""
-        args = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
-        args.pop("seed", None)  # Remove seed from args
+        """Get transform initialization arguments for serialization.
+
+        Returns a dictionary of parameter names and their values, excluding parameters
+        that are not actually set on the instance or that shouldn't be serialized.
+        """
+        # Get the parameter names
+        arg_names = self.get_transform_init_args_names()
+
+        # Create a dictionary of parameter values
+        args = {}
+        for name in arg_names:
+            # Only include parameters that are actually set as instance attributes
+            # and have non-default values
+            if hasattr(self, name):
+                value = getattr(self, name)
+                # Skip attributes that are basic containers with no content
+                if not (isinstance(value, (list, dict, tuple, set)) and len(value) == 0):
+                    args[name] = value
+
+        # Remove seed explicitly (it's not meant to be serialized)
+        args.pop("seed", None)
+
         return args
 
     def to_dict_private(self) -> dict[str, Any]:
         """Returns a dictionary representation of the transform, excluding internal parameters."""
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
-        state.update(self.get_transform_init_args())
+
+        # Get transform init args (our improved method handles all types of transforms)
+        transform_args = self.get_transform_init_args()
+
+        # Add transform args to state
+        state.update(transform_args)
+
         # Remove strict from serialization
         state.pop("strict", None)
+
         return state
 
 

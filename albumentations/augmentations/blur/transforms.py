@@ -142,14 +142,6 @@ class Blur(ImageOnlyTransform):
         )
         return {"kernel": kernel}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the arguments that should be passed to __init__ when recreating this transform.
-
-        Returns:
-            tuple[str, ...]: Tuple of argument names.
-        """
-        return ("blur_limit",)
-
 
 class MotionBlur(Blur):
     """Apply motion blur to the input image using a directional kernel.
