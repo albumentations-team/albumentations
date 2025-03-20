@@ -16,7 +16,7 @@ from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, Literal, TextIO
 from warnings import warn
 
 try:
@@ -185,7 +185,7 @@ def from_dict(
     return cls(**args)
 
 
-def check_data_format(data_format: str) -> None:
+def check_data_format(data_format: Literal["json", "yaml"]) -> None:
     if data_format not in {"json", "yaml"}:
         raise ValueError(f"Unknown data_format {data_format}. Supported formats are: 'json' and 'yaml'")
 
@@ -204,8 +204,8 @@ def serialize_enum(obj: Any) -> Any:
 def save(
     transform: Serializable,
     filepath_or_buffer: str | Path | TextIO,
-    data_format: str = "json",
-    on_not_implemented_error: str = "raise",
+    data_format: Literal["json", "yaml"] = "json",
+    on_not_implemented_error: Literal["raise", "warn"] = "raise",
 ) -> None:
     """Serialize a transform pipeline and save it to either a file specified by a path or a file-like object
     in either JSON or YAML format.
@@ -251,7 +251,7 @@ def save(
 
 def load(
     filepath_or_buffer: str | Path | TextIO,
-    data_format: str = "json",
+    data_format: Literal["json", "yaml"] = "json",
     nonserializable: dict[str, Any] | None = None,
 ) -> object:
     """Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
@@ -261,7 +261,7 @@ def load(
             data from.
             If a string is provided, it is interpreted as a path to a file. If a file-like object is provided,
             the serialized data will be read from it directly.
-        data_format (str): The format of the serialized data. Valid options are 'json' and 'yaml'.
+        data_format (Literal["json", "yaml"]): The format of the serialized data.
             Defaults to 'json'.
         nonserializable (Optional[dict[str, Any]]): A dictionary that contains non-serializable transforms.
             This dictionary is required when restoring a pipeline that contains non-serializable transforms.

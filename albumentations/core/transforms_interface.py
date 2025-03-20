@@ -157,39 +157,38 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def get_dict_with_id(self) -> dict[str, Any]:
         d = self.to_dict_private()
-        d["id"] = id(self)
+        d.update({"id": id(self)})
         return d
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         """Returns names of arguments that are used in __init__ method of the transform.
 
-        This inspects the constructor signatures throughout the inheritance chain
-        to collect all possible parameters, excluding 'self', 'p', and 'strict'
+        This method introspects the entire Method Resolution Order (MRO) to gather the names
+        of parameters accepted by the __init__ methods of all parent classes,
+        to collect all possible parameters, excluding 'self' and 'strict'
         which are handled separately.
         """
         import inspect
 
-        # Gather constructor parameter names from the entire inheritance chain
         all_param_names = set()
+
         for cls in self.__class__.__mro__:
-            # Check if the class has its own __init__ and it's not the one from object
-            if cls.__init__ is not object.__init__:  # type: ignore[misc]
-                try:
-                    # Access the signature through the class's __init__ method directly
-                    signature = inspect.signature(cls.__init__)  # type: ignore[misc]
-                    for param_name, param in signature.parameters.items():
-                        # Only include normal positional/keyword parameters
-                        if param.kind in {param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY}:
-                            all_param_names.add(param_name)
-                except (ValueError, TypeError):
-                    # Skip if we can't get the signature for some reason
-                    continue
+            # Skip the class if it's the base object or doesn't define __init__
+            if cls is object or "__init__" not in cls.__dict__:
+                continue
 
-        # Exclude self, p, and strict which are handled separately
-        excluded_params = {"self", "p", "strict"}
+            try:
+                # Access the class's __init__ method through __dict__ to avoid mypy errors
+                init_method = cls.__dict__["__init__"]
+                signature = inspect.signature(init_method)
+                for name, param in signature.parameters.items():
+                    if param.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}:
+                        all_param_names.add(name)
+            except (ValueError, TypeError):
+                continue
 
-        # Return all parameter names except the excluded ones, sorted for consistency
-        return tuple(sorted(all_param_names - excluded_params))
+        # Exclude 'self' and 'strict'
+        return tuple(sorted(all_param_names - {"self", "strict"}))
 
     def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
