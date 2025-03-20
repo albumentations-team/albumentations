@@ -55,18 +55,18 @@ class SerializableMeta(ABCMeta):
     def __new__(cls, name: str, bases: tuple[type, ...], *args: Any, **kwargs: Any) -> SerializableMeta:
         cls_obj = super().__new__(cls, name, bases, *args, **kwargs)
         if name != "Serializable" and ABC not in bases:
-            if cls_obj._is_serializable():
-                SERIALIZABLE_REGISTRY[cls_obj._get_class_fullname()] = cls_obj
+            if cls_obj.is_serializable():
+                SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
             else:
-                NON_SERIALIZABLE_REGISTRY[cls_obj._get_class_fullname()] = cls_obj
+                NON_SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
         return cls_obj
 
     @classmethod
-    def _is_serializable(cls) -> bool:
+    def is_serializable(cls) -> bool:
         return False
 
     @classmethod
-    def _get_class_fullname(cls) -> str:
+    def get_class_fullname(cls) -> str:
         return get_shortest_class_fullname(cls)
 
     @classmethod

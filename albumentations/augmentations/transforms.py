@@ -3716,6 +3716,9 @@ class ToRGB(ImageOnlyTransform):
         Returns:
             np.ndarray: The image with the applied ToRGB transform.
         """
+        if is_rgb_image(img):
+            warnings.warn("The image is already an RGB.", stacklevel=2)
+            return np.ascontiguousarray(img)
         if not is_grayscale_image(img):
             msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
             raise TypeError(msg)
@@ -4053,14 +4056,8 @@ class FromFloat(ImageOnlyTransform):
         """
         return self.apply_to_images(volumes, **params)
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str]: Names of the parameters used for initialization, in this case
-                "dtype" and "max_value".
-        """
-        return ("dtype", "max_value")
+    def get_transform_init_args(self) -> dict[str, Any]:
+        return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
 class InterpolationPydantic(BaseModel):

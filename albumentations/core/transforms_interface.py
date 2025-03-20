@@ -168,7 +168,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         )
         raise NotImplementedError(msg)
 
-    def _set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
+    def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
 
     def get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
@@ -186,7 +186,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         # Reset params at the start of each call
         self.params = {}
 
-        if self._should_apply(force_apply=force_apply):
+        if self.should_apply(force_apply=force_apply):
             params = self.get_params()
             params = self.update_transform_params(params=params, data=kwargs)
 
@@ -214,7 +214,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """
         return self.params
 
-    def _should_apply(self, force_apply: bool = False) -> bool:
+    def should_apply(self, force_apply: bool = False) -> bool:
         if self.p <= 0.0:
             return False
         if self.p >= 1.0 or force_apply:
