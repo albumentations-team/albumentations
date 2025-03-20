@@ -1,3 +1,12 @@
+"""Module for composing multiple transforms into augmentation pipelines.
+
+This module provides classes for combining multiple transformations into cohesive
+augmentation pipelines. It includes various composition strategies such as sequential
+application, random selection, and conditional application of transforms. These
+composition classes handle the coordination between different transforms, ensuring
+proper data flow and maintaining consistent behavior across the augmentation pipeline.
+"""
+
 from __future__ import annotations
 
 import random

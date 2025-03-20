@@ -1,3 +1,10 @@
+"""Transforms for spectrogram augmentation.
+
+This module provides transforms specifically designed for augmenting spectrograms
+in audio processing tasks. Includes time reversal, time masking, and frequency
+masking transforms commonly used in audio machine learning applications.
+"""
+
 from __future__ import annotations
 
 from warnings import warn

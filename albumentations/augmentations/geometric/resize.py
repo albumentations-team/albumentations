@@ -1,3 +1,9 @@
+"""Transforms for resizing images and associated data.
+
+This module provides transform classes for resizing operations, including uniform resizing,
+scaling with aspect ratio preservation, and size-constrained transformations.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

@@ -1,3 +1,10 @@
+"""Transforms for rotating images and associated data.
+
+This module provides classes for rotating images, masks, bounding boxes, and keypoints.
+Includes transforms for 90-degree rotations and arbitrary angle rotations with various
+border handling options.
+"""
+
 from __future__ import annotations
 
 import math

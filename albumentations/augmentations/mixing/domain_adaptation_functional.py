@@ -1,3 +1,10 @@
+"""Functional implementations for domain adaptation image transformations.
+
+This module provides low-level functions and classes for performing domain adaptation
+between images. It includes implementations for histogram matching, Fourier domain adaptation,
+and pixel distribution matching with various normalization techniques.
+"""
+
 from __future__ import annotations
 
 import abc

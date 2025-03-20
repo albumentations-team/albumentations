@@ -1,3 +1,11 @@
+"""Implementation of the Channel Dropout transform for multi-channel images.
+
+This module provides the ChannelDropout transform, which randomly drops (sets to a fill value)
+one or more channels in multi-channel images. This augmentation can help models become more
+robust to missing or corrupted channel information and encourage learning from all available
+channels rather than relying on a subset.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

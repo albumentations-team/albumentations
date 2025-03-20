@@ -1,3 +1,11 @@
+"""Implementation of mask-based dropout augmentation.
+
+This module provides the MaskDropout transform, which identifies objects in a segmentation mask
+and drops out random objects completely. This augmentation is particularly useful for instance
+segmentation and object detection tasks, as it simulates occlusions or missing objects in a
+semantically meaningful way, rather than dropping out random pixels or regions.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Literal, cast

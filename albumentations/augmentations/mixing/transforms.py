@@ -1,3 +1,9 @@
+"""Transforms for mixing and overlaying images.
+
+This module provides transform classes for image mixing operations, including
+overlay elements like stickers, logos, or other images onto the input image.
+"""
+
 from __future__ import annotations
 
 import random

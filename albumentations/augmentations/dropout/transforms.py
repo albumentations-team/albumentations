@@ -1,3 +1,11 @@
+"""Transform classes for dropout-based augmentations.
+
+This module contains transform classes for various dropout techniques used in image
+augmentation. It provides the base dropout class and specialized implementations like
+PixelDropout. These transforms randomly remove or modify pixels, channels, or regions
+in images, which can help models become more robust to occlusions and missing information.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Literal, cast

@@ -1,3 +1,11 @@
+"""Module for checking and comparing albumentations package versions.
+
+This module provides utilities for version checking and comparison, including
+the ability to fetch the latest version from PyPI and compare it with the currently
+installed version. It helps users stay informed about available updates and
+encourages keeping the library up-to-date with the latest features and bug fixes.
+"""
+
 from __future__ import annotations
 
 import json

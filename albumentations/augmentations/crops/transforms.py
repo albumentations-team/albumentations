@@ -1,3 +1,12 @@
+"""Transform classes for cropping operations on images and other data types.
+
+This module provides various crop transforms that can be applied to images, masks,
+bounding boxes, and keypoints. The transforms include simple cropping, random cropping,
+center cropping, cropping near bounding boxes, and other specialized cropping operations
+that maintain the integrity of bounding boxes. These transforms are designed to work within
+the albumentations pipeline and can be used for data augmentation in computer vision tasks.
+"""
+
 from __future__ import annotations
 
 import math

@@ -1,3 +1,11 @@
+"""Geometric transformation classes for image augmentation.
+
+This module provides a collection of transforms that modify the geometric properties
+of images and associated data (masks, bounding boxes, keypoints). Includes implementations
+for flipping, transposing, affine transformations, distortions, padding, and more complex
+transformations like grid shuffling and thin plate splines.
+"""
+
 from __future__ import annotations
 
 import random

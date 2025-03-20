@@ -1,3 +1,11 @@
+"""Functional implementations of dropout operations for image augmentation.
+
+This module provides low-level functions for various dropout techniques used in image
+augmentation, including channel dropout, grid dropout, mask dropout, and coarse dropout.
+These functions create and apply dropout patterns to images, masks, bounding boxes, and
+keypoints, with support for different filling methods and hole generation strategies.
+"""
+
 from __future__ import annotations
 
 from typing import Literal, cast

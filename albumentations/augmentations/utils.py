@@ -1,3 +1,12 @@
+"""Module containing utility functions for augmentation operations.
+
+This module provides a collection of helper functions and utilities used throughout
+the augmentation pipeline. It includes functions for image loading, type checking,
+error handling, mathematical operations, and decorators that add functionality to
+other functions in the codebase. These utilities help ensure consistent behavior
+and simplify common operations across different augmentation transforms.
+"""
+
 from __future__ import annotations
 
 import functools

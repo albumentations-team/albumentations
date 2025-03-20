@@ -1,3 +1,12 @@
+"""Module for handling keypoint operations during augmentation.
+
+This module provides utilities for working with keypoints in various formats during
+the augmentation process. It includes functions for converting between coordinate systems,
+filtering keypoints based on visibility, validating keypoint data, and applying
+transformations to keypoints. The module supports different keypoint formats including
+xy, yx, and those with additional angle or size information.
+"""
+
 from __future__ import annotations
 
 import math

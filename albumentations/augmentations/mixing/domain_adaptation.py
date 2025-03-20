@@ -1,3 +1,10 @@
+"""Domain adaptation transforms for image augmentation.
+
+This module provides transformations for adapting images between different domains
+by matching their statistical properties. Includes methods for histogram matching,
+Fourier domain adaptation, and pixel distribution adaptation.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

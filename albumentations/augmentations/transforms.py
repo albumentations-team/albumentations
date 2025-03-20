@@ -1,3 +1,11 @@
+"""Module containing image transformation classes for augmentation.
+
+This module provides a wide range of image transformation classes for data augmentation.
+These transformations can modify properties such as color, brightness, contrast,
+noise levels, and more. Each transformation class inherits from a base transform
+interface and implements specific augmentation logic.
+"""
+
 from __future__ import annotations
 
 import math

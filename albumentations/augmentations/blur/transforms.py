@@ -1,3 +1,11 @@
+"""Transform classes for applying various blur operations to images.
+
+This module contains transform classes that implement different blur effects including
+standard blur, motion blur, median blur, Gaussian blur, glass blur, advanced blur, defocus,
+and zoom blur. These transforms are designed to work within the albumentations pipeline
+and support parameters for controlling the intensity and properties of the blur effects.
+"""
+
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal, cast

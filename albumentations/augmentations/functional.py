@@ -1,3 +1,11 @@
+"""Functional implementations of image augmentation operations.
+
+This module contains low-level functions for various image augmentation techniques including
+color transformations, blur effects, tone curve adjustments, noise additions, and other visual
+modifications. These functions form the foundation for the transform classes and provide
+the core functionality for manipulating image data during the augmentation process.
+"""
+
 from __future__ import annotations
 
 import math

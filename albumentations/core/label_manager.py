@@ -1,3 +1,12 @@
+"""Module for managing and transforming label data during augmentation.
+
+This module provides utilities for encoding, decoding, and tracking metadata for labels
+during the augmentation process. It includes classes for managing label transformations,
+preserving data types, and ensuring consistent handling of categorical, numerical, and
+mixed label types. The module supports automatic encoding of string labels to numerical
+values and restoration of original data types after processing.
+"""
+
 from __future__ import annotations
 
 from collections import defaultdict
