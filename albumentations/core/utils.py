@@ -86,6 +86,13 @@ def format_args(args_dict: dict[str, Any]) -> str:
 
 
 class Params(Serializable, ABC):
+    """Base class for parameter handling in transforms.
+
+    Args:
+        format (Any): The format of the data this parameter object will process.
+        label_fields (Sequence[str] | None): List of fields that are joined with the data, such as labels.
+    """
+
     def __init__(self, format: Any, label_fields: Sequence[str] | None):  # noqa: A002
         self.format = format
         self.label_fields = label_fields
@@ -95,6 +102,16 @@ class Params(Serializable, ABC):
 
 
 class DataProcessor(ABC):
+    """Abstract base class for data processors.
+
+    Data processors handle the conversion, validation, and filtering of data
+    during transformations.
+
+    Args:
+        params (Params): Parameters for data processing.
+        additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+    """
+
     def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
         self.params = params
         self.data_fields = [self.default_data_name]

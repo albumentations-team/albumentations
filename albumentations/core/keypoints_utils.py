@@ -105,6 +105,17 @@ class KeypointParams(Params):
 
 
 class KeypointsProcessor(DataProcessor):
+    """Processor for keypoint data transformation.
+
+    This class handles the conversion, validation, and filtering of keypoints
+    during transformations. It ensures keypoints are correctly formatted and
+    processed according to the specified keypoint parameters.
+
+    Args:
+        params (KeypointParams): Parameters for keypoint processing.
+        additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+    """
+
     def __init__(self, params: KeypointParams, additional_targets: dict[str, str] | None = None):
         super().__init__(params, additional_targets)
 

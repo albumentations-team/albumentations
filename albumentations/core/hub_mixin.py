@@ -37,6 +37,17 @@ def require_huggingface_hub(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 class HubMixin:
+    """Mixin class for Hugging Face Hub integration.
+
+    This class provides functionality for saving and loading transforms to/from
+    the Hugging Face Hub. It enables serialization, deserialization, and sharing
+    of transform configurations.
+
+    Args:
+        _CONFIG_KEYS (tuple[str, ...]): Keys used for configuration files.
+        _CONFIG_FILE_NAME_TEMPLATE (str): Template for configuration filenames.
+    """
+
     _CONFIG_KEYS = ("train", "eval")
     _CONFIG_FILE_NAME_TEMPLATE = "albumentations_config_{}.json"
 

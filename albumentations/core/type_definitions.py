@@ -27,6 +27,19 @@ d4_group_elements = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 
 
 class ReferenceImage(TypedDict):
+    """Dictionary-like container for reference image data.
+
+    A typed dictionary defining the structure of reference image data used within
+    Albumentations, including optional components like masks, bounding boxes,
+    and keypoints.
+
+    Args:
+        image (np.ndarray): The reference image array.
+        mask (np.ndarray | None): Optional mask array.
+        bbox (tuple[float, ...] | np.ndarray | None): Optional bounding box coordinates.
+        keypoints (tuple[float, ...] | np.ndarray | None): Optional keypoint coordinates.
+    """
+
     image: np.ndarray
     mask: NotRequired[np.ndarray]
     bbox: NotRequired[tuple[float, ...] | np.ndarray]
@@ -34,6 +47,20 @@ class ReferenceImage(TypedDict):
 
 
 class Targets(Enum):
+    """Enumeration of supported target types in Albumentations.
+
+    This enum defines the different types of data that can be augmented
+    by Albumentations transforms, including both 2D and 3D targets.
+
+    Args:
+        IMAGE (str): 2D image target.
+        MASK (str): 2D mask target.
+        BBOXES (str): Bounding box target.
+        KEYPOINTS (str): Keypoint coordinates target.
+        VOLUME (str): 3D volume target.
+        MASK3D (str): 3D mask target.
+    """
+
     IMAGE = "Image"
     MASK = "Mask"
     BBOXES = "BBoxes"

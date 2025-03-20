@@ -17,6 +17,17 @@ from pydantic import BaseModel, ValidationError
 
 
 class ValidatedTransformMeta(type):
+    """Metaclass that validates transform parameters during instantiation.
+
+    This metaclass enables automatic validation of transform parameters using Pydantic models,
+    ensuring proper typing and constraints are enforced before object creation.
+
+    Args:
+        original_init (Callable[..., Any]): Original __init__ method of the class.
+        args (tuple[Any, ...]): Positional arguments passed to the __init__ method.
+        kwargs (dict[str, Any]): Keyword arguments passed to the __init__ method.
+    """
+
     @staticmethod
     def _process_init_parameters(
         original_init: Callable[..., Any],
