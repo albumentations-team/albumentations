@@ -766,10 +766,10 @@ def test_bbox_processor_roundtrip(bbox_format, bboxes, labels):
     }
 
     # Preprocess
-    processor.preprocess(data)
+    processor._preprocess(data)
 
     # Postprocess
-    processed_data = processor.postprocess(data)
+    processed_data = processor._postprocess(data)
 
     # Check that the original bboxes and labels are recovered
     assert np.allclose(processed_data["bboxes"], bboxes, atol=1e-6)
@@ -797,10 +797,10 @@ def test_bbox_processor_roundtrip_multiple_labels(bbox_format, bboxes, labels1, 
     }
 
     # Preprocess
-    processor.preprocess(data)
+    processor._preprocess(data)
 
     # Postprocess
-    processed_data = processor.postprocess(data)
+    processed_data = processor._postprocess(data)
 
     # Check that the original bboxes and labels are recovered
     assert np.allclose(processed_data["bboxes"], bboxes, atol=1e-6)
@@ -1896,7 +1896,7 @@ def test_bbox_processor_invalid_no_filter(bbox_format, bboxes):
 
     # Should raise ValueError due to invalid bboxes
     with pytest.raises(ValueError):
-        processor.preprocess(data)
+        processor._preprocess(data)
 
 @pytest.mark.parametrize(
     "bbox_format, bboxes, expected_bboxes",
@@ -1931,7 +1931,7 @@ def test_bbox_processor_filter_invalid(bbox_format, bboxes, expected_bboxes):
     }
 
     # Preprocess data (this is where filtering should occur)
-    processor.preprocess(data)
+    processor._preprocess(data)
 
     # Convert filtered bboxes back to original format for comparison
     if bbox_format != "albumentations":
@@ -1963,7 +1963,7 @@ def test_bbox_processor_clip_and_filter():
         "bboxes": [[80, 80, 120, 120]],  # Goes beyond image boundaries
     }
 
-    processor.preprocess(data)
+    processor._preprocess(data)
 
     # Convert back to pascal_voc format for comparison
     result = convert_bboxes_from_albumentations(
@@ -2301,10 +2301,10 @@ def test_bbox_processor_max_accept_ratio(bboxes, shape, max_accept_ratio, expect
     processor = BboxProcessor(params)
 
     # Preprocess
-    processor.preprocess(data)
+    processor._preprocess(data)
 
     # Postprocess
-    processed_data = processor.postprocess(data)
+    processed_data = processor._postprocess(data)
 
     np.testing.assert_array_almost_equal(processed_data["bboxes"], expected, decimal=5)
 

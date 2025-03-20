@@ -151,7 +151,7 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return bboxes
 
-        processor = cast("BboxProcessor", self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self._get_processor("bboxes"))
         if processor is None:
             return bboxes
 
@@ -173,12 +173,12 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return keypoints
 
-        processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
+        processor = cast("KeypointsProcessor", self._get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
             return keypoints
 
         return fdropout.mask_dropout_keypoints(keypoints, dropout_mask)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_objects", "fill", "fill_mask"

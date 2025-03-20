@@ -145,7 +145,7 @@ class TimeMasking(XYMasking):
         )
         self.time_mask_param = time_mask_param
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("time_mask_param",)
 
 
@@ -219,5 +219,5 @@ class FrequencyMasking(XYMasking):
         )
         self.freq_mask_param = freq_mask_param
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("freq_mask_param",)

@@ -108,7 +108,7 @@ class RandomRotate90(DualTransform):
     ) -> np.ndarray:
         return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
-    def get_transform_init_args_names(self) -> tuple[()]:
+    def _get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -421,7 +421,7 @@ class Rotate(DualTransform):
 
         return out_params
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "limit",
             "interpolation",
@@ -554,7 +554,7 @@ class SafeRotate(Affine):
         self.rotate_method = rotate_method
         self.mask_interpolation = mask_interpolation
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "limit",
             "interpolation",

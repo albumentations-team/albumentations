@@ -137,7 +137,7 @@ class ChannelDropout(ImageOnlyTransform):
         channels_to_drop = self.py_random.choices(list(range(num_channels)), k=num_drop)
         return {"channels_to_drop": channels_to_drop}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         """Get the arguments that should be passed to __init__ when recreating this transform.
 
         Returns:

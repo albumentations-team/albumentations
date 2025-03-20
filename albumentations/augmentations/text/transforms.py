@@ -116,7 +116,7 @@ class TextImage(ImageOnlyTransform):
     def targets_as_params(self) -> list[str]:
         return [self.metadata_key]
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "font_path",
             "stopwords",

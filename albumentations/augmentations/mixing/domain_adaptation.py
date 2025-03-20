@@ -126,7 +126,7 @@ class HistogramMatching(ImageOnlyTransform):
             "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return "reference_images", "blend_ratio", "read_fn"
 
     def to_dict_private(self) -> dict[str, Any]:
@@ -226,7 +226,7 @@ class FDA(ImageOnlyTransform):
 
         return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
+    def _get_transform_init_args_names(self) -> tuple[str, str, str]:
         return "reference_images", "beta_limit", "read_fn"
 
     def to_dict_private(self) -> dict[str, Any]:
@@ -341,7 +341,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
+    def _get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return "reference_images", "blend_ratio", "read_fn", "transform_type"
 
     def to_dict_private(self) -> dict[str, Any]:

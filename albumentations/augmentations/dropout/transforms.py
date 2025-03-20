@@ -87,7 +87,7 @@ class BaseDropout(DualTransform):
     ) -> np.ndarray:
         if holes.size == 0:
             return bboxes
-        processor = cast("BboxProcessor", self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self._get_processor("bboxes"))
         if processor is None:
             return bboxes
 
@@ -113,7 +113,7 @@ class BaseDropout(DualTransform):
     ) -> np.ndarray:
         if holes.size == 0:
             return keypoints
-        processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
+        processor = cast("KeypointsProcessor", self._get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
             return keypoints
@@ -123,7 +123,7 @@ class BaseDropout(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return "fill", "fill_mask"
 
 
@@ -232,7 +232,7 @@ class PixelDropout(DualTransform):
         if drop_mask is None or self.per_channel:
             return bboxes
 
-        processor = cast("BboxProcessor", self.get_processor("bboxes"))
+        processor = cast("BboxProcessor", self._get_processor("bboxes"))
         if processor is None:
             return bboxes
 
@@ -322,5 +322,5 @@ class PixelDropout(DualTransform):
             "mask_drop_values": mask_drop_values if mask_drop_values is not None else None,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return "dropout_prob", "per_channel", "drop_value", "mask_drop_value"

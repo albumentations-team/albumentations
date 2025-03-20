@@ -174,7 +174,7 @@ class XYMasking(BaseDropout):
             masks.append((x_min, y_min, x_max, y_max))
         return masks
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "num_masks_x",
             "num_masks_y",

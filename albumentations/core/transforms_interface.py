@@ -160,7 +160,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         d["id"] = id(self)
         return d
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         """Returns names of arguments that are used in __init__ method of the transform."""
         msg = (
             f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
@@ -168,10 +168,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         )
         raise NotImplementedError(msg)
 
-    def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
+    def _set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
 
-    def get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
+    def _get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
         return self.processors.get(key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
@@ -186,7 +186,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         # Reset params at the start of each call
         self.params = {}
 
-        if self.should_apply(force_apply=force_apply):
+        if self._should_apply(force_apply=force_apply):
             params = self.get_params()
             params = self.update_transform_params(params=params, data=kwargs)
 
@@ -214,7 +214,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """
         return self.params
 
-    def should_apply(self, force_apply: bool = False) -> bool:
+    def _should_apply(self, force_apply: bool = False) -> bool:
         if self.p <= 0.0:
             return False
         if self.p >= 1.0 or force_apply:
@@ -252,7 +252,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def __repr__(self) -> str:
         state = self.get_base_init_args()
-        state.update(self.get_transform_init_args())
+        state.update(self._get_transform_init_args())
         return f"{self.__class__.__name__}({format_args(state)})"
 
     def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
@@ -399,9 +399,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns base init args - p"""
         return {"p": self.p}
 
-    def get_transform_init_args(self) -> dict[str, Any]:
+    def _get_transform_init_args(self) -> dict[str, Any]:
         """Exclude seed from init args during serialization"""
-        args = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
+        args = {k: getattr(self, k) for k in self._get_transform_init_args_names()}
         args.pop("seed", None)  # Remove seed from args
         return args
 
@@ -409,7 +409,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns a dictionary representation of the transform, excluding internal parameters."""
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
-        state.update(self.get_transform_init_args())
+        state.update(self._get_transform_init_args())
         # Remove strict from serialization
         state.pop("strict", None)
         return state
@@ -626,7 +626,7 @@ class NoOp(DualTransform):
     def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
         return masks3d
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
+    def _get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
 
 
