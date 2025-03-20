@@ -1,4 +1,3 @@
-
 import io
 from pathlib import Path
 from typing import Any, Dict, Set
@@ -734,24 +733,55 @@ def test_augmentations_serialization(
 ) -> None:
     instance = augmentation_cls(**params)
 
-    def get_all_init_schema_fields(model_cls: A.BasicTransform) -> Set[str]:
+    # Get expected args by examining the instance's class and its parents
+    import inspect
+
+    def get_all_constructor_params(cls) -> Set[str]:
         fields = set()
-        if hasattr(model_cls, "InitSchema"):
-            for field_name, field in model_cls.InitSchema.model_fields.items():
-                fields.add(field_name)
+        for parent_cls in cls.__mro__:
+            if parent_cls.__init__ is not object.__init__:
+                try:
+                    sig = inspect.signature(parent_cls.__init__)
+                    for param_name, param in sig.parameters.items():
+                        if param.kind in {param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY}:
+                            fields.add(param_name)
+                except (ValueError, TypeError):
+                    continue
+        return fields - {"self", "strict"}
+
+    # Get fields from InitSchema hierarchy or constructor signatures
+    def get_all_init_schema_fields(model_cls: A.BasicTransform) -> Set[str]:
+        if not hasattr(model_cls, "InitSchema"):
+            return get_all_constructor_params(model_cls)
+
+        fields = set()
+        # Add fields from this class's InitSchema
+        for field_name in model_cls.InitSchema.model_fields:
+            fields.add(field_name)
+
+        # Also consider parent classes' InitSchema fields
+        for parent_cls in model_cls.__mro__[1:]:  # Skip the class itself
+            if hasattr(parent_cls, "InitSchema"):
+                for field_name in parent_cls.InitSchema.model_fields:
+                    fields.add(field_name)
+
         return fields
 
+    # Get parameters either from InitSchema or from constructor signatures
     model_fields = get_all_init_schema_fields(augmentation_cls)
-    # Note: You might want to adjust this based on how you handle default fields in your models
-    expected_args = model_fields - {"__class_fullname__"}
+    # Also get constructor params to handle classes like SafeRotate with Affine parent
+    constructor_params = get_all_constructor_params(augmentation_cls)
+    # Combine both sources of parameters
+    expected_args = (model_fields | constructor_params) - {"__class_fullname__"}
 
+    # Get reported args from serialization
     achieved_args = set(instance.to_dict()["transform"].keys())
     reported_args = achieved_args - {"__class_fullname__"}
 
     # Check if the reported arguments are a subset of the expected arguments
     assert reported_args.issubset(
-        expected_args
-    ), f"Mismatch in {augmentation_cls.__name__}: Serialized fields {reported_args} not a subset of schema fields {expected_args}"
+        expected_args | {"p"}  # Always allow p
+    ), f"Mismatch in {augmentation_cls.__name__}: Serialized fields {reported_args} not a subset of expected fields {expected_args}"
 
 
 

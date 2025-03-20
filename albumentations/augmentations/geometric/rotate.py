@@ -108,9 +108,6 @@ class RandomRotate90(DualTransform):
     ) -> np.ndarray:
         return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
-
 
 class RotateInitSchema(BaseTransformInitSchema):
     limit: SymmetricRangeType
@@ -421,18 +418,6 @@ class Rotate(DualTransform):
 
         return out_params
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "limit",
-            "interpolation",
-            "border_mode",
-            "fill",
-            "fill_mask",
-            "rotate_method",
-            "crop_border",
-            "mask_interpolation",
-        )
-
 
 class SafeRotate(Affine):
     """Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
@@ -547,23 +532,6 @@ class SafeRotate(Affine):
             p=p,
         )
         self.limit = cast("tuple[float, float]", limit)
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.fill = fill
-        self.fill_mask = fill_mask
-        self.rotate_method = rotate_method
-        self.mask_interpolation = mask_interpolation
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "limit",
-            "interpolation",
-            "border_mode",
-            "fill",
-            "fill_mask",
-            "rotate_method",
-            "mask_interpolation",
-        )
 
     def _create_safe_rotate_matrix(
         self,

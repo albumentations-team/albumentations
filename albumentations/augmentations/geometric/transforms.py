@@ -948,24 +948,6 @@ class Affine(DualTransform):
                 f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}",
             )
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "interpolation",
-            "mask_interpolation",
-            "fill",
-            "border_mode",
-            "scale",
-            "translate_percent",
-            "translate_px",
-            "rotate",
-            "fit_output",
-            "shear",
-            "fill_mask",
-            "keep_ratio",
-            "rotate_method",
-            "balanced_scale",
-        )
-
     def apply(
         self,
         img: np.ndarray,
