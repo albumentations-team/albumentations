@@ -67,6 +67,11 @@ class OverlayElements(DualTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
+        """Get list of targets that should be passed as parameters to transforms.
+
+        Returns:
+            list[str]: List containing the metadata key name
+        """
         return [self.metadata_key]
 
     @staticmethod
@@ -75,6 +80,17 @@ class OverlayElements(DualTransform):
         img_shape: tuple[int, int],
         random_state: random.Random,
     ) -> dict[str, Any]:
+        """Process overlay metadata to prepare for application.
+
+        Args:
+            metadata (dict[str, Any]): Dictionary containing overlay data such as image, mask, bbox
+            img_shape (tuple[int, int]): Shape of the target image as (height, width)
+            random_state (random.Random): Random state object for reproducible randomness
+
+        Returns:
+            dict[str, Any]: Processed overlay data including resized overlay image, mask,
+                            offset coordinates, and bounding box information
+        """
         overlay_image = metadata["image"]
         overlay_height, overlay_width = overlay_image.shape[:2]
         image_height, image_width = img_shape[:2]
@@ -138,6 +154,15 @@ class OverlayElements(DualTransform):
         return result
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Generate parameters for overlay transform based on input data.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with image and metadata
+
+        Returns:
+            dict[str, Any]: Dictionary containing processed overlay data ready for application
+        """
         metadata = data[self.metadata_key]
         img_shape = params["shape"]
 
@@ -156,6 +181,16 @@ class OverlayElements(DualTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
+        """Apply overlay elements to the input image.
+
+        Args:
+            img (np.ndarray): Input image
+            overlay_data (list[dict[str, Any]]): List of dictionaries containing overlay information
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Image with overlays applied
+        """
         for data in overlay_data:
             overlay_image = data["overlay_image"]
             overlay_mask = data["overlay_mask"]
@@ -169,6 +204,16 @@ class OverlayElements(DualTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
+        """Apply overlay masks to the input mask.
+
+        Args:
+            mask (np.ndarray): Input mask
+            overlay_data (list[dict[str, Any]]): List of dictionaries containing overlay information
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Mask with overlay masks applied using the specified mask_id values
+        """
         for data in overlay_data:
             if "mask_id" in data and data["mask_id"] is not None:
                 overlay_mask = data["overlay_mask"]
