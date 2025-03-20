@@ -114,6 +114,11 @@ class TextImage(ImageOnlyTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
+        """Get list of targets that should be passed as parameters to transforms.
+
+        Returns:
+            list[str]: List containing the metadata key name
+        """
         return [self.metadata_key]
 
     def random_aug(
@@ -122,6 +127,19 @@ class TextImage(ImageOnlyTransform):
         fraction: float,
         choice: Literal["insertion", "swap", "deletion"],
     ) -> str:
+        """Apply a random text augmentation to the input text.
+
+        Args:
+            text (str): Original text to augment
+            fraction (float): Fraction of words to modify
+            choice (Literal["insertion", "swap", "deletion"]): Type of augmentation to apply
+
+        Returns:
+            str: Augmented text or empty string if no change was made
+
+        Raises:
+            ValueError: If an invalid choice is provided
+        """
         words = [word for word in text.strip().split() if word]
         num_words = len(words)
         num_words_to_modify = max(1, int(fraction * num_words))
@@ -145,6 +163,20 @@ class TextImage(ImageOnlyTransform):
         text: str,
         bbox_index: int,
     ) -> dict[str, Any]:
+        """Preprocess text metadata for a single bounding box.
+
+        Args:
+            image (np.ndarray): Input image
+            bbox (tuple[float, float, float, float]): Normalized bounding box coordinates
+            text (str): Text to render in the bounding box
+            bbox_index (int): Index of the bounding box in the original metadata
+
+        Returns:
+            dict[str, Any]: Processed metadata including font, position, and text information
+
+        Raises:
+            ImportError: If PIL.ImageFont is not installed
+        """
         try:
             from PIL import ImageFont
         except ImportError as err:
@@ -180,6 +212,15 @@ class TextImage(ImageOnlyTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Generate parameters based on input data.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data with image and metadata
+
+        Returns:
+            dict[str, Any]: Dictionary containing the overlay data for text rendering
+        """
         image = data["image"] if "image" in data else data["images"][0]
 
         metadata = data[self.metadata_key]
@@ -213,9 +254,29 @@ class TextImage(ImageOnlyTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
+        """Apply text rendering to the input image.
+
+        Args:
+            img (np.ndarray): Input image
+            overlay_data (list[dict[str, Any]]): List of dictionaries containing text rendering information
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Image with rendered text
+        """
         return ftext.render_text(img, overlay_data, clear_bg=self.clear_bg)
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """Apply the transform and include overlay data in the result.
+
+        Args:
+            params (dict[str, Any]): Parameters for the transform
+            *args (Any): Additional positional arguments
+            **kwargs (Any): Additional keyword arguments
+
+        Returns:
+            dict[str, Any]: Dictionary containing the transformed data and simplified overlay information
+        """
         res = super().apply_with_params(params, *args, **kwargs)
         res["overlay_data"] = [
             {
