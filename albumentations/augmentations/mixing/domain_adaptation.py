@@ -1,3 +1,10 @@
+"""Domain adaptation transforms for image augmentation.
+
+This module provides transformations for adapting images between different domains
+by matching their statistical properties. Includes methods for histogram matching,
+Fourier domain adaptation, and pixel distribution adaptation.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -79,7 +86,7 @@ class HistogramMatching(ImageOnlyTransform):
         >>> matched_image = result["image"]
 
     References:
-        - Histogram Matching in scikit-image:
+        Histogram Matching in scikit-image:
           https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
     """
 
@@ -160,9 +167,9 @@ class FDA(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        - https://github.com/YanchaoYang/FDA
-        - https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+    References:
+        - FDA: https://github.com/YanchaoYang/FDA
+        - FDA: https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
 
     Example:
         >>> import numpy as np
@@ -292,8 +299,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         >>> adapted_image = result["image"]
 
     References:
-        - https://github.com/arsenyinfo/qudida
-        - https://arxiv.org/abs/1911.11483
+        Qudida: https://github.com/arsenyinfo/qudida
+
     """
 
     class InitSchema(BaseTransformInitSchema):

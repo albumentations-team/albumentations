@@ -1,3 +1,12 @@
+"""Module containing 3D transformation classes for volumetric data augmentation.
+
+This module provides a collection of transformation classes designed specifically for
+3D volumetric data (such as medical CT/MRI scans). These transforms can manipulate properties
+such as spatial dimensions, apply dropout effects, and perform symmetry operations on
+3D volumes, masks, and keypoints. Each transformation inherits from a base transform
+interface and implements specific 3D augmentation logic.
+"""
+
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Union, cast

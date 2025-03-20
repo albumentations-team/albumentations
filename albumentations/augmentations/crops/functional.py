@@ -1,3 +1,11 @@
+"""Functional implementations of image cropping operations.
+
+This module provides utility functions for performing various cropping operations on images,
+bounding boxes, and keypoints. It includes functions to calculate crop coordinates, crop images,
+and handle the corresponding transformations for bounding boxes and keypoints to maintain
+consistency between different data types during cropping operations.
+"""
+
 from __future__ import annotations
 
 import cv2

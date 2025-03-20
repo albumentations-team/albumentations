@@ -1,3 +1,9 @@
+"""Transforms for text rendering and augmentation on images.
+
+This module provides transforms for adding and manipulating text on images,
+including text augmentation techniques like word insertion, deletion, and swapping.
+"""
+
 from __future__ import annotations
 
 import re
@@ -44,8 +50,8 @@ class TextImage(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        https://github.com/danaaubakirova/doc-augmentation
+    References:
+        doc-augmentation: https://github.com/danaaubakirova/doc-augmentation
 
     Examples:
         >>> import albumentations as A

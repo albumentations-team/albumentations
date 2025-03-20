@@ -1,3 +1,12 @@
+"""Utilities for handling bounding box operations during image augmentation.
+
+This module provides tools for processing bounding boxes in various formats (COCO, Pascal VOC, YOLO),
+converting between coordinate systems, normalizing and denormalizing coordinates, filtering
+boxes based on visibility and size criteria, and performing transformations on boxes to match
+image augmentations. It forms the core functionality for all bounding box-related operations
+in the albumentations library.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

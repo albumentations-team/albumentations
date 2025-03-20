@@ -1,3 +1,11 @@
+"""Module containing functional implementations of 3D transformations.
+
+This module provides a collection of utility functions for manipulating and transforming
+3D volumetric data (such as medical imaging volumes). The functions here implement the core
+algorithms for operations like padding, cropping, rotation, and other spatial manipulations
+specifically designed for 3D data.
+"""
+
 from __future__ import annotations
 
 import random

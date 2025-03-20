@@ -1,3 +1,12 @@
+"""Module for composing multiple transforms into augmentation pipelines.
+
+This module provides classes for combining multiple transformations into cohesive
+augmentation pipelines. It includes various composition strategies such as sequential
+application, random selection, and conditional application of transforms. These
+composition classes handle the coordination between different transforms, ensuring
+proper data flow and maintaining consistent behavior across the augmentation pipeline.
+"""
+
 from __future__ import annotations
 
 import random
@@ -1049,6 +1058,22 @@ class SelectiveChannelTransform(BaseCompose):
 
 
 class ReplayCompose(Compose):
+    """Composition class that enables transform replay functionality.
+
+    This class extends the Compose class with the ability to record and replay
+    transformations. This is useful for applying the same sequence of random
+    transformations to different data.
+
+    Args:
+        transforms (TransformsSeqType): List of transformations to compose.
+        bbox_params (dict[str, Any] | BboxParams | None): Parameters for bounding box transforms.
+        keypoint_params (dict[str, Any] | KeypointParams | None): Parameters for keypoint transforms.
+        additional_targets (dict[str, str] | None): Dictionary of additional targets.
+        p (float): Probability of applying the compose.
+        is_check_shapes (bool): Whether to check shapes of different targets.
+        save_key (str): Key for storing the applied transformations.
+    """
+
     def __init__(
         self,
         transforms: TransformsSeqType,

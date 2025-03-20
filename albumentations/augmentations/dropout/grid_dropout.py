@@ -1,3 +1,11 @@
+"""Implementation of grid-based dropout augmentation.
+
+This module provides GridDropout, which creates a regular grid over the image and drops out
+rectangular regions according to the specified grid pattern. Unlike random dropout methods,
+grid dropout enforces a structured pattern of occlusions that can help models learn spatial
+relationships and context across the entire image space.
+"""
+
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal

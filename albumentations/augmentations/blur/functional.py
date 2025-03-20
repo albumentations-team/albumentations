@@ -1,3 +1,10 @@
+"""Functional implementations of various blur operations for image processing.
+
+This module provides a collection of low-level functions for applying different blur effects
+to images, including standard blur, median blur, glass blur, defocus, and zoom effects.
+These functions form the foundation for the corresponding transform classes.
+"""
+
 from __future__ import annotations
 
 import random

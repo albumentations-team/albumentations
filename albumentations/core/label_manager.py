@@ -1,3 +1,12 @@
+"""Module for managing and transforming label data during augmentation.
+
+This module provides utilities for encoding, decoding, and tracking metadata for labels
+during the augmentation process. It includes classes for managing label transformations,
+preserving data types, and ensuring consistent handling of categorical, numerical, and
+mixed label types. The module supports automatic encoding of string labels to numerical
+values and restoration of original data types after processing.
+"""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -14,6 +23,18 @@ def custom_sort(item: Any) -> tuple[int, Real | str]:
 
 
 class LabelEncoder:
+    """Encodes labels into integer indices.
+
+    This class handles the conversion between original label values and their
+    numerical representations. It supports both numerical and categorical labels.
+
+    Args:
+        classes_ (dict[str | Real, int]): Mapping from original labels to encoded indices.
+        inverse_classes_ (dict[int, str | Real]): Mapping from encoded indices to original labels.
+        num_classes (int): Number of unique classes.
+        is_numerical (bool): Whether the original labels are numerical.
+    """
+
     def __init__(self) -> None:
         self.classes_: dict[str | Real, int] = {}
         self.inverse_classes_: dict[int, str | Real] = {}
@@ -71,6 +92,17 @@ class LabelMetadata:
 
 
 class LabelManager:
+    """Manages label encoding and decoding across multiple data fields.
+
+    This class handles the encoding, decoding, and type management for label fields.
+    It maintains metadata about each field to ensure proper conversion between
+    original and encoded representations.
+
+    Args:
+        metadata (dict[str, dict[str, LabelMetadata]]): Dictionary mapping data types
+            and label fields to their metadata.
+    """
+
     def __init__(self) -> None:
         self.metadata: dict[str, dict[str, LabelMetadata]] = defaultdict(dict)
 

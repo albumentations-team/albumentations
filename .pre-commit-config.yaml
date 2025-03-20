@@ -51,7 +51,7 @@ repos:
         files: setup.py
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.11.0
+    rev: v0.11.1
     hooks:
       # Run the linter.
       - id: ruff
@@ -89,7 +89,7 @@ repos:
         args:
           [ --config-file=pyproject.toml ]
   - repo: https://github.com/ternaus/google-docstring-parser
-    rev: 081dcc5ab37112be66b95ce6ad7ed3d4ada3c371  # Use the latest version
+    rev: 0.0.4  # Use the latest version
     hooks:
       - id: check-google-docstrings
         additional_dependencies: ["tomli>=2.0.0"]

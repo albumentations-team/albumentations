@@ -1,3 +1,12 @@
+"""Module for handling keypoint operations during augmentation.
+
+This module provides utilities for working with keypoints in various formats during
+the augmentation process. It includes functions for converting between coordinate systems,
+filtering keypoints based on visibility, validating keypoint data, and applying
+transformations to keypoints. The module supports different keypoint formats including
+xy, yx, and those with additional angle or size information.
+"""
+
 from __future__ import annotations
 
 import math
@@ -96,6 +105,17 @@ class KeypointParams(Params):
 
 
 class KeypointsProcessor(DataProcessor):
+    """Processor for keypoint data transformation.
+
+    This class handles the conversion, validation, and filtering of keypoints
+    during transformations. It ensures keypoints are correctly formatted and
+    processed according to the specified keypoint parameters.
+
+    Args:
+        params (KeypointParams): Parameters for keypoint processing.
+        additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+    """
+
     def __init__(self, params: KeypointParams, additional_targets: dict[str, str] | None = None):
         super().__init__(params, additional_targets)
 

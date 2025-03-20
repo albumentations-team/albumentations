@@ -1,3 +1,11 @@
+"""Implementation of XY masking for time-frequency domain transformations.
+
+This module provides the XYMasking transform, which applies masking strips along the X and Y axes
+of an image. This is particularly useful for audio spectrograms, time-series data visualizations,
+and other grid-like data representations where masking in specific directions (time or frequency)
+can improve model robustness and generalization.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Literal, cast

@@ -1,3 +1,12 @@
+"""Module containing base interfaces for all transform implementations.
+
+This module defines the fundamental transform interfaces that form the base hierarchy for
+all transformation classes in Albumentations. It provides abstract classes and mixins that
+define common behavior for image, keypoint, bounding box, and volumetric transformations.
+The interfaces handle parameter validation, random state management, target type checking,
+and serialization capabilities that are inherited by concrete transform implementations.
+"""
+
 from __future__ import annotations
 
 import random
@@ -38,6 +47,28 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
+    """Base class for all transforms in Albumentations.
+
+    This class provides core functionality for transform application, serialization,
+    and parameter handling. It defines the interface that all transforms must follow
+    and implements common methods used across different transform types.
+
+    Class Attributes:
+        _targets (tuple[Targets, ...] | Targets): Target types this transform can work with.
+        _available_keys (set[str]): String representations of valid target keys.
+        _key2func (dict[str, Callable[..., Any]]): Mapping between target keys and their processing functions.
+
+    Args:
+        interpolation (int): Interpolation method for image transforms.
+        fill (int | float | list[int] | list[float]): Fill value for image padding.
+        fill_mask (int | float | list[int] | list[float]): Fill value for mask padding.
+        deterministic (bool, optional): Whether the transform is deterministic.
+        save_key (str, optional): Key for saving transform parameters.
+        replay_mode (bool, optional): Whether the transform is in replay mode.
+        applied_in_replay (bool, optional): Whether the transform was applied in replay.
+        p (float): Probability of applying the transform.
+    """
+
     _targets: tuple[Targets, ...] | Targets  # targets that this transform can work on
     _available_keys: set[str]  # targets that this transform, as string, lower-cased
     _key2func: dict[

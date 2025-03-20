@@ -1,3 +1,12 @@
+"""Module containing PyTorch-specific transforms for Albumentations.
+
+This module provides transforms that convert NumPy arrays to PyTorch tensors in
+the appropriate format. It handles both 2D image data and 3D volumetric data,
+ensuring that the tensor dimensions are correctly arranged according to PyTorch's
+expected format (channels first). These transforms are typically used as the final
+step in an augmentation pipeline before feeding data to a PyTorch model.
+"""
+
 from __future__ import annotations
 
 from typing import Any, overload
@@ -36,6 +45,11 @@ class ToTensorV2(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Any]:
+        """Define mapping of target name to target function.
+
+        Returns:
+            dict[str, Any]: Dictionary mapping target names to corresponding transform functions.
+        """
         return {
             "image": self.apply,
             "images": self.apply_to_images,
@@ -44,6 +58,21 @@ class ToTensorV2(BasicTransform):
         }
 
     def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
+        """Convert a 2D image array to a PyTorch tensor.
+
+        Converts image from HWC or HW format to CHW format, handling both
+        single-channel and multi-channel images.
+
+        Args:
+            img (np.ndarray): Image as a numpy array of shape (H,W) or (H,W,C)
+            **params (Any): Additional parameters
+
+        Returns:
+            torch.Tensor: PyTorch tensor in CHW format
+
+        Raises:
+            ValueError: If image dimensions are neither HW nor HWC
+        """
         if img.ndim not in {MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS}:
             msg = "Albumentations only supports images in HW or HWC format"
             raise ValueError(msg)
@@ -54,6 +83,18 @@ class ToTensorV2(BasicTransform):
         return torch.from_numpy(img.transpose(2, 0, 1))
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> torch.Tensor:
+        """Convert a mask array to a PyTorch tensor.
+
+        If transpose_mask is True and mask has 3 dimensions (H,W,C),
+        converts mask to channels-first format (C,H,W).
+
+        Args:
+            mask (np.ndarray): Mask as a numpy array
+            **params (Any): Additional parameters
+
+        Returns:
+            torch.Tensor: PyTorch tensor of mask
+        """
         if self.transpose_mask and mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
             mask = mask.transpose(2, 0, 1)
         return torch.from_numpy(mask)
@@ -91,6 +132,11 @@ class ToTensorV2(BasicTransform):
         return torch.from_numpy(images.transpose(0, 3, 1, 2))  # -> (N,C,H,W)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Get the transform initialization argument names.
+
+        Returns:
+            tuple[str, ...]: Tuple of argument names required to recreate the transform
+        """
         return ("transpose_mask",)
 
 
@@ -121,6 +167,11 @@ class ToTensor3D(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Any]:
+        """Define mapping of target name to target function.
+
+        Returns:
+            dict[str, Any]: Dictionary mapping target names to corresponding transform functions
+        """
         return {
             "volume": self.apply_to_volume,
             "mask3d": self.apply_to_mask3d,
@@ -139,4 +190,9 @@ class ToTensor3D(BasicTransform):
         return self.apply_to_volume(mask3d, **params)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Get the transform initialization argument names.
+
+        Returns:
+            tuple[str, ...]: Empty tuple as this transform has no required arguments
+        """
         return ()

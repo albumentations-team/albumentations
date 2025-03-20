@@ -1,3 +1,9 @@
+"""Functional implementations for image mixing operations.
+
+This module provides utility functions for blending and combining images,
+such as copy-and-paste operations with masking.
+"""
+
 from __future__ import annotations
 
 import numpy as np

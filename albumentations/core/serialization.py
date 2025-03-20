@@ -1,3 +1,12 @@
+"""Module for serialization and deserialization of Albumentations transforms.
+
+This module provides functionality to serialize transforms to JSON or YAML format and
+deserialize them back. It implements the Serializable interface that allows transforms
+to be converted to and from dictionaries, which can then be saved to disk or transmitted
+over a network. This is particularly useful for saving augmentation pipelines and
+restoring them later with the exact same configuration.
+"""
+
 from __future__ import annotations
 
 import importlib.util

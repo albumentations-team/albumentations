@@ -1,6 +1,13 @@
+"""Implementation of the Channel Dropout transform for multi-channel images.
+
+This module provides the ChannelDropout transform, which randomly drops (sets to a fill value)
+one or more channels in multi-channel images. This augmentation can help models become more
+robust to missing or corrupted channel information and encourage learning from all available
+channels rather than relying on a subset.
+"""
+
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Annotated, Any
 
 import numpy as np
@@ -87,14 +94,31 @@ class ChannelDropout(ImageOnlyTransform):
         self.channel_drop_range = channel_drop_range
         self.fill = fill
 
-    def apply(self, img: np.ndarray, channels_to_drop: tuple[int, ...], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, channels_to_drop: list[int], **params: Any) -> np.ndarray:
+        """Apply channel dropout to the image.
+
+        Args:
+            img (np.ndarray): Image to apply channel dropout to.
+            channels_to_drop (list[int]): List of channel indices to drop.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Image with dropped channels.
+        """
         return channel_dropout(img, channels_to_drop, self.fill)
 
-    def get_params_dependent_on_data(self, params: Mapping[str, Any], data: Mapping[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[int]]:
+        """Get parameters that depend on input data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Input data.
+
+        Returns:
+            dict[str, list[int]]: Dictionary with channels to drop.
+        """
         image = data["image"] if "image" in data else data["images"][0]
-
         num_channels = get_num_channels(image)
-
         if num_channels == 1:
             msg = "Images has one channel. ChannelDropout is not defined."
             raise NotImplementedError(msg)
@@ -102,12 +126,15 @@ class ChannelDropout(ImageOnlyTransform):
         if self.channel_drop_range[1] >= num_channels:
             msg = "Can not drop all channels in ChannelDropout."
             raise ValueError(msg)
-
         num_drop_channels = self.py_random.randint(*self.channel_drop_range)
-
         channels_to_drop = self.py_random.sample(range(num_channels), k=num_drop_channels)
 
         return {"channels_to_drop": channels_to_drop}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Get the arguments that should be passed to __init__ when recreating this transform.
+
+        Returns:
+            tuple[str, ...]: Tuple of argument names.
+        """
         return "channel_drop_range", "fill"

@@ -1,3 +1,10 @@
+"""Functional implementations for domain adaptation image transformations.
+
+This module provides low-level functions and classes for performing domain adaptation
+between images. It includes implementations for histogram matching, Fourier domain adaptation,
+and pixel distribution matching with various normalization techniques.
+"""
+
 from __future__ import annotations
 
 import abc
@@ -275,9 +282,8 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
         >>> assert adapted_img.shape == source_img.shape
 
     References:
-        - "FDA: Fourier Domain Adaptation for Semantic Segmentation"
-          (Yang and Soatto, 2020, CVPR)
-          https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+        FDA: Fourier Domain Adaptation for Semantic Segmentation: Yang and Soatto, 2020, CVPR
+            https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
     """
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)

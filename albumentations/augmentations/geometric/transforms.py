@@ -1,3 +1,11 @@
+"""Geometric transformation classes for image augmentation.
+
+This module provides a collection of transforms that modify the geometric properties
+of images and associated data (masks, bounding boxes, keypoints). Includes implementations
+for flipping, transposing, affine transformations, distortions, padding, and more complex
+transformations like grid shuffling and thin plate splines.
+"""
+
 from __future__ import annotations
 
 import random
@@ -775,8 +783,8 @@ class Affine(DualTransform):
     Image types:
         uint8, float32
 
-    Reference:
-        [1] https://arxiv.org/abs/2109.13488
+    References:
+        Towards Rotation Invariance in Object Detection: https://arxiv.org/abs/2109.13488
 
     """
 
@@ -2440,7 +2448,7 @@ class Pad(DualTransform):
         uint8, float32
 
     References:
-        - https://pytorch.org/vision/main/generated/torchvision.transforms.v2.Pad.html
+        PyTorch Pad: https://pytorch.org/vision/main/generated/torchvision.transforms.v2.Pad.html
     """
 
     _targets = ALL_TARGETS

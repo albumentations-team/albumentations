@@ -1,3 +1,12 @@
+"""Module containing utility functions and classes for the core Albumentations framework.
+
+This module provides a collection of helper functions and base classes used throughout
+the Albumentations library. It includes utilities for shape handling, parameter processing,
+data conversion, and serialization. The module defines abstract base classes for data
+processors that implement the conversion logic between different data formats used in
+the transformation pipeline.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -77,15 +86,37 @@ def format_args(args_dict: dict[str, Any]) -> str:
 
 
 class Params(Serializable, ABC):
+    """Base class for parameter handling in transforms.
+
+    Args:
+        format (Any): The format of the data this parameter object will process.
+        label_fields (Sequence[str] | None): List of fields that are joined with the data, such as labels.
+    """
+
     def __init__(self, format: Any, label_fields: Sequence[str] | None):  # noqa: A002
         self.format = format
         self.label_fields = label_fields
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Return a dictionary containing the private parameters of this object.
+
+        Returns:
+            dict[str, Any]: Dictionary with format and label_fields parameters.
+        """
         return {"format": self.format, "label_fields": self.label_fields}
 
 
 class DataProcessor(ABC):
+    """Abstract base class for data processors.
+
+    Data processors handle the conversion, validation, and filtering of data
+    during transformations.
+
+    Args:
+        params (Params): Parameters for data processing.
+        additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+    """
+
     def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
         self.params = params
         self.data_fields = [self.default_data_name]
@@ -98,6 +129,11 @@ class DataProcessor(ABC):
     @property
     @abstractmethod
     def default_data_name(self) -> str:
+        """Return the default name of the data field.
+
+        Returns:
+            str: Default data field name.
+        """
         raise NotImplementedError
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
@@ -107,12 +143,28 @@ class DataProcessor(ABC):
                 self.data_fields.append(k)
 
     def ensure_data_valid(self, data: dict[str, Any]) -> None:
-        pass
+        """Validate input data before processing.
+
+        Args:
+            data (dict[str, Any]): Input data dictionary to validate.
+        """
 
     def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
-        pass
+        """Validate transforms before applying them.
+
+        Args:
+            transforms (Sequence[object]): Sequence of transforms to validate.
+        """
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Process data after transformation.
+
+        Args:
+            data (dict[str, Any]): Data dictionary after transformation.
+
+        Returns:
+            dict[str, Any]: Processed data dictionary.
+        """
         shape = get_shape(data)
         data = self._process_data_fields(data, shape)
         data = self.remove_label_fields_from_data(data)
@@ -141,6 +193,11 @@ class DataProcessor(ABC):
         return data
 
     def preprocess(self, data: dict[str, Any]) -> None:
+        """Process data before transformation.
+
+        Args:
+            data (dict[str, Any]): Data dictionary to preprocess.
+        """
         shape = get_shape(data)
 
         for data_name in set(self.data_fields) & set(data.keys()):  # Convert list of lists to numpy array if necessary
@@ -160,6 +217,18 @@ class DataProcessor(ABC):
         shape: ShapeType,
         direction: Literal["to", "from"] = "to",
     ) -> np.ndarray:
+        """Check and convert data between Albumentations and external formats.
+
+        Args:
+            data (np.ndarray): Input data array.
+            shape (ShapeType): Shape information containing dimensions.
+            direction (Literal["to", "from"], optional): Conversion direction.
+                "to" converts to Albumentations format, "from" converts from it.
+                Defaults to "to".
+
+        Returns:
+            np.ndarray: Converted data array.
+        """
         if self.params.format == "albumentations":
             self.check(data, shape)
             return data
@@ -170,11 +239,24 @@ class DataProcessor(ABC):
 
     @abstractmethod
     def filter(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
-        pass
+        """Filter data based on shapes.
+
+        Args:
+            data (np.ndarray): Data to filter.
+            shape (ShapeType): Shape information containing dimensions.
+
+        Returns:
+            np.ndarray: Filtered data.
+        """
 
     @abstractmethod
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
-        pass
+        """Validate data structure against shape requirements.
+
+        Args:
+            data (np.ndarray): Data to validate.
+            shape (ShapeType): Shape information containing dimensions.
+        """
 
     @abstractmethod
     def convert_to_albumentations(
@@ -182,7 +264,15 @@ class DataProcessor(ABC):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        pass
+        """Convert data from external format to Albumentations internal format.
+
+        Args:
+            data (np.ndarray): Data in external format.
+            shape (ShapeType): Shape information containing dimensions.
+
+        Returns:
+            np.ndarray: Data in Albumentations format.
+        """
 
     @abstractmethod
     def convert_from_albumentations(
@@ -190,9 +280,27 @@ class DataProcessor(ABC):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        pass
+        """Convert data from Albumentations internal format to external format.
+
+        Args:
+            data (np.ndarray): Data in Albumentations format.
+            shape (ShapeType): Shape information containing dimensions.
+
+        Returns:
+            np.ndarray: Data in external format.
+        """
 
     def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Add label fields to data arrays.
+
+        This method processes label fields and joins them with the corresponding data arrays.
+
+        Args:
+            data (dict[str, Any]): Input data dictionary.
+
+        Returns:
+            dict[str, Any]: Data with label fields added.
+        """
         if not self.params.label_fields:
             return data
 
@@ -221,6 +329,14 @@ class DataProcessor(ABC):
             )
 
     def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Remove label fields from data arrays and restore them as separate entries.
+
+        Args:
+            data (dict[str, Any]): Input data dictionary with combined label fields.
+
+        Returns:
+            dict[str, Any]: Data with label fields extracted as separate entries.
+        """
         if not self.params.label_fields:
             return data
 

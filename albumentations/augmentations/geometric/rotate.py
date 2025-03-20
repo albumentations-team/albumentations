@@ -1,3 +1,10 @@
+"""Transforms for rotating images and associated data.
+
+This module provides classes for rotating images, masks, bounding boxes, and keypoints.
+Includes transforms for 90-degree rotations and arbitrary angle rotations with various
+border handling options.
+"""
+
 from __future__ import annotations
 
 import math
@@ -344,8 +351,8 @@ class Rotate(DualTransform):
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
-        Reference:
-            https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
+        References:
+            Rotate image and crop out black borders: https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
         """
         angle = math.radians(angle)
         width_is_longer = width >= height

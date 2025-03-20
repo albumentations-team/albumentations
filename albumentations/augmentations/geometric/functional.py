@@ -1,3 +1,10 @@
+"""Functional implementations of geometric image transformations.
+
+This module provides low-level functions for geometric operations such as rotation,
+resizing, flipping, perspective transforms, and affine transformations on images,
+bounding boxes and keypoints.
+"""
+
 from __future__ import annotations
 
 import math

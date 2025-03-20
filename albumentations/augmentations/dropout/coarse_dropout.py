@@ -1,3 +1,12 @@
+"""Implementation of coarse dropout and random erasing augmentations.
+
+This module provides several variations of coarse dropout augmentations, which drop out
+rectangular regions from images. It includes CoarseDropout for randomly placed dropouts,
+ConstrainedCoarseDropout for dropping out regions based on masks or bounding boxes,
+and Erasing for random erasing augmentation. These techniques help models become more
+robust to occlusions and varying object completeness.
+"""
+
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal
