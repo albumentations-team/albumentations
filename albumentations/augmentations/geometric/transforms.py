@@ -254,9 +254,6 @@ class BaseDistortion(DualTransform):
             return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
         return fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, params["shape"])
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "interpolation", "mask_interpolation", "keypoint_remapping_method", "border_mode", "fill", "fill_mask"
-
 
 class ElasticTransform(BaseDistortion):
     """Apply elastic deformation to images, masks, bounding boxes, and keypoints.
@@ -405,20 +402,6 @@ class ElasticTransform(BaseDistortion):
             "map_x": maps[0].astype(np.float32),
             "map_y": maps[1].astype(np.float32),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            *super().get_transform_init_args_names(),
-            "alpha",
-            "sigma",
-            "approximate",
-            "same_dxdy",
-            "noise_distribution",
-            # "keypoint_remapping_method",
-            # "border_mode",
-            # "fill",
-            # "fill_mask",
-        )
 
 
 class Perspective(DualTransform):
@@ -668,18 +651,6 @@ class Perspective(DualTransform):
             "max_width": max_width,
             "matrix_bbox": matrix,
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "scale",
-            "keep_size",
-            "border_mode",
-            "fill",
-            "fill_mask",
-            "fit_output",
-            "interpolation",
-            "mask_interpolation",
-        )
 
 
 class Affine(DualTransform):
@@ -1226,7 +1197,7 @@ class ShiftScaleRotate(Affine):
         ]
 
         @model_validator(mode="after")
-        def check_shift_limit(self) -> Self:
+        def _check_shift_limit(self) -> Self:
             bounds = -1, 1
             self.shift_limit_x = to_tuple(
                 self.shift_limit_x if self.shift_limit_x is not None else self.shift_limit,
@@ -1453,18 +1424,7 @@ class PiecewiseAffine(BaseDistortion):
         self.scale = cast("tuple[float, float]", scale)
         self.nb_rows = cast("tuple[int, int]", nb_rows)
         self.nb_cols = cast("tuple[int, int]", nb_cols)
-        self.interpolation = interpolation
-        self.mask_interpolation = mask_interpolation
         self.absolute_scale = absolute_scale
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "scale",
-            "nb_rows",
-            "nb_cols",
-            "absolute_scale",
-            *super().get_transform_init_args_names(),
-        )
 
     def get_params_dependent_on_data(
         self,
@@ -1607,9 +1567,6 @@ class HorizontalFlip(DualTransform):
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         return self.apply(mask3d, **params)
 
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
-
 
 class Transpose(DualTransform):
     """Transpose the input by swapping its rows and columns.
@@ -1671,9 +1628,6 @@ class Transpose(DualTransform):
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.keypoints_transpose(keypoints)
-
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
 
 
 class OpticalDistortion(BaseDistortion):
@@ -1807,13 +1761,6 @@ class OpticalDistortion(BaseDistortion):
             )
 
         return {"map_x": map_x, "map_y": map_y}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "distort_limit",
-            "mode",
-            *super().get_transform_init_args_names(),
-        )
 
 
 class GridDistortion(BaseDistortion):
@@ -1963,14 +1910,6 @@ class GridDistortion(BaseDistortion):
 
         return {"map_x": map_x, "map_y": map_y}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            *super().get_transform_init_args_names(),
-            "num_steps",
-            "distort_limit",
-            "normalized",
-        )
-
 
 class D4(DualTransform):
     """Applies one of the eight possible D4 dihedral group transformations to a square-shaped input,
@@ -2075,9 +2014,6 @@ class D4(DualTransform):
         return {
             "group_element": self.random_generator.choice(d4_group_elements),
         }
-
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
 
 
 class GridElasticDeform(DualTransform):
@@ -2252,9 +2188,6 @@ class GridElasticDeform(DualTransform):
             params["shape"][:2],
         )
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "num_grid_xy", "magnitude", "interpolation", "mask_interpolation"
-
 
 class RandomGridShuffle(DualTransform):
     """Randomly shuffles the grid's cells on an image, mask, or keypoints,
@@ -2405,9 +2338,6 @@ class RandomGridShuffle(DualTransform):
         )
 
         return {"tiles": original_tiles, "mapping": mapping}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("grid",)
 
 
 class Pad(DualTransform):
@@ -2581,14 +2511,6 @@ class Pad(DualTransform):
             "pad_right": pad_right,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "padding",
-            "fill",
-            "fill_mask",
-            "border_mode",
-        )
-
 
 class PadIfNeeded(Pad):
     """Pads the sides of an image if the image dimensions are less than the specified minimum dimensions.
@@ -2657,7 +2579,7 @@ class PadIfNeeded(Pad):
         fill_mask: tuple[float, ...] | float
 
         @model_validator(mode="after")
-        def validate_divisibility(self) -> Self:
+        def _validate_divisibility(self) -> Self:
             if (self.min_height is None) == (self.pad_height_divisor is None):
                 msg = "Only one of 'min_height' and 'pad_height_divisor' parameters must be set"
                 raise ValueError(msg)
@@ -2702,9 +2624,6 @@ class PadIfNeeded(Pad):
         self.pad_height_divisor = pad_height_divisor
         self.pad_width_divisor = pad_width_divisor
         self.position = position
-        self.border_mode = border_mode
-        self.fill = fill
-        self.fill_mask = fill_mask
 
     def get_params_dependent_on_data(
         self,
@@ -2734,18 +2653,6 @@ class PadIfNeeded(Pad):
             "pad_left": w_pad_left,
             "pad_right": w_pad_right,
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "min_height",
-            "min_width",
-            "pad_height_divisor",
-            "pad_width_divisor",
-            "position",
-            "border_mode",
-            "fill",
-            "fill_mask",
-        )
 
 
 class ThinPlateSpline(BaseDistortion):
@@ -2926,13 +2833,6 @@ class ThinPlateSpline(BaseDistortion):
             "map_x": transformed[:, 0].reshape(height, width).astype(np.float32),
             "map_y": transformed[:, 1].reshape(height, width).astype(np.float32),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "scale_range",
-            "num_control_points",
-            *super().get_transform_init_args_names(),
-        )
 
 
 ## Alias for D4 for people who are not familiar with the concept of group of symmetries
