@@ -176,6 +176,12 @@ class BaseCompose(Serializable):
                 transform.set_random_seed(seed)
 
     def set_mask_interpolation(self, mask_interpolation: int | None) -> None:
+        """Set interpolation mode for mask resizing operations.
+
+        Args:
+            mask_interpolation (int | None): OpenCV interpolation flag to use for mask transforms.
+                If None, default interpolation for masks will be used.
+        """
         self.mask_interpolation = mask_interpolation
         self._set_mask_interpolation_recursive(self.transforms)
 
@@ -194,6 +200,18 @@ class BaseCompose(Serializable):
         return len(self.transforms)
 
     def __call__(self, *args: Any, **data: Any) -> dict[str, Any]:
+        """Apply transforms.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            **data (Any): Named parameters with data to transform.
+
+        Returns:
+            dict[str, Any]: Transformed data.
+
+        Raises:
+            NotImplementedError: This method must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     def __getitem__(self, item: int) -> TransformType:
@@ -204,13 +222,31 @@ class BaseCompose(Serializable):
 
     @property
     def additional_targets(self) -> dict[str, str]:
+        """Get additional targets dictionary.
+
+        Returns:
+            dict[str, str]: Dictionary containing additional targets mapping.
+        """
         return self._additional_targets
 
     @property
     def available_keys(self) -> set[str]:
+        """Get set of available keys.
+
+        Returns:
+            set[str]: Set of string keys available for transforms.
+        """
         return self._available_keys
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
+        """Get an indented string representation of the composition.
+
+        Args:
+            indent (int): Indentation level. Default: REPR_INDENT_STEP.
+
+        Returns:
+            str: Formatted string representation with proper indentation.
+        """
         args = {k: v for k, v in self.to_dict_private().items() if not (k.startswith("__") or k == "transforms")}
         repr_string = self.__class__.__name__ + "(["
         for t in self.transforms:
@@ -222,13 +258,28 @@ class BaseCompose(Serializable):
 
     @classmethod
     def get_class_fullname(cls) -> str:
+        """Get the full qualified name of the class.
+
+        Returns:
+            str: The shortest class fullname.
+        """
         return get_shortest_class_fullname(cls)
 
     @classmethod
     def is_serializable(cls) -> bool:
+        """Check if the class is serializable.
+
+        Returns:
+            bool: True if the class is serializable, False otherwise.
+        """
         return True
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the composition to a dictionary for serialization.
+
+        Returns:
+            dict[str, Any]: Dictionary representation of the composition.
+        """
         return {
             "__class_fullname__": self.get_class_fullname(),
             "p": self.p,
@@ -236,6 +287,11 @@ class BaseCompose(Serializable):
         }
 
     def get_dict_with_id(self) -> dict[str, Any]:
+        """Get a dictionary representation with object IDs for replay mode.
+
+        Returns:
+            dict[str, Any]: Dictionary with composition data and object IDs.
+        """
         return {
             "__class_fullname__": self.get_class_fullname(),
             "id": id(self),
@@ -244,6 +300,12 @@ class BaseCompose(Serializable):
         }
 
     def add_targets(self, additional_targets: dict[str, str] | None) -> None:
+        """Add additional targets to all transforms.
+
+        Args:
+            additional_targets (dict[str, str] | None): Dict of name -> type mapping for additional targets.
+                If None, no additional targets will be added.
+        """
         if additional_targets:
             for k, v in additional_targets.items():
                 if k in self._additional_targets and v != self._additional_targets[k]:
@@ -278,6 +340,12 @@ class BaseCompose(Serializable):
                     self._available_keys.update(proc.params.label_fields)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
+        """Set deterministic mode for all transforms.
+
+        Args:
+            flag (bool): Whether to enable deterministic mode.
+            save_key (str): Key to save replay parameters. Default: "replay".
+        """
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
@@ -433,6 +501,11 @@ class Compose(BaseCompose, HubMixin):
 
     @property
     def strict(self) -> bool:
+        """Get the current strict mode setting.
+
+        Returns:
+            bool: True if strict mode is enabled, False otherwise.
+        """
         return self._strict
 
     @strict.setter
@@ -478,11 +551,28 @@ class Compose(BaseCompose, HubMixin):
                 transform.disable_check_args_private()
 
     def disable_check_args_private(self) -> None:
+        """Disable argument checking for transforms.
+
+        This method disables strict mode and argument checking for all transforms in the composition.
+        """
         self.is_check_args = False
         self.strict = False
         self.main_compose = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
+        """Apply transformations to data.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **data (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data.
+
+        Raises:
+            KeyError: If positional arguments are provided.
+        """
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -596,6 +686,14 @@ class Compose(BaseCompose, HubMixin):
             self._masks_was_list = False
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Apply post-processing to data after all transforms have been applied.
+
+        Args:
+            data (dict[str, Any]): Data after transformation.
+
+        Returns:
+            dict[str, Any]: Post-processed data.
+        """
         if self.main_compose:
             for p in self.processors.values():
                 p.postprocess(data)
@@ -610,6 +708,11 @@ class Compose(BaseCompose, HubMixin):
         return data
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the composition to a dictionary for serialization.
+
+        Returns:
+            dict[str, Any]: Dictionary representation of the composition.
+        """
         dictionary = super().to_dict_private()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
@@ -624,6 +727,11 @@ class Compose(BaseCompose, HubMixin):
         return dictionary
 
     def get_dict_with_id(self) -> dict[str, Any]:
+        """Get a dictionary representation with object IDs for replay mode.
+
+        Returns:
+            dict[str, Any]: Dictionary with composition data and object IDs.
+        """
         dictionary = super().get_dict_with_id()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
@@ -835,6 +943,19 @@ class OneOf(BaseCompose):
         self.transforms_ps = [t / s for t in transforms_ps]
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
+        """Apply the OneOf composition to the input data.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **data (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data.
+
+        Raises:
+            KeyError: If positional arguments are provided.
+        """
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -898,6 +1019,16 @@ class SomeOf(BaseCompose):
         self.transforms_ps = [t / s for t in transforms_ps]
 
     def __call__(self, *arg: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
+        """Apply n randomly selected transforms from the list of transforms.
+
+        Args:
+            *arg (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **data (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data.
+        """
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -923,6 +1054,11 @@ class SomeOf(BaseCompose):
         return idx
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the SomeOf composition to a dictionary for serialization.
+
+        Returns:
+            dict[str, Any]: Dictionary representation of the composition.
+        """
         dictionary = super().to_dict_private()
         dictionary.update({"n": self.n, "replace": self.replace})
         return dictionary
@@ -990,6 +1126,16 @@ class OneOrOther(BaseCompose):
             warnings.warn("Length of transforms is not equal to 2.", stacklevel=2)
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
+        """Apply either the first or second transform based on probability.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **data (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data.
+        """
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -1036,6 +1182,16 @@ class SelectiveChannelTransform(BaseCompose):
         self.channels = channels
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
+        """Apply transforms to specific channels of the image.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **data (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data.
+        """
         if force_apply or self.py_random.random() < self.p:
             image = data["image"]
 
@@ -1090,6 +1246,16 @@ class ReplayCompose(Compose):
         self._available_keys.add(save_key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> dict[str, Any]:
+        """Apply transforms and record parameters for future replay.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **kwargs (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data and replay information.
+        """
         kwargs[self.save_key] = defaultdict(dict)
         result = super().__call__(force_apply=force_apply, **kwargs)
         serialized = self.get_dict_with_id()
@@ -1100,6 +1266,15 @@ class ReplayCompose(Compose):
 
     @staticmethod
     def replay(saved_augmentations: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+        """Replay previously saved augmentations.
+
+        Args:
+            saved_augmentations (dict[str, Any]): Previously saved augmentation parameters.
+            **kwargs (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data using saved parameters.
+        """
         augs = ReplayCompose._restore_for_replay(saved_augmentations)
         return augs(force_apply=True, **kwargs)
 
@@ -1140,6 +1315,12 @@ class ReplayCompose(Compose):
         return transform
 
     def fill_with_params(self, serialized: dict[str, Any], all_params: Any) -> None:
+        """Fill serialized transform data with parameters for replay.
+
+        Args:
+            serialized (dict[str, Any]): Serialized transform data.
+            all_params (Any): Parameters to fill in.
+        """
         params = all_params.get(serialized.get("id"))
         serialized["params"] = params
         del serialized["id"]
@@ -1147,6 +1328,14 @@ class ReplayCompose(Compose):
             self.fill_with_params(transform, all_params)
 
     def fill_applied(self, serialized: dict[str, Any]) -> bool:
+        """Set 'applied' flag for transforms based on parameters.
+
+        Args:
+            serialized (dict[str, Any]): Serialized transform data.
+
+        Returns:
+            bool: True if any transform was applied, False otherwise.
+        """
         if "transforms" in serialized:
             applied = [self.fill_applied(t) for t in serialized["transforms"]]
             serialized["applied"] = any(applied)
@@ -1155,6 +1344,11 @@ class ReplayCompose(Compose):
         return serialized["applied"]
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the ReplayCompose to a dictionary for serialization.
+
+        Returns:
+            dict[str, Any]: Dictionary representation of the composition.
+        """
         dictionary = super().to_dict_private()
         dictionary.update({"save_key": self.save_key})
         return dictionary
@@ -1190,6 +1384,16 @@ class Sequential(BaseCompose):
         super().__init__(transforms, p)
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
+        """Apply all transforms in sequential order.
+
+        Args:
+            *args (Any): Positional arguments are not supported.
+            force_apply (bool): Whether to apply transforms regardless of probability. Default: False.
+            **data (Any): Dict with data to transform.
+
+        Returns:
+            dict[str, Any]: Dictionary with transformed data.
+        """
         if self.replay_mode or force_apply or self.py_random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
