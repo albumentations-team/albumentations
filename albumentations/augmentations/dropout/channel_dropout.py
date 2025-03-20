@@ -8,11 +8,9 @@ channels rather than relying on a subset.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Annotated, Any
 
 import numpy as np
-from albucore import get_num_channels
 from pydantic import AfterValidator
 
 from albumentations.core.pydantic import check_range_bounds
@@ -95,27 +93,54 @@ class ChannelDropout(ImageOnlyTransform):
         self.channel_drop_range = channel_drop_range
         self.fill = fill
 
-    def apply(self, img: np.ndarray, channels_to_drop: tuple[int, ...], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, channels_to_drop: list[int], **params: Any) -> np.ndarray:
+        """Apply channel dropout to the image.
+
+        Args:
+            img (np.ndarray): Image to apply channel dropout to.
+            channels_to_drop (list[int]): List of channel indices to drop.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Image with dropped channels.
+        """
         return channel_dropout(img, channels_to_drop, self.fill)
 
-    def get_params_dependent_on_data(self, params: Mapping[str, Any], data: Mapping[str, Any]) -> dict[str, Any]:
-        image = data["image"] if "image" in data else data["images"][0]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[int]]:
+        """Get parameters that depend on input data.
 
-        num_channels = get_num_channels(image)
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Input data.
+
+        Returns:
+            dict[str, list[int]]: Dictionary with channels to drop.
+        """
+        image = data["image"] if "image" in data else data["images"][0]
+        num_channels = image.shape[2] if len(image.shape) > 2 else 1
 
         if num_channels == 1:
-            msg = "Images has one channel. ChannelDropout is not defined."
-            raise NotImplementedError(msg)
+            # Cannot drop the only channel.
+            return {"channels_to_drop": []}
 
-        if self.channel_drop_range[1] >= num_channels:
-            msg = "Can not drop all channels in ChannelDropout."
-            raise ValueError(msg)
+        # Sample the number of channels to drop
+        channel_drop_range = self.channel_drop_range
+        if isinstance(channel_drop_range, int):
+            channel_drop_range = (channel_drop_range, channel_drop_range)
+        if min(*channel_drop_range) >= num_channels:
+            # All channels would be dropped, which would result in an invalid image.
+            # Let's drop all except one channel.
+            num_drop = num_channels - 1
+        else:
+            num_drop = min(self.py_random.randint(*channel_drop_range), num_channels - 1)
 
-        num_drop_channels = self.py_random.randint(*self.channel_drop_range)
-
-        channels_to_drop = self.py_random.sample(range(num_channels), k=num_drop_channels)
-
+        channels_to_drop = self.py_random.choices(list(range(num_channels)), k=num_drop)
         return {"channels_to_drop": channels_to_drop}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Get the arguments that should be passed to __init__ when recreating this transform.
+
+        Returns:
+            tuple[str, ...]: Tuple of argument names.
+        """
         return "channel_drop_range", "fill"
