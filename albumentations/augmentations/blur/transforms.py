@@ -790,13 +790,11 @@ class AdvancedBlur(ImageOnlyTransform):
         def _validate_limits(self) -> Self:
             if (
                 isinstance(self.sigma_x_limit, (tuple, list))
+                and self.sigma_x_limit[0] == 0
                 and isinstance(self.sigma_y_limit, (tuple, list))
-                and self.sigma_x_limit[0] > self.sigma_y_limit[0]
+                and self.sigma_y_limit[0] == 0
             ):
-                msg = (
-                    f"Min sigma_x ({self.sigma_x_limit[0]}) should be less than "
-                    f"or equal min sigma_y ({self.sigma_y_limit[0]})"
-                )
+                msg = "sigma_x_limit and sigma_y_limit minimum value cannot be both equal to 0."
                 raise ValueError(msg)
             return self
 

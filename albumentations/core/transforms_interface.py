@@ -171,7 +171,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def _set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
 
-    def _get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
+    def get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
         return self.processors.get(key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
@@ -252,7 +252,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def __repr__(self) -> str:
         state = self.get_base_init_args()
-        state.update(self._get_transform_init_args())
+        state.update(self.get_transform_init_args())
         return f"{self.__class__.__name__}({format_args(state)})"
 
     def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
@@ -399,7 +399,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns base init args - p"""
         return {"p": self.p}
 
-    def _get_transform_init_args(self) -> dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         """Exclude seed from init args during serialization"""
         args = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
         args.pop("seed", None)  # Remove seed from args
@@ -409,7 +409,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns a dictionary representation of the transform, excluding internal parameters."""
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
-        state.update(self._get_transform_init_args())
+        state.update(self.get_transform_init_args())
         # Remove strict from serialization
         state.pop("strict", None)
         return state

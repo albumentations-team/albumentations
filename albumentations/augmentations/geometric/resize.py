@@ -208,7 +208,7 @@ class RandomScale(DualTransform):
         """
         return fgeometric.keypoints_scale(keypoints, scale, scale)
 
-    def _get_transform_init_args(self) -> dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         """Get arguments for the transform constructor.
 
         Returns:

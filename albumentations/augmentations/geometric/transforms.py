@@ -1327,7 +1327,7 @@ class ShiftScaleRotate(Affine):
         self.fill = fill
         self.fill_mask = fill_mask
 
-    def _get_transform_init_args(self) -> dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {
             "shift_limit_x": self.shift_limit_x,
             "shift_limit_y": self.shift_limit_y,
@@ -2366,7 +2366,7 @@ class RandomGridShuffle(DualTransform):
     ) -> np.ndarray:
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
-        processor = cast("BboxProcessor", self._get_processor("bboxes"))
+        processor = cast("BboxProcessor", self.get_processor("bboxes"))
         if processor is None:
             return bboxes
         bboxes_returned = fgeometric.bboxes_grid_shuffle(

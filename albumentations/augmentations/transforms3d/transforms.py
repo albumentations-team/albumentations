@@ -905,7 +905,7 @@ class CoarseDropout3D(Transform3D):
         """
         if holes.size == 0:
             return keypoints
-        processor = cast("KeypointsProcessor", self._get_processor("keypoints"))
+        processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:
             return keypoints

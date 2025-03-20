@@ -1576,7 +1576,7 @@ class RandomSunFlare(ImageOnlyTransform):
             "flare_center": (flare_center_x, flare_center_y),
         }
 
-    def _get_transform_init_args(self) -> dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         """Return the parameters used for initializing the transform.
 
         Returns:
@@ -8292,7 +8292,7 @@ class HEStain(ImageOnlyTransform):
             "shift_values": shift_values,
         }
 
-    def _get_transform_init_args(self) -> dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         """Return dictionary with transform init arguments."""
         return {
             "method": self.method,
