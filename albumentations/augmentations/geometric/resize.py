@@ -94,16 +94,8 @@ class RandomScale(DualTransform):
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, v: tuple[float, float] | float) -> tuple[float, float]:
-            """Convert scale_limit to a tuple format.
-
-            Args:
-                v (tuple[float, float] | float): The scale_limit value to convert.
-
-            Returns:
-                tuple[float, float]: A tuple containing the scale_limit range.
-            """
-            return to_tuple(v, bias=1.0)
+        def _check_scale_limit(cls, v: tuple[float, float] | float) -> tuple[float, float]:
+            return to_tuple(v)
 
     def __init__(
         self,
@@ -139,7 +131,7 @@ class RandomScale(DualTransform):
         Returns:
             dict[str, float]: Dictionary with parameters.
         """
-        return {"scale": self.py_random.uniform(*self.scale_limit)}
+        return {"scale": self.py_random.uniform(*self.scale_limit) + 1.0}
 
     def apply(
         self,
@@ -207,18 +199,6 @@ class RandomScale(DualTransform):
             np.ndarray: Scaled keypoints.
         """
         return fgeometric.keypoints_scale(keypoints, scale, scale)
-
-    def get_transform_init_args(self) -> dict[str, Any]:
-        """Get arguments for the transform constructor.
-
-        Returns:
-            dict[str, Any]: Dictionary with arguments for the transform constructor.
-        """
-        return {
-            "interpolation": self.interpolation,
-            "mask_interpolation": self.mask_interpolation,
-            "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
-        }
 
 
 class MaxSizeTransform(DualTransform):
@@ -337,9 +317,6 @@ class MaxSizeTransform(DualTransform):
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         return self.apply_to_mask(masks3d, *args, **params)
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "max_size", "max_size_hw", "interpolation", "mask_interpolation"
 
 
 class LongestMaxSize(MaxSizeTransform):
@@ -696,11 +673,3 @@ class Resize(DualTransform):
         scale_x = self.width / width
         scale_y = self.height / height
         return fgeometric.keypoints_scale(keypoints, scale_x, scale_y)
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Get the argument names for the transform constructor.
-
-        Returns:
-            tuple[str, ...]: Tuple of argument names for the transform constructor.
-        """
-        return "height", "width", "interpolation", "mask_interpolation"

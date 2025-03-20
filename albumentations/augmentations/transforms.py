@@ -316,15 +316,6 @@ class Normalize(ImageOnlyTransform):
         """
         return self.apply(volumes, **params)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "mean", "std", "max_pixel_value", and "normalization".
-        """
-        return "mean", "std", "max_pixel_value", "normalization"
-
 
 class ImageCompression(ImageOnlyTransform):
     """Decrease image quality by applying JPEG or WebP compression.
@@ -440,15 +431,6 @@ class ImageCompression(ImageOnlyTransform):
             "quality": self.py_random.randint(*self.quality_range),
             "image_type": image_type,
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "quality_range" and "compression_type".
-        """
-        return "quality_range", "compression_type"
 
 
 class RandomSnow(ImageOnlyTransform):
@@ -632,15 +614,6 @@ class RandomSnow(ImageOnlyTransform):
             result["sparkle_mask"] = sparkle_mask
 
         return result
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "snow_point_range", "brightness_coeff", and "method".
-        """
-        return "snow_point_range", "brightness_coeff", "method"
 
 
 class RandomGravel(ImageOnlyTransform):
@@ -841,15 +814,6 @@ class RandomGravel(ImageOnlyTransform):
                 )
 
         return {"gravels_infos": np.array(gravels_info, dtype=np.int64)}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "gravel_roi" and "number_of_patches".
-        """
-        return "gravel_roi", "number_of_patches"
 
 
 class RandomRain(ImageOnlyTransform):
@@ -1056,24 +1020,6 @@ class RandomRain(ImageOnlyTransform):
 
         return {"drop_length": drop_length, "slant": slant, "rain_drops": rain_drops}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "slant_range", "drop_length", "drop_width", "drop_color", "blur_value",
-                "brightness_coefficient", and "rain_type".
-        """
-        return (
-            "slant_range",
-            "drop_length",
-            "drop_width",
-            "drop_color",
-            "blur_value",
-            "brightness_coefficient",
-            "rain_type",
-        )
-
 
 class RandomFog(ImageOnlyTransform):
     """Simulates fog for the image by adding random fog-like artifacts.
@@ -1273,15 +1219,6 @@ class RandomFog(ImageOnlyTransform):
             "intensity": intensity,
             "radiuses": radiuses,
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "fog_coef_range" and "alpha_coef".
-        """
-        return "fog_coef_range", "alpha_coef"
 
 
 class RandomSunFlare(ImageOnlyTransform):
@@ -1576,22 +1513,6 @@ class RandomSunFlare(ImageOnlyTransform):
             "flare_center": (flare_center_x, flare_center_y),
         }
 
-    def get_transform_init_args(self) -> dict[str, Any]:
-        """Return the parameters used for initializing the transform.
-
-        Returns:
-            dict[str, Any]: Dictionary with the following keys:
-                - "flare_roi" (tuple[float, float, float, float]): The region of the image where flares
-                    will appear (x_min, y_min, x_max, y_max).
-        """
-        return {
-            "flare_roi": self.flare_roi,
-            "angle_range": self.angle_range,
-            "num_flare_circles_range": self.num_flare_circles_range,
-            "src_radius": self.src_radius,
-            "src_color": self.src_color,
-        }
-
 
 class RandomShadow(ImageOnlyTransform):
     """Simulates shadows for the image by reducing the brightness of the image in shadow regions.
@@ -1793,19 +1714,6 @@ class RandomShadow(ImageOnlyTransform):
 
         return {"vertices_list": vertices_list, "intensities": intensities}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "shadow_roi", "num_shadows_limit", and "shadow_dimension".
-        """
-        return (
-            "shadow_roi",
-            "num_shadows_limit",
-            "shadow_dimension",
-        )
-
 
 class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
@@ -1963,15 +1871,6 @@ class RandomToneCurve(ImageOnlyTransform):
 
         return {"low_y": low_y, "high_y": high_y}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "scale" and "per_channel".
-        """
-        return "scale", "per_channel"
-
 
 class HueSaturationValue(ImageOnlyTransform):
     """Randomly change hue, saturation and value of the input image.
@@ -2100,15 +1999,6 @@ class HueSaturationValue(ImageOnlyTransform):
             "val_shift": self.py_random.uniform(*self.val_shift_limit),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "hue_shift_limit", "sat_shift_limit", and "val_shift_limit".
-        """
-        return "hue_shift_limit", "sat_shift_limit", "val_shift_limit"
-
 
 class Solarize(ImageOnlyTransform):
     """Invert all pixel values above a threshold.
@@ -2224,15 +2114,6 @@ class Solarize(ImageOnlyTransform):
                 - "threshold" (float): The threshold value.
         """
         return {"threshold": self.py_random.uniform(*self.threshold_range)}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "threshold_range".
-        """
-        return ("threshold_range",)
 
 
 class Posterize(ImageOnlyTransform):
@@ -2370,15 +2251,6 @@ class Posterize(ImageOnlyTransform):
             num_bits = [self.py_random.randint(*i) for i in self.num_bits]
             return {"num_bits": num_bits}
         return {"num_bits": self.py_random.randint(*self.num_bits)}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "num_bits".
-        """
-        return ("num_bits",)
 
 
 class Equalize(ImageOnlyTransform):
@@ -2557,15 +2429,6 @@ class Equalize(ImageOnlyTransform):
             list[str]: List of parameter names.
         """
         return [*list(self.mask_params)]
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "mode", "by_channels", "mask", and "mask_params".
-        """
-        return "mode", "by_channels", "mask", "mask_params"
 
 
 class RandomBrightnessContrast(ImageOnlyTransform):
@@ -2792,20 +2655,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             "beta": beta,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "brightness_limit", "contrast_limit", "brightness_by_max", and "ensure_safe_range".
-        """
-        return (
-            "brightness_limit",
-            "contrast_limit",
-            "brightness_by_max",
-            "ensure_safe_range",
-        )
-
 
 class GaussNoise(ImageOnlyTransform):
     """Apply Gaussian noise to the input image.
@@ -2946,15 +2795,6 @@ class GaussNoise(ImageOnlyTransform):
         )
         return {"noise_map": noise_map}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "std_range", "mean_range", "per_channel", and "noise_scale_factor".
-        """
-        return "std_range", "mean_range", "per_channel", "noise_scale_factor"
-
 
 class ISONoise(ImageOnlyTransform):
     """Applies camera sensor noise to the input image, simulating high ISO settings.
@@ -3091,15 +2931,6 @@ class ISONoise(ImageOnlyTransform):
             "random_seed": random_seed,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str]: Names of the parameters used for initialization, in this case
-                "intensity" and "color_shift".
-        """
-        return "intensity", "color_shift"
-
 
 class CLAHE(ImageOnlyTransform):
     """Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
@@ -3207,15 +3038,6 @@ class CLAHE(ImageOnlyTransform):
         """
         return {"clip_limit": self.py_random.uniform(*self.clip_limit)}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "clip_limit" and "tile_grid_size".
-        """
-        return ("clip_limit", "tile_grid_size")
-
 
 class ChannelShuffle(ImageOnlyTransform):
     """Randomly rearrange channels of the image.
@@ -3275,15 +3097,6 @@ class ChannelShuffle(ImageOnlyTransform):
         ch_arr = list(range(shape[-1]))
         self.py_random.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
-
-    def get_transform_init_args_names(self) -> tuple[()]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[()]: Names of the parameters used for initialization, in this case
-                an empty tuple.
-        """
-        return ()
 
 
 class InvertImg(ImageOnlyTransform):
@@ -3354,15 +3167,6 @@ class InvertImg(ImageOnlyTransform):
             np.ndarray: The volume with the applied InvertImg transform.
         """
         return self.apply(volume, *args, **params)
-
-    def get_transform_init_args_names(self) -> tuple[()]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[()]: Names of the parameters used for initialization, in this case
-                an empty tuple.
-        """
-        return ()
 
 
 class RandomGamma(ImageOnlyTransform):
@@ -3520,15 +3324,6 @@ class RandomGamma(ImageOnlyTransform):
             "gamma": self.py_random.uniform(*self.gamma_limit) / 100.0,
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "gamma_limit".
-        """
-        return ("gamma_limit",)
-
 
 class ToGray(ImageOnlyTransform):
     """Convert an image to grayscale and optionally replicate the grayscale channel.
@@ -3643,15 +3438,6 @@ class ToGray(ImageOnlyTransform):
 
         return fmain.to_gray(img, self.num_output_channels, self.method)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "num_output_channels" and "method".
-        """
-        return "num_output_channels", "method"
-
 
 class ToRGB(ImageOnlyTransform):
     """Convert an input image from grayscale to RGB format.
@@ -3727,15 +3513,6 @@ class ToRGB(ImageOnlyTransform):
             img,
             num_output_channels=self.num_output_channels,
         )
-
-    def get_transform_init_args_names(self) -> tuple[str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str]: Names of the parameters used for initialization, in this case
-                "num_output_channels".
-        """
-        return ("num_output_channels",)
 
 
 class ToSepia(ImageOnlyTransform):
@@ -3838,15 +3615,6 @@ class ToSepia(ImageOnlyTransform):
             raise TypeError(msg)
         return fmain.linear_transformation_rgb(img, self.sepia_transformation_matrix)
 
-    def get_transform_init_args_names(self) -> tuple[()]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[()]: Names of the parameters used for initialization, in this case
-                an empty tuple.
-        """
-        return ()
-
 
 class ToFloat(ImageOnlyTransform):
     """Convert the input image to a floating-point representation.
@@ -3935,15 +3703,6 @@ class ToFloat(ImageOnlyTransform):
         """
         return to_float(img, self.max_value)
 
-    def get_transform_init_args_names(self) -> tuple[str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str]: Names of the parameters used for initialization, in this case
-                "max_value".
-        """
-        return ("max_value",)
-
 
 class FromFloat(ImageOnlyTransform):
     """Convert an image from floating point representation to the specified data type.
@@ -4014,7 +3773,7 @@ class FromFloat(ImageOnlyTransform):
             p (float): Probability of applying the transform. Default: 1.0.
         """
         super().__init__(p=p)
-        self.dtype = np.dtype(dtype)
+        self.dtype_value = np.dtype(dtype)
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -4027,7 +3786,7 @@ class FromFloat(ImageOnlyTransform):
         Returns:
             np.ndarray: The image with the applied FromFloat transform.
         """
-        return from_float(img, self.dtype, self.max_value)
+        return from_float(img, self.dtype_value, self.max_value)
 
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the FromFloat transform to the input images.
@@ -4036,7 +3795,7 @@ class FromFloat(ImageOnlyTransform):
             images (np.ndarray): The input images to apply the FromFloat transform to.
             **params (Any): Additional parameters (not used in this transform).
         """
-        return clip(np.rint(images * self.max_value), self.dtype, inplace=True)
+        return clip(np.rint(images * self.max_value), self.dtype_value, inplace=True)
 
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the FromFloat transform to the input volume.
@@ -4055,9 +3814,6 @@ class FromFloat(ImageOnlyTransform):
             **params (Any): Additional parameters (not used in this transform).
         """
         return self.apply_to_images(volumes, **params)
-
-    def get_transform_init_args(self) -> dict[str, Any]:
-        return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
 class InterpolationPydantic(BaseModel):
@@ -4209,15 +3965,6 @@ class Downscale(ImageOnlyTransform):
                 - "scale" (float): The downscaling factor.
         """
         return {"scale": self.py_random.uniform(*self.scale_range)}
-
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str]: Names of the parameters used for initialization, in this case
-                "scale_range" and "interpolation_pair".
-        """
-        return "scale_range", "interpolation_pair"
 
 
 class Lambda(NoOp):
@@ -4530,15 +4277,6 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
         return {"multiplier": multiplier}
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str, str]: Names of the parameters used for initialization, in this case
-                "multiplier", "elementwise", and "per_channel".
-        """
-        return "multiplier", "elementwise", "per_channel"
-
 
 class FancyPCA(ImageOnlyTransform):
     """Apply Fancy PCA augmentation to the input image.
@@ -4639,15 +4377,6 @@ class FancyPCA(ImageOnlyTransform):
             np.float32,
         )
         return {"alpha_vector": alpha_vector}
-
-    def get_transform_init_args_names(self) -> tuple[str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str]: Names of the parameters used for initialization, in this case
-                "alpha".
-        """
-        return ("alpha",)
 
 
 class ColorJitter(ImageOnlyTransform):
@@ -4844,15 +4573,6 @@ class ColorJitter(ImageOnlyTransform):
         for i in order:
             img = self.transforms[i](img, color_transforms[i])
         return img
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "brightness", "contrast", "saturation", and "hue".
-        """
-        return "brightness", "contrast", "saturation", "hue"
 
 
 class Sharpen(ImageOnlyTransform):
@@ -5053,15 +4773,6 @@ class Sharpen(ImageOnlyTransform):
             return fmain.convolve(img, sharpening_matrix)
         return fmain.sharpen_gaussian(img, alpha, self.kernel_size, self.sigma)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "alpha", "lightness", "method", "kernel_size", and "sigma".
-        """
-        return "alpha", "lightness", "method", "kernel_size", "sigma"
-
 
 class Emboss(ImageOnlyTransform):
     """Apply embossing effect to the input image.
@@ -5179,15 +4890,6 @@ class Emboss(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
         """
         return fmain.convolve(img, emboss_matrix)
-
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str]: Names of the parameters used for initialization, in this case
-                "alpha" and "strength".
-        """
-        return ("alpha", "strength")
 
 
 class Superpixels(ImageOnlyTransform):
@@ -5323,15 +5025,6 @@ class Superpixels(ImageOnlyTransform):
         self.n_segments = cast("tuple[int, int]", n_segments)
         self.max_size = max_size
         self.interpolation = interpolation
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "p_replace", "n_segments", "max_size", and "interpolation".
-        """
-        return "p_replace", "n_segments", "max_size", "interpolation"
 
     def get_params(self) -> dict[str, Any]:
         """Generate parameters for the Superpixels transform.
@@ -5519,15 +5212,6 @@ class RingingOvershoot(ImageOnlyTransform):
         """
         return fmain.convolve(img, kernel)
 
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str]: Names of the parameters used for initialization, in this case
-                "blur_limit" and "cutoff".
-        """
-        return ("blur_limit", "cutoff")
-
 
 class UnsharpMask(ImageOnlyTransform):
     """Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
@@ -5678,15 +5362,6 @@ class UnsharpMask(ImageOnlyTransform):
             alpha=alpha,
             threshold=self.threshold,
         )
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "blur_limit", "sigma_limit", "alpha", and "threshold".
-        """
-        return "blur_limit", "sigma_limit", "alpha", "threshold"
 
 
 class Spatter(ImageOnlyTransform):
@@ -5870,23 +5545,6 @@ class Spatter(ImageOnlyTransform):
                 random_generator=self.random_generator,
             ),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", and "color".
-        """
-        return (
-            "mean",
-            "std",
-            "gauss_sigma",
-            "intensity",
-            "cutout_threshold",
-            "mode",
-            "color",
-        )
 
 
 class ChromaticAberration(ImageOnlyTransform):
@@ -6108,20 +5766,6 @@ class ChromaticAberration(ImageOnlyTransform):
             return -b
         return b
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str, str, str]: Names of the parameters used for initialization, in this case
-                "primary_distortion_limit", "secondary_distortion_limit", "mode", and "interpolation".
-        """
-        return (
-            "primary_distortion_limit",
-            "secondary_distortion_limit",
-            "mode",
-            "interpolation",
-        )
-
 
 class Morphological(DualTransform):
     """Apply a morphological operation (dilation or erosion) to an image,
@@ -6249,15 +5893,6 @@ class Morphological(DualTransform):
         return {
             "kernel": cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.scale),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str]: Names of the parameters used for initialization, in this case
-                "scale" and "operation".
-        """
-        return ("scale", "operation")
 
 
 PLANKIAN_JITTER_CONST = {
@@ -6486,15 +6121,6 @@ class PlanckianJitter(ImageOnlyTransform):
 
         return {"temperature": int(temperature)}
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str, str]: Names of the parameters used for initialization, in this case
-                "mode", "temperature_limit", and "sampling_method".
-        """
-        return "mode", "temperature_limit", "sampling_method"
-
 
 class ShotNoise(ImageOnlyTransform):
     """Apply shot noise to the image by modeling photon counting as a Poisson process.
@@ -6599,15 +6225,6 @@ class ShotNoise(ImageOnlyTransform):
             "scale": self.py_random.uniform(*self.scale_range),
             "random_seed": self.random_generator.integers(0, 2**32 - 1),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "scale_range".
-        """
-        return ("scale_range",)
 
 
 class NoiseParamsBase(BaseModel):
@@ -6887,15 +6504,6 @@ class AdditiveNoise(ImageOnlyTransform):
         )
         return {"noise_map": noise_map}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "noise_type", "spatial_mode", "noise_params", and "approximation".
-        """
-        return "noise_type", "spatial_mode", "noise_params", "approximation"
-
 
 class RGBShift(AdditiveNoise):
     """Randomly shift values for each channel of the input RGB image.
@@ -7027,15 +6635,6 @@ class RGBShift(AdditiveNoise):
         self.r_shift_limit = cast("tuple[float, float]", r_shift_limit)
         self.g_shift_limit = cast("tuple[float, float]", g_shift_limit)
         self.b_shift_limit = cast("tuple[float, float]", b_shift_limit)
-
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, str, str]: Names of the parameters used for initialization, in this case
-                "r_shift_limit", "g_shift_limit", and "b_shift_limit".
-        """
-        return "r_shift_limit", "g_shift_limit", "b_shift_limit"
 
 
 class SaltAndPepper(ImageOnlyTransform):
@@ -7197,15 +6796,6 @@ class SaltAndPepper(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
         """
         return fmain.apply_salt_and_pepper(img, salt_mask, pepper_mask)
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "amount" and "salt_vs_pepper".
-        """
-        return "amount", "salt_vs_pepper"
 
 
 class PlasmaBrightnessContrast(ImageOnlyTransform):
@@ -7436,15 +7026,6 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         """
         return self.apply(volumes, **params)
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "brightness_range", "contrast_range", "plasma_size", and "roughness".
-        """
-        return "brightness_range", "contrast_range", "plasma_size", "roughness"
-
 
 class PlasmaShadow(ImageOnlyTransform):
     """Apply plasma-based shadow effect to the image using Diamond-Square algorithm.
@@ -7640,15 +7221,6 @@ class PlasmaShadow(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
         """
         return self.apply(volumes, **params)
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "shadow_intensity_range" and "roughness".
-        """
-        return "shadow_intensity_range", "roughness"
 
 
 class Illumination(ImageOnlyTransform):
@@ -7897,22 +7469,6 @@ class Illumination(ImageOnlyTransform):
             sigma=params["sigma"],
         )
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "mode", "intensity_range", "effect_type", "angle_range", "center_range", and "sigma_range".
-        """
-        return (
-            "mode",
-            "intensity_range",
-            "effect_type",
-            "angle_range",
-            "center_range",
-            "sigma_range",
-        )
-
 
 class AutoContrast(ImageOnlyTransform):
     """Automatically adjust image contrast by stretching the intensity range.
@@ -8029,15 +7585,6 @@ class AutoContrast(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
         """
         return self.apply(volumes, **params)
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Return the list of parameter names that are used for initializing the transform.
-
-        Returns:
-            tuple[str, ...]: Names of the parameters used for initialization, in this case
-                "cutoff", "ignore", and "method".
-        """
-        return "cutoff", "ignore", "method"
 
 
 class HEStain(ImageOnlyTransform):
@@ -8287,14 +7834,4 @@ class HEStain(ImageOnlyTransform):
             "stain_matrix": stain_matrix,
             "scale_factors": scale_factors,
             "shift_values": shift_values,
-        }
-
-    def get_transform_init_args(self) -> dict[str, Any]:
-        """Return dictionary with transform init arguments."""
-        return {
-            "method": self.method,
-            "preset": self.preset,
-            "intensity_scale_range": self.intensity_scale_range,
-            "intensity_shift_range": self.intensity_shift_range,
-            "augment_background": self.augment_background,
         }

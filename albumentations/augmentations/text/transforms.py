@@ -116,18 +116,6 @@ class TextImage(ImageOnlyTransform):
     def targets_as_params(self) -> list[str]:
         return [self.metadata_key]
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            "font_path",
-            "stopwords",
-            "augmentations",
-            "fraction_range",
-            "font_size_fraction_range",
-            "font_color",
-            "metadata_key",
-            "clear_bg",
-        )
-
     def random_aug(
         self,
         text: str,

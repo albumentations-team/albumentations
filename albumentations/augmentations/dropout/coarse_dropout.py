@@ -180,9 +180,6 @@ class CoarseDropout(BaseDropout):
 
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
 
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (*super().get_transform_init_args_names(), "num_holes_range", "hole_height_range", "hole_width_range")
-
 
 class Erasing(BaseDropout):
     """Randomly erases rectangular regions in an image, following the Random Erasing Data Augmentation technique.
@@ -337,9 +334,6 @@ class Erasing(BaseDropout):
 
         holes = np.array([[left, top, left + w, top + h]], dtype=np.int32)
         return {"holes": holes, "seed": self.random_generator.integers(0, 2**32 - 1)}
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return "scale", "ratio", "fill", "fill_mask"
 
 
 class ConstrainedCoarseDropout(BaseDropout):
@@ -558,13 +552,3 @@ class ConstrainedCoarseDropout(BaseDropout):
             "holes": holes,
             "seed": self.random_generator.integers(0, 2**32 - 1),
         }
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return (
-            *super().get_transform_init_args_names(),
-            "num_holes_range",
-            "hole_height_range",
-            "hole_width_range",
-            "mask_indices",
-            "bbox_labels",
-        )

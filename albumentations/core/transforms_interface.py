@@ -157,16 +157,38 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def get_dict_with_id(self) -> dict[str, Any]:
         d = self.to_dict_private()
-        d["id"] = id(self)
+        d.update({"id": id(self)})
         return d
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Returns names of arguments that are used in __init__ method of the transform."""
-        msg = (
-            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
-            "method is not implemented"
-        )
-        raise NotImplementedError(msg)
+        """Returns names of arguments that are used in __init__ method of the transform.
+
+        This method introspects the entire Method Resolution Order (MRO) to gather the names
+        of parameters accepted by the __init__ methods of all parent classes,
+        to collect all possible parameters, excluding 'self' and 'strict'
+        which are handled separately.
+        """
+        import inspect
+
+        all_param_names = set()
+
+        for cls in self.__class__.__mro__:
+            # Skip the class if it's the base object or doesn't define __init__
+            if cls is object or "__init__" not in cls.__dict__:
+                continue
+
+            try:
+                # Access the class's __init__ method through __dict__ to avoid mypy errors
+                init_method = cls.__dict__["__init__"]
+                signature = inspect.signature(init_method)
+                for name, param in signature.parameters.items():
+                    if param.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}:
+                        all_param_names.add(name)
+            except (ValueError, TypeError):
+                continue
+
+        # Exclude 'self' and 'strict'
+        return tuple(sorted(all_param_names - {"self", "strict"}))
 
     def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
         self.processors = processors
@@ -400,18 +422,44 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return {"p": self.p}
 
     def get_transform_init_args(self) -> dict[str, Any]:
-        """Exclude seed from init args during serialization"""
-        args = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
-        args.pop("seed", None)  # Remove seed from args
+        """Get transform initialization arguments for serialization.
+
+        Returns a dictionary of parameter names and their values, excluding parameters
+        that are not actually set on the instance or that shouldn't be serialized.
+        """
+        # Get the parameter names
+        arg_names = self.get_transform_init_args_names()
+
+        # Create a dictionary of parameter values
+        args = {}
+        for name in arg_names:
+            # Only include parameters that are actually set as instance attributes
+            # and have non-default values
+            if hasattr(self, name):
+                value = getattr(self, name)
+                # Skip attributes that are basic containers with no content
+                if not (isinstance(value, (list, dict, tuple, set)) and len(value) == 0):
+                    args[name] = value
+
+        # Remove seed explicitly (it's not meant to be serialized)
+        args.pop("seed", None)
+
         return args
 
     def to_dict_private(self) -> dict[str, Any]:
         """Returns a dictionary representation of the transform, excluding internal parameters."""
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
-        state.update(self.get_transform_init_args())
+
+        # Get transform init args (our improved method handles all types of transforms)
+        transform_args = self.get_transform_init_args()
+
+        # Add transform args to state
+        state.update(transform_args)
+
         # Remove strict from serialization
         state.pop("strict", None)
+
         return state
 
 
@@ -625,9 +673,6 @@ class NoOp(DualTransform):
 
     def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
         return masks3d
-
-    def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ()
 
 
 class Transform3D(DualTransform):
