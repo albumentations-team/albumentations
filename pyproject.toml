@@ -260,7 +260,6 @@ lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # Like Black, use double quotes for strings.
 lint.pydocstyle.convention = "google"
 lint.pydocstyle.ignore-magic-methods = true
-lint.pydocstyle.ignore-decorators = "^__.*__$"
 
 [tool.albumentations.maintainers]
 emeritus = [
