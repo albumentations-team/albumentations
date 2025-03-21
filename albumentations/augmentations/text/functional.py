@@ -28,6 +28,21 @@ if TYPE_CHECKING:
 
 
 def delete_random_words(words: list[str], num_words: int, py_random: random.Random) -> str:
+    """Delete a specified number of random words from a list.
+
+    This function randomly removes words from the input list and joins the remaining
+    words with spaces to form a new string.
+
+    Args:
+        words (list[str]): List of words to process.
+        num_words (int): Number of words to delete.
+        py_random (random.Random): Random number generator for reproducibility.
+
+    Returns:
+        str: New string with specified words removed. Returns empty string if
+             num_words is greater than or equal to the length of words.
+
+    """
     if num_words >= len(words):
         return ""
 
@@ -37,6 +52,21 @@ def delete_random_words(words: list[str], num_words: int, py_random: random.Rand
 
 
 def swap_random_words(words: list[str], num_words: int, py_random: random.Random) -> str:
+    """Swap random pairs of words in a list of words.
+
+    This function randomly selects pairs of words and swaps their positions
+    a specified number of times.
+
+    Args:
+        words (list[str]): List of words to process.
+        num_words (int): Number of swaps to perform.
+        py_random (random.Random): Random number generator for reproducibility.
+
+    Returns:
+        str: New string with words swapped. If num_words is 0 or the list has fewer
+             than 2 words, returns the original string.
+
+    """
     if num_words == 0 or len(words) < PAIR:
         return " ".join(words)
 
@@ -54,6 +84,22 @@ def insert_random_stopwords(
     stopwords: tuple[str, ...] | None,
     py_random: random.Random,
 ) -> str:
+    """Insert random stopwords into a list of words.
+
+    This function randomly inserts stopwords at random positions in the
+    list of words a specified number of times.
+
+    Args:
+        words (list[str]): List of words to process.
+        num_insertions (int): Number of stopwords to insert.
+        stopwords (tuple[str, ...] | None): Tuple of stopwords to choose from.
+            If None, default stopwords will be used.
+        py_random (random.Random): Random number generator for reproducibility.
+
+    Returns:
+        str: New string with stopwords inserted.
+
+    """
     if stopwords is None:
         stopwords = ("and", "the", "is", "in", "at", "of")  # Default stopwords if none provided
 
@@ -153,6 +199,25 @@ def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict
 @uint8_io
 @preserve_channel_dim
 def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg: bool) -> np.ndarray:
+    """Render text onto an image based on provided metadata.
+
+    This function draws text on an image using metadata that specifies text content,
+    position, font, and color. It can optionally clear the background before rendering.
+    The function handles different image types (grayscale, RGB, multi-channel).
+
+    Args:
+        image (np.ndarray): Image to draw text on.
+        metadata_list (list[dict[str, Any]]): List of metadata dictionaries containing:
+            - bbox_coords: Bounding box coordinates (x_min, y_min, x_max, y_max)
+            - text: Text string to render
+            - font: PIL ImageFont object
+            - font_color: Color for the text
+        clear_bg (bool): Whether to clear (inpaint) the background under the text.
+
+    Returns:
+        np.ndarray: Image with text rendered on it.
+
+    """
     # First clean background under boxes using seamless clone if clear_bg is True
     if clear_bg:
         image = inpaint_text_background(image, metadata_list)
@@ -172,6 +237,25 @@ def inpaint_text_background(
     metadata_list: list[dict[str, Any]],
     method: int = cv2.INPAINT_TELEA,
 ) -> np.ndarray:
+    """Inpaint (clear) regions in an image where text will be rendered.
+
+    This function creates a clean background for text by inpainting rectangular
+    regions specified in the metadata. It removes any existing content in those
+    regions to provide a clean slate for rendering text.
+
+    Args:
+        image (np.ndarray): Image to inpaint.
+        metadata_list (list[dict[str, Any]]): List of metadata dictionaries containing:
+            - bbox_coords: Bounding box coordinates (x_min, y_min, x_max, y_max)
+        method (int, optional): Inpainting method to use. Defaults to cv2.INPAINT_TELEA.
+            Options include:
+            - cv2.INPAINT_TELEA: Fast Marching Method
+            - cv2.INPAINT_NS: Navier-Stokes method
+
+    Returns:
+        np.ndarray: Image with specified regions inpainted.
+
+    """
     result_image = image.copy()
     mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
 
