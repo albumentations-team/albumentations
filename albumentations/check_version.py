@@ -24,6 +24,16 @@ opener = None
 
 
 def get_opener() -> OpenerDirector:
+    """Get or create a URL opener for making HTTP requests.
+
+    This function implements a singleton pattern for the opener to avoid
+    recreating it on each request. It lazily instantiates a URL opener
+    with HTTP and HTTPS handlers.
+
+    Returns:
+        OpenerDirector: URL opener instance for making HTTP requests.
+
+    """
     global opener  # noqa: PLW0603
     if opener is None:
         opener = urllib.request.build_opener(urllib.request.HTTPHandler(), urllib.request.HTTPSHandler())
@@ -31,6 +41,17 @@ def get_opener() -> OpenerDirector:
 
 
 def fetch_version_info() -> str:
+    """Fetch version information from PyPI for albumentations package.
+
+    This function retrieves JSON data from PyPI containing information about
+    the latest available version of albumentations. It handles network errors
+    gracefully and returns an empty string if the request fails.
+
+    Returns:
+        str: JSON string containing version information if successful,
+             empty string otherwise.
+
+    """
     opener = get_opener()
     url = "https://pypi.org/pypi/albumentations/json"
     try:
@@ -112,6 +133,16 @@ def parse_version_parts(version_str: str) -> tuple[int | str, ...]:
 
 
 def check_for_updates() -> None:
+    """Check if a newer version of albumentations is available on PyPI.
+
+    This function compares the current installed version with the latest version
+    available on PyPI. If a newer version is found, it issues a warning to the user
+    with upgrade instructions. All exceptions are caught to ensure this check
+    doesn't affect normal package operation.
+
+    The check can be disabled by setting the environment variable
+    NO_ALBUMENTATIONS_UPDATE to 1.
+    """
     try:
         data = fetch_version_info()
         latest_version = parse_version(data)
