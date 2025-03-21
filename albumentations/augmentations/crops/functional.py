@@ -34,6 +34,20 @@ def get_crop_coords(
     h_start: float,
     w_start: float,
 ) -> tuple[int, int, int, int]:
+    """Get crop coordinates.
+
+    This function gets the crop coordinates.
+
+    Args:
+        image_shape (tuple[int, int]): Original image shape.
+        crop_shape (tuple[int, int]): Crop shape.
+        h_start (float): Start height.
+        w_start (float): Start width.
+
+    Returns:
+        tuple[int, int, int, int]: Crop coordinates.
+
+    """
     # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
     # See: https://github.com/albumentations-team/albumentations/pull/1080
@@ -133,6 +147,18 @@ def crop_keypoints_by_coords(
 
 
 def get_center_crop_coords(image_shape: tuple[int, int], crop_shape: tuple[int, int]) -> tuple[int, int, int, int]:
+    """Get center crop coordinates.
+
+    This function gets the center crop coordinates.
+
+    Args:
+        image_shape (tuple[int, int]): Original image shape.
+        crop_shape (tuple[int, int]): Crop shape.
+
+    Returns:
+        tuple[int, int, int, int]: Center crop coordinates.
+
+    """
     height, width = image_shape[:2]
     crop_height, crop_width = crop_shape[:2]
 
@@ -144,6 +170,21 @@ def get_center_crop_coords(image_shape: tuple[int, int], crop_shape: tuple[int, 
 
 
 def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.ndarray:
+    """Crop an image.
+
+    This function crops an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        x_min (int): Minimum x coordinate.
+        y_min (int): Minimum y coordinate.
+        x_max (int): Maximum x coordinate.
+        y_max (int): Maximum y coordinate.
+
+    Returns:
+        np.ndarray: Cropped image.
+
+    """
     height, width = img.shape[:2]
     if x_max <= x_min or y_max <= y_min:
         raise ValueError(
@@ -172,6 +213,24 @@ def crop_and_pad(
     pad_mode: int,
     keep_size: bool,
 ) -> np.ndarray:
+    """Crop and pad an image.
+
+    This function crops and pads an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        crop_params (tuple[int, int, int, int] | None): Crop parameters.
+        pad_params (tuple[int, int, int, int] | None): Pad parameters.
+        pad_value (tuple[float, ...] | float | None): Pad value.
+        image_shape (tuple[int, int]): Original image shape.
+        interpolation (int): Interpolation method.
+        pad_mode (int): Pad mode.
+        keep_size (bool): Whether to keep the original size.
+
+    Returns:
+        np.ndarray: Cropped and padded image.
+
+    """
     if crop_params is not None and any(i != 0 for i in crop_params):
         img = crop(img, *crop_params)
     if pad_params is not None and any(i != 0 for i in pad_params):
@@ -200,6 +259,21 @@ def crop_and_pad_bboxes(
     image_shape: tuple[int, int],
     result_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Crop and pad bounding boxes.
+
+    This function crops and pads bounding boxes.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes.
+        crop_params (tuple[int, int, int, int] | None): Crop parameters.
+        pad_params (tuple[int, int, int, int] | None): Pad parameters.
+        image_shape (tuple[int, int]): Original image shape.
+        result_shape (tuple[int, int]): Result image shape.
+
+    Returns:
+        np.ndarray: Array of cropped and padded bounding boxes.
+
+    """
     if len(bboxes) == 0:
         return bboxes
 
