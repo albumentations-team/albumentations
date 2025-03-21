@@ -35,6 +35,7 @@ class ToTensorV2(BasicTransform):
         transpose_mask (bool): If True, transposes 3D input mask dimensions from `[height, width, num_channels]` to
             `[num_channels, height, width]`.
         p (float): Probability of applying the transform. Default: 1.0.
+
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
@@ -49,6 +50,7 @@ class ToTensorV2(BasicTransform):
 
         Returns:
             dict[str, Any]: Dictionary mapping target names to corresponding transform functions.
+
         """
         return {
             "image": self.apply,
@@ -72,6 +74,7 @@ class ToTensorV2(BasicTransform):
 
         Raises:
             ValueError: If image dimensions are neither HW nor HWC
+
         """
         if img.ndim not in {MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS}:
             msg = "Albumentations only supports images in HW or HWC format"
@@ -94,6 +97,7 @@ class ToTensorV2(BasicTransform):
 
         Returns:
             torch.Tensor: PyTorch tensor of mask
+
         """
         if self.transpose_mask and mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
             mask = mask.transpose(2, 0, 1)
@@ -117,6 +121,7 @@ class ToTensorV2(BasicTransform):
             torch.Tensor | list[torch.Tensor]: If transpose_mask is True and input is (N, H, W, C),
                 returns tensor of shape (N, C, H, W). If transpose_mask is True and input is (H, W, C), r
                 eturns a list of tensors with shape (C, H, W). Otherwise, returns tensors with the same shape as input.
+
         """
         if isinstance(masks, list):
             return [self.apply_to_mask(mask, **params) for mask in masks]
@@ -150,6 +155,7 @@ class ToTensor3D(BasicTransform):
 
     Args:
         p (float): Probability of applying the transform. Default: 1.0
+
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
@@ -163,6 +169,7 @@ class ToTensor3D(BasicTransform):
 
         Returns:
             dict[str, Any]: Dictionary mapping target names to corresponding transform functions
+
         """
         return {
             "volume": self.apply_to_volume,

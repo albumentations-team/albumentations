@@ -38,6 +38,7 @@ class ReferenceImage(TypedDict):
         mask (np.ndarray | None): Optional mask array.
         bbox (tuple[float, ...] | np.ndarray | None): Optional bounding box coordinates.
         keypoints (tuple[float, ...] | np.ndarray | None): Optional keypoint coordinates.
+
     """
 
     image: np.ndarray
@@ -59,6 +60,7 @@ class Targets(Enum):
         KEYPOINTS (str): Keypoint coordinates target.
         VOLUME (str): 3D volume target.
         MASK3D (str): 3D mask target.
+
     """
 
     IMAGE = "Image"

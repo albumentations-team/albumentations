@@ -103,6 +103,7 @@ class Blur(ImageOnlyTransform):
         >>> transform = A.Blur(blur_limit=(3, 7), p=1.0)
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
+
     """
 
     class InitSchema(BlurInitSchema):
@@ -126,6 +127,7 @@ class Blur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Blurred image.
+
         """
         return fblur.blur(img, kernel)
 
@@ -134,6 +136,7 @@ class Blur(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         kernel = fblur.sample_odd_from_range(
             self.py_random,
@@ -290,6 +293,7 @@ class MotionBlur(Blur):
 
         Returns:
             np.ndarray: Motion blurred image.
+
         """
         return fmain.convolve(img, kernel=kernel)
 
@@ -298,6 +302,7 @@ class MotionBlur(Blur):
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         ksize = fblur.sample_odd_from_range(
             self.py_random,
@@ -370,6 +375,7 @@ class MedianBlur(Blur):
     References:
         - Median filter: https://en.wikipedia.org/wiki/Median_filter
         - OpenCV medianBlur: https://docs.opencv.org/master/d4/d86/group__imgproc__filter.html#ga564869aa33e58769b4469101aac458f9
+
     """
 
     def __init__(
@@ -389,6 +395,7 @@ class MedianBlur(Blur):
 
         Returns:
             np.ndarray: Median blurred image.
+
         """
         return fblur.median_blur(img, kernel)
 
@@ -455,6 +462,7 @@ class GaussianBlur(ImageOnlyTransform):
         >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.5, 3.0), p=1.0)
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -494,6 +502,7 @@ class GaussianBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Gaussian blurred image.
+
         """
         return fmain.separable_convolve(img, kernel=kernel)
 
@@ -506,6 +515,7 @@ class GaussianBlur(ImageOnlyTransform):
 
         Returns:
             dict[str, float]: Dictionary with parameters.
+
         """
         sigma = self.py_random.uniform(*self.sigma_limit)
         ksize = self.py_random.randint(*self.blur_limit)
@@ -572,6 +582,7 @@ class GlassBlur(ImageOnlyTransform):
           https://arxiv.org/abs/1903.12261
         - Original implementation:
           https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -611,6 +622,7 @@ class GlassBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Image with glass blur effect.
+
         """
         return fblur.glass_blur(
             img,
@@ -634,6 +646,7 @@ class GlassBlur(ImageOnlyTransform):
 
         Returns:
             dict[str, np.ndarray]: Dictionary with parameters.
+
         """
         height, width = params["shape"][:2]
         # generate array containing all necessary values for transformations
@@ -730,6 +743,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
     """
 
     class InitSchema(BlurInitSchema):
@@ -790,6 +804,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Blurred image.
+
         """
         return fmain.convolve(img, kernel=kernel)
 
@@ -798,6 +813,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
         Returns:
             dict[str, np.ndarray]: Dictionary with parameters.
+
         """
         ksize = fblur.sample_odd_from_range(
             self.py_random,
@@ -891,6 +907,7 @@ class Defocus(ImageOnlyTransform):
 
     References:
         Defocus aberration: https://en.wikipedia.org/wiki/Defocus_aberration
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -924,6 +941,7 @@ class Defocus(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Defocused image.
+
         """
         return fblur.defocus(img, radius, alias_blur)
 
@@ -932,6 +950,7 @@ class Defocus(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         return {
             "radius": self.py_random.randint(*self.radius),
@@ -959,6 +978,7 @@ class ZoomBlur(ImageOnlyTransform):
 
     Reference:
         Zoom Blur: https://arxiv.org/abs/1903.12261
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -990,6 +1010,7 @@ class ZoomBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Zoom blurred image.
+
         """
         return fblur.zoom_blur(img, zoom_factors)
 
@@ -998,6 +1019,7 @@ class ZoomBlur(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         step_factor = self.py_random.uniform(*self.step_factor)
         max_factor = max(1 + step_factor, self.py_random.uniform(*self.max_factor))

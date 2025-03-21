@@ -64,6 +64,7 @@ def get_shape(data: dict[str, Any]) -> ShapeType:
 
     Returns:
         dict[Literal["depth", "height", "width"], int]: Dictionary containing spatial dimensions
+
     """
     if "volume" in data:
         depth, height, width = get_volume_shape(data["volume"])
@@ -91,6 +92,7 @@ class Params(Serializable, ABC):
     Args:
         format (Any): The format of the data this parameter object will process.
         label_fields (Sequence[str] | None): List of fields that are joined with the data, such as labels.
+
     """
 
     def __init__(self, format: Any, label_fields: Sequence[str] | None):  # noqa: A002
@@ -102,6 +104,7 @@ class Params(Serializable, ABC):
 
         Returns:
             dict[str, Any]: Dictionary with format and label_fields parameters.
+
         """
         return {"format": self.format, "label_fields": self.label_fields}
 
@@ -115,6 +118,7 @@ class DataProcessor(ABC):
     Args:
         params (Params): Parameters for data processing.
         additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+
     """
 
     def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
@@ -133,6 +137,7 @@ class DataProcessor(ABC):
 
         Returns:
             str: Default data field name.
+
         """
         raise NotImplementedError
 
@@ -147,6 +152,7 @@ class DataProcessor(ABC):
 
         Args:
             data (dict[str, Any]): Input data dictionary to validate.
+
         """
 
     def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
@@ -154,6 +160,7 @@ class DataProcessor(ABC):
 
         Args:
             transforms (Sequence[object]): Sequence of transforms to validate.
+
         """
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -164,6 +171,7 @@ class DataProcessor(ABC):
 
         Returns:
             dict[str, Any]: Processed data dictionary.
+
         """
         shape = get_shape(data)
         data = self._process_data_fields(data, shape)
@@ -197,6 +205,7 @@ class DataProcessor(ABC):
 
         Args:
             data (dict[str, Any]): Data dictionary to preprocess.
+
         """
         shape = get_shape(data)
 
@@ -228,6 +237,7 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Converted data array.
+
         """
         if self.params.format == "albumentations":
             self.check(data, shape)
@@ -247,6 +257,7 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Filtered data.
+
         """
 
     @abstractmethod
@@ -256,6 +267,7 @@ class DataProcessor(ABC):
         Args:
             data (np.ndarray): Data to validate.
             shape (ShapeType): Shape information containing dimensions.
+
         """
 
     @abstractmethod
@@ -272,6 +284,7 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Data in Albumentations format.
+
         """
 
     @abstractmethod
@@ -288,6 +301,7 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Data in external format.
+
         """
 
     def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -300,6 +314,7 @@ class DataProcessor(ABC):
 
         Returns:
             dict[str, Any]: Data with label fields added.
+
         """
         if not self.params.label_fields:
             return data
@@ -336,6 +351,7 @@ class DataProcessor(ABC):
 
         Returns:
             dict[str, Any]: Data with label fields extracted as separate entries.
+
         """
         if not self.params.label_fields:
             return data
@@ -471,6 +487,7 @@ def to_tuple(
         - When 'param' is a single value and 'low' is not provided, the function creates a symmetric range around zero.
         - The function preserves the type (int or float) of the input in the output.
         - If a sequence is provided, it must contain exactly 2 elements.
+
     """
     validate_args(low, bias)
 

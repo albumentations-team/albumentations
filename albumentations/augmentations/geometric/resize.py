@@ -130,6 +130,7 @@ class RandomScale(DualTransform):
 
         Returns:
             dict[str, float]: Dictionary with parameters.
+
         """
         return {"scale": self.py_random.uniform(*self.scale_limit) + 1.0}
 
@@ -148,6 +149,7 @@ class RandomScale(DualTransform):
 
         Returns:
             np.ndarray: Scaled image.
+
         """
         return fgeometric.scale(img, scale, self.interpolation)
 
@@ -166,6 +168,7 @@ class RandomScale(DualTransform):
 
         Returns:
             np.ndarray: Scaled mask.
+
         """
         return fgeometric.scale(mask, scale, self.mask_interpolation)
 
@@ -178,6 +181,7 @@ class RandomScale(DualTransform):
 
         Returns:
             np.ndarray: Transformed bounding boxes which are scale invariant.
+
         """
         # Bounding box coordinates are scale invariant
         return bboxes
@@ -197,6 +201,7 @@ class RandomScale(DualTransform):
 
         Returns:
             np.ndarray: Scaled keypoints.
+
         """
         return fgeometric.keypoints_scale(keypoints, scale, scale)
 
@@ -397,6 +402,7 @@ class LongestMaxSize(MaxSizeTransform):
         ...     A.LongestMaxSize(max_size=1024),
         ...     A.PadIfNeeded(min_height=1024, min_width=1024),
         ... ])
+
     """
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -408,6 +414,7 @@ class LongestMaxSize(MaxSizeTransform):
 
         Returns:
             dict[str, Any]: Dictionary with parameters calculated based on input data.
+
         """
         img_h, img_w = params["shape"][:2]
 
@@ -509,6 +516,7 @@ class SmallestMaxSize(MaxSizeTransform):
         >>> # Using max_size_hw with only height
         >>> transform3 = A.SmallestMaxSize(max_size_hw=(100, None))
         >>> # Input (80, 160) -> Output (100, 200)
+
     """
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
@@ -520,6 +528,7 @@ class SmallestMaxSize(MaxSizeTransform):
 
         Returns:
             dict[str, Any]: Dictionary with parameters calculated based on input data.
+
         """
         img_h, img_w = params["shape"][:2]
 
@@ -631,6 +640,7 @@ class Resize(DualTransform):
 
         Returns:
             np.ndarray: Resized image.
+
         """
         return fgeometric.resize(img, (self.height, self.width), interpolation=self.interpolation)
 
@@ -643,6 +653,7 @@ class Resize(DualTransform):
 
         Returns:
             np.ndarray: Resized mask.
+
         """
         return fgeometric.resize(mask, (self.height, self.width), interpolation=self.mask_interpolation)
 
@@ -655,6 +666,7 @@ class Resize(DualTransform):
 
         Returns:
             np.ndarray: Transformed bounding boxes which are scale invariant.
+
         """
         # Bounding box coordinates are scale invariant
         return bboxes
@@ -668,6 +680,7 @@ class Resize(DualTransform):
 
         Returns:
             np.ndarray: Resized keypoints.
+
         """
         height, width = params["shape"][:2]
         scale_x = self.width / width

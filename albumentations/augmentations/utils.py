@@ -97,6 +97,7 @@ def non_rgb_error(image: np.ndarray) -> None:
         >>>
         >>> multispectral_image = np.random.randint(0, 256, (100, 100, 5), dtype=np.uint8)
         >>> non_rgb_error(multispectral_image)  # Raises ValueError stating incompatibility
+
     """
     if not is_rgb_image(image):
         message = "This transformation expects 3-channel images"
@@ -119,6 +120,7 @@ def check_range(value: tuple[float, float], lower_bound: float, upper_bound: flo
 
     Raises:
         ValueError: If the value is outside the bounds or if the tuple values are not ordered correctly.
+
     """
     if not all(lower_bound <= x <= upper_bound for x in value):
         raise ValueError(f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs.")

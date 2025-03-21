@@ -104,6 +104,7 @@ class ChannelDropout(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Image with dropped channels.
+
         """
         return channel_dropout(img, channels_to_drop, self.fill)
 
@@ -116,6 +117,7 @@ class ChannelDropout(ImageOnlyTransform):
 
         Returns:
             dict[str, list[int]]: Dictionary with channels to drop.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
         num_channels = get_num_channels(image)

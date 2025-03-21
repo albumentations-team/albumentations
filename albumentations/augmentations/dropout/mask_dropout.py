@@ -77,6 +77,7 @@ class MaskDropout(DualTransform):
         >>>
         >>> # The result will have one of the objects dropped out in both image and mask,
         >>> # and the corresponding bounding box removed if it doesn't meet the area and visibility criteria
+
     """
 
     _targets = ALL_TARGETS
@@ -101,9 +102,25 @@ class MaskDropout(DualTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
+        """Get targets as parameters.
+
+        Returns:
+            list[str]: List of targets as parameters.
+
+        """
         return ["mask"]
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Get parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters.
+            data (dict[str, Any]): Dictionary containing data.
+
+        Returns:
+            dict[str, Any]: Dictionary with parameters for transformation.
+
+        """
         mask = data["mask"]
 
         label_image, num_labels = fdropout.label(mask, return_num=True)
@@ -125,6 +142,17 @@ class MaskDropout(DualTransform):
         return {"dropout_mask": dropout_mask}
 
     def apply(self, img: np.ndarray, dropout_mask: np.ndarray | None, **params: Any) -> np.ndarray:
+        """Apply dropout to the image.
+
+        Args:
+            img (np.ndarray): The image to apply the transform to.
+            dropout_mask (np.ndarray | None): The dropout mask for the image.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed image.
+
+        """
         if dropout_mask is None:
             return img
 
@@ -140,6 +168,17 @@ class MaskDropout(DualTransform):
         return img
 
     def apply_to_mask(self, mask: np.ndarray, dropout_mask: np.ndarray | None, **params: Any) -> np.ndarray:
+        """Apply dropout to the mask.
+
+        Args:
+            mask (np.ndarray): The mask to apply the transform to.
+            dropout_mask (np.ndarray | None): The dropout mask for the mask.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed mask.
+
+        """
         if dropout_mask is None or self.fill_mask is None:
             return mask
 
@@ -148,6 +187,17 @@ class MaskDropout(DualTransform):
         return mask
 
     def apply_to_bboxes(self, bboxes: np.ndarray, dropout_mask: np.ndarray | None, **params: Any) -> np.ndarray:
+        """Apply dropout to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): The bounding boxes to apply the transform to.
+            dropout_mask (np.ndarray | None): The dropout mask for the bounding boxes.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed bounding boxes.
+
+        """
         if dropout_mask is None:
             return bboxes
 
@@ -170,9 +220,19 @@ class MaskDropout(DualTransform):
         return normalize_bboxes(result, image_shape)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, dropout_mask: np.ndarray | None, **params: Any) -> np.ndarray:
+        """Apply dropout to keypoints.
+
+        Args:
+            keypoints (np.ndarray): The keypoints to apply the transform to.
+            dropout_mask (np.ndarray | None): The dropout mask for the keypoints.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed keypoints.
+
+        """
         if dropout_mask is None:
             return keypoints
-
         processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
 
         if processor is None or not processor.params.remove_invisible:

@@ -113,6 +113,7 @@ def check_range_bounds(
         >>> validator((1.1, 0.5))  # Raises ValueError - outside range
         >>> validator = check_range_bounds(0, 1, max_inclusive=False)  # For [0, 1) range
         >>> validator((0, 1))  # Raises ValueError - 1 not included
+
     """
 
     def validator(value: tuple[T, ...] | None) -> tuple[T, ...] | None:

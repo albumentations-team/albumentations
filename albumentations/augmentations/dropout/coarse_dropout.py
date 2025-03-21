@@ -96,6 +96,7 @@ class CoarseDropout(BaseDropout):
         - CutOut: https://arxiv.org/abs/1708.04552
         - Random Erasing: https://arxiv.org/abs/1708.04896
         - OpenCV Inpainting methods: https://docs.opencv.org/master/df/d3d/tutorial_py_inpainting.html
+
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -158,6 +159,16 @@ class CoarseDropout(BaseDropout):
         return hole_heights, hole_widths
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Get parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters.
+            data (dict[str, Any]): Dictionary containing data.
+
+        Returns:
+            dict[str, Any]: Dictionary with parameters for transformation.
+
+        """
         image_shape = params["shape"][:2]
 
         num_holes = self.py_random.randint(*self.num_holes_range)
@@ -241,6 +252,7 @@ class Erasing(BaseDropout):
         - Paper: https://arxiv.org/abs/1708.04896
         - Implementation inspired by torchvision:
           https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomErasing
+
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -438,6 +450,7 @@ class ConstrainedCoarseDropout(BaseDropout):
         ...     bboxes=[[0, 0, 100, 100, 'car'], [150, 150, 300, 300, 'person']],
         ...     labels=['car', 'person']
         ... )
+
     """
 
     class InitSchema(BaseDropout.InitSchema):

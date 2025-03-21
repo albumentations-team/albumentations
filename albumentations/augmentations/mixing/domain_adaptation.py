@@ -88,6 +88,7 @@ class HistogramMatching(ImageOnlyTransform):
     References:
         Histogram Matching in scikit-image:
           https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -118,15 +119,40 @@ class HistogramMatching(ImageOnlyTransform):
         blend_ratio: float,
         **params: Any,
     ) -> np.ndarray:
+        """Apply histogram matching to the input image.
+
+        Args:
+            self (np.ndarray): The transform object
+            img (np.ndarray): Input image to be transformed
+            reference_image (np.ndarray): Reference image for histogram matching
+            blend_ratio (float): Blending factor between the original and matched image
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Transformed image with histogram matched to the reference image
+
+        """
         return apply_histogram(img, reference_image, blend_ratio)
 
     def get_params(self) -> dict[str, np.ndarray]:
+        """Get parameters for the transform.
+
+        Returns:
+            dict[str, np.ndarray]: Dictionary containing the reference image and blend ratio
+
+        """
         return {
             "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
             "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the transform to a dictionary for serialization.
+
+        Raises:
+            NotImplementedError: HistogramMatching cannot be serialized
+
+        """
         msg = "HistogramMatching can not be serialized."
         raise NotImplementedError(msg)
 
@@ -180,6 +206,7 @@ class FDA(ImageOnlyTransform):
         FDA is a powerful tool for domain adaptation, particularly in unsupervised settings where annotated target
         domain samples are unavailable. It enables significant improvements in model generalization by aligning
         the low-level statistics of source and target images through a simple yet effective Fourier-based method.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -190,6 +217,19 @@ class FDA(ImageOnlyTransform):
         @field_validator("beta_limit")
         @classmethod
         def check_ranges(cls, value: tuple[float, float]) -> tuple[float, float]:
+            """Validate that beta_limit is within the acceptable range.
+
+            Args:
+                cls (type): The class object
+                value (tuple[float, float]): The beta limit range to validate
+
+            Returns:
+                tuple[float, float]: The validated beta limit range
+
+            Raises:
+                ValueError: If values are outside the allowed range
+
+            """
             bounds = 0, MAX_BETA_LIMIT
             if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
                 raise ValueError(f"Values should be in the range {bounds} got {value} ")
@@ -214,9 +254,31 @@ class FDA(ImageOnlyTransform):
         beta: float,
         **params: Any,
     ) -> np.ndarray:
+        """Apply Fourier Domain Adaptation to the input image.
+
+        Args:
+            img (np.ndarray): Input image to be transformed
+            target_image (np.ndarray): Target domain image for adaptation
+            beta (float): Coefficient controlling the extent of frequency component swapping
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Transformed image with adapted frequency components
+
+        """
         return fourier_domain_adaptation(img, target_image, beta)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        """Generate parameters for the transform based on input data.
+
+        Args:
+            params (dict[str, Any]): Dictionary of existing parameters
+            data (dict[str, Any]): Dictionary containing input data
+
+        Returns:
+            dict[str, np.ndarray]: Dictionary containing the resized target image and beta value
+
+        """
         height, width = params["shape"][:2]
         target_img = self.read_fn(self.py_random.choice(self.reference_images))
         target_img = cv2.resize(target_img, dsize=(width, height))
@@ -224,6 +286,12 @@ class FDA(ImageOnlyTransform):
         return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the transform to a dictionary for serialization.
+
+        Raises:
+            NotImplementedError: FDA cannot be serialized
+
+        """
         msg = "FDA can not be serialized."
         raise NotImplementedError(msg)
 
@@ -322,6 +390,18 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self.transform_type = transform_type
 
     def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params: Any) -> np.ndarray:
+        """Apply pixel distribution adaptation to the input image.
+
+        Args:
+            img (np.ndarray): Input image to be transformed
+            reference_image (np.ndarray): Reference image for distribution adaptation
+            blend_ratio (float): Blending factor between the original and adapted image
+            **params (Any): Additional parameters
+
+        Returns:
+            np.ndarray: Transformed image with pixel distribution adapted to the reference image
+
+        """
         return adapt_pixel_distribution(
             img,
             ref=reference_image,
@@ -330,11 +410,23 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, Any]:
+        """Get parameters for the transform.
+
+        Returns:
+            dict[str, Any]: Dictionary containing the reference image and blend ratio
+
+        """
         return {
             "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
             "blend_ratio": self.py_random.uniform(*self.blend_ratio),
         }
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Convert the transform to a dictionary for serialization.
+
+        Raises:
+            NotImplementedError: PixelDistributionAdaptation cannot be serialized
+
+        """
         msg = "PixelDistributionAdaptation can not be serialized."
         raise NotImplementedError(msg)

@@ -33,6 +33,7 @@ class LabelEncoder:
         inverse_classes_ (dict[int, str | Real]): Mapping from encoded indices to original labels.
         num_classes (int): Number of unique classes.
         is_numerical (bool): Whether the original labels are numerical.
+
     """
 
     def __init__(self) -> None:
@@ -42,6 +43,15 @@ class LabelEncoder:
         self.is_numerical: bool = True
 
     def fit(self, y: Sequence[Any] | np.ndarray) -> LabelEncoder:
+        """Fit the encoder to the input labels.
+
+        Args:
+            y (Sequence[Any] | np.ndarray): Input labels to fit the encoder.
+
+        Returns:
+            LabelEncoder: The fitted encoder instance.
+
+        """
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
 
@@ -59,6 +69,15 @@ class LabelEncoder:
         return self
 
     def transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
+        """Transform labels to encoded integer indices.
+
+        Args:
+            y (Sequence[Any] | np.ndarray): Input labels to transform.
+
+        Returns:
+            np.ndarray: Encoded integer indices.
+
+        """
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
 
@@ -68,10 +87,28 @@ class LabelEncoder:
         return np.array([self.classes_[label] for label in y])
 
     def fit_transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
+        """Fit the encoder and transform the input labels in one step.
+
+        Args:
+            y (Sequence[Any] | np.ndarray): Input labels to fit and transform.
+
+        Returns:
+            np.ndarray: Encoded integer indices.
+
+        """
         self.fit(y)
         return self.transform(y)
 
     def inverse_transform(self, y: Sequence[Any] | np.ndarray) -> np.ndarray:
+        """Transform encoded indices back to original labels.
+
+        Args:
+            y (Sequence[Any] | np.ndarray): Encoded integer indices.
+
+        Returns:
+            np.ndarray: Original labels.
+
+        """
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
 
@@ -101,6 +138,7 @@ class LabelManager:
     Args:
         metadata (dict[str, dict[str, LabelMetadata]]): Dictionary mapping data types
             and label fields to their metadata.
+
     """
 
     def __init__(self) -> None:

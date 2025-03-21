@@ -55,6 +55,7 @@ class TimeReverse(HorizontalFlip):
     References:
         - AudioCLIP paper: https://arxiv.org/abs/2106.13043
         - Audiomentations: https://iver56.github.io/audiomentations/waveform_transforms/reverse/
+
     """
 
     _targets = ALL_TARGETS
@@ -118,6 +119,7 @@ class TimeMasking(XYMasking):
     References:
         - SpecAugment paper: https://arxiv.org/abs/1904.08779
         - Original implementation: https://pytorch.org/audio/stable/transforms.html#timemask
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -189,6 +191,7 @@ class FrequencyMasking(XYMasking):
     References:
         - SpecAugment paper: https://arxiv.org/abs/1904.08779
         - Original implementation: https://pytorch.org/audio/stable/transforms.html#freqmask
+
     """
 
     class InitSchema(BaseTransformInitSchema):

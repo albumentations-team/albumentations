@@ -86,6 +86,7 @@ def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
 
     Returns:
         np.ndarray: Rotated bounding boxes
+
     """
     if factor == 0:
         return bboxes
@@ -123,23 +124,18 @@ def bboxes_d4(
     These transformations include rotations and reflections, specified to work on an image's bounding box given
     its dimensions.
 
-    Parameters:
-    -  bboxes: A numpy array of bounding boxes with shape (num_bboxes, 4+).
-                Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
-    - group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for the
-        `D_4` group transformation to apply.
-        Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
+    Args:
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+        Each row represents a bounding box (x_min, y_min, x_max, y_max, ...).
+        group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for the
+            `D_4` group transformation to apply.
 
     Returns:
-    - BoxInternalType: The transformed bounding box.
+        BoxInternalType: The transformed bounding box.
 
     Raises:
-    - ValueError: If an invalid group member is specified.
+        ValueError: If an invalid group member is specified.
 
-    Examples:
-    - Applying a 90-degree rotation:
-      `bbox_d4((10, 20, 110, 120), 'r90')`
-      This would rotate the bounding box 90 degrees within a 100x100 image.
     """
     transformations = {
         "e": lambda x: x,  # Identity transformation
@@ -177,6 +173,7 @@ def keypoints_rot90(
 
     Returns:
         np.ndarray: The rotated keypoints with the same shape as the input.
+
     """
     if factor == 0:
         return keypoints
@@ -215,24 +212,21 @@ def keypoints_d4(
     which includes rotations and reflections suitable for image processing tasks. These transformations account
     for the dimensions of the image to ensure the keypoint remains within its boundaries.
 
-    Parameters:
-    - keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
-    -group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for
-        the `D_4` group transformation to apply.
-        Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
-    - image_shape (tuple[int, int]): The shape of the image.
-    - params (Any): Not used
+    Args:
+        keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
+        group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier for
+            the `D_4` group transformation to apply.
+            Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
+        image_shape (tuple[int, int]): The shape of the image.
+        params (Any): Not used.
 
     Returns:
-    - KeypointInternalType: The transformed keypoint.
+        KeypointInternalType: The transformed keypoint.
 
     Raises:
-    - ValueError: If an invalid group member is specified, indicating that the specified transformation does not exist.
+        ValueError: If an invalid group member is specified, indicating that the specified transformation
+            does not exist.
 
-    Examples:
-    - Rotating a keypoint by 90 degrees in a 100x100 image:
-      `keypoint_d4((50, 30), 'r90', 100, 100)`
-      This would move the keypoint from (50, 30) to (70, 50) assuming standard coordinate transformations.
     """
     rows, cols = image_shape[:2]
     transformations = {
@@ -294,6 +288,7 @@ def keypoints_scale(
 
     Returns:
         np.ndarray: Scaled keypoints
+
     """
     # Extract x, y, z, angle, and scale
     x, y, z, angle, scale = (
@@ -402,6 +397,7 @@ def perspective_bboxes(
         >>> image_shape = (100, 100)
         >>> matrix = np.array([[1.5, 0.2, -20], [-0.1, 1.3, -10], [0.002, 0.001, 1]])
         >>> transformed_bboxes = perspective_bboxes(bboxes, image_shape, matrix, 150, 150, False)
+
     """
     height, width = image_shape[:2]
     transformed_bboxes = bboxes.copy()
@@ -470,6 +466,7 @@ def perspective_keypoints(
 
     Returns:
         np.ndarray: Transformed keypoints array with same shape as input
+
     """
     keypoints = keypoints.copy().astype(np.float32)
 
@@ -533,6 +530,7 @@ def is_identity_matrix(matrix: np.ndarray) -> bool:
 
     Returns:
         bool: True if the matrix is an identity matrix, False otherwise.
+
     """
     return np.allclose(matrix, np.eye(3, dtype=matrix.dtype))
 
@@ -625,6 +623,7 @@ def keypoints_affine(
         >>> matrix = np.array([[1.5, 0, 10], [0, 1.2, 20]])
         >>> scale = {'x': 1.5, 'y': 1.2}
         >>> transformed_keypoints = keypoints_affine(keypoints, matrix, (480, 640), scale, cv2.BORDER_REFLECT_101)
+
     """
     keypoints = keypoints.copy().astype(np.float32)
 
@@ -690,6 +689,7 @@ def apply_affine_to_points(points: np.ndarray, matrix: np.ndarray) -> np.ndarray
 
     Returns:
         np.ndarray: Transformed points with shape (N, 2).
+
     """
     homogeneous_points = np.column_stack([points, np.ones(points.shape[0])])
     transformed_points = homogeneous_points @ matrix.T
@@ -787,6 +787,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndar
         >>> print(transformed_bboxes)
         [[ 25.  25.  45.  45.   1.]
          [ 65.  65.  85.  85.   2.]]
+
     """
     # Extract corners of all bboxes
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
@@ -834,6 +835,7 @@ def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
           accuracy and computational efficiency.
         - Any additional attributes beyond the first 4 coordinates are preserved unchanged.
         - This method may be more suitable for objects that are roughly elliptical in shape.
+
     """
     x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     bbox_width = (x_max - x_min) / 2
@@ -894,6 +896,7 @@ def bboxes_affine(
 
     Returns:
         np.ndarray: Transformed and normalized bounding boxes
+
     """
     if is_identity_matrix(matrix):
         return bboxes
@@ -961,6 +964,7 @@ def to_distance_maps(
             If `inverted` is ``True``, the distance ``d`` is replaced
             by ``d/(d+1)``. The height and width of the array match the
             height and width in ``image_shape``.
+
     """
     height, width = image_shape[:2]
     if len(keypoints) == 0:
@@ -1066,6 +1070,7 @@ def from_distance_maps(
         >>> keypoints = from_distance_maps(distance_maps, inverted, if_not_found_coords, threshold)
         >>> print(keypoints.shape)
         (3, 2)
+
     """
     if distance_maps.ndim != NUM_MULTI_CHANNEL_DIMENSIONS:
         msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
@@ -1118,30 +1123,25 @@ def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "
     corresponding to the `D_4` dihedral group symmetry operations.
     Each transformation is identified by a unique group member code.
 
-    Parameters:
-    - img (np.ndarray): The input image array to transform.
-    - group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier indicating
-        the specific transformation to apply. Valid codes include:
-      - 'e': Identity (no transformation).
-      - 'r90': Rotate 90 degrees counterclockwise.
-      - 'r180': Rotate 180 degrees.
-      - 'r270': Rotate 270 degrees counterclockwise.
-      - 'v': Vertical flip.
-      - 'hvt': Transpose over second diagonal
-      - 'h': Horizontal flip.
-      - 't': Transpose (reflect over the main diagonal).
+    Args:
+        img (np.ndarray): The input image array to transform.
+        group_member (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): A string identifier indicating
+            the specific transformation to apply. Valid codes include:
+            - 'e': Identity (no transformation).
+            - 'r90': Rotate 90 degrees counterclockwise.
+            - 'r180': Rotate 180 degrees.
+            - 'r270': Rotate 270 degrees counterclockwise.
+            - 'v': Vertical flip.
+            - 'hvt': Transpose over second diagonal
+            - 'h': Horizontal flip.
+            - 't': Transpose (reflect over the main diagonal).
 
     Returns:
-    - np.ndarray: The transformed image array.
+        np.ndarray: The transformed image array.
 
     Raises:
-    - ValueError: If an invalid group member is specified.
+        ValueError: If an invalid group member is specified.
 
-    Examples:
-    - Rotating an image by 90 degrees:
-      `transformed_image = d4(original_image, 'r90')`
-    - Applying a horizontal flip to an image:
-      `transformed_image = d4(original_image, 'h')`
     """
     transformations = {
         "e": lambda x: x,  # Identity transformation
@@ -1170,6 +1170,7 @@ def transpose(img: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: Transposed array.
+
     """
     # Generate the new axes order
     new_axes = list(range(img.ndim))
@@ -1192,6 +1193,7 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: Vertically flipped bounding boxes
+
     """
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 1] = 1 - bboxes[:, 3]  # new y_min = 1 - y_max
@@ -1209,6 +1211,7 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: Horizontally flipped bounding boxes
+
     """
     flipped_bboxes = bboxes.copy()
     flipped_bboxes[:, 0] = 1 - bboxes[:, 2]  # new x_min = 1 - x_max
@@ -1226,6 +1229,7 @@ def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: Transposed bounding boxes
+
     """
     transposed_bboxes = bboxes.copy()
     transposed_bboxes[:, [0, 1, 2, 3]] = bboxes[:, [1, 0, 3, 2]]
@@ -1244,6 +1248,7 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
 
     Returns:
         np.ndarray: Vertically flipped keypoints
+
     """
     flipped_keypoints = keypoints.copy().astype(np.float32)
 
@@ -1267,6 +1272,7 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
 
     Returns:
         np.ndarray: Horizontally flipped keypoints
+
     """
     flipped_keypoints = keypoints.copy().astype(np.float32)
 
@@ -1289,6 +1295,7 @@ def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: Transposed keypoints
+
     """
     transposed_keypoints = keypoints.copy()
 
@@ -1677,6 +1684,7 @@ def validate_bboxes(bboxes: np.ndarray, image_shape: Sequence[int]) -> np.ndarra
         >>> valid_bboxes = validate_bboxes(bboxes, (100, 100))
         >>> print(valid_bboxes)
         [[10 20 30 40]]
+
     """
     rows, cols = image_shape[:2]
 
@@ -1698,6 +1706,7 @@ def shift_bboxes(bboxes: np.ndarray, shift_vector: np.ndarray) -> np.ndarray:
 
     Returns:
         np.ndarray: Shifted bounding boxes with the same shape as input.
+
     """
     # Create a copy of the input array to avoid modifying it in-place
     shifted_bboxes = bboxes.copy()
@@ -1732,6 +1741,7 @@ def get_pad_grid_dimensions(
             - 'original_position': A tuple (original_row, original_col) where:
                 - original_row (int): Row index of the original image in the grid.
                 - original_col (int): Column index of the original image in the grid.
+
     """
     rows, cols = image_shape[:2]
 
@@ -1762,6 +1772,7 @@ def generate_reflected_bboxes(
 
     Returns:
         np.ndarray: Array of reflected and shifted bounding boxes for the entire grid.
+
     """
     rows, cols = image_shape[:2]
     grid_rows, grid_cols = grid_dims["grid_shape"]
@@ -1841,6 +1852,7 @@ def flip_bboxes(
 
     Returns:
         np.ndarray: Flipped bounding boxes.
+
     """
     rows, cols = image_shape[:2]
     flipped_bboxes = bboxes.copy()
@@ -1888,6 +1900,7 @@ def distort_image(
         >>> distorted = distort_image(image, mesh, cv2.INTER_LINEAR)
         >>> distorted.shape
         (100, 100, 3)
+
     """
     distorted_image = np.zeros_like(image)
 
@@ -2055,6 +2068,7 @@ def generate_distorted_grid_polygons(
         >>> distorted = generate_distorted_grid_polygons(dimensions, magnitude=10)
         >>> distorted.shape
         (4, 8)
+
     """
     grid_height, grid_width = dimensions.shape[:2]
     total_cells = grid_height * grid_width
@@ -2150,6 +2164,7 @@ def validate_keypoints(
     Note:
         This function only checks the x and y coordinates (first two columns) of the keypoints.
         Any additional columns (e.g., angle, scale) are preserved for valid keypoints.
+
     """
     rows, cols = image_shape[:2]
 
@@ -2195,6 +2210,7 @@ def generate_reflected_keypoints(
         - The function handles keypoint flipping and shifting to create a grid of reflected keypoints.
         - It preserves the angle and scale information of the keypoints during transformations.
         - The resulting grid can be either centered at the origin or positioned based on the original grid.
+
     """
     grid_rows, grid_cols = grid_dims["grid_shape"]
     original_row, original_col = grid_dims["original_position"]
@@ -2297,6 +2313,7 @@ def create_affine_transformation_matrix(
 
     Returns:
         np.ndarray: The resulting 3x3 affine transformation matrix.
+
     """
     # Convert angles to radians
     rotate_rad = np.deg2rad(rotate % 360)
@@ -2355,6 +2372,7 @@ def compute_transformed_image_bounds(
         tuple[np.ndarray, np.ndarray]: A tuple containing:
             - min_coords: An array with the minimum x and y coordinates.
             - max_coords: An array with the maximum x and y coordinates.
+
     """
     height, width = image_shape[:2]
 
@@ -2410,6 +2428,7 @@ def center(image_shape: tuple[int, int]) -> tuple[float, float]:
 
     Returns:
         tuple[float, float]: center_x, center_y
+
     """
     height, width = image_shape[:2]
     return width / 2 - 0.5, height / 2 - 0.5
@@ -2423,6 +2442,7 @@ def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
 
     Returns:
         tuple[float, float]: center_x, center_y
+
     """
     height, width = image_shape[:2]
     return width / 2, height / 2
@@ -2474,6 +2494,7 @@ def generate_grid(
         >>> num_steps = 5
         >>> map_x, map_y = generate_grid(image_shape, steps_x, steps_y, num_steps)
         >>> distorted_image = cv2.remap(image, map_x, map_y, cv2.INTER_LINEAR)
+
     """
     height, width = image_shape[:2]
     x_step = width // num_steps
@@ -2546,6 +2567,7 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
         array([7, 7, 6])  # Splits 20 into three parts: 7, 7, and 6
         >>> almost_equal_intervals(16, 4)
         array([4, 4, 4, 4])  # Splits 16 into four equal parts
+
     """
     part_size, remainder = divmod(n, parts)
     # Create an array with the base part size and adjust the first `remainder` parts by adding 1
@@ -2569,6 +2591,7 @@ def generate_shuffled_splits(
 
     Returns:
         np.ndarray: Cumulative edges of the shuffled intervals.
+
     """
     intervals = almost_equal_intervals(size, divisions)
     random_generator.shuffle(intervals)
@@ -2594,6 +2617,7 @@ def split_uniform_grid(
     Note:
         The function uses `generate_shuffled_splits` to generate the splits for the height and width of the image.
         The splits are then used to calculate the coordinates of the tiles.
+
     """
     n_rows, n_cols = grid
 
@@ -2833,6 +2857,7 @@ def get_dimension_padding(
 
     Returns:
         tuple[int, int]: (pad_before, pad_after)
+
     """
     if min_size is not None:
         if current_size < min_size:
@@ -2868,6 +2893,7 @@ def get_padding_params(
 
     Returns:
         tuple[int, int, int, int]: (pad_top, pad_bottom, pad_left, pad_right)
+
     """
     rows, cols = image_shape[:2]
 
@@ -2945,6 +2971,7 @@ def swap_tiles_on_keypoints(
     Notes:
         - Keypoints that do not fall within any tile will remain unchanged.
         - The function assumes that the tiles do not overlap and cover the entire image space.
+
     """
     if not keypoints.size:
         return keypoints
@@ -3005,6 +3032,7 @@ def swap_tiles_on_image(
 
     Returns:
         np.ndarray: Output image with tiles swapped according to the random shuffle.
+
     """
     # If no tiles are provided, return a copy of the original image
     if tiles.size == 0 or mapping is None:
@@ -3056,6 +3084,7 @@ def bboxes_grid_shuffle(
 
     Returns:
         np.ndarray: Shuffled bounding boxes
+
     """
     # Convert bboxes to masks
     masks = masks_from_bboxes(bboxes, image_shape)
@@ -3132,6 +3161,7 @@ def shuffle_tiles_within_shape_groups(
 
     Returns:
         list[int]: A list where each index is mapped to the new index of the tile after shuffling.
+
     """
     # Initialize the output list with the same size as the total number of tiles, filled with -1
     num_tiles = sum(len(indices) for indices in shape_groups.values())
@@ -3161,6 +3191,7 @@ def compute_pairwise_distances(
 
     Returns:
         np.ndarray: Matrix of pairwise distances with shape (N, M)
+
     """
     points1 = np.ascontiguousarray(points1, dtype=np.float32)
     points2 = np.ascontiguousarray(points2, dtype=np.float32)
@@ -3195,6 +3226,7 @@ def compute_tps_weights(
         The TPS interpolation is decomposed into:
         1. Nonlinear part (controlled by kernel weights)
         2. Affine part (global scaling, rotation, translation)
+
     """
     num_points = src_points.shape[0]
 
@@ -3274,6 +3306,7 @@ def get_camera_matrix_distortion_maps(
 
     Returns:
         tuple[np.ndarray, np.ndarray]: Tuple of (map_x, map_y) distortion maps
+
     """
     height, width = image_shape[:2]
 
@@ -3306,6 +3339,7 @@ def get_fisheye_distortion_maps(
 
     Returns:
         tuple[np.ndarray, np.ndarray]: Tuple of (map_x, map_y) distortion maps
+
     """
     height, width = image_shape[:2]
 
@@ -3342,6 +3376,7 @@ def generate_control_points(num_control_points: int) -> np.ndarray:
 
     Returns:
         np.ndarray: Control points with shape (N, 2)
+
     """
     if num_control_points == 2:
         # Generate 4 corners + center point similar to Kornia

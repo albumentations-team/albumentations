@@ -81,6 +81,7 @@ def generate_random_fill(
         >>> print(result)
         [[172 251]
          [ 80 141]]
+
     """
     max_value = MAX_VALUES_BY_DTYPE[dtype]
     if np.issubdtype(dtype, np.integer):
@@ -104,6 +105,7 @@ def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpain
 
     Raises:
         NotImplementedError: If image has more than 3 channels
+
     """
     num_channels = get_num_channels(img)
     # Create inpainting mask
@@ -135,6 +137,7 @@ def fill_holes_with_value(img: np.ndarray, holes: np.ndarray, fill_value: np.nda
         img (np.ndarray): Input image
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
         fill_value (np.ndarray): Value to fill the holes with
+
     """
     for x_min, y_min, x_max, y_max in holes:
         img[y_min:y_max, x_min:x_max] = fill_value
@@ -154,6 +157,7 @@ def fill_holes_with_random(
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
         random_generator (np.random.Generator): Random number generator
         uniform (bool): If True, use same random value for entire hole
+
     """
     for x_min, y_min, x_max, y_max in holes:
         shape = (1,) if uniform else (y_max - y_min, x_max - x_min)
@@ -187,6 +191,7 @@ def cutout(
 
     Raises:
         ValueError: If fill_value length doesn't match number of channels
+
     """
     img = img.copy()
 
@@ -232,6 +237,7 @@ def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.nd
 
     Returns:
         np.ndarray: Array of keypoints that are not inside any hole.
+
     """
     # Broadcast keypoints and holes for vectorized comparison
     kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
@@ -370,6 +376,7 @@ def calculate_grid_dimensions(
 
         >>> calculate_grid_dimensions(image_shape)
         (10, 20)  # Default calculation: max(2, dimension // 10)
+
     """
     height, width = image_shape[:2]
 
@@ -441,6 +448,7 @@ def generate_grid_holes(
         (25, 4)
         >>> print(holes[0])  # Example output: [x1, y1, x2, y2] of the first hole
         [ 1 21 11 31]
+
     """
     height, width = image_shape[:2]
 
@@ -494,6 +502,7 @@ def mask_dropout_bboxes(
 
     Returns:
         np.ndarray: Filtered and resized bounding boxes
+
     """
     height, width = image_shape
 
@@ -543,6 +552,7 @@ def mask_dropout_keypoints(
 
     Returns:
         np.ndarray: Filtered keypoints
+
     """
     # Ensure dropout_mask is 2D
     if dropout_mask.ndim > 2:
@@ -587,6 +597,7 @@ def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> 
     Returns:
         np.ndarray | tuple[np.ndarray, int]: Labeled array, where all connected regions are
         assigned the same integer value. If return_num is True, it also returns the number of labels.
+
     """
     # Create a copy of the original mask
     labeled = np.zeros_like(mask, dtype=np.int32)
@@ -679,6 +690,7 @@ def sample_points_from_components(
 
     Returns:
         tuple[np.ndarray, np.ndarray] | None: Tuple of (x_coordinates, y_coordinates) or None if no valid components
+
     """
     num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
 

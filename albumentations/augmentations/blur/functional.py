@@ -184,6 +184,7 @@ def create_motion_kernel(
 
     Returns:
         np.ndarray: Motion blur kernel
+
     """
     kernel = np.zeros((kernel_size, kernel_size), dtype=np.float32)
     center = kernel_size // 2
@@ -247,6 +248,7 @@ def sample_odd_from_range(random_state: random.Random, low: int, high: int) -> i
           * Values less than 3 will become 3
           * Even values will be rounded up to next odd number
         - After normalization, high must be >= low
+
     """
     # Normalize low value
     low = max(3, low + (low % 2 == 0))
@@ -276,6 +278,7 @@ def create_gaussian_kernel(sigma: float, ksize: int = 0) -> np.ndarray:
 
     Returns:
         np.ndarray: 2D normalized Gaussian kernel.
+
     """
     # PIL's kernel creation approach
     size = int(sigma * 3.5) * 2 + 1 if ksize == 0 else ksize
@@ -304,6 +307,7 @@ def create_gaussian_kernel_1d(sigma: float, ksize: int = 0) -> np.ndarray:
 
     Returns:
         np.ndarray: 1D normalized Gaussian kernel.
+
     """
     # PIL's kernel creation approach
     size = int(sigma * 3.5) * 2 + 1 if ksize == 0 else ksize
@@ -332,6 +336,7 @@ def create_gaussian_kernel_input_array(size: int) -> np.ndarray:
     Returns:
         np.ndarray: x-coordinate array which will be input for gaussian function that will be used for
         separable gaussian blur
+
     """
     if size < 100:
         return np.array(list(range(-(size // 2), (size // 2) + 1, 1)))

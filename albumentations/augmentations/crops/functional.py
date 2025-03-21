@@ -82,6 +82,7 @@ def crop_bboxes_by_coords(
     Note:
         Bounding boxes that fall completely outside the crop area will be removed.
         Bounding boxes that partially overlap with the crop area will be adjusted to fit within it.
+
     """
     if not bboxes.size:
         return bboxes
@@ -120,6 +121,7 @@ def crop_keypoints_by_coords(
 
     Returns:
         np.ndarray: An array of cropped keypoints with the same shape as the input.
+
     """
     x1, y1 = crop_coords[:2]
 
@@ -241,6 +243,7 @@ def crop_and_pad_keypoints(
 
     Returns:
         np.ndarray: Array of transformed keypoints with the same shape as input.
+
     """
     transformed_keypoints = keypoints.copy()
 

@@ -46,6 +46,7 @@ class HubMixin:
     Args:
         _CONFIG_KEYS (tuple[str, ...]): Keys used for configuration files.
         _CONFIG_FILE_NAME_TEMPLATE (str): Template for configuration filenames.
+
     """
 
     _CONFIG_KEYS = ("train", "eval")
@@ -62,6 +63,7 @@ class HubMixin:
 
         Returns:
             Path: Path to the saved transform file.
+
         """
         # create save directory and path
         save_directory = Path(save_directory)
@@ -85,6 +87,7 @@ class HubMixin:
 
         Returns:
             A.Compose: Loaded transform.
+
         """
         save_path = Path(save_directory) / filename
         return load_transform(save_path, data_format="json")
@@ -118,6 +121,7 @@ class HubMixin:
 
         Returns:
             `str` or `None`: url of the commit on the Hub if `push_to_hub=True`, `None` otherwise.
+
         """
         if not allow_custom_keys and key not in self._CONFIG_KEYS:
             raise ValueError(
@@ -175,6 +179,7 @@ class HubMixin:
                 Path to the folder where cached files are stored.
             local_files_only (`bool`, *optional*, defaults to `False`):
                 If `True`, avoid downloading the file and return the path to the local cached file if it exists.
+
         """
         filename = cls._CONFIG_FILE_NAME_TEMPLATE.format(key)
         directory_or_repo_id = Path(directory_or_repo_id)
@@ -254,6 +259,7 @@ class HubMixin:
 
         Returns:
             The url of the commit of your transform in the given repository.
+
         """
         if not allow_custom_keys and key not in self._CONFIG_KEYS:
             raise ValueError(

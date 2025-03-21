@@ -104,6 +104,7 @@ class BboxParams(Params):
         ...     max_accept_ratio=5.0,  # Filter boxes with aspect ratio > 5:1
         ...     clip=True
         ... )
+
     """
 
     def __init__(
@@ -134,6 +135,12 @@ class BboxParams(Params):
         self.max_accept_ratio = max_accept_ratio  # e.g., 5.0
 
     def to_dict_private(self) -> dict[str, Any]:
+        """Get the private dictionary representation of bounding box parameters.
+
+        Returns:
+            dict[str, Any]: Dictionary containing the bounding box parameters.
+
+        """
         data = super().to_dict_private()
         data.update(
             {
@@ -150,10 +157,22 @@ class BboxParams(Params):
 
     @classmethod
     def is_serializable(cls) -> bool:
+        """Check if the bounding box parameters are serializable.
+
+        Returns:
+            bool: Always returns True as BboxParams is serializable.
+
+        """
         return True
 
     @classmethod
     def get_class_fullname(cls) -> str:
+        """Get the full name of the class.
+
+        Returns:
+            str: The string "BboxParams".
+
+        """
         return "BboxParams"
 
     def __repr__(self) -> str:
@@ -204,6 +223,7 @@ class BboxProcessor(DataProcessor):
         ...     params,
         ...     additional_targets={'bbox2': 'bboxes'}
         ... )
+
     """
 
     def __init__(self, params: BboxParams, additional_targets: dict[str, str] | None = None):
@@ -215,6 +235,7 @@ class BboxProcessor(DataProcessor):
 
         Returns:
             str: The string 'bboxes'.
+
         """
         return "bboxes"
 
@@ -230,6 +251,7 @@ class BboxProcessor(DataProcessor):
 
         Raises:
             ValueError: If bounding boxes don't have labels or if label_fields are invalid.
+
         """
         for data_name in self.data_fields:
             data_exists = data_name in data and len(data[data_name])
@@ -244,6 +266,16 @@ class BboxProcessor(DataProcessor):
             raise ValueError(msg)
 
     def filter(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
+        """Filter bounding boxes based on size and visibility criteria.
+
+        Args:
+            data (np.ndarray): Array of bounding boxes in Albumentations format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Filtered bounding boxes that meet the criteria.
+
+        """
         self.params: BboxParams
         return filter_bboxes(
             data,
@@ -284,6 +316,7 @@ class BboxProcessor(DataProcessor):
             When direction="from":
             1. Validates boxes
             2. Converts back to original format
+
         """
         if direction == "to":
             # First convert to albumentations format
@@ -320,15 +353,42 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_from_albumentations(data, self.params.format, shape)
 
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
+        """Check if bounding boxes are valid.
+
+        Args:
+            data (np.ndarray): Array of bounding boxes to validate.
+            shape (ShapeType): Shape to check against.
+
+        """
         check_bboxes(data)
 
     def convert_from_albumentations(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
+        """Convert bounding boxes from internal Albumentations format to the specified format.
+
+        Args:
+            data (np.ndarray): Bounding boxes in Albumentations format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Converted bounding boxes in the target format.
+
+        """
         return np.array(
             convert_bboxes_from_albumentations(data, self.params.format, shape, check_validity=True),
-            dtype=np.float32,
+            dtype=data.dtype,
         )
 
     def convert_to_albumentations(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
+        """Convert bounding boxes from the specified format to internal Albumentations format.
+
+        Args:
+            data (np.ndarray): Bounding boxes in source format.
+            shape (ShapeType): Shape information for validation.
+
+        Returns:
+            np.ndarray: Converted bounding boxes in Albumentations format.
+
+        """
         if self.params.clip:
             data_np = convert_bboxes_to_albumentations(data, self.params.format, shape, check_validity=False)
             data_np = filter_bboxes(data_np, shape, min_area=0, min_visibility=0, min_width=0, min_height=0)
@@ -410,6 +470,7 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.n
         >>> areas = calculate_bbox_areas(bboxes, image_shape)
         >>> print(areas)
         [1600. 3600.]
+
     """
     if len(bboxes) == 0:
         return np.array([], dtype=np.float32)
@@ -447,6 +508,7 @@ def convert_bboxes_to_albumentations(
     Raises:
         ValueError: If `source_format` is not 'coco', 'pascal_voc', or 'yolo'.
         ValueError: If in YOLO format, any coordinates are not in the range (0, 1].
+
     """
     if source_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
@@ -504,6 +566,7 @@ def convert_bboxes_from_albumentations(
 
     Raises:
         ValueError: If `target_format` is not 'coco', 'pascal_voc' or 'yolo'.
+
     """
     if target_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
@@ -543,6 +606,7 @@ def check_bboxes(bboxes: np.ndarray) -> None:
 
     Raises:
         ValueError: If any bounding box is invalid.
+
     """
     # Check if all values are in range [0, 1]
     in_range = (bboxes[:, :4] >= 0) & (bboxes[:, :4] <= 1)
@@ -573,15 +637,16 @@ def check_bboxes(bboxes: np.ndarray) -> None:
 
 @handle_empty_array("bboxes")
 def clip_bboxes(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
-    """Clips the bounding box coordinates to ensure they fit within the boundaries of an image.
+    """Clip bounding boxes to the image shape.
 
-    Parameters:
-        bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+) in normalized format.
-                             The first 4 columns are [x_min, y_min, x_max, y_max].
-        image_shape (Tuple[int, int]): Image shape (height, width).
+    Args:
+        bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
+        shape (ShapeType): The shape of the image/volume:
+                           - For 2D: {'height': int, 'width': int}
+                           - For 3D: {'height': int, 'width': int, 'depth': int}
 
     Returns:
-        np.ndarray: The clipped bounding boxes, normalized to the image dimensions.
+        np.ndarray: A numpy array of bounding boxes with shape (num_bboxes, 4+).
 
     """
     height, width = shape["height"], shape["width"]
@@ -639,6 +704,7 @@ def filter_bboxes(
 
     Returns:
         numpy array of filtered bounding boxes.
+
     """
     epsilon = 1e-7
 
@@ -697,6 +763,7 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
     Returns:
         np.ndarray | None: A bounding box `(x_min, y_min, x_max, y_max)` or None if no bboxes are given or if
                     the bounding boxes become invalid after erosion.
+
     """
     if not bboxes.size:
         return None
@@ -739,6 +806,7 @@ def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: An array of bounding boxes with shape (N, 4), where each row is
                    (x_min, y_min, x_max, y_max).
+
     """
     # Handle single mask case by adding batch dimension
     if len(masks.shape) == MONO_CHANNEL_DIMENSIONS:
@@ -769,6 +837,7 @@ def masks_from_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) ->
 
     Returns:
         np.ndarray: A numpy array of masks with shape (num_bboxes, height, width).
+
     """
     if isinstance(shape, dict):
         height, width = shape["height"], shape["width"]
@@ -796,6 +865,7 @@ def bboxes_to_mask(
 
     Returns:
         np.ndarray: A numpy array of shape (height, width) with 1s where any bounding box is present.
+
     """
     height, width = image_shape[:2]
     num_boxes = len(bboxes)
@@ -827,6 +897,7 @@ def mask_to_bboxes(
 
     Returns:
         np.ndarray: A numpy array of bounding boxes with shape (num_masks, 4+).
+
     """
     num_boxes = masks.shape[-1]
     new_bboxes = []

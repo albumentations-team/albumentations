@@ -96,6 +96,7 @@ def parse_version_parts(version_str: str) -> tuple[int | str, ...]:
         "1.4beta" -> (1, 4, "beta")
         "1.4.beta2" -> (1, 4, "beta", 2)
         "1.4.alpha2" -> (1, 4, "alpha", 2)
+
     """
     parts = []
     # First split by dots

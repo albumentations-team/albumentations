@@ -284,6 +284,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     References:
         FDA: Fourier Domain Adaptation for Semantic Segmentation: Yang and Soatto, 2020, CVPR
             https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+
     """
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
@@ -358,6 +359,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
         - The function uses a custom implementation of histogram matching based on OpenCV and NumPy.
         - The @clipped and @preserve_channel_dim decorators ensure the output is within
           the valid range and maintains the original number of dimensions.
+
     """
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
@@ -391,6 +393,7 @@ def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
 
     Raises:
         ValueError: Thrown when the number of channels in the input image and the reference differ.
+
     """
     if reference.dtype != np.uint8:
         reference = from_float(reference, np.uint8)

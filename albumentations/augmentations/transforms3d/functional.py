@@ -32,6 +32,7 @@ def adjust_padding_by_position3d(
 
     Returns:
         tuple[int, int, int, int, int, int]: Final padding values (d_front, d_back, h_top, h_bottom, w_left, w_right)
+
     """
     if position == "center":
         return (
@@ -82,6 +83,7 @@ def pad_3d_with_params(
         The padding order matches the volume dimensions (depth, height, width).
         For each dimension, the first value is padding at the start (smaller indices),
         and the second value is padding at the end (larger indices).
+
     """
     depth_front, depth_back, height_top, height_bottom, width_left, width_right = padding
 
@@ -121,6 +123,7 @@ def crop3d(
 
     Returns:
         np.ndarray: Cropped volume with same number of dimensions as input
+
     """
     z_min, z_max, y_min, y_max, x_min, x_max = crop_coords
 
@@ -138,6 +141,7 @@ def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: tuple[float, ...
 
     Returns:
         np.ndarray: Volume with holes filled with the given value
+
     """
     volume = volume.copy()
     for z1, y1, x1, z2, y2, x2 in holes:
@@ -154,6 +158,7 @@ def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
 
     Returns:
         np.ndarray: Transformed cube with same shape as input
+
     """
     if not (0 <= index < 48):
         raise ValueError("Index must be between 0 and 47")
@@ -229,6 +234,7 @@ def filter_keypoints_in_holes3d(keypoints: np.ndarray, holes: np.ndarray) -> np.
 
     Returns:
         np.ndarray: Array of keypoints that are not inside any hole.
+
     """
     if holes.size == 0:
         return keypoints
@@ -285,6 +291,7 @@ def keypoints_rot90(
 
     Returns:
         np.ndarray: Rotated keypoints with same shape as input.
+
     """
     if k == 0 or len(keypoints) == 0:
         return keypoints
@@ -331,6 +338,7 @@ def transform_cube_keypoints(
 
     Returns:
         np.ndarray: Transformed keypoints with same shape as input.
+
     """
     if not (0 <= index < 48):
         raise ValueError("Index must be between 0 and 47")

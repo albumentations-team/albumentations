@@ -158,6 +158,7 @@ def solarize(img: np.ndarray, threshold: float) -> np.ndarray:
     Note:
         The threshold is normalized to [0, 1] range for both uint8 and float32 images.
         For uint8 images, the threshold is internally scaled by 255.
+
     """
     dtype = img.dtype
     max_val = MAX_VALUES_BY_DTYPE[dtype]
@@ -205,6 +206,7 @@ def posterize(img: np.ndarray, bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal
         >>> result = posterize(image, bits=3)
         >>> # Different posterization per channel
         >>> result = posterize(image, bits=[3, 4, 5])  # RGB channels
+
     """
     bits_array = np.uint8(bits)
 
@@ -338,6 +340,7 @@ def equalize(
         >>> equalized = A.equalize(image, mode="cv", by_channels=True)
         >>> assert equalized.shape == image.shape
         >>> assert equalized.dtype == image.dtype
+
     """
     _check_preconditions(img, mask, by_channels)
     function = _equalize_pil if mode == "pil" else _equalize_cv
@@ -375,6 +378,7 @@ def move_tone_curve(
 
     Returns:
         np.ndarray: Image with adjusted tone curve
+
     """
     t = np.linspace(0.0, 1.0, 256)
 
@@ -450,6 +454,7 @@ def clahe(
         >>> result = clahe(img, clip_limit=2.0, tile_grid_size=(8, 8))
         >>> assert result.shape == img.shape
         >>> assert result.dtype == img.dtype
+
     """
     clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
@@ -478,6 +483,7 @@ def image_compression(
 
     Returns:
         np.ndarray: Compressed image
+
     """
     # Determine the quality flag for compression
     quality_flag = cv2.IMWRITE_JPEG_QUALITY if image_type == ".jpg" else cv2.IMWRITE_WEBP_QUALITY
@@ -561,6 +567,7 @@ def add_snow_bleach(
     References:
         - HLS Color Space: https://en.wikipedia.org/wiki/HSL_and_HSV
         - Original implementation: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
     """
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
@@ -597,6 +604,7 @@ def generate_snow_textures(
 
     Returns:
         tuple[np.ndarray, np.ndarray]: Tuple of (snow_texture, sparkle_mask) arrays.
+
     """
     # Generate base snow texture
     snow_texture = random_generator.normal(size=img_shape[:2], loc=0.5, scale=0.3)
@@ -665,6 +673,7 @@ def add_snow_texture(
     References:
         - Perlin Noise: https://en.wikipedia.org/wiki/Perlin_noise
         - HSV Color Space: https://en.wikipedia.org/wiki/HSL_and_HSV
+
     """
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
@@ -780,6 +789,7 @@ def get_fog_particle_radiuses(
 
     Returns:
         list[int]: List of radiuses for each fog particle.
+
     """
     height, width = img_shape[:2]
     max_fog_radius = max(2, int(min(height, width) * 0.1 * fog_intensity))
@@ -888,6 +898,7 @@ def add_sun_flare_overlay(
     References:
         - Alpha compositing: https://en.wikipedia.org/wiki/Alpha_compositing
         - Lens flare: https://en.wikipedia.org/wiki/Lens_flare
+
     """
     overlay = img.copy()
     output = img.copy()
@@ -990,6 +1001,7 @@ def add_sun_flare_physics_based(
         - Diffraction: https://en.wikipedia.org/wiki/Diffraction
         - Chromatic aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
         - Screen blending: https://en.wikipedia.org/wiki/Blend_modes#Screen
+
     """
     output = img.copy()
     height, width = img.shape[:2]
@@ -1063,6 +1075,7 @@ def add_shadow(
 
     References:
         Automold--Road-Augmentation-Library: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
     """
     num_channels = get_num_channels(img)
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
@@ -1154,6 +1167,7 @@ def iso_noise(
 
     Number of channels:
         3
+
     """
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
@@ -1196,6 +1210,7 @@ def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
 
     Number of channels:
         3
+
     """
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
@@ -1231,6 +1246,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
 
     Number of channels:
         3
+
     """
     return cv2.cvtColor(img, cv2.COLOR_RGB2LAB)[..., 0]
 
@@ -1250,6 +1266,7 @@ def to_gray_desaturation(img: np.ndarray) -> np.ndarray:
 
     Number of channels:
         any
+
     """
     float_image = img.astype(np.float32)
     return (np.max(float_image, axis=-1) + np.min(float_image, axis=-1)) / 2
@@ -1284,6 +1301,7 @@ def to_gray_average(img: np.ndarray) -> np.ndarray:
 
     Number of channels:
         any
+
     """
     return np.mean(img, axis=-1).astype(img.dtype)
 
@@ -1319,6 +1337,7 @@ def to_gray_max(img: np.ndarray) -> np.ndarray:
 
     Number of channels:
         any
+
     """
     return np.max(img, axis=-1)
 
@@ -1349,6 +1368,7 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
 
     Number of channels:
         any
+
     """
     dtype = img.dtype
     # Reshape the image to a 2D array of pixels
@@ -1412,6 +1432,7 @@ def grayscale_to_multichannel(
 
     Returns:
         np.ndarray: Multi-channel image with shape (height, width, num_channels)
+
     """
     # If output should be single channel, just squeeze and return
     if num_output_channels == 1:
@@ -1479,6 +1500,7 @@ def fancy_pca(img: np.ndarray, alpha_vector: np.ndarray) -> np.ndarray:
     References:
         ImageNet classification with deep convolutional neural networks: Krizhevsky, A., Sutskever, I.,
             & Hinton, G. E. (2012): In Advances in neural information processing systems (pp. 1097-1105).
+
     """
     orig_shape = img.shape
     num_channels = get_num_channels(img)
@@ -1705,6 +1727,7 @@ def pixel_dropout(
 
     Returns:
         np.ndarray: Image with dropped pixels
+
     """
     return np.where(drop_mask, drop_values, image)
 
@@ -1961,6 +1984,7 @@ def slic(
 
     Returns:
         np.ndarray: Segmentation mask where each superpixel has a unique label.
+
     """
     if image.ndim == MONO_CHANNEL_DIMENSIONS:
         image = image[..., np.newaxis]
@@ -2030,6 +2054,7 @@ def shot_noise(
 
     Returns:
         np.ndarray: Image with shot noise
+
     """
     # Apply inverse gamma correction to work in linear space
     img_linear = cv2.pow(img, 2.2)
@@ -2062,6 +2087,7 @@ def get_safe_brightness_contrast_params(
 
     Returns:
         tuple[float, float]: Safe alpha and beta values
+
     """
     if alpha > 0:
         # For x = max_value: alpha * max_value + beta <= max_value
@@ -2212,6 +2238,7 @@ def sample_uniform(
 
     Returns:
         np.ndarray | float: Sampled values
+
     """
     if len(size) == 1:  # constant mode
         ranges = params["ranges"]
@@ -2310,6 +2337,7 @@ def generate_shared_noise(
 
     Returns:
         np.ndarray: Generated noise
+
     """
     # Generate noise for (H, W)
     height, width = shape[:2]
@@ -2490,6 +2518,7 @@ def apply_plasma_shadow(
 
     Returns:
         np.ndarray: Image with plasma shadow
+
     """
     # Scale plasma pattern by intensity first (scalar operation)
     scaled_pattern = plasma_pattern * intensity
@@ -2562,6 +2591,7 @@ def apply_linear_illumination(img: np.ndarray, intensity: float, angle: float) -
 
     Returns:
         np.ndarray: Image with linear illumination
+
     """
     height, width = img.shape[:2]
     abs_intensity = abs(intensity)
@@ -2685,6 +2715,7 @@ def auto_contrast(
 
     Returns:
         np.ndarray: Image with enhanced contrast
+
     """
     result = img.copy()
     num_channels = get_num_channels(img)
@@ -2832,6 +2863,7 @@ def get_drop_mask(
 
     Returns:
         np.ndarray: Dropout mask
+
     """
     if per_channel or len(shape) == 2:
         return random_generator.choice(
@@ -2869,6 +2901,7 @@ def generate_random_values(
 
     Returns:
         Array of random values
+
     """
     if dtype == np.uint8:
         return random_generator.integers(
@@ -2897,6 +2930,7 @@ def prepare_drop_values(
 
     Returns:
         np.ndarray: Array of values matching input shape
+
     """
     if value is None:
         channels = get_num_channels(array)
@@ -3303,6 +3337,7 @@ def get_tissue_mask(img: np.ndarray, threshold: float = 0.85) -> np.ndarray:
 
     Returns:
         np.ndarray: Binary mask where True indicates tissue regions
+
     """
     # Convert to grayscale using RGB weights: R*0.299 + G*0.587 + B*0.114
     luminosity = img[..., 0] * 0.299 + img[..., 1] * 0.587 + img[..., 2] * 0.114
