@@ -232,7 +232,7 @@ def save(
 
     # Determine whether to write to a file or a file-like object
     if isinstance(filepath_or_buffer, (str, Path)):  # It's a filepath
-        with open(filepath_or_buffer, "w") as f:
+        with Path(filepath_or_buffer).open("w") as f:
             if data_format == "yaml":
                 if not yaml_available:
                     msg = "You need to install PyYAML to save a pipeline in YAML format"
@@ -278,7 +278,7 @@ def load(
     check_data_format(data_format)
 
     if isinstance(filepath_or_buffer, (str, Path)):  # Assume it's a filepath
-        with open(filepath_or_buffer) as f:
+        with Path(filepath_or_buffer).open() as f:
             if data_format == "json":
                 transform_dict = json.load(f)
             else:
