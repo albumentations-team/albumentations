@@ -24,6 +24,20 @@ logger = logging.getLogger(__name__)
 
 
 def require_huggingface_hub(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to require huggingface_hub.
+
+    This decorator ensures that the `huggingface_hub` package is installed before
+    executing the decorated function. If the package is not installed, it raises
+    an ImportError with instructions on how to install it.
+
+    Args:
+        func (Callable[..., Any]): The function to decorate.
+
+    Returns:
+        Callable[..., Any]: The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         if not is_huggingface_hub_available:

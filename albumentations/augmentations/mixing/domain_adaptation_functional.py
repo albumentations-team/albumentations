@@ -187,6 +187,24 @@ def adapt_pixel_distribution(
     transform_type: Literal["pca", "standard", "minmax"],
     weight: float,
 ) -> np.ndarray:
+    """Adapt the pixel distribution of an image to match a reference image.
+
+    This function adapts the pixel distribution of an image to match a reference image
+    using a specified transformation type and weight.
+
+    Args:
+        img (np.ndarray): The input image to be adapted.
+        ref (np.ndarray): The reference image.
+        transform_type (Literal["pca", "standard", "minmax"]): The type of transformation to use.
+        weight (float): The weight of the transformation.
+
+    Returns:
+        np.ndarray: The adapted image.
+
+    Raises:
+        ValueError: If the input image and reference image have different dtypes or numbers of channels.
+
+    """
     if img.dtype != ref.dtype:
         raise ValueError("Input image and reference image must have the same dtype.")
     img_num_channels = get_num_channels(img)
