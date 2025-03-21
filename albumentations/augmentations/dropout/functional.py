@@ -42,6 +42,19 @@ def channel_dropout(
     channels_to_drop: int | tuple[int, ...] | np.ndarray,
     fill_value: tuple[float, ...] | float = 0,
 ) -> np.ndarray:
+    """Drop channels from an image.
+
+    This function drops channels from an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        channels_to_drop (int | tuple[int, ...] | np.ndarray): Channels to drop.
+        fill_value (tuple[float, ...] | float): Value to fill the dropped channels with.
+
+    Returns:
+        np.ndarray: Image with channels dropped.
+
+    """
     if is_grayscale_image(img):
         msg = "Only one channel. ChannelDropout is not defined."
         raise NotImplementedError(msg)
@@ -307,6 +320,21 @@ def filter_bboxes_by_holes(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
+    """Filter bounding boxes by holes.
+
+    This function filters bounding boxes by holes.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes.
+        holes (np.ndarray): Array of holes.
+        image_shape (tuple[int, int]): Shape of the image.
+        min_area (float): Minimum area of a bounding box.
+        min_visibility (float): Minimum visibility of a bounding box.
+
+    Returns:
+        np.ndarray: Filtered bounding boxes.
+
+    """
     if len(bboxes) == 0 or len(holes) == 0:
         return bboxes
 
