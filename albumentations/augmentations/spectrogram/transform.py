@@ -1,4 +1,5 @@
-"""Transforms for spectrogram augmentation.
+"""
+Transforms for spectrogram augmentation.
 
 This module provides transforms specifically designed for augmenting spectrograms
 in audio processing tasks. Includes time reversal, time masking, and frequency
@@ -24,7 +25,8 @@ __all__ = [
 
 
 class TimeReverse(HorizontalFlip):
-    """Reverse the time axis of a spectrogram image, also known as time inversion.
+    """
+    Reverse the time axis of a spectrogram image, also known as time inversion.
 
     Time inversion of a spectrogram is analogous to the random flip of an image,
     an augmentation technique widely used in the visual domain. This can be relevant
@@ -55,6 +57,7 @@ class TimeReverse(HorizontalFlip):
     References:
         - AudioCLIP paper: https://arxiv.org/abs/2106.13043
         - Audiomentations: https://iver56.github.io/audiomentations/waveform_transforms/reverse/
+
     """
 
     _targets = ALL_TARGETS
@@ -76,7 +79,8 @@ class TimeReverse(HorizontalFlip):
 
 
 class TimeMasking(XYMasking):
-    """Apply masking to a spectrogram in the time domain.
+    """
+    Apply masking to a spectrogram in the time domain.
 
     This transform masks random segments along the time axis of a spectrogram,
     implementing the time masking technique proposed in the SpecAugment paper.
@@ -118,6 +122,7 @@ class TimeMasking(XYMasking):
     References:
         - SpecAugment paper: https://arxiv.org/abs/1904.08779
         - Original implementation: https://pytorch.org/audio/stable/transforms.html#timemask
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -147,7 +152,8 @@ class TimeMasking(XYMasking):
 
 
 class FrequencyMasking(XYMasking):
-    """Apply masking to a spectrogram in the frequency domain.
+    """
+    Apply masking to a spectrogram in the frequency domain.
 
     This transform masks random segments along the frequency axis of a spectrogram,
     implementing the frequency masking technique proposed in the SpecAugment paper.
@@ -189,6 +195,7 @@ class FrequencyMasking(XYMasking):
     References:
         - SpecAugment paper: https://arxiv.org/abs/1904.08779
         - Original implementation: https://pytorch.org/audio/stable/transforms.html#freqmask
+
     """
 
     class InitSchema(BaseTransformInitSchema):

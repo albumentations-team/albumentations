@@ -1,4 +1,5 @@
-"""Module containing image transformation classes for augmentation.
+"""
+Module containing image transformation classes for augmentation.
 
 This module provides a wide range of image transformation classes for data augmentation.
 These transformations can modify properties such as color, brightness, contrast,
@@ -134,7 +135,8 @@ TWENTY = 20
 
 
 class Normalize(ImageOnlyTransform):
-    """Applies various normalization techniques to an image. The specific normalization technique can be selected
+    """
+    Applies various normalization techniques to an image. The specific normalization technique can be selected
         with the `normalization` parameter.
 
     Standard normalization is applied using the formula:
@@ -197,6 +199,7 @@ class Normalize(ImageOnlyTransform):
     References:
         - ImageNet mean and std: https://pytorch.org/vision/stable/models.html
         - Inception preprocessing: https://keras.io/api/applications/inceptionv3/
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -237,18 +240,6 @@ class Normalize(ImageOnlyTransform):
         ] = "standard",
         p: float = 1.0,
     ):
-        """Initialize the Normalize transform.
-
-        Args:
-            mean (tuple[float, ...] | float | None): Mean values for standard normalization.
-                Default is ImageNet mean (0.485, 0.456, 0.406).
-            std (tuple[float, ...] | float | None): Standard deviation values for standard normalization.
-                Default is ImageNet std (0.229, 0.224, 0.225).
-            max_pixel_value (float | None): Maximum possible pixel value, used for scaling. Default is 255.0.
-            normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"]):
-                Normalization technique to apply. Default:"standard".
-            p (float): Probability of applying the transform. Default is 1.0.
-        """
         super().__init__(p=p)
         self.mean = mean
         self.mean_np = np.array(mean, dtype=np.float32) * max_pixel_value
@@ -260,7 +251,8 @@ class Normalize(ImageOnlyTransform):
         self.normalization = normalization
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply normalization to the input image.
+        """
+        Apply normalization to the input image.
 
         Args:
             img (np.ndarray): The input image to normalize.
@@ -268,6 +260,7 @@ class Normalize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The normalized image.
+
         """
         if self.normalization == "standard":
             return normalize(
@@ -279,7 +272,8 @@ class Normalize(ImageOnlyTransform):
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply normalization to a batch of images.
+        """
+        Apply normalization to a batch of images.
 
         Args:
             images (np.ndarray): Batch of images to normalize with shape (batch, height, width, channels).
@@ -287,12 +281,14 @@ class Normalize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Normalized batch of images.
+
         """
         return self.apply(images, **params)
 
     @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply normalization to a 3D volume.
+        """
+        Apply normalization to a 3D volume.
 
         Args:
             volume (np.ndarray): 3D volume to normalize with shape (depth, height, width, channels).
@@ -300,12 +296,14 @@ class Normalize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Normalized 3D volume.
+
         """
         return self.apply(volume, **params)
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply normalization to a batch of 3D volumes.
+        """
+        Apply normalization to a batch of 3D volumes.
 
         Args:
             volumes (np.ndarray): Batch of 3D volumes to normalize with shape (batch, depth, height, width, channels).
@@ -313,12 +311,14 @@ class Normalize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Normalized batch of 3D volumes.
+
         """
         return self.apply(volumes, **params)
 
 
 class ImageCompression(ImageOnlyTransform):
-    """Decrease image quality by applying JPEG or WebP compression.
+    """
+    Decrease image quality by applying JPEG or WebP compression.
 
     This transform simulates the effect of saving an image with lower quality settings,
     which can introduce compression artifacts. It's useful for data augmentation and
@@ -369,6 +369,7 @@ class ImageCompression(ImageOnlyTransform):
     References:
         - JPEG compression: https://en.wikipedia.org/wiki/JPEG
         - WebP compression: https://developers.google.com/speed/webp
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -386,13 +387,6 @@ class ImageCompression(ImageOnlyTransform):
         quality_range: tuple[int, int] = (99, 100),
         p: float = 0.5,
     ):
-        """Initialize the ImageCompression transform.
-
-        Args:
-            compression_type (Literal["jpeg", "webp"]): Type of compression to apply. Default is "jpeg".
-            quality_range (tuple[int, int]): Range for the compression quality (1-100). Default is (99, 100).
-            p (float): Probability of applying the transform. Default is 0.5.
-        """
         super().__init__(p=p)
         self.quality_range = quality_range
         self.compression_type = compression_type
@@ -404,7 +398,8 @@ class ImageCompression(ImageOnlyTransform):
         image_type: Literal[".jpg", ".webp"],
         **params: Any,
     ) -> np.ndarray:
-        """Apply compression to the input image.
+        """
+        Apply compression to the input image.
 
         Args:
             img (np.ndarray): The input image to be compressed.
@@ -414,16 +409,19 @@ class ImageCompression(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The compressed image.
+
         """
         return fmain.image_compression(img, quality, image_type)
 
     def get_params(self) -> dict[str, int | str]:
-        """Generate random parameters for the transform.
+        """
+        Generate random parameters for the transform.
 
         Returns:
             dict[str, int | str]: Dictionary with the following keys:
                 - "quality" (int): Random quality value within the specified range.
                 - "image_type" (str): File extension for the chosen compression type.
+
         """
         image_type = ".jpg" if self.compression_type == "jpeg" else ".webp"
 
@@ -434,7 +432,8 @@ class ImageCompression(ImageOnlyTransform):
 
 
 class RandomSnow(ImageOnlyTransform):
-    """Applies a random snow effect to the input image.
+    """
+    Applies a random snow effect to the input image.
 
     This transform simulates snowfall by either bleaching out some pixel values or
     adding a snow texture to the image, depending on the chosen method.
@@ -506,6 +505,7 @@ class RandomSnow(ImageOnlyTransform):
         - Bleach method: https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
         - Texture method: Inspired by computer graphics techniques for snow rendering
           and atmospheric scattering simulations.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -525,21 +525,6 @@ class RandomSnow(ImageOnlyTransform):
         method: Literal["bleach", "texture"] = "bleach",
         p: float = 0.5,
     ):
-        """Initialize the RandomSnow transform.
-
-        Args:
-            brightness_coeff (float): Coefficient applied to increase the brightness of pixels
-                below the snow_point threshold. Larger values lead to more pronounced snow effects.
-                Should be > 0. Default: 2.5.
-            snow_point_range (tuple[float, float]): Range for the snow point threshold.
-                Both values should be in the (0, 1) range. Default: (0.1, 0.3).
-            method (Literal["bleach", "texture"]): The snow simulation method to use.
-                Options are:
-                - "bleach": Uses a simple pixel value thresholding technique.
-                - "texture": Applies a more realistic snow texture overlay.
-                Default: "bleach".
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
 
         self.snow_point_range = snow_point_range
@@ -554,7 +539,8 @@ class RandomSnow(ImageOnlyTransform):
         sparkle_mask: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the snow effect to the input image.
+        """
+        Apply the snow effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the snow effect to.
@@ -565,6 +551,7 @@ class RandomSnow(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied snow effect.
+
         """
         non_rgb_error(img)
 
@@ -586,7 +573,8 @@ class RandomSnow(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, np.ndarray | None]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -597,6 +585,7 @@ class RandomSnow(ImageOnlyTransform):
                 - "snow_point" (np.ndarray | None): The snow point threshold.
                 - "snow_texture" (np.ndarray | None): The snow texture overlay.
                 - "sparkle_mask" (np.ndarray | None): The sparkle mask for the snow effect.
+
         """
         image_shape = params["shape"][:2]
         result = {
@@ -617,7 +606,8 @@ class RandomSnow(ImageOnlyTransform):
 
 
 class RandomGravel(ImageOnlyTransform):
-    """Adds gravel-like artifacts to the input image.
+    """
+    Adds gravel-like artifacts to the input image.
 
     This transform simulates the appearance of gravel or small stones scattered across
     specific regions of an image. It's particularly useful for augmenting datasets of
@@ -686,6 +676,7 @@ class RandomGravel(ImageOnlyTransform):
     References:
         - Road surface textures: https://en.wikipedia.org/wiki/Road_surface
         - HLS color space: https://en.wikipedia.org/wiki/HSL_and_HSV
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -705,16 +696,6 @@ class RandomGravel(ImageOnlyTransform):
         number_of_patches: int = 2,
         p: float = 0.5,
     ):
-        """Initialize the RandomGravel transform.
-
-        Args:
-            gravel_roi (tuple[float, float, float, float]): Region of interest where gravel
-                will be added, specified as (x_min, y_min, x_max, y_max) in relative coordinates
-                [0, 1]. Default: (0.1, 0.4, 0.9, 0.9).
-            number_of_patches (int): Number of gravel patch regions to generate within the ROI.
-                Each patch will contain multiple gravel particles. Default: 2.
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.gravel_roi = gravel_roi
         self.number_of_patches = number_of_patches
@@ -723,7 +704,8 @@ class RandomGravel(ImageOnlyTransform):
         self,
         rectangular_roi: tuple[int, int, int, int],
     ) -> np.ndarray:
-        """Generate gravel particles within a specified rectangular region.
+        """
+        Generate gravel particles within a specified rectangular region.
 
         Args:
             rectangular_roi (tuple[int, int, int, int]): The rectangular region where gravel
@@ -732,6 +714,7 @@ class RandomGravel(ImageOnlyTransform):
         Returns:
             np.ndarray: An array of gravel particles with shape (count, 2), where count is the number of particles.
             Each row contains the (x, y) coordinates of a gravel particle.
+
         """
         x_min, y_min, x_max, y_max = rectangular_roi
         area = abs((x_max - x_min) * (y_max - y_min))
@@ -747,7 +730,8 @@ class RandomGravel(ImageOnlyTransform):
         gravels_infos: list[Any],
         **params: Any,
     ) -> np.ndarray:
-        """Apply the gravel effect to the input image.
+        """
+        Apply the gravel effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the gravel effect to.
@@ -756,6 +740,7 @@ class RandomGravel(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied gravel effect.
+
         """
         return fmain.add_gravel(img, gravels_infos)
 
@@ -764,7 +749,8 @@ class RandomGravel(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, np.ndarray]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -773,6 +759,7 @@ class RandomGravel(ImageOnlyTransform):
         Returns:
             dict[str, np.ndarray]: Dictionary with the following keys:
                 - "gravels_infos" (np.ndarray): Information about the gravel particles.
+
         """
         height, width = params["shape"][:2]
 
@@ -817,7 +804,8 @@ class RandomGravel(ImageOnlyTransform):
 
 
 class RandomRain(ImageOnlyTransform):
-    """Adds rain effects to an image.
+    """
+    Adds rain effects to an image.
 
     This transform simulates rainfall by overlaying semi-transparent streaks onto the image,
     creating a realistic rain effect. It can be used to augment datasets for computer vision
@@ -889,6 +877,7 @@ class RandomRain(ImageOnlyTransform):
     References:
         - Rain visualization techniques: https://developer.nvidia.com/gpugems/gpugems3/part-iv-image-effects/chapter-27-real-time-rain-rendering
         - Weather effects in computer vision: https://www.sciencedirect.com/science/article/pii/S1077314220300692
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -915,20 +904,6 @@ class RandomRain(ImageOnlyTransform):
         rain_type: Literal["drizzle", "heavy", "torrential", "default"] = "default",
         p: float = 0.5,
     ):
-        """Initialize the RandomRain transform.
-
-        Args:
-            slant_range (tuple[float, float]): Range for the rain slant angle in degrees.
-                Negative values slant to the left, positive to the right. Default: (-10, 10).
-            drop_length (int | None): Length of the rain drops in pixels.
-            drop_width (int): Width of the rain drops in pixels. Default: 1.
-            drop_color (tuple[int, int, int]): Color of the rain drops in RGB format. Default: (200, 200, 200).
-            blur_value (int): Blur value for simulating rain effect. Rainy views are typically blurry. Default: 7.
-            brightness_coefficient (float): Coefficient to adjust the brightness of the image.
-                Rainy scenes are usually darker. Should be in the range (0, 1]. Default: 0.7.
-            rain_type (Literal["drizzle", "heavy", "torrential", "default"]): Type of rain to simulate.
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.slant_range = slant_range
         self.drop_length = drop_length
@@ -946,7 +921,8 @@ class RandomRain(ImageOnlyTransform):
         rain_drops: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the rain effect to the input image.
+        """
+        Apply the rain effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the rain effect to.
@@ -957,6 +933,7 @@ class RandomRain(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied rain effect.
+
         """
         non_rgb_error(img)
 
@@ -976,7 +953,8 @@ class RandomRain(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -987,6 +965,7 @@ class RandomRain(ImageOnlyTransform):
                 - "drop_length" (int): The length of the rain drops.
                 - "slant" (float): The slant angle of the rain.
                 - "rain_drops" (np.ndarray): The coordinates of the rain drops.
+
         """
         height, width = params["shape"][:2]
 
@@ -1022,7 +1001,8 @@ class RandomRain(ImageOnlyTransform):
 
 
 class RandomFog(ImageOnlyTransform):
-    """Simulates fog for the image by adding random fog-like artifacts.
+    """
+    Simulates fog for the image by adding random fog-like artifacts.
 
     This transform creates a fog effect by generating semi-transparent overlays
     that mimic the visual characteristics of fog. The fog intensity and distribution
@@ -1083,6 +1063,7 @@ class RandomFog(ImageOnlyTransform):
     References:
         - Fog: https://en.wikipedia.org/wiki/Fog
         - Atmospheric perspective: https://en.wikipedia.org/wiki/Aerial_perspective
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1100,13 +1081,6 @@ class RandomFog(ImageOnlyTransform):
         fog_coef_range: tuple[float, float] = (0.3, 1),
         p: float = 0.5,
     ):
-        """Initialize the RandomFog transform.
-
-        Args:
-            alpha_coef (float): Transparency of the fog circles. Should be in [0, 1] range. Default: 0.08.
-            fog_coef_range (tuple[float, float]): Range for fog intensity coefficient. Should be in [0, 1] range.
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.fog_coef_range = fog_coef_range
         self.alpha_coef = alpha_coef
@@ -1119,7 +1093,8 @@ class RandomFog(ImageOnlyTransform):
         intensity: float,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the fog effect to the input image.
+        """
+        Apply the fog effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the fog effect to.
@@ -1130,6 +1105,7 @@ class RandomFog(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied fog effect.
+
         """
         non_rgb_error(img)
         return fmain.add_fog(
@@ -1145,7 +1121,8 @@ class RandomFog(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -1156,6 +1133,7 @@ class RandomFog(ImageOnlyTransform):
                 - "intensity" (float): The intensity of the fog.
                 - "particle_positions" (list[tuple[int, int]]): The coordinates of the fog particles.
                 - "radiuses" (list[int]): The radii of the fog particles.
+
         """
         # Select a random fog intensity within the specified range
         intensity = self.py_random.uniform(*self.fog_coef_range)
@@ -1222,7 +1200,8 @@ class RandomFog(ImageOnlyTransform):
 
 
 class RandomSunFlare(ImageOnlyTransform):
-    """Simulates a sun flare effect on the image by adding circles of light.
+    """
+    Simulates a sun flare effect on the image by adding circles of light.
 
     This transform creates a sun flare effect by overlaying multiple semi-transparent
     circles of varying sizes and intensities along a line originating from a "sun" point.
@@ -1338,6 +1317,7 @@ class RandomSunFlare(ImageOnlyTransform):
         - Diffraction: https://en.wikipedia.org/wiki/Diffraction
         - Chromatic aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
         - Screen blending: https://en.wikipedia.org/wiki/Blend_modes#Screen
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1384,21 +1364,6 @@ class RandomSunFlare(ImageOnlyTransform):
         method: Literal["overlay", "physics_based"] = "overlay",
         p: float = 0.5,
     ):
-        """Initialize the RandomSunFlare transform.
-
-        Args:
-            flare_roi (tuple[float, float, float, float]): Region of the image where flares
-                will appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
-                Default: (0, 0, 1, 0.5).
-            src_radius (int): Radius of the sun. Default: 400.
-            src_color (tuple[int, ...]): Color of the sun. Default: (255, 255, 255).
-            angle_range (tuple[float, float]): Range for the flare angle. Default: (0, 1).
-            num_flare_circles_range (tuple[int, int]): Range for the number of flare circles.
-                Default: (6, 10).
-            method (Literal["overlay", "physics_based"]): Method for generating the sun flare.
-                Default: "overlay".
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
 
         self.angle_range = angle_range
@@ -1416,7 +1381,8 @@ class RandomSunFlare(ImageOnlyTransform):
         circles: list[Any],
         **params: Any,
     ) -> np.ndarray:
-        """Apply the sun flare effect to the input image.
+        """
+        Apply the sun flare effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the sun flare effect to.
@@ -1426,6 +1392,7 @@ class RandomSunFlare(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied sun flare effect.
+
         """
         non_rgb_error(img)
         if self.method == "overlay":
@@ -1452,7 +1419,8 @@ class RandomSunFlare(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -1462,6 +1430,7 @@ class RandomSunFlare(ImageOnlyTransform):
             dict[str, Any]: Dictionary with the following keys:
                 - "circles" (list[Any]): The circles to apply the sun flare effect to.
                 - "flare_center" (tuple[float, float]): The center of the sun.
+
         """
         height, width = params["shape"][:2]
         diagonal = math.sqrt(height**2 + width**2)
@@ -1515,7 +1484,8 @@ class RandomSunFlare(ImageOnlyTransform):
 
 
 class RandomShadow(ImageOnlyTransform):
-    """Simulates shadows for the image by reducing the brightness of the image in shadow regions.
+    """
+    Simulates shadows for the image by reducing the brightness of the image in shadow regions.
 
     This transform adds realistic shadow effects to images, which can be useful for augmenting
     datasets for outdoor scene analysis, autonomous driving, or any computer vision task where
@@ -1586,6 +1556,7 @@ class RandomShadow(ImageOnlyTransform):
     References:
         - Shadow detection and removal: https://www.sciencedirect.com/science/article/pii/S1047320315002035
         - Shadows in computer vision: https://en.wikipedia.org/wiki/Shadow_detection
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1620,19 +1591,6 @@ class RandomShadow(ImageOnlyTransform):
         shadow_intensity_range: tuple[float, float] = (0.5, 0.5),
         p: float = 0.5,
     ):
-        """Initialize the RandomShadow transform.
-
-        Args:
-            shadow_roi (tuple[float, float, float, float]): Region of the image where shadows
-                will appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
-                Default: (0, 0.5, 1, 1).
-            num_shadows_limit (tuple[int, int]): Lower and upper limits for the possible number of shadows.
-                Default: (1, 2).
-            shadow_dimension (int): Number of edges in the shadow polygons. Default: 5.
-            shadow_intensity_range (tuple[float, float]): Range for the shadow intensity. Larger value
-                means darker shadow. Should be two float values between 0 and 1. Default: (0.5, 0.5).
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
 
         self.shadow_roi = shadow_roi
@@ -1647,7 +1605,8 @@ class RandomShadow(ImageOnlyTransform):
         intensities: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the shadow effect to the input image.
+        """
+        Apply the shadow effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the shadow effect to.
@@ -1657,6 +1616,7 @@ class RandomShadow(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied shadow effect.
+
         """
         return fmain.add_shadow(img, vertices_list, intensities)
 
@@ -1665,7 +1625,8 @@ class RandomShadow(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, list[np.ndarray]]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -1675,6 +1636,7 @@ class RandomShadow(ImageOnlyTransform):
             dict[str, list[np.ndarray]]: Dictionary with the following keys:
                 - "vertices_list" (list[np.ndarray]): The vertices of the shadow polygons.
                 - "intensities" (np.ndarray): The intensities of the shadows.
+
         """
         height, width = params["shape"][:2]
 
@@ -1716,7 +1678,8 @@ class RandomShadow(ImageOnlyTransform):
 
 
 class RandomToneCurve(ImageOnlyTransform):
-    """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
+    """
+    Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     This transform applies a random S-curve to the image's tone curve, adjusting the brightness and contrast
     in a non-linear manner. It can be applied to the entire image or to each channel separately.
@@ -1774,6 +1737,7 @@ class RandomToneCurve(ImageOnlyTransform):
           https://arxiv.org/abs/1912.06960
         - Bézier curve: https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
         - Tone mapping: https://en.wikipedia.org/wiki/Tone_mapping
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1789,17 +1753,6 @@ class RandomToneCurve(ImageOnlyTransform):
         per_channel: bool = False,
         p: float = 0.5,
     ):
-        """Initialize the RandomToneCurve transform.
-
-        Args:
-            scale (float): Standard deviation of the normal distribution used to sample random distances
-                to move two control points that modify the image's curve. Values should be in range [0, 1].
-                Higher values will result in more dramatic changes to the image. Default: 0.1
-            per_channel (bool): If True, the tone curve will be applied to each channel of the input image separately,
-                which can lead to color distortion. If False, the same curve is applied to all channels,
-                preserving the original color relationships. Default: False
-            p (float): Probability of applying the transform. Default: 0.5
-        """
         super().__init__(p=p)
         self.scale = scale
         self.per_channel = per_channel
@@ -1811,7 +1764,8 @@ class RandomToneCurve(ImageOnlyTransform):
         high_y: float | np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the tone curve to the input image.
+        """
+        Apply the tone curve to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the tone curve to.
@@ -1821,6 +1775,7 @@ class RandomToneCurve(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied tone curve.
+
         """
         return fmain.move_tone_curve(img, low_y, high_y)
 
@@ -1829,7 +1784,8 @@ class RandomToneCurve(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -1839,6 +1795,7 @@ class RandomToneCurve(ImageOnlyTransform):
             dict[str, Any]: Dictionary with the following keys:
                 - "low_y" (float | np.ndarray): The lower control point of the tone curve.
                 - "high_y" (float | np.ndarray): The upper control point of the tone curve.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
 
@@ -1873,7 +1830,8 @@ class RandomToneCurve(ImageOnlyTransform):
 
 
 class HueSaturationValue(ImageOnlyTransform):
-    """Randomly change hue, saturation and value of the input image.
+    """
+    Randomly change hue, saturation and value of the input image.
 
     This transform adjusts the HSV (Hue, Saturation, Value) channels of an input RGB image.
     It allows for independent control over each channel, providing a wide range of color
@@ -1926,6 +1884,7 @@ class HueSaturationValue(ImageOnlyTransform):
 
     References:
         HSV color space: https://en.wikipedia.org/wiki/HSL_and_HSV
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1940,20 +1899,6 @@ class HueSaturationValue(ImageOnlyTransform):
         val_shift_limit: tuple[float, float] | float = (-20, 20),
         p: float = 0.5,
     ):
-        """Initialize the HueSaturationValue transform.
-
-        Args:
-            hue_shift_limit (tuple[float, float] | float): Range for changing hue.
-                If a single float value is provided, the range will be (-hue_shift_limit, hue_shift_limit).
-                Values should be in the range [-180, 180]. Default: (-20, 20).
-            sat_shift_limit (tuple[float, float] | float): Range for changing saturation.
-                If a single float value is provided, the range will be (-sat_shift_limit, sat_shift_limit).
-                Values should be in the range [-255, 255]. Default: (-30, 30).
-            val_shift_limit (tuple[float, float] | float): Range for changing value (brightness).
-                If a single float value is provided, the range will be (-val_shift_limit, val_shift_limit).
-                Values should be in the range [-255, 255]. Default: (-20, 20).
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.hue_shift_limit = cast("tuple[float, float]", hue_shift_limit)
         self.sat_shift_limit = cast("tuple[float, float]", sat_shift_limit)
@@ -1967,7 +1912,8 @@ class HueSaturationValue(ImageOnlyTransform):
         val_shift: int,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the hue, saturation, and value shifts to the input image.
+        """
+        Apply the hue, saturation, and value shifts to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the hue, saturation, and value shifts to.
@@ -1978,6 +1924,7 @@ class HueSaturationValue(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied hue, saturation, and value shifts.
+
         """
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "HueSaturationValue transformation expects 1-channel or 3-channel images."
@@ -1985,13 +1932,15 @@ class HueSaturationValue(ImageOnlyTransform):
         return fmain.shift_hsv(img, hue_shift, sat_shift, val_shift)
 
     def get_params(self) -> dict[str, float]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Returns:
             dict[str, float]: Dictionary with the following keys:
                 - "hue_shift" (float): The hue shift value.
                 - "sat_shift" (float): The saturation shift value.
                 - "val_shift" (float): The value (brightness) shift value.
+
         """
         return {
             "hue_shift": self.py_random.uniform(*self.hue_shift_limit),
@@ -2001,7 +1950,8 @@ class HueSaturationValue(ImageOnlyTransform):
 
 
 class Solarize(ImageOnlyTransform):
-    """Invert all pixel values above a threshold.
+    """
+    Invert all pixel values above a threshold.
 
     This transform applies a solarization effect to the input image. Solarization is a phenomenon in
     photography in which the image recorded on a negative or on a photographic print is wholly or
@@ -2067,6 +2017,7 @@ class Solarize(ImageOnlyTransform):
 
     See Also:
         Invert: For inverting all pixel values regardless of a threshold.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2081,20 +2032,12 @@ class Solarize(ImageOnlyTransform):
         threshold_range: tuple[float, float] = (0.5, 0.5),
         p: float = 0.5,
     ):
-        """Initialize the Solarize transform.
-
-        Args:
-            threshold_range (tuple[float, float]): Range for solarizing threshold as a fraction
-                of maximum value. The threshold_range should be in the range [0, 1] and will be multiplied by the
-                maximum value of the image type (255 for uint8 images or 1.0 for float images).
-                Default: (0.5, 0.5) (corresponds to 127.5 for uint8 and 0.5 for float32).
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.threshold_range = threshold_range
 
     def apply(self, img: np.ndarray, threshold: float, **params: Any) -> np.ndarray:
-        """Apply the solarize effect to the input image.
+        """
+        Apply the solarize effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the solarize effect to.
@@ -2103,21 +2046,25 @@ class Solarize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied solarize effect.
+
         """
         return fmain.solarize(img, threshold)
 
     def get_params(self) -> dict[str, float]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Returns:
             dict[str, float]: Dictionary with the following key:
                 - "threshold" (float): The threshold value.
+
         """
         return {"threshold": self.py_random.uniform(*self.threshold_range)}
 
 
 class Posterize(ImageOnlyTransform):
-    """Reduces the number of bits for each color channel in the image.
+    """
+    Reduces the number of bits for each color channel in the image.
 
     This transform applies color posterization, a technique that reduces the number of distinct
     colors used in an image. It works by lowering the number of bits used to represent each
@@ -2181,6 +2128,7 @@ class Posterize(ImageOnlyTransform):
     References:
         - Color Quantization: https://en.wikipedia.org/wiki/Color_quantization
         - Posterization: https://en.wikipedia.org/wiki/Posterization
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2205,18 +2153,6 @@ class Posterize(ImageOnlyTransform):
         num_bits: int | tuple[int, int] | list[tuple[int, int]] = 4,
         p: float = 0.5,
     ):
-        """Initialize the Posterize transform.
-
-        Args:
-            num_bits (int | tuple[int, int] | list[tuple[int, int]]):
-                Defines the number of bits to keep for each color channel.
-                If a single int is provided, the same number of bits will be used for all channels.
-                If a tuple of two ints is provided, the number of bits will be randomly sampled from the range.
-                If a list of three ints is provided, the number of bits will be set for each channel.
-                If a list of three tuples is provided, the number of bits will be sampled from the ranges.
-                Default: 4
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.num_bits = cast("Union[tuple[int, int], list[tuple[int, int]]]", num_bits)
 
@@ -2226,7 +2162,8 @@ class Posterize(ImageOnlyTransform):
         num_bits: Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]],
         **params: Any,
     ) -> np.ndarray:
-        """Apply the posterize effect to the input image.
+        """
+        Apply the posterize effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the posterize effect to.
@@ -2236,16 +2173,19 @@ class Posterize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied posterize effect.
+
         """
         return fmain.posterize(img, num_bits)
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Returns:
             dict[str, Any]: Dictionary with the following key:
                 - "num_bits" (Literal[1, 2, 3, 4, 5, 6, 7] | list[Literal[1, 2, 3, 4, 5, 6, 7]]):
                     The number of bits to keep for each color channel.
+
         """
         if isinstance(self.num_bits, list):
             num_bits = [self.py_random.randint(*i) for i in self.num_bits]
@@ -2254,7 +2194,8 @@ class Posterize(ImageOnlyTransform):
 
 
 class Equalize(ImageOnlyTransform):
-    """Equalize the image histogram.
+    """
+    Equalize the image histogram.
 
     This transform applies histogram equalization to the input image. Histogram equalization
     is a method in image processing of contrast adjustment using the image's histogram.
@@ -2331,6 +2272,7 @@ class Equalize(ImageOnlyTransform):
         - OpenCV equalizeHist: https://docs.opencv.org/3.4/d6/dc7/group__imgproc__hist.html#ga7e54091f0c937d49bf84152a16f76d6e
         - Pillow ImageOps.equalize: https://pillow.readthedocs.io/en/stable/reference/ImageOps.html#PIL.ImageOps.equalize
         - Histogram Equalization: https://en.wikipedia.org/wiki/Histogram_equalization
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2347,25 +2289,6 @@ class Equalize(ImageOnlyTransform):
         mask_params: Sequence[str] = (),
         p: float = 0.5,
     ):
-        """Initialize the Equalize transform.
-
-        Args:
-            mode (Literal["cv", "pil"]): Use OpenCV or Pillow equalization method.
-                Default: 'cv'
-            by_channels (bool): If True, use equalization by channels separately,
-                else convert image to YCbCr representation and use equalization by `Y` channel.
-                Default: True
-            mask (np.ndarray, callable): If given, only the pixels selected by
-                the mask are included in the analysis. Can be:
-                - A 1-channel or 3-channel numpy array of the same size as the input image.
-                - A callable (function) that generates a mask. The function should accept 'image'
-                  as its first argument, and can accept additional arguments specified in mask_params.
-                Default: None
-            mask_params (list[str]): Additional parameters to pass to the mask function.
-                These parameters will be taken from the data dict passed to __call__.
-                Default: ()
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
 
         self.mode = mode
@@ -2374,7 +2297,8 @@ class Equalize(ImageOnlyTransform):
         self.mask_params = mask_params
 
     def apply(self, img: np.ndarray, mask: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the equalization effect to the input image.
+        """
+        Apply the equalization effect to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the equalization effect to.
@@ -2383,6 +2307,7 @@ class Equalize(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied equalization effect.
+
         """
         if not is_rgb_image(img) and not is_grayscale_image(img):
             raise ValueError("Equalize transform is only supported for RGB and grayscale images.")
@@ -2398,7 +2323,8 @@ class Equalize(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -2407,6 +2333,7 @@ class Equalize(ImageOnlyTransform):
         Returns:
             dict[str, Any]: Dictionary with the following key:
                 - "mask" (np.ndarray): The mask to apply the equalization effect to.
+
         """
         if not callable(self.mask):
             return {"mask": self.mask}
@@ -2423,16 +2350,19 @@ class Equalize(ImageOnlyTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
-        """Return the list of parameters that are used for generating the mask.
+        """
+        Return the list of parameters that are used for generating the mask.
 
         Returns:
             list[str]: List of parameter names.
+
         """
         return [*list(self.mask_params)]
 
 
 class RandomBrightnessContrast(ImageOnlyTransform):
-    """Randomly changes the brightness and contrast of the input image.
+    """
+    Randomly changes the brightness and contrast of the input image.
 
     This transform adjusts the brightness and contrast of an image simultaneously, allowing for
     a wide range of lighting and contrast variations. It's particularly useful for data augmentation
@@ -2520,6 +2450,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     References:
         - Brightness: https://en.wikipedia.org/wiki/Brightness
         - Contrast: https://en.wikipedia.org/wiki/Contrast_(vision)
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2536,21 +2467,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         ensure_safe_range: bool = False,
         p: float = 0.5,
     ):
-        """Initialize the RandomBrightnessContrast transform.
-
-        Args:
-            brightness_limit (tuple[float, float] | float): Factor range for changing brightness.
-                Default: (-0.2, 0.2).
-            contrast_limit (tuple[float, float] | float): Factor range for changing contrast.
-                Default: (-0.2, 0.2).
-            brightness_by_max (bool): If True, adjusts brightness by scaling pixel values up to the
-                maximum value of the image's dtype. If False, uses the mean pixel value for adjustment.
-                Default: True.
-            ensure_safe_range (bool): If True, adjusts alpha and beta to prevent overflow/underflow.
-                This ensures output values stay within the valid range for the image dtype without clipping.
-                Default: False.
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.brightness_limit = cast("tuple[float, float]", brightness_limit)
         self.contrast_limit = cast("tuple[float, float]", contrast_limit)
@@ -2564,7 +2480,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         beta: float,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the brightness and contrast adjustment to the input image.
+        """
+        Apply the brightness and contrast adjustment to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the brightness and contrast adjustment to.
@@ -2574,11 +2491,13 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied brightness and contrast adjustment.
+
         """
         return albucore.multiply_add(img, alpha, beta, inplace=False)
 
     def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply the brightness and contrast adjustment to a batch of images.
+        """
+        Apply the brightness and contrast adjustment to a batch of images.
 
         Args:
             images (np.ndarray): The batch of images to apply the brightness and contrast adjustment to.
@@ -2587,11 +2506,13 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The batch of images with the applied brightness and contrast adjustment.
+
         """
         return self.apply(images, *args, **params)
 
     def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply the brightness and contrast adjustment to a batch of volumes.
+        """
+        Apply the brightness and contrast adjustment to a batch of volumes.
 
         Args:
             volumes (np.ndarray): The batch of volumes to apply the brightness and contrast adjustment to.
@@ -2600,11 +2521,13 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The batch of volumes with the applied brightness and contrast adjustment.
+
         """
         return self.apply(volumes, *args, **params)
 
     def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply the brightness and contrast adjustment to a single volume.
+        """
+        Apply the brightness and contrast adjustment to a single volume.
 
         Args:
             volume (np.ndarray): The volume to apply the brightness and contrast adjustment to.
@@ -2613,6 +2536,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The volume with the applied brightness and contrast adjustment.
+
         """
         return self.apply(volume, *args, **params)
 
@@ -2621,7 +2545,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, float]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -2631,6 +2556,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             dict[str, float]: Dictionary with the following keys:
                 - "alpha" (float): The contrast adjustment factor.
                 - "beta" (float): The brightness adjustment factor.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
 
@@ -2657,7 +2583,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
 
 class GaussNoise(ImageOnlyTransform):
-    """Apply Gaussian noise to the input image.
+    """
+    Apply Gaussian noise to the input image.
 
     Args:
         std_range (tuple[float, float]): Range for noise standard deviation as a fraction
@@ -2697,6 +2624,7 @@ class GaussNoise(ImageOnlyTransform):
         >>> # Apply Gaussian noise with normalized std_range
         >>> transform = A.GaussNoise(std_range=(0.1, 0.2), p=1.0)  # 10-20% of max value
         >>> noisy_image = transform(image=image)['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2721,23 +2649,6 @@ class GaussNoise(ImageOnlyTransform):
         noise_scale_factor: float = 1,
         p: float = 0.5,
     ):
-        """Initialize the GaussNoise transform.
-
-        Args:
-            std_range (tuple[float, float]): Range for noise standard deviation as a fraction
-                of the maximum value (255 for uint8 images or 1.0 for float images).
-                Values should be in range [0, 1]. Default: (0.2, 0.44).
-            mean_range (tuple[float, float]): Range for noise mean as a fraction
-                of the maximum value (255 for uint8 images or 1.0 for float images).
-                Values should be in range [-1, 1]. Default: (0.0, 0.0).
-            per_channel (bool): If True, noise will be sampled for each channel independently.
-                Otherwise, the noise will be sampled once for all channels. Default: True.
-            noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
-                When set to 1, noise is sampled for each pixel independently. If less, noise is sampled for a
-                smaller size and resized to fit the shape of the image. Smaller values make the transform faster.
-                Default: 1.0.
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.std_range = std_range
         self.mean_range = mean_range
@@ -2750,7 +2661,8 @@ class GaussNoise(ImageOnlyTransform):
         noise_map: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the Gaussian noise to the input image.
+        """
+        Apply the Gaussian noise to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Gaussian noise to.
@@ -2759,6 +2671,7 @@ class GaussNoise(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied Gaussian noise.
+
         """
         return fmain.add_noise(img, noise_map)
 
@@ -2767,7 +2680,8 @@ class GaussNoise(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, float]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -2776,6 +2690,7 @@ class GaussNoise(ImageOnlyTransform):
         Returns:
             dict[str, float]: Dictionary with the following key:
                 - "noise_map" (np.ndarray): The noise map to apply to the image.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
         max_value = MAX_VALUES_BY_DTYPE[image.dtype]
@@ -2797,7 +2712,8 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class ISONoise(ImageOnlyTransform):
-    """Applies camera sensor noise to the input image, simulating high ISO settings.
+    """
+    Applies camera sensor noise to the input image, simulating high ISO settings.
 
     This transform adds random noise to an image, mimicking the effect of using high ISO settings
     in digital photography. It simulates two main components of ISO noise:
@@ -2842,6 +2758,7 @@ class ISONoise(ImageOnlyTransform):
 
     References:
         ISO noise in digital photography: https://en.wikipedia.org/wiki/Image_noise#In_digital_cameras
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2862,19 +2779,6 @@ class ISONoise(ImageOnlyTransform):
         intensity: tuple[float, float] = (0.1, 0.5),
         p: float = 0.5,
     ):
-        """Initialize the ISONoise transform.
-
-        Args:
-            color_shift (tuple[float, float]): Range for changing color hue.
-                Values should be in the range [0, 1], where 1 represents a full 360° hue rotation.
-                Default: (0.01, 0.05)
-
-            intensity (tuple[float, float]): Range for the noise intensity.
-                Higher values increase the strength of both color and luminance noise.
-                Default: (0.1, 0.5)
-
-            p (float): Probability of applying the transform. Default: 0.5
-        """
         super().__init__(p=p)
         self.intensity = intensity
         self.color_shift = color_shift
@@ -2887,7 +2791,8 @@ class ISONoise(ImageOnlyTransform):
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the ISONoise transform to the input image.
+        """
+        Apply the ISONoise transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ISONoise transform to.
@@ -2898,6 +2803,7 @@ class ISONoise(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ISONoise transform.
+
         """
         non_rgb_error(img)
         return fmain.iso_noise(
@@ -2912,7 +2818,8 @@ class ISONoise(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -2923,6 +2830,7 @@ class ISONoise(ImageOnlyTransform):
                 - "color_shift" (float): The color shift value.
                 - "intensity" (float): The intensity value.
                 - "random_seed" (int): The random seed.
+
         """
         random_seed = self.random_generator.integers(0, 2**32 - 1)
         return {
@@ -2933,7 +2841,8 @@ class ISONoise(ImageOnlyTransform):
 
 
 class CLAHE(ImageOnlyTransform):
-    """Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
+    """
+    Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to the input image.
 
     CLAHE is an advanced method of improving the contrast in an image. Unlike regular histogram
     equalization, which operates on the entire image, CLAHE operates on small regions (tiles)
@@ -2995,25 +2904,13 @@ class CLAHE(ImageOnlyTransform):
         tile_grid_size: tuple[int, int] = (8, 8),
         p: float = 0.5,
     ):
-        """Initialize the CLAHE transform.
-
-        Args:
-            clip_limit (tuple[float, float] | float): Controls the contrast enhancement limit.
-                Default: 4.0
-
-            tile_grid_size (tuple[int, int]): Defines the number of tiles in the row and column directions.
-                Format is (rows, columns). Smaller tile sizes can lead to more localized enhancements,
-                while larger sizes give results closer to global histogram equalization.
-                Default: (8, 8)
-
-            p (float): Probability of applying the transform. Default: 0.5
-        """
         super().__init__(p=p)
         self.clip_limit = cast("tuple[float, float]", clip_limit)
         self.tile_grid_size = tile_grid_size
 
     def apply(self, img: np.ndarray, clip_limit: float, **params: Any) -> np.ndarray:
-        """Apply the CLAHE transform to the input image.
+        """
+        Apply the CLAHE transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the CLAHE transform to.
@@ -3022,6 +2919,7 @@ class CLAHE(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied CLAHE transform.
+
         """
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "CLAHE transformation expects 1-channel or 3-channel images."
@@ -3030,17 +2928,20 @@ class CLAHE(ImageOnlyTransform):
         return fmain.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self) -> dict[str, float]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Returns:
             dict[str, float]: Dictionary with the following key:
                 - "clip_limit" (float): The contrast enhancement limit.
+
         """
         return {"clip_limit": self.py_random.uniform(*self.clip_limit)}
 
 
 class ChannelShuffle(ImageOnlyTransform):
-    """Randomly rearrange channels of the image.
+    """
+    Randomly rearrange channels of the image.
 
     Args:
         p (float): Probability of applying the transform. Default: 0.5.
@@ -3062,7 +2963,8 @@ class ChannelShuffle(ImageOnlyTransform):
         channels_shuffled: tuple[int, ...] | None,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the ChannelShuffle transform to the input image.
+        """
+        Apply the ChannelShuffle transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ChannelShuffle transform to.
@@ -3071,6 +2973,7 @@ class ChannelShuffle(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ChannelShuffle transform.
+
         """
         if channels_shuffled is None:
             return img
@@ -3081,7 +2984,8 @@ class ChannelShuffle(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -3090,6 +2994,7 @@ class ChannelShuffle(ImageOnlyTransform):
         Returns:
             dict[str, Any]: Dictionary with the following key:
                 - "channels_shuffled" (tuple[int, ...] | None): The channels to shuffle.
+
         """
         shape = params["shape"]
         if len(shape) == 2 or shape[-1] == 1:
@@ -3100,7 +3005,8 @@ class ChannelShuffle(ImageOnlyTransform):
 
 
 class InvertImg(ImageOnlyTransform):
-    """Invert the input image by subtracting pixel values from max values of the image types,
+    """
+    Invert the input image by subtracting pixel values from max values of the image types,
     i.e., 255 for uint8 and 1.0 for float32.
 
     Args:
@@ -3118,7 +3024,8 @@ class InvertImg(ImageOnlyTransform):
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the InvertImg transform to the input image.
+        """
+        Apply the InvertImg transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the InvertImg transform to.
@@ -3126,11 +3033,13 @@ class InvertImg(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied InvertImg transform.
+
         """
         return fmain.invert(img)
 
     def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply the InvertImg transform to the input images.
+        """
+        Apply the InvertImg transform to the input images.
 
         Args:
             images (np.ndarray): The input images to apply the InvertImg transform to.
@@ -3139,11 +3048,13 @@ class InvertImg(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The images with the applied InvertImg transform.
+
         """
         return self.apply(images, *args, **params)
 
     def apply_to_volumes(self, volumes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply the InvertImg transform to the input volumes.
+        """
+        Apply the InvertImg transform to the input volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the InvertImg transform to.
@@ -3152,11 +3063,13 @@ class InvertImg(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The volumes with the applied InvertImg transform.
+
         """
         return self.apply(volumes, *args, **params)
 
     def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply the InvertImg transform to the input volume.
+        """
+        Apply the InvertImg transform to the input volume.
 
         Args:
             volume (np.ndarray): The input volume to apply the InvertImg transform to.
@@ -3165,12 +3078,14 @@ class InvertImg(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The volume with the applied InvertImg transform.
+
         """
         return self.apply(volume, *args, **params)
 
 
 class RandomGamma(ImageOnlyTransform):
-    """Applies random gamma correction to the input image.
+    """
+    Applies random gamma correction to the input image.
 
     Gamma correction, or simply gamma, is a nonlinear operation used to encode and decode luminance
     or tristimulus values in imaging systems. This transform can adjust the brightness of an image
@@ -3238,6 +3153,7 @@ class RandomGamma(ImageOnlyTransform):
     References:
         - Gamma correction: https://en.wikipedia.org/wiki/Gamma_correction
         - Power law (Gamma) encoding: https://www.cambridgeincolour.com/tutorials/gamma-correction.htm
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3248,17 +3164,12 @@ class RandomGamma(ImageOnlyTransform):
         gamma_limit: tuple[float, float] | float = (80, 120),
         p: float = 0.5,
     ):
-        """Initialize the RandomGamma transform.
-
-        Args:
-            gamma_limit (tuple[float, float] | float): The gamma limit.
-            p (float): The probability of applying the transform.
-        """
         super().__init__(p=p)
         self.gamma_limit = cast("tuple[float, float]", gamma_limit)
 
     def apply(self, img: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
-        """Apply the RandomGamma transform to the input image.
+        """
+        Apply the RandomGamma transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the RandomGamma transform to.
@@ -3267,11 +3178,13 @@ class RandomGamma(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied RandomGamma transform.
+
         """
         return fmain.gamma_transform(img, gamma=gamma)
 
     def apply_to_volume(self, volume: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
-        """Apply the RandomGamma transform to the input volume.
+        """
+        Apply the RandomGamma transform to the input volume.
 
         Args:
             volume (np.ndarray): The input volume to apply the RandomGamma transform to.
@@ -3280,11 +3193,13 @@ class RandomGamma(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The volume with the applied RandomGamma transform.
+
         """
         return self.apply(volume, gamma=gamma)
 
     def apply_to_volumes(self, volumes: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
-        """Apply the RandomGamma transform to the input volumes.
+        """
+        Apply the RandomGamma transform to the input volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the RandomGamma transform to.
@@ -3293,11 +3208,13 @@ class RandomGamma(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The volumes with the applied RandomGamma transform.
+
         """
         return self.apply(volumes, gamma=gamma)
 
     def apply_to_images(self, images: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
-        """Apply the RandomGamma transform to the input images.
+        """
+        Apply the RandomGamma transform to the input images.
 
         Args:
             images (np.ndarray): The input images to apply the RandomGamma transform to.
@@ -3306,11 +3223,13 @@ class RandomGamma(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The images with the applied RandomGamma transform.
+
         """
         return self.apply(images, gamma=gamma)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): Parameters from the previous transform.
@@ -3319,6 +3238,7 @@ class RandomGamma(ImageOnlyTransform):
         Returns:
             dict[str, Any]: Dictionary with the following key:
                 - "gamma" (float): The gamma value.
+
         """
         return {
             "gamma": self.py_random.uniform(*self.gamma_limit) / 100.0,
@@ -3326,7 +3246,8 @@ class RandomGamma(ImageOnlyTransform):
 
 
 class ToGray(ImageOnlyTransform):
-    """Convert an image to grayscale and optionally replicate the grayscale channel.
+    """
+    Convert an image to grayscale and optionally replicate the grayscale channel.
 
     This transform first converts a color image to a single-channel grayscale image using various methods,
     then replicates the grayscale channel if num_output_channels is greater than 1.
@@ -3369,6 +3290,7 @@ class ToGray(ImageOnlyTransform):
 
     Returns:
         np.ndarray: Grayscale image with the specified number of channels.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3399,20 +3321,13 @@ class ToGray(ImageOnlyTransform):
         ] = "weighted_average",
         p: float = 0.5,
     ):
-        """Initialize the ToGray transform.
-
-        Args:
-            num_output_channels (int): The number of output channels.
-            method (Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"]): The method
-                used for grayscale conversion.
-            p (float): The probability of applying the transform.
-        """
         super().__init__(p=p)
         self.num_output_channels = num_output_channels
         self.method = method
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the ToGray transform to the input image.
+        """
+        Apply the ToGray transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ToGray transform to.
@@ -3420,6 +3335,7 @@ class ToGray(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ToGray transform.
+
         """
         if is_grayscale_image(img):
             warnings.warn("The image is already gray.", stacklevel=2)
@@ -3440,7 +3356,8 @@ class ToGray(ImageOnlyTransform):
 
 
 class ToRGB(ImageOnlyTransform):
-    """Convert an input image from grayscale to RGB format.
+    """
+    Convert an input image from grayscale to RGB format.
 
     Args:
         num_output_channels (int): The number of channels in the output image. Default: 3.
@@ -3472,6 +3389,7 @@ class ToRGB(ImageOnlyTransform):
         >>> grayscale_image = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
         >>> rgb_image = transform(image=grayscale_image)['image']
         >>> assert rgb_image.shape == (100, 100, 3)
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3482,18 +3400,13 @@ class ToRGB(ImageOnlyTransform):
         num_output_channels: int = 3,
         p: float = 1.0,
     ):
-        """Initialize the ToRGB transform.
-
-        Args:
-            num_output_channels (int): The number of channels in the output image. Default: 3.
-            p (float): Probability of applying the transform. Default: 1.0.
-        """
         super().__init__(p=p)
 
         self.num_output_channels = num_output_channels
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the ToRGB transform to the input image.
+        """
+        Apply the ToRGB transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ToRGB transform to.
@@ -3501,6 +3414,7 @@ class ToRGB(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ToRGB transform.
+
         """
         if is_rgb_image(img):
             warnings.warn("The image is already an RGB.", stacklevel=2)
@@ -3516,7 +3430,8 @@ class ToRGB(ImageOnlyTransform):
 
 
 class ToSepia(ImageOnlyTransform):
-    """Apply a sepia filter to the input image.
+    """
+    Apply a sepia filter to the input image.
 
     This transform converts a color image to a sepia tone, giving it a warm, brownish tint
     that is reminiscent of old photographs. The sepia effect is achieved by applying a
@@ -3584,21 +3499,18 @@ class ToSepia(ImageOnlyTransform):
 
     See Also:
         ToGray: For converting images to grayscale instead of sepia.
+
     """
 
     def __init__(self, p: float = 0.5):
-        """Initialize the ToSepia transform.
-
-        Args:
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.sepia_transformation_matrix = np.array(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]],
         )
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the ToSepia transform to the input image.
+        """
+        Apply the ToSepia transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ToSepia transform to.
@@ -3606,6 +3518,7 @@ class ToSepia(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ToSepia transform.
+
         """
         if is_grayscale_image(img):
             return img
@@ -3617,7 +3530,8 @@ class ToSepia(ImageOnlyTransform):
 
 
 class ToFloat(ImageOnlyTransform):
-    """Convert the input image to a floating-point representation.
+    """
+    Convert the input image to a floating-point representation.
 
     This transform divides pixel values by `max_value` to get a float32 output array
     where all values lie in the range [0, 1.0]. It's useful for normalizing image data
@@ -3672,6 +3586,7 @@ class ToFloat(ImageOnlyTransform):
 
     See Also:
         FromFloat: The inverse operation, converting from float back to the original data type.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3682,17 +3597,12 @@ class ToFloat(ImageOnlyTransform):
         max_value: float | None = None,
         p: float = 1.0,
     ):
-        """Initialize the ToFloat transform.
-
-        Args:
-            max_value (float | None): The maximum possible input value.
-            p (float): Probability of applying the transform. Default: 1.0.
-        """
         super().__init__(p=p)
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the ToFloat transform to the input image.
+        """
+        Apply the ToFloat transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ToFloat transform to.
@@ -3700,12 +3610,14 @@ class ToFloat(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ToFloat transform.
+
         """
         return to_float(img, self.max_value)
 
 
 class FromFloat(ImageOnlyTransform):
-    """Convert an image from floating point representation to the specified data type.
+    """
+    Convert an image from floating point representation to the specified data type.
 
     This transform is designed to convert images from a normalized floating-point representation
     (typically with values in the range [0, 1]) to other data types, scaling the values appropriately.
@@ -3762,22 +3674,13 @@ class FromFloat(ImageOnlyTransform):
         max_value: float | None = None,
         p: float = 1.0,
     ):
-        """Initialize the FromFloat transform.
-
-        Args:
-            dtype (str): The desired output data type. Supported types include 'uint8', 'uint16',
-                         'uint32'. Default: 'uint8'.
-            max_value (float | None): The maximum value for the output dtype. If None, the transform
-                                  will attempt to infer the maximum value based on the dtype.
-                                  Default: None.
-            p (float): Probability of applying the transform. Default: 1.0.
-        """
         super().__init__(p=p)
         self.dtype_value = np.dtype(dtype)
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input image.
+        """
+        Apply the FromFloat transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the FromFloat transform to.
@@ -3785,33 +3688,40 @@ class FromFloat(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied FromFloat transform.
+
         """
         return from_float(img, self.dtype_value, self.max_value)
 
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input images.
+        """
+        Apply the FromFloat transform to the input images.
 
         Args:
             images (np.ndarray): The input images to apply the FromFloat transform to.
             **params (Any): Additional parameters (not used in this transform).
+
         """
         return clip(np.rint(images * self.max_value), self.dtype_value, inplace=True)
 
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input volume.
+        """
+        Apply the FromFloat transform to the input volume.
 
         Args:
             volume (np.ndarray): The input volume to apply the FromFloat transform to.
             **params (Any): Additional parameters (not used in this transform).
+
         """
         return self.apply_to_images(volume, **params)
 
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input volumes.
+        """
+        Apply the FromFloat transform to the input volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the FromFloat transform to.
             **params (Any): Additional parameters (not used in this transform).
+
         """
         return self.apply_to_images(volumes, **params)
 
@@ -3839,7 +3749,8 @@ class InterpolationPydantic(BaseModel):
 
 
 class Downscale(ImageOnlyTransform):
-    """Decrease image quality by downscaling and upscaling back.
+    """
+    Decrease image quality by downscaling and upscaling back.
 
     This transform simulates the effect of a low-resolution image by first downscaling
     the image to a lower resolution and then upscaling it back to its original size.
@@ -3889,6 +3800,7 @@ class Downscale(ImageOnlyTransform):
         ... )
         >>> transformed = transform(image=image)
         >>> downscaled_image = transformed['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3927,20 +3839,13 @@ class Downscale(ImageOnlyTransform):
         ] = {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
         p: float = 0.5,
     ):
-        """Initialize the Downscale transform.
-
-        Args:
-            scale_range (tuple[float, float]): Range for the downscaling factor.
-            interpolation_pair (dict[Literal["downscale", "upscale"], int]): A dictionary specifying
-                the interpolation methods to use for downscaling and upscaling.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.scale_range = scale_range
         self.interpolation_pair = interpolation_pair
 
     def apply(self, img: np.ndarray, scale: float, **params: Any) -> np.ndarray:
-        """Apply the Downscale transform to the input image.
+        """
+        Apply the Downscale transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Downscale transform to.
@@ -3949,6 +3854,7 @@ class Downscale(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied Downscale transform.
+
         """
         return fmain.downscale(
             img,
@@ -3958,17 +3864,20 @@ class Downscale(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Returns:
             dict[str, Any]: Dictionary with the following key:
                 - "scale" (float): The downscaling factor.
+
         """
         return {"scale": self.py_random.uniform(*self.scale_range)}
 
 
 class Lambda(NoOp):
-    """A flexible transformation class for using user-defined transformation functions per targets.
+    """
+    A flexible transformation class for using user-defined transformation functions per targets.
     Function signature must include **kwargs to accept optional arguments like interpolation method, image size, etc:
 
     Args:
@@ -3998,16 +3907,6 @@ class Lambda(NoOp):
         name: str | None = None,
         p: float = 1.0,
     ):
-        """Initialize the Lambda transform.
-
-        Args:
-            image (Callable[..., Any] | None): Image transformation function.
-            mask (Callable[..., Any] | None): Mask transformation function.
-            keypoints (Callable[..., Any] | None): Keypoints transformation function.
-            bboxes (Callable[..., Any] | None): BBoxes transformation function.
-            name (str | None): Name of the transform.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
 
         self.name = name
@@ -4029,7 +3928,8 @@ class Lambda(NoOp):
                 self.custom_apply_fns[target_name] = custom_apply_fn
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input image.
+        """
+        Apply the Lambda transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Lambda transform to.
@@ -4037,12 +3937,14 @@ class Lambda(NoOp):
 
         Returns:
             np.ndarray: The image with the applied Lambda transform.
+
         """
         fn = self.custom_apply_fns["image"]
         return fn(img, **params)
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input mask.
+        """
+        Apply the Lambda transform to the input mask.
 
         Args:
             mask (np.ndarray): The input mask to apply the Lambda transform to.
@@ -4050,12 +3952,14 @@ class Lambda(NoOp):
 
         Returns:
             np.ndarray: The mask with the applied Lambda transform.
+
         """
         fn = self.custom_apply_fns["mask"]
         return fn(mask, **params)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input bounding boxes.
+        """
+        Apply the Lambda transform to the input bounding boxes.
 
         Args:
             bboxes (np.ndarray): The input bounding boxes to apply the Lambda transform to.
@@ -4063,6 +3967,7 @@ class Lambda(NoOp):
 
         Returns:
             np.ndarray: The bounding boxes with the applied Lambda transform.
+
         """
         is_ndarray = True
 
@@ -4079,7 +3984,8 @@ class Lambda(NoOp):
         return result
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input keypoints.
+        """
+        Apply the Lambda transform to the input keypoints.
 
         Args:
             keypoints (np.ndarray): The input keypoints to apply the Lambda transform to.
@@ -4087,6 +3993,7 @@ class Lambda(NoOp):
 
         Returns:
             np.ndarray: The keypoints with the applied Lambda transform.
+
         """
         is_ndarray = True
         if not isinstance(keypoints, np.ndarray):
@@ -4103,18 +4010,22 @@ class Lambda(NoOp):
 
     @classmethod
     def is_serializable(cls) -> bool:
-        """Check if the Lambda transform is serializable.
+        """
+        Check if the Lambda transform is serializable.
 
         Returns:
             bool: True if the transform is serializable, False otherwise.
+
         """
         return False
 
     def to_dict_private(self) -> dict[str, Any]:
-        """Convert the Lambda transform to a dictionary.
+        """
+        Convert the Lambda transform to a dictionary.
 
         Returns:
             dict[str, Any]: The dictionary representation of the transform.
+
         """
         if self.name is None:
             msg = (
@@ -4125,10 +4036,12 @@ class Lambda(NoOp):
         return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
 
     def __repr__(self) -> str:
-        """Return the string representation of the Lambda transform.
+        """
+        Return the string representation of the Lambda transform.
 
         Returns:
             str: The string representation of the Lambda transform.
+
         """
         state = {"name": self.name}
         state.update(self.custom_apply_fns.items())  # type: ignore[arg-type]
@@ -4137,7 +4050,8 @@ class Lambda(NoOp):
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
-    """Apply multiplicative noise to the input image.
+    """
+    Apply multiplicative noise to the input image.
 
     This transform multiplies each pixel in the image by a random value or array of values,
     effectively creating a noise pattern that scales with the image intensity.
@@ -4186,6 +4100,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     References:
         Multiplicative noise: https://en.wikipedia.org/wiki/Multiplicative_noise
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4204,14 +4119,6 @@ class MultiplicativeNoise(ImageOnlyTransform):
         elementwise: bool = False,
         p: float = 0.5,
     ):
-        """Initialize the MultiplicativeNoise transform.
-
-        Args:
-            multiplier (tuple[float, float] | float): The range for the random multiplier.
-            per_channel (bool): If True, use a different random multiplier for each channel.
-            elementwise (bool): If True, generates a unique multiplier for each pixel.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.multiplier = cast("tuple[float, float]", multiplier)
         self.elementwise = elementwise
@@ -4223,7 +4130,8 @@ class MultiplicativeNoise(ImageOnlyTransform):
         multiplier: float | np.ndarray,
         **kwargs: Any,
     ) -> np.ndarray:
-        """Apply the MultiplicativeNoise transform to the input image.
+        """
+        Apply the MultiplicativeNoise transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the MultiplicativeNoise transform to.
@@ -4232,6 +4140,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied MultiplicativeNoise transform.
+
         """
         return multiply(img, multiplier)
 
@@ -4240,7 +4149,8 @@ class MultiplicativeNoise(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
@@ -4248,6 +4158,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
 
@@ -4279,7 +4190,8 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
 
 class FancyPCA(ImageOnlyTransform):
-    """Apply Fancy PCA augmentation to the input image.
+    """
+    Apply Fancy PCA augmentation to the input image.
 
     This augmentation technique applies PCA (Principal Component Analysis) to the image's color channels,
     then adds multiples of the principal components to the image, with magnitudes proportional to the
@@ -4329,13 +4241,6 @@ class FancyPCA(ImageOnlyTransform):
         alpha: float = 0.1,
         p: float = 0.5,
     ):
-        """Initialize the FancyPCA transform.
-
-        Args:
-            alpha (float): Standard deviation of the Gaussian distribution used to generate
-                random noise for each principal component. Default: 0.1.
-            p (float): Probability of applying the transform. Default: 0.5.
-        """
         super().__init__(p=p)
         self.alpha = alpha
 
@@ -4345,7 +4250,8 @@ class FancyPCA(ImageOnlyTransform):
         alpha_vector: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the FancyPCA transform to the input image.
+        """
+        Apply the FancyPCA transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the FancyPCA transform to.
@@ -4354,6 +4260,7 @@ class FancyPCA(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied FancyPCA transform.
+
         """
         return fmain.fancy_pca(img, alpha_vector)
 
@@ -4362,7 +4269,8 @@ class FancyPCA(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters dependent on the input data.
+        """
+        Generate parameters dependent on the input data.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
@@ -4370,6 +4278,7 @@ class FancyPCA(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         shape = params["shape"]
         num_channels = shape[-1] if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS else 1
@@ -4380,7 +4289,8 @@ class FancyPCA(ImageOnlyTransform):
 
 
 class ColorJitter(ImageOnlyTransform):
-    """Randomly changes the brightness, contrast, saturation, and hue of an image.
+    """
+    Randomly changes the brightness, contrast, saturation, and hue of an image.
 
     This transform is similar to torchvision's ColorJitter but with some differences due to the use of OpenCV
     instead of Pillow. The main differences are:
@@ -4450,6 +4360,7 @@ class ColorJitter(ImageOnlyTransform):
     References:
         - ColorJitter: https://pytorch.org/vision/stable/generated/torchvision.transforms.ColorJitter.html
         - Color Conversions: https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4496,15 +4407,6 @@ class ColorJitter(ImageOnlyTransform):
         hue: tuple[float, float] | float = (-0.5, 0.5),
         p: float = 0.5,
     ):
-        """Initialize the ColorJitter transform.
-
-        Args:
-            brightness (tuple[float, float] | float): How much to jitter brightness.
-            contrast (tuple[float, float] | float): How much to jitter contrast.
-            saturation (tuple[float, float] | float): How much to jitter saturation.
-            hue (tuple[float, float] | float): How much to jitter hue.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
 
         self.brightness = cast("tuple[float, float]", brightness)
@@ -4520,10 +4422,12 @@ class ColorJitter(ImageOnlyTransform):
         ]
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters for the ColorJitter transform.
+        """
+        Generate parameters for the ColorJitter transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         brightness = self.py_random.uniform(*self.brightness)
         contrast = self.py_random.uniform(*self.contrast)
@@ -4551,7 +4455,8 @@ class ColorJitter(ImageOnlyTransform):
         order: list[int],
         **params: Any,
     ) -> np.ndarray:
-        """Apply the ColorJitter transform to the input image.
+        """
+        Apply the ColorJitter transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ColorJitter transform to.
@@ -4564,6 +4469,7 @@ class ColorJitter(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ColorJitter transform.
+
         """
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "ColorJitter transformation expects 1-channel or 3-channel images."
@@ -4576,7 +4482,8 @@ class ColorJitter(ImageOnlyTransform):
 
 
 class Sharpen(ImageOnlyTransform):
-    """Sharpen the input image using either kernel-based or Gaussian interpolation method.
+    """
+    Sharpen the input image using either kernel-based or Gaussian interpolation method.
 
     Implements two different approaches to image sharpening:
     1. Traditional kernel-based method using Laplacian operator
@@ -4681,6 +4588,7 @@ class Sharpen(ImageOnlyTransform):
         - Blur: For Gaussian blurring
         - UnsharpMask: Alternative sharpening method
         - RandomBrightnessContrast: For adjusting image contrast
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4704,16 +4612,6 @@ class Sharpen(ImageOnlyTransform):
         sigma: float = 1.0,
         p: float = 0.5,
     ):
-        """Initialize the Sharpen transform.
-
-        Args:
-            alpha (tuple[float, float]): Range for the visibility of sharpening effect.
-            lightness (tuple[float, float]): Range for the lightness of the sharpened image.
-            method (Literal['kernel', 'gaussian']): Sharpening algorithm to use.
-            kernel_size (int): Size of the Gaussian blur kernel for 'gaussian' method.
-            sigma (float): Standard deviation for Gaussian kernel in 'gaussian' method.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.alpha = alpha
         self.lightness = lightness
@@ -4735,10 +4633,12 @@ class Sharpen(ImageOnlyTransform):
         return (1 - alpha) * matrix_nochange + alpha * matrix_effect
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters for the Sharpen transform.
+        """
+        Generate parameters for the Sharpen transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         alpha = self.py_random.uniform(*self.alpha)
 
@@ -4761,13 +4661,15 @@ class Sharpen(ImageOnlyTransform):
         sharpening_matrix: np.ndarray | None,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the Sharpen transform to the input image.
+        """
+        Apply the Sharpen transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Sharpen transform to.
             alpha (float): The alpha value.
             sharpening_matrix (np.ndarray | None): The sharpening matrix.
             **params (Any): Additional parameters for the transform.
+
         """
         if self.method == "kernel":
             return fmain.convolve(img, sharpening_matrix)
@@ -4775,7 +4677,8 @@ class Sharpen(ImageOnlyTransform):
 
 
 class Emboss(ImageOnlyTransform):
-    """Apply embossing effect to the input image.
+    """
+    Apply embossing effect to the input image.
 
     This transform creates an emboss effect by highlighting edges and creating a 3D-like texture
     in the image. It works by applying a specific convolution kernel to the image that emphasizes
@@ -4823,6 +4726,7 @@ class Emboss(ImageOnlyTransform):
     References:
         - Image Embossing: https://en.wikipedia.org/wiki/Image_embossing
         - Application of Emboss Filtering in Image Processing: https://www.researchgate.net/publication/303412455_Application_of_Emboss_Filtering_in_Image_Processing
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -4835,13 +4739,6 @@ class Emboss(ImageOnlyTransform):
         strength: tuple[float, float] = (0.2, 0.7),
         p: float = 0.5,
     ):
-        """Initialize the Emboss transform.
-
-        Args:
-            alpha (tuple[float, float]): Range to choose the visibility of the embossed image.
-            strength (tuple[float, float]): Range to choose the strength of the embossing effect.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.alpha = alpha
         self.strength = strength
@@ -4863,10 +4760,12 @@ class Emboss(ImageOnlyTransform):
         return (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
 
     def get_params(self) -> dict[str, np.ndarray]:
-        """Generate parameters for the Emboss transform.
+        """
+        Generate parameters for the Emboss transform.
 
         Returns:
             dict[str, np.ndarray]: The parameters of the transform.
+
         """
         alpha = self.py_random.uniform(*self.alpha)
         strength = self.py_random.uniform(*self.strength)
@@ -4882,18 +4781,21 @@ class Emboss(ImageOnlyTransform):
         emboss_matrix: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the Emboss transform to the input image.
+        """
+        Apply the Emboss transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Emboss transform to.
             emboss_matrix (np.ndarray): The emboss matrix.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.convolve(img, emboss_matrix)
 
 
 class Superpixels(ImageOnlyTransform):
-    """Transform images partially/completely to their superpixel representation.
+    """
+    Transform images partially/completely to their superpixel representation.
 
     Args:
         p_replace (tuple[float, float] | float): Defines for any segment the probability that the pixels within that
@@ -4979,6 +4881,7 @@ class Superpixels(ImageOnlyTransform):
         ...     p=1.0
         ... )
         >>> augmented_image = transform(image=image)['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -5011,15 +4914,6 @@ class Superpixels(ImageOnlyTransform):
         ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
-        """Initialize the Superpixels transform.
-
-        Args:
-            p_replace (tuple[float, float] | float): Probability of replacing pixels in segments.
-            n_segments (tuple[int, int] | int): Number of superpixels.
-            max_size (int | None): Maximum image size.
-            interpolation (OpenCV flag): Interpolation method.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.p_replace = cast("tuple[float, float]", p_replace)
         self.n_segments = cast("tuple[int, int]", n_segments)
@@ -5027,10 +4921,12 @@ class Superpixels(ImageOnlyTransform):
         self.interpolation = interpolation
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters for the Superpixels transform.
+        """
+        Generate parameters for the Superpixels transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         n_segments = self.py_random.randint(*self.n_segments)
         p = self.py_random.uniform(*self.p_replace)
@@ -5046,7 +4942,8 @@ class Superpixels(ImageOnlyTransform):
         n_segments: int,
         **kwargs: Any,
     ) -> np.ndarray:
-        """Apply the Superpixels transform to the input image.
+        """
+        Apply the Superpixels transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Superpixels transform to.
@@ -5056,6 +4953,7 @@ class Superpixels(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied Superpixels transform.
+
         """
         return fmain.superpixels(
             img,
@@ -5067,7 +4965,8 @@ class Superpixels(ImageOnlyTransform):
 
 
 class RingingOvershoot(ImageOnlyTransform):
-    """Create ringing or overshoot artifacts by convolving the image with a 2D sinc filter.
+    """
+    Create ringing or overshoot artifacts by convolving the image with a 2D sinc filter.
 
     This transform simulates the ringing artifacts that can occur in digital image processing,
     particularly after sharpening or edge enhancement operations. It creates oscillations
@@ -5146,6 +5045,7 @@ class RingingOvershoot(ImageOnlyTransform):
         - Ringing artifacts: https://en.wikipedia.org/wiki/Ringing_artifacts
         - Sinc filter: https://en.wikipedia.org/wiki/Sinc_filter
         - Digital Image Processing: Rafael C. Gonzalez and Richard E. Woods, 4th Edition
+
     """
 
     class InitSchema(BlurInitSchema):
@@ -5162,22 +5062,17 @@ class RingingOvershoot(ImageOnlyTransform):
         cutoff: tuple[float, float] = (np.pi / 4, np.pi / 2),
         p: float = 0.5,
     ):
-        """Initialize the RingingOvershoot transform.
-
-        Args:
-            blur_limit (tuple[int, int] | int): Maximum kernel size for the sinc filter.
-            cutoff (tuple[float, float]): Range to choose the cutoff frequency in radians.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.blur_limit = cast("tuple[int, int]", blur_limit)
         self.cutoff = cutoff
 
     def get_params(self) -> dict[str, np.ndarray]:
-        """Generate parameters for the RingingOvershoot transform.
+        """
+        Generate parameters for the RingingOvershoot transform.
 
         Returns:
             dict[str, np.ndarray]: The parameters of the transform.
+
         """
         ksize = self.py_random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
         if ksize % 2 == 0:
@@ -5203,18 +5098,21 @@ class RingingOvershoot(ImageOnlyTransform):
         return {"kernel": kernel}
 
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the RingingOvershoot transform to the input image.
+        """
+        Apply the RingingOvershoot transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the RingingOvershoot transform to.
             kernel (np.ndarray): The kernel for the convolution.
             **params (Any): Additional parameters (not used in this transform).
+
         """
         return fmain.convolve(img, kernel)
 
 
 class UnsharpMask(ImageOnlyTransform):
-    """Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
+    """
+    Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
 
     Unsharp masking is a technique that enhances edge contrast in an image, creating the illusion of increased
         sharpness.
@@ -5273,6 +5171,7 @@ class UnsharpMask(ImageOnlyTransform):
         ...     p=1.0
         ... )
         >>> sharpened_image = transform(image=image)['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -5298,17 +5197,6 @@ class UnsharpMask(ImageOnlyTransform):
         threshold: int = 10,
         p: float = 0.5,
     ):
-        """Initialize the UnsharpMask transform.
-
-        Args:
-            blur_limit (tuple[int, int] | int): Maximum Gaussian kernel size for blurring the input image.
-            sigma_limit (tuple[float, float] | float): Gaussian kernel standard deviation.
-            alpha (tuple[float, float] | float): Range to choose the visibility of the sharpened image.
-            threshold (int): Value to limit sharpening only for areas with high pixel difference between original image
-                and it's smoothed version. Higher threshold means less sharpening on flat areas.
-                Must be in range [0, 255]. Default: 10.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.blur_limit = cast("tuple[int, int]", blur_limit)
         self.sigma_limit = cast("tuple[float, float]", sigma_limit)
@@ -5320,10 +5208,12 @@ class UnsharpMask(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for the UnsharpMask transform.
+        """
+        Generate parameters for the UnsharpMask transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         return {
             "ksize": self.py_random.randrange(
@@ -5343,7 +5233,8 @@ class UnsharpMask(ImageOnlyTransform):
         alpha: float,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the UnsharpMask transform to the input image.
+        """
+        Apply the UnsharpMask transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the UnsharpMask transform to.
@@ -5354,6 +5245,7 @@ class UnsharpMask(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied UnsharpMask transform.
+
         """
         return fmain.unsharp_mask(
             img,
@@ -5365,7 +5257,8 @@ class UnsharpMask(ImageOnlyTransform):
 
 
 class Spatter(ImageOnlyTransform):
-    """Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
+    """
+    Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
 
     Args:
         mean (tuple[float, float] | float): Mean value of normal distribution for generating liquid layer.
@@ -5445,20 +5338,6 @@ class Spatter(ImageOnlyTransform):
         color: tuple[int, ...] | None = None,
         p: float = 0.5,
     ):
-        """Initialize the Spatter transform.
-
-        Args:
-            mean (tuple[float, float] | float): Mean value of normal distribution for generating liquid layer.
-            std (tuple[float, float] | float): Standard deviation value of normal distribution for generating
-                liquid layer.
-            gauss_sigma (tuple[float, float] | floats): Sigma value for gaussian filtering of liquid layer.
-            cutout_threshold (tuple[float, float] | floats): Threshold for filtering liquid layer
-                (determines number of drops). If single float it will used as cutout_threshold.
-            intensity (tuple[float, float] | floats): Intensity of corruption.
-            mode (Literal["rain", "mud"]): Type of corruption.
-            color (tuple[int, ...] | None): Corruption elements color.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.mean = cast("tuple[float, float]", mean)
         self.std = cast("tuple[float, float]", std)
@@ -5473,7 +5352,8 @@ class Spatter(ImageOnlyTransform):
         img: np.ndarray,
         **params: dict[str, Any],
     ) -> np.ndarray:
-        """Apply the Spatter transform to the input image.
+        """
+        Apply the Spatter transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Spatter transform to.
@@ -5481,6 +5361,7 @@ class Spatter(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied Spatter transform.
+
         """
         non_rgb_error(img)
 
@@ -5494,10 +5375,12 @@ class Spatter(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for the Spatter transform.
+        """
+        Generate parameters for the Spatter transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         height, width = params["shape"][:2]
 
@@ -5548,7 +5431,8 @@ class Spatter(ImageOnlyTransform):
 
 
 class ChromaticAberration(ImageOnlyTransform):
-    """Add lateral chromatic aberration by distorting the red and blue channels of the input image.
+    """
+    Add lateral chromatic aberration by distorting the red and blue channels of the input image.
 
     Chromatic aberration is an optical effect that occurs when a lens fails to focus all colors to the same point.
     This transform simulates this effect by applying different radial distortions to the red and blue channels
@@ -5614,6 +5498,7 @@ class ChromaticAberration(ImageOnlyTransform):
 
     References:
         Chromatic Aberration: https://en.wikipedia.org/wiki/Chromatic_aberration
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -5646,16 +5531,6 @@ class ChromaticAberration(ImageOnlyTransform):
         ] = cv2.INTER_LINEAR,
         p: float = 0.5,
     ):
-        """Initialize the ChromaticAberration transform.
-
-        Args:
-            primary_distortion_limit (tuple[float, float] | float): Range of the primary radial distortion coefficient.
-            secondary_distortion_limit (tuple[float, float] | float): Range of the secondary radial distortion
-                coefficient.
-            mode (Literal["green_purple", "red_blue", "random"]): Type of color fringing to apply.
-            interpolation (InterpolationType): Flag specifying the interpolation algorithm.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.primary_distortion_limit = cast(
             "tuple[float, float]",
@@ -5677,7 +5552,8 @@ class ChromaticAberration(ImageOnlyTransform):
         secondary_distortion_blue: float,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the ChromaticAberration transform to the input image.
+        """
+        Apply the ChromaticAberration transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ChromaticAberration transform to.
@@ -5689,6 +5565,7 @@ class ChromaticAberration(ImageOnlyTransform):
 
         Returns:
             np.ndarray: The image with the applied ChromaticAberration transform.
+
         """
         non_rgb_error(img)
         return fmain.chromatic_aberration(
@@ -5701,10 +5578,12 @@ class ChromaticAberration(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, float]:
-        """Generate parameters for the ChromaticAberration transform.
+        """
+        Generate parameters for the ChromaticAberration transform.
 
         Returns:
             dict[str, float]: The parameters of the transform.
+
         """
         primary_distortion_red = self.py_random.uniform(*self.primary_distortion_limit)
         secondary_distortion_red = self.py_random.uniform(
@@ -5768,7 +5647,8 @@ class ChromaticAberration(ImageOnlyTransform):
 
 
 class Morphological(DualTransform):
-    """Apply a morphological operation (dilation or erosion) to an image,
+    """
+    Apply a morphological operation (dilation or erosion) to an image,
     with particular value for enhancing document scans.
 
     Morphological operations modify the structure of the image.
@@ -5803,6 +5683,7 @@ class Morphological(DualTransform):
         >>>     A.Morphological(scale=(2, 3), operation='dilation', p=0.5)
         >>> ])
         >>> image = transform(image=image)["image"]
+
     """
 
     _targets = ALL_TARGETS
@@ -5817,15 +5698,6 @@ class Morphological(DualTransform):
         operation: Literal["erosion", "dilation"] = "dilation",
         p: float = 0.5,
     ):
-        """Initialize the Morphological transform.
-
-        Args:
-            scale (tuple[int, int] | int): Specifies the size of the structuring element (kernel) used for
-                the operation. If an integer is provided, a square kernel of that size will be used.
-            operation (Literal["erosion", "dilation"]): The morphological operation to apply.
-                Default is 'dilation'.
-            p (float, optional): The probability of applying this transformation. Default is 0.5.
-        """
         super().__init__(p=p)
         self.scale = cast("tuple[int, int]", scale)
         self.operation = operation
@@ -5836,12 +5708,14 @@ class Morphological(DualTransform):
         kernel: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
-        """Apply the Morphological transform to the input image.
+        """
+        Apply the Morphological transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Morphological transform to.
             kernel (tuple[int, int]): The structuring element (kernel) used for the operation.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.morphology(img, kernel, self.operation)
 
@@ -5851,12 +5725,14 @@ class Morphological(DualTransform):
         kernel: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
-        """Apply the Morphological transform to the input bounding boxes.
+        """
+        Apply the Morphological transform to the input bounding boxes.
 
         Args:
             bboxes (np.ndarray): The input bounding boxes to apply the Morphological transform to.
             kernel (tuple[int, int]): The structuring element (kernel) used for the operation.
             **params (Any): Additional parameters for the transform.
+
         """
         image_shape = params["shape"]
 
@@ -5876,19 +5752,23 @@ class Morphological(DualTransform):
         keypoints: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the Morphological transform to the input keypoints.
+        """
+        Apply the Morphological transform to the input keypoints.
 
         Args:
             keypoints (np.ndarray): The input keypoints to apply the Morphological transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return keypoints
 
     def get_params(self) -> dict[str, float]:
-        """Generate parameters for the Morphological transform.
+        """
+        Generate parameters for the Morphological transform.
 
         Returns:
             dict[str, float]: The parameters of the transform.
+
         """
         return {
             "kernel": cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.scale),
@@ -5908,7 +5788,8 @@ PLANKIAN_JITTER_CONST = {
 
 
 class PlanckianJitter(ImageOnlyTransform):
-    """Applies Planckian Jitter to the input image, simulating color temperature variations in illumination.
+    """
+    Applies Planckian Jitter to the input image, simulating color temperature variations in illumination.
 
     This transform adjusts the color of an image to mimic the effect of different color temperatures
     of light sources, based on Planck's law of black body radiation. It can simulate the appearance
@@ -5991,6 +5872,7 @@ class PlanckianJitter(ImageOnlyTransform):
         - CIE Standard Illuminants: https://en.wikipedia.org/wiki/Standard_illuminant
         - Color temperature: https://en.wikipedia.org/wiki/Color_temperature
         - Implementation inspired by: https://github.com/TheZino/PlanckianJitter
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -6043,14 +5925,6 @@ class PlanckianJitter(ImageOnlyTransform):
         sampling_method: Literal["uniform", "gaussian"] = "uniform",
         p: float = 0.5,
     ) -> None:
-        """Initialize the PlanckianJitter transform.
-
-        Args:
-            mode (Literal["blackbody", "cied"]): The mode of the transformation.
-            temperature_limit (tuple[int, int] | None): The range of color temperatures (in Kelvin) to sample from.
-            sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
 
         self.mode = mode
@@ -6058,21 +5932,25 @@ class PlanckianJitter(ImageOnlyTransform):
         self.sampling_method = sampling_method
 
     def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
-        """Apply the PlanckianJitter transform to the input image.
+        """
+        Apply the PlanckianJitter transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the PlanckianJitter transform to.
             temperature (int): The temperature to apply to the image.
             **params (Any): Additional parameters for the transform.
+
         """
         non_rgb_error(img)
         return fmain.planckian_jitter(img, temperature, mode=self.mode)
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters for the PlanckianJitter transform.
+        """
+        Generate parameters for the PlanckianJitter transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         sampling_prob_boundary = PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]
         sampling_temp_boundary = PLANKIAN_JITTER_CONST["WHITE_TEMP"]
@@ -6123,7 +6001,8 @@ class PlanckianJitter(ImageOnlyTransform):
 
 
 class ShotNoise(ImageOnlyTransform):
-    """Apply shot noise to the image by modeling photon counting as a Poisson process.
+    """
+    Apply shot noise to the image by modeling photon counting as a Poisson process.
 
     Shot noise (also known as Poisson noise) occurs in imaging due to the quantum nature of light.
     When photons hit an imaging sensor, they arrive at random times following Poisson statistics.
@@ -6175,6 +6054,7 @@ class ShotNoise(ImageOnlyTransform):
         - Original paper: https://doi.org/10.1002/andp.19183622304 (Schottky, 1918)
         - Poisson process: https://en.wikipedia.org/wiki/Poisson_point_process
         - Gamma correction: https://en.wikipedia.org/wiki/Gamma_correction
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -6189,12 +6069,6 @@ class ShotNoise(ImageOnlyTransform):
         scale_range: tuple[float, float] = (0.1, 0.3),
         p: float = 0.5,
     ):
-        """Initialize the ShotNoise transform.
-
-        Args:
-            scale_range (tuple[float, float]): Range for sampling the noise scale factor.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.scale_range = scale_range
 
@@ -6205,21 +6079,25 @@ class ShotNoise(ImageOnlyTransform):
         random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the ShotNoise transform to the input image.
+        """
+        Apply the ShotNoise transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ShotNoise transform to.
             scale (float): The scale factor for the noise.
             random_seed (int): The random seed for the noise.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.shot_noise(img, scale, np.random.default_rng(random_seed))
 
     def get_params(self) -> dict[str, Any]:
-        """Generate parameters for the ShotNoise transform.
+        """
+        Generate parameters for the ShotNoise transform.
 
         Returns:
             dict[str, Any]: The parameters of the transform.
+
         """
         return {
             "scale": self.py_random.uniform(*self.scale_range),
@@ -6302,7 +6180,8 @@ NoiseParams = Annotated[
 
 
 class AdditiveNoise(ImageOnlyTransform):
-    """Apply random noise to image channels using various noise distributions.
+    """
+    Apply random noise to image channels using various noise distributions.
 
     This transform generates noise using different probability distributions and applies it
     to image channels. The noise can be generated in three spatial modes and supports
@@ -6448,15 +6327,6 @@ class AdditiveNoise(ImageOnlyTransform):
         approximation: float = 1.0,
         p: float = 0.5,
     ):
-        """Initialize the AdditiveNoise transform.
-
-        Args:
-            noise_type (Literal["uniform", "gaussian", "laplace", "beta"]): Type of noise distribution to use.
-            spatial_mode (Literal["constant", "per_pixel", "shared"]): How to generate and apply the noise.
-            noise_params (dict[str, Any] | None): Parameters for the chosen noise distribution.
-            approximation (float): Controls noise generation speed vs quality tradeoff.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.noise_type = noise_type
         self.spatial_mode = spatial_mode
@@ -6469,12 +6339,14 @@ class AdditiveNoise(ImageOnlyTransform):
         noise_map: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the AdditiveNoise transform to the input image.
+        """
+        Apply the AdditiveNoise transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the AdditiveNoise transform to.
             noise_map (np.ndarray): The noise map to apply to the image.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.add_noise(img, noise_map)
 
@@ -6483,11 +6355,13 @@ class AdditiveNoise(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for the AdditiveNoise transform.
+        """
+        Generate parameters for the AdditiveNoise transform.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
             data (dict[str, Any]): The data to apply the transform to.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
 
@@ -6506,7 +6380,8 @@ class AdditiveNoise(ImageOnlyTransform):
 
 
 class RGBShift(AdditiveNoise):
-    """Randomly shift values for each channel of the input RGB image.
+    """
+    Randomly shift values for each channel of the input RGB image.
 
     A specialized version of AdditiveNoise that applies constant uniform shifts to RGB channels.
     Each channel (R,G,B) can have its own shift range specified.
@@ -6586,6 +6461,7 @@ class RGBShift(AdditiveNoise):
         - PlankianJitter: For color temperature adjustments
         - HueSaturationValue: For HSV color space adjustments
         - ColorJitter: For combined brightness, contrast, saturation adjustments
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -6600,15 +6476,6 @@ class RGBShift(AdditiveNoise):
         b_shift_limit: tuple[float, float] | float = (-20, 20),
         p: float = 0.5,
     ):
-        """Initialize the RGBShift transform.
-
-        Args:
-            r_shift_limit (tuple[float, float] | float): Range for shifting the red channel.
-            g_shift_limit (tuple[float, float] | float): Range for shifting the green channel.
-            b_shift_limit (tuple[float, float] | float): Range for shifting the blue channel.
-            p (float): Probability of applying the transform.
-        """
-
         # Convert RGB shift limits to normalized ranges if needed
         def normalize_range(limit: tuple[float, float]) -> tuple[float, float]:
             # If any value is > 1, assume uint8 range and normalize
@@ -6638,7 +6505,8 @@ class RGBShift(AdditiveNoise):
 
 
 class SaltAndPepper(ImageOnlyTransform):
-    """Apply salt and pepper noise to the input image.
+    """
+    Apply salt and pepper noise to the input image.
 
     Salt and pepper noise is a form of impulse noise that randomly sets pixels to either maximum value (salt)
     or minimum value (pepper). The amount and proportion of salt vs pepper noise can be controlled.
@@ -6715,6 +6583,7 @@ class SaltAndPepper(ImageOnlyTransform):
         - GaussNoise: For additive Gaussian noise
         - MultiplicativeNoise: For multiplicative noise
         - ISONoise: For camera sensor noise simulation
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -6727,13 +6596,6 @@ class SaltAndPepper(ImageOnlyTransform):
         salt_vs_pepper: tuple[float, float] = (0.4, 0.6),
         p: float = 0.5,
     ):
-        """Initialize the SaltAndPepper transform.
-
-        Args:
-            amount (tuple[float, float]): Range for total amount of noise (both salt and pepper).
-            salt_vs_pepper (tuple[float, float]): Range for ratio of salt (white) vs pepper (black) noise.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.amount = amount
         self.salt_vs_pepper = salt_vs_pepper
@@ -6743,11 +6605,13 @@ class SaltAndPepper(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for the SaltAndPepper transform.
+        """
+        Generate parameters for the SaltAndPepper transform.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
             data (dict[str, Any]): The data to apply the transform to.
+
         """
         image = data["image"] if "image" in data else data["images"][0]
         height, width = image.shape[:2]
@@ -6787,19 +6651,22 @@ class SaltAndPepper(ImageOnlyTransform):
         pepper_mask: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the SaltAndPepper transform to the input image.
+        """
+        Apply the SaltAndPepper transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the SaltAndPepper transform to.
             salt_mask (np.ndarray): The salt mask to apply to the image.
             pepper_mask (np.ndarray): The pepper mask to apply to the image.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.apply_salt_and_pepper(img, salt_mask, pepper_mask)
 
 
 class PlasmaBrightnessContrast(ImageOnlyTransform):
-    """Apply plasma fractal pattern to modify image brightness and contrast.
+    """
+    Apply plasma fractal pattern to modify image brightness and contrast.
 
     Uses Diamond-Square algorithm to generate organic-looking fractal patterns
     that create spatially-varying brightness and contrast adjustments.
@@ -6905,6 +6772,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         - CLAHE: For contrast limited adaptive histogram equalization
         - FancyPCA: For color-based contrast enhancement
         - HistogramMatching: For reference-based contrast adjustment
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -6927,15 +6795,6 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         roughness: float = 3.0,
         p: float = 0.5,
     ):
-        """Initialize the PlasmaBrightnessContrast transform.
-
-        Args:
-            brightness_range (tuple[float, float]): Range for brightness adjustment strength.
-            contrast_range (tuple[float, float]): Range for contrast adjustment strength.
-            plasma_size (int): Size of the initial plasma pattern grid.
-            roughness (float): Controls how quickly the noise amplitude increases at each iteration.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.brightness_range = brightness_range
         self.contrast_range = contrast_range
@@ -6947,11 +6806,13 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for the PlasmaBrightnessContrast transform.
+        """
+        Generate parameters for the PlasmaBrightnessContrast transform.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
             data (dict[str, Any]): The data to apply the transform to.
+
         """
         shape = params["shape"]
 
@@ -6980,7 +6841,8 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         plasma_pattern: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the PlasmaBrightnessContrast transform to the input image.
+        """
+        Apply the PlasmaBrightnessContrast transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the PlasmaBrightnessContrast transform to.
@@ -6988,6 +6850,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             contrast_factor (float): The contrast factor to apply to the image.
             plasma_pattern (np.ndarray): The plasma pattern to apply to the image.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.apply_plasma_brightness_contrast(
             img,
@@ -6998,37 +6861,44 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
 
     @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the PlasmaBrightnessContrast transform to a batch of images.
+        """
+        Apply the PlasmaBrightnessContrast transform to a batch of images.
 
         Args:
             images (np.ndarray): The input images to apply the PlasmaBrightnessContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(images, **params)
 
     @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the PlasmaBrightnessContrast transform to a volume.
+        """
+        Apply the PlasmaBrightnessContrast transform to a volume.
 
         Args:
             volume (np.ndarray): The input volume to apply the PlasmaBrightnessContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the PlasmaBrightnessContrast transform to a batch of volumes.
+        """
+        Apply the PlasmaBrightnessContrast transform to a batch of volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the PlasmaBrightnessContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volumes, **params)
 
 
 class PlasmaShadow(ImageOnlyTransform):
-    """Apply plasma-based shadow effect to the image using Diamond-Square algorithm.
+    """
+    Apply plasma-based shadow effect to the image using Diamond-Square algorithm.
 
     Creates organic-looking shadows using plasma fractal noise pattern.
     The shadow intensity varies smoothly across the image, creating natural-looking
@@ -7121,6 +6991,7 @@ class PlasmaShadow(ImageOnlyTransform):
         - RandomShadow: For geometric shadow effects
         - RandomToneCurve: For global lighting adjustments
         - PlasmaBrightnessContrast: For brightness/contrast adjustments using plasma patterns
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -7134,14 +7005,6 @@ class PlasmaShadow(ImageOnlyTransform):
         roughness: float = 3.0,
         p: float = 0.5,
     ):
-        """Initialize the PlasmaShadow transform.
-
-        Args:
-            shadow_intensity_range (tuple[float, float]): Range for shadow intensity.
-            plasma_size (int): Size of the initial plasma pattern grid.
-            roughness (float): Controls how quickly the noise amplitude increases at each iteration.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.shadow_intensity_range = shadow_intensity_range
         self.plasma_size = plasma_size
@@ -7152,11 +7015,13 @@ class PlasmaShadow(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for the PlasmaShadow transform.
+        """
+        Generate parameters for the PlasmaShadow transform.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
             data (dict[str, Any]): The data to apply the transform to.
+
         """
         shape = params["shape"]
 
@@ -7182,49 +7047,58 @@ class PlasmaShadow(ImageOnlyTransform):
         plasma_pattern: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the PlasmaShadow transform to the input image.
+        """
+        Apply the PlasmaShadow transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the PlasmaShadow transform to.
             intensity (float): The intensity of the shadow to apply to the image.
             plasma_pattern (np.ndarray): The plasma pattern to apply to the image.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.apply_plasma_shadow(img, intensity, plasma_pattern)
 
     @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the PlasmaShadow transform to a batch of images.
+        """
+        Apply the PlasmaShadow transform to a batch of images.
 
         Args:
             images (np.ndarray): The input images to apply the PlasmaShadow transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(images, **params)
 
     @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the PlasmaShadow transform to a batch of volume.
+        """
+        Apply the PlasmaShadow transform to a batch of volume.
 
         Args:
             volume (np.ndarray): The input volume to apply the PlasmaShadow transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", keep_depth_dim=True, has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the PlasmaShadow transform to a batch of volumes.
+        """
+        Apply the PlasmaShadow transform to a batch of volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the PlasmaShadow transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volumes, **params)
 
 
 class Illumination(ImageOnlyTransform):
-    """Apply various illumination effects to the image.
+    """
+    Apply various illumination effects to the image.
 
     This transform simulates different lighting conditions by applying controlled
     illumination patterns. It can create effects like:
@@ -7351,6 +7225,7 @@ class Illumination(ImageOnlyTransform):
         - Effects are applied multiplicatively to preserve texture
         - Can be combined with other transforms for complex lighting scenarios
         - Useful for training models to be robust to lighting variations
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -7383,17 +7258,6 @@ class Illumination(ImageOnlyTransform):
         sigma_range: tuple[float, float] = (0.2, 1.0),
         p: float = 0.5,
     ):
-        """Initialize the Illumination transform.
-
-        Args:
-            mode (Literal["linear", "corner", "gaussian"]): Type of illumination pattern.
-            intensity_range (tuple[float, float]): Range for effect strength.
-            effect_type (Literal["brighten", "darken", "both"]): Type of lighting change.
-            angle_range (tuple[float, float]): Range for gradient angle.
-            center_range (tuple[float, float]): Range for spotlight position.
-            sigma_range (tuple[float, float]): Range for spotlight size.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.mode = mode
         self.intensity_range = intensity_range
@@ -7403,11 +7267,13 @@ class Illumination(ImageOnlyTransform):
         self.sigma_range = sigma_range
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Generate parameters for the Illumination transform.
+        """
+        Generate parameters for the Illumination transform.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
             data (dict[str, Any]): The data to apply the transform to.
+
         """
         intensity = self.py_random.uniform(*self.intensity_range)
 
@@ -7443,11 +7309,13 @@ class Illumination(ImageOnlyTransform):
         }
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Illumination transform to the input image.
+        """
+        Apply the Illumination transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the Illumination transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         if self.mode == "linear":
             return fmain.apply_linear_illumination(
@@ -7471,7 +7339,8 @@ class Illumination(ImageOnlyTransform):
 
 
 class AutoContrast(ImageOnlyTransform):
-    """Automatically adjust image contrast by stretching the intensity range.
+    """
+    Automatically adjust image contrast by stretching the intensity range.
 
     This transform provides two methods for contrast enhancement:
     1. CDF method (default): Uses cumulative distribution function for more gradual adjustment
@@ -7520,6 +7389,7 @@ class AutoContrast(ImageOnlyTransform):
         >>>
         >>> # Use PIL-like contrast enhancement
         >>> transform = A.AutoContrast(method="pil", p=1.0)
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -7534,61 +7404,62 @@ class AutoContrast(ImageOnlyTransform):
         method: Literal["cdf", "pil"] = "cdf",
         p: float = 0.5,
     ):
-        """Initialize the AutoContrast transform.
-
-        Args:
-            cutoff (float): Percentage of pixels to exclude from both ends of the histogram.
-            ignore (int, optional): Intensity value to preserve (e.g., alpha channel).
-            method (Literal["cdf", "pil"]): Algorithm to use for contrast enhancement.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.cutoff = cutoff
         self.ignore = ignore
         self.method = method
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the AutoContrast transform to the input image.
+        """
+        Apply the AutoContrast transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the AutoContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return fmain.auto_contrast(img, self.cutoff, self.ignore, self.method)
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the AutoContrast transform to a batch of images.
+        """
+        Apply the AutoContrast transform to a batch of images.
 
         Args:
             images (np.ndarray): The input images to apply the AutoContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(images, **params)
 
     @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the AutoContrast transform to a batch of volumes.
+        """
+        Apply the AutoContrast transform to a batch of volumes.
 
         Args:
             volume (np.ndarray): The input volume to apply the AutoContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volume, **params)
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the AutoContrast transform to a batch of volumes.
+        """
+        Apply the AutoContrast transform to a batch of volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the AutoContrast transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volumes, **params)
 
 
 class HEStain(ImageOnlyTransform):
-    """Applies H&E (Hematoxylin and Eosin) stain augmentation to histopathology images.
+    """
+    Applies H&E (Hematoxylin and Eosin) stain augmentation to histopathology images.
 
     This transform simulates different H&E staining conditions using either:
     1. Predefined stain matrices (8 standard references)
@@ -7646,6 +7517,7 @@ class HEStain(ImageOnlyTransform):
             cytology and histology, 2001.
         - M. Macenko et al., "A method for normalizing histology slides for: 2009 IEEE International Symposium on
             quantitative analysis," 2009 IEEE International Symposium on Biomedical Imaging, 2009.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -7702,16 +7574,6 @@ class HEStain(ImageOnlyTransform):
         augment_background: bool = False,
         p: float = 0.5,
     ):
-        """Initialize the HEStain transform.
-
-        Args:
-            method (Literal["preset", "random_preset", "vahadane", "macenko"]): Method to use for stain augmentation.
-            preset (Literal[str, None]): Preset stain matrix to use when method="preset".
-            intensity_scale_range (tuple[float, float]): Range for multiplicative stain intensity variation.
-            intensity_shift_range (tuple[float, float]): Range for additive stain intensity variation.
-            augment_background (bool): Whether to apply augmentation to background regions.
-            p (float): Probability of applying the transform.
-        """
         super().__init__(p=p)
         self.method = method
         self.preset = preset
@@ -7756,7 +7618,8 @@ class HEStain(ImageOnlyTransform):
         shift_values: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply the HEStain transform to the input image.
+        """
+        Apply the HEStain transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the HEStain transform to.
@@ -7764,6 +7627,7 @@ class HEStain(ImageOnlyTransform):
             scale_factors (np.ndarray): The scale factors to use for the transform.
             shift_values (np.ndarray): The shift values to use for the transform.
             **params (Any): Additional parameters for the transform.
+
         """
         non_rgb_error(img)
         return fmain.apply_he_stain_augmentation(
@@ -7776,40 +7640,48 @@ class HEStain(ImageOnlyTransform):
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the HEStain transform to a batch of images.
+        """
+        Apply the HEStain transform to a batch of images.
 
         Args:
             images (np.ndarray): The input images to apply the HEStain transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(images, **params)
 
     @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the HEStain transform to a batch of volumes.
+        """
+        Apply the HEStain transform to a batch of volumes.
 
         Args:
             volume (np.ndarray): The input volumes to apply the HEStain transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volume, **params)
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the HEStain transform to a batch of volumes.
+        """
+        Apply the HEStain transform to a batch of volumes.
 
         Args:
             volumes (np.ndarray): The input volumes to apply the HEStain transform to.
             **params (Any): Additional parameters for the transform.
+
         """
         return self.apply(volumes, **params)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Generate parameters for the HEStain transform.
+        """
+        Generate parameters for the HEStain transform.
 
         Args:
             params (dict[str, Any]): The parameters of the transform.
             data (dict[str, Any]): The data to apply the transform to.
+
         """
         # Get stain matrix
         image = data["image"] if "image" in data else data["images"][0]

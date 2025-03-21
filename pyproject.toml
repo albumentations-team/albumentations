@@ -208,7 +208,12 @@ lint.ignore = [
   "D105",
   "D106",
   "D107",
+  "D203",
   "D205",
+  "D212",
+  "D400",
+  "D401",
+  "D404",
   "D415",
   "EM101",
   "EM102",
@@ -229,16 +234,6 @@ lint.ignore = [
   "TRY003",
 ]
 
-# Allow fix for all enabled rules (when `--fix`) is provided.
-
-lint.explicit-preview-rules = true
-lint.fixable = [ "ALL" ]
-lint.unfixable = [  ]
-# Allow unused variables when underscore-prefixed.
-lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-# Like Black, use double quotes for strings.
-lint.pydocstyle.convention = "google"
-
 [tool.mypy]
 plugins = [ "pydantic.mypy" ]
 
@@ -254,6 +249,19 @@ disable_error_code = [ "valid-type" ]
 
 # for strict mypy: (this is the tricky one :-))
 disallow_untyped_defs = true
+
+[tool.pydocstyle]
+# Allow fix for all enabled rules (when `--fix`) is provided.
+
+lint.explicit-preview-rules = true
+lint.fixable = [ "ALL" ]
+lint.unfixable = [  ]
+# Allow unused variables when underscore-prefixed.
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Like Black, use double quotes for strings.
+lint.pydocstyle.convention = "google"
+lint.pydocstyle.ignore-magic-methods = true
+lint.pydocstyle.ignore-decorators = "^__.*__$"
 
 [tool.albumentations.maintainers]
 emeritus = [

@@ -1,4 +1,5 @@
-"""Module containing PyTorch-specific transforms for Albumentations.
+"""
+Module containing PyTorch-specific transforms for Albumentations.
 
 This module provides transforms that convert NumPy arrays to PyTorch tensors in
 the appropriate format. It handles both 2D image data and 3D volumetric data,
@@ -26,7 +27,8 @@ __all__ = ["ToTensor3D", "ToTensorV2"]
 
 
 class ToTensorV2(BasicTransform):
-    """Converts images/masks to PyTorch Tensors, inheriting from BasicTransform.
+    """
+    Converts images/masks to PyTorch Tensors, inheriting from BasicTransform.
     For images:
         - If input is in `HWC` format, converts to PyTorch `CHW` format
         - If input is in `HW` format, converts to PyTorch `1HW` format (adds channel dimension)
@@ -35,6 +37,7 @@ class ToTensorV2(BasicTransform):
         transpose_mask (bool): If True, transposes 3D input mask dimensions from `[height, width, num_channels]` to
             `[num_channels, height, width]`.
         p (float): Probability of applying the transform. Default: 1.0.
+
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
@@ -45,10 +48,12 @@ class ToTensorV2(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Any]:
-        """Define mapping of target name to target function.
+        """
+        Define mapping of target name to target function.
 
         Returns:
             dict[str, Any]: Dictionary mapping target names to corresponding transform functions.
+
         """
         return {
             "image": self.apply,
@@ -58,7 +63,8 @@ class ToTensorV2(BasicTransform):
         }
 
     def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
-        """Convert a 2D image array to a PyTorch tensor.
+        """
+        Convert a 2D image array to a PyTorch tensor.
 
         Converts image from HWC or HW format to CHW format, handling both
         single-channel and multi-channel images.
@@ -72,6 +78,7 @@ class ToTensorV2(BasicTransform):
 
         Raises:
             ValueError: If image dimensions are neither HW nor HWC
+
         """
         if img.ndim not in {MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS}:
             msg = "Albumentations only supports images in HW or HWC format"
@@ -83,7 +90,8 @@ class ToTensorV2(BasicTransform):
         return torch.from_numpy(img.transpose(2, 0, 1))
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> torch.Tensor:
-        """Convert a mask array to a PyTorch tensor.
+        """
+        Convert a mask array to a PyTorch tensor.
 
         If transpose_mask is True and mask has 3 dimensions (H,W,C),
         converts mask to channels-first format (C,H,W).
@@ -94,6 +102,7 @@ class ToTensorV2(BasicTransform):
 
         Returns:
             torch.Tensor: PyTorch tensor of mask
+
         """
         if self.transpose_mask and mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
             mask = mask.transpose(2, 0, 1)
@@ -106,7 +115,8 @@ class ToTensorV2(BasicTransform):
     def apply_to_masks(self, masks: np.ndarray, **params: Any) -> torch.Tensor: ...
 
     def apply_to_masks(self, masks: np.ndarray | list[np.ndarray], **params: Any) -> torch.Tensor | list[torch.Tensor]:
-        """Convert numpy array or list of numpy array masks to torch tensor(s).
+        """
+        Convert numpy array or list of numpy array masks to torch tensor(s).
 
         Args:
             masks (np.ndarray | list[np.ndarray]): Numpy array of shape (N, H, W) or (N, H, W, C),
@@ -117,6 +127,7 @@ class ToTensorV2(BasicTransform):
             torch.Tensor | list[torch.Tensor]: If transpose_mask is True and input is (N, H, W, C),
                 returns tensor of shape (N, C, H, W). If transpose_mask is True and input is (H, W, C), r
                 eturns a list of tensors with shape (C, H, W). Otherwise, returns tensors with the same shape as input.
+
         """
         if isinstance(masks, list):
             return [self.apply_to_mask(mask, **params) for mask in masks]
@@ -133,7 +144,8 @@ class ToTensorV2(BasicTransform):
 
 
 class ToTensor3D(BasicTransform):
-    """Convert 3D volumes and masks to PyTorch tensors.
+    """
+    Convert 3D volumes and masks to PyTorch tensors.
 
     This transform is designed for 3D medical imaging data. It converts numpy arrays
     to PyTorch tensors and ensures consistent channel positioning.
@@ -150,6 +162,7 @@ class ToTensor3D(BasicTransform):
 
     Args:
         p (float): Probability of applying the transform. Default: 1.0
+
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
@@ -159,10 +172,12 @@ class ToTensor3D(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Any]:
-        """Define mapping of target name to target function.
+        """
+        Define mapping of target name to target function.
 
         Returns:
             dict[str, Any]: Dictionary mapping target names to corresponding transform functions
+
         """
         return {
             "volume": self.apply_to_volume,

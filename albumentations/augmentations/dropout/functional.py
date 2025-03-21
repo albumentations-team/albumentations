@@ -1,4 +1,5 @@
-"""Functional implementations of dropout operations for image augmentation.
+"""
+Functional implementations of dropout operations for image augmentation.
 
 This module provides low-level functions for various dropout techniques used in image
 augmentation, including channel dropout, grid dropout, mask dropout, and coarse dropout.
@@ -56,7 +57,8 @@ def generate_random_fill(
     shape: tuple[int, ...],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Generate a random fill array based on the given dtype and target shape.
+    """
+    Generate a random fill array based on the given dtype and target shape.
 
     This function creates a numpy array filled with random values. The range and type of these values
     depend on the input dtype. For integer dtypes, it generates random integers. For floating-point
@@ -81,6 +83,7 @@ def generate_random_fill(
         >>> print(result)
         [[172 251]
          [ 80 141]]
+
     """
     max_value = MAX_VALUES_BY_DTYPE[dtype]
     if np.issubdtype(dtype, np.integer):
@@ -92,7 +95,8 @@ def generate_random_fill(
 
 @uint8_io
 def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpaint_telea", "inpaint_ns"]) -> np.ndarray:
-    """Apply OpenCV inpainting to fill the holes in the image.
+    """
+    Apply OpenCV inpainting to fill the holes in the image.
 
     Args:
         img (np.ndarray): Input image (grayscale or BGR)
@@ -104,6 +108,7 @@ def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpain
 
     Raises:
         NotImplementedError: If image has more than 3 channels
+
     """
     num_channels = get_num_channels(img)
     # Create inpainting mask
@@ -129,12 +134,14 @@ def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpain
 
 
 def fill_holes_with_value(img: np.ndarray, holes: np.ndarray, fill_value: np.ndarray) -> np.ndarray:
-    """Fill holes with a constant value.
+    """
+    Fill holes with a constant value.
 
     Args:
         img (np.ndarray): Input image
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
         fill_value (np.ndarray): Value to fill the holes with
+
     """
     for x_min, y_min, x_max, y_max in holes:
         img[y_min:y_max, x_min:x_max] = fill_value
@@ -147,13 +154,15 @@ def fill_holes_with_random(
     random_generator: np.random.Generator,
     uniform: bool,
 ) -> np.ndarray:
-    """Fill holes with random values.
+    """
+    Fill holes with random values.
 
     Args:
         img (np.ndarray): Input image
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
         random_generator (np.random.Generator): Random number generator
         uniform (bool): If True, use same random value for entire hole
+
     """
     for x_min, y_min, x_max, y_max in holes:
         shape = (1,) if uniform else (y_max - y_min, x_max - x_min)
@@ -171,7 +180,8 @@ def cutout(
     fill_value: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Apply cutout augmentation to the image by cutting out holes and filling them.
+    """
+    Apply cutout augmentation to the image by cutting out holes and filling them.
 
     Args:
         img (np.ndarray): The image to augment
@@ -187,6 +197,7 @@ def cutout(
 
     Raises:
         ValueError: If fill_value length doesn't match number of channels
+
     """
     img = img.copy()
 
@@ -222,7 +233,8 @@ def cutout(
 
 @handle_empty_array("keypoints")
 def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.ndarray:
-    """Filter out keypoints that are inside any of the holes.
+    """
+    Filter out keypoints that are inside any of the holes.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+).
@@ -232,6 +244,7 @@ def filter_keypoints_in_holes(keypoints: np.ndarray, holes: np.ndarray) -> np.nd
 
     Returns:
         np.ndarray: Array of keypoints that are not inside any hole.
+
     """
     # Broadcast keypoints and holes for vectorized comparison
     kp_x = keypoints[:, 0][:, np.newaxis]  # Shape: (num_keypoints, 1)
@@ -332,7 +345,8 @@ def calculate_grid_dimensions(
     holes_number_xy: tuple[int, int] | None,
     random_generator: np.random.Generator,
 ) -> tuple[int, int]:
-    """Calculate the dimensions of grid units for GridDropout.
+    """
+    Calculate the dimensions of grid units for GridDropout.
 
     This function determines the size of grid units based on the input parameters.
     It supports three modes of operation:
@@ -370,6 +384,7 @@ def calculate_grid_dimensions(
 
         >>> calculate_grid_dimensions(image_shape)
         (10, 20)  # Default calculation: max(2, dimension // 10)
+
     """
     height, width = image_shape[:2]
 
@@ -399,7 +414,8 @@ def generate_grid_holes(
     shift_xy: tuple[int, int],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """Generate a list of holes for GridDropout using a uniform grid.
+    """
+    Generate a list of holes for GridDropout using a uniform grid.
 
     This function creates a grid of holes for use in the GridDropout augmentation technique.
     It allows for customization of the grid size, hole size ratio, and positioning of holes.
@@ -441,6 +457,7 @@ def generate_grid_holes(
         (25, 4)
         >>> print(holes[0])  # Example output: [x1, y1, x2, y2] of the first hole
         [ 1 21 11 31]
+
     """
     height, width = image_shape[:2]
 
@@ -483,7 +500,8 @@ def mask_dropout_bboxes(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
-    """Filter and resize bounding boxes based on dropout mask.
+    """
+    Filter and resize bounding boxes based on dropout mask.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
@@ -494,6 +512,7 @@ def mask_dropout_bboxes(
 
     Returns:
         np.ndarray: Filtered and resized bounding boxes
+
     """
     height, width = image_shape
 
@@ -535,7 +554,8 @@ def mask_dropout_keypoints(
     keypoints: np.ndarray,
     dropout_mask: np.ndarray,
 ) -> np.ndarray:
-    """Filter keypoints based on dropout mask.
+    """
+    Filter keypoints based on dropout mask.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
@@ -543,6 +563,7 @@ def mask_dropout_keypoints(
 
     Returns:
         np.ndarray: Filtered keypoints
+
     """
     # Ensure dropout_mask is 2D
     if dropout_mask.ndim > 2:
@@ -573,7 +594,8 @@ def mask_dropout_keypoints(
 
 
 def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> np.ndarray | tuple[np.ndarray, int]:
-    """Label connected regions of an integer array.
+    """
+    Label connected regions of an integer array.
 
     This function uses OpenCV's connectedComponents under the hood but mimics
     the behavior of scikit-image's label function.
@@ -587,6 +609,7 @@ def label(mask: np.ndarray, return_num: bool = False, connectivity: int = 2) -> 
     Returns:
         np.ndarray | tuple[np.ndarray, int]: Labeled array, where all connected regions are
         assigned the same integer value. If return_num is True, it also returns the number of labels.
+
     """
     # Create a copy of the original mask
     labeled = np.zeros_like(mask, dtype=np.int32)
@@ -670,7 +693,8 @@ def sample_points_from_components(
     num_points: int,
     random_generator: np.random.Generator,
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """Sample points from connected components in a mask.
+    """
+    Sample points from connected components in a mask.
 
     Args:
         mask (np.ndarray): Binary mask
@@ -679,6 +703,7 @@ def sample_points_from_components(
 
     Returns:
         tuple[np.ndarray, np.ndarray] | None: Tuple of (x_coordinates, y_coordinates) or None if no valid components
+
     """
     num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
 

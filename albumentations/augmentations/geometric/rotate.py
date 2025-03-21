@@ -1,4 +1,5 @@
-"""Transforms for rotating images and associated data.
+"""
+Transforms for rotating images and associated data.
 
 This module provides classes for rotating images, masks, bounding boxes, and keypoints.
 Includes transforms for 90-degree rotations and arbitrary angle rotations with various
@@ -31,7 +32,8 @@ SMALL_NUMBER = 1e-10
 
 
 class RandomRotate90(DualTransform):
-    """Randomly rotate the input by 90 degrees zero or more times.
+    """
+    Randomly rotate the input by 90 degrees zero or more times.
 
     Even with p=1.0, the transform has a 1/4 probability of being identity:
     - With probability p * 1/4: no rotation (0 degrees)
@@ -75,6 +77,7 @@ class RandomRotate90(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     _targets = ALL_TARGETS
@@ -86,9 +89,28 @@ class RandomRotate90(DualTransform):
         super().__init__(p=p)
 
     def apply(self, img: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
+        """
+        Apply rotation to the input image.
+
+        Args:
+            img (np.ndarray): Image to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated image.
+
+        """
         return fgeometric.rot90(img, factor)
 
     def get_params(self) -> dict[str, int]:
+        """
+        Get parameters for the transform.
+
+        Returns:
+            dict[str, int]: Dictionary with the rotation factor.
+
+        """
         # Random int in the range [0, 3]
         return {"factor": self.py_random.randint(0, 3)}
 
@@ -98,6 +120,18 @@ class RandomRotate90(DualTransform):
         factor: Literal[0, 1, 2, 3],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply rotation to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated bounding boxes.
+
+        """
         return fgeometric.bboxes_rot90(bboxes, factor)
 
     def apply_to_keypoints(
@@ -106,6 +140,18 @@ class RandomRotate90(DualTransform):
         factor: Literal[0, 1, 2, 3],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply rotation to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated keypoints.
+
+        """
         return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
 
@@ -135,7 +181,8 @@ class RotateInitSchema(BaseTransformInitSchema):
 
 
 class Rotate(DualTransform):
-    """Rotate the input by an angle selected randomly from the uniform distribution.
+    """
+    Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
         limit (float | tuple[float, float]): Range from which a random angle is picked. If limit is a single float,
@@ -192,6 +239,7 @@ class Rotate(DualTransform):
         >>> result = transform(image=image)
         >>> rotated_image = result['image']
         # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees
+
     """
 
     _targets = ALL_TARGETS
@@ -253,6 +301,22 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply affine transformation to the image.
+
+        Args:
+            img (np.ndarray): Image to transform.
+            matrix (np.ndarray): Affine transformation matrix.
+            x_min (int): Minimum x-coordinate for cropping (if crop_border is True).
+            x_max (int): Maximum x-coordinate for cropping (if crop_border is True).
+            y_min (int): Minimum y-coordinate for cropping (if crop_border is True).
+            y_max (int): Maximum y-coordinate for cropping (if crop_border is True).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transformed image.
+
+        """
         img_out = fgeometric.warp_affine(
             img,
             matrix,
@@ -275,6 +339,22 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply affine transformation to the mask.
+
+        Args:
+            mask (np.ndarray): Mask to transform.
+            matrix (np.ndarray): Affine transformation matrix.
+            x_min (int): Minimum x-coordinate for cropping (if crop_border is True).
+            x_max (int): Maximum x-coordinate for cropping (if crop_border is True).
+            y_min (int): Minimum y-coordinate for cropping (if crop_border is True).
+            y_max (int): Maximum y-coordinate for cropping (if crop_border is True).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transformed mask.
+
+        """
         img_out = fgeometric.warp_affine(
             mask,
             matrix,
@@ -297,6 +377,22 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply affine transformation to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to transform.
+            bbox_matrix (np.ndarray): Affine transformation matrix for bounding boxes.
+            x_min (int): Minimum x-coordinate for cropping (if crop_border is True).
+            x_max (int): Maximum x-coordinate for cropping (if crop_border is True).
+            y_min (int): Minimum y-coordinate for cropping (if crop_border is True).
+            y_max (int): Maximum y-coordinate for cropping (if crop_border is True).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transformed bounding boxes.
+
+        """
         image_shape = params["shape"][:2]
         bboxes_out = fgeometric.bboxes_affine(
             bboxes,
@@ -324,6 +420,22 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply affine transformation to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to transform.
+            matrix (np.ndarray): Affine transformation matrix.
+            x_min (int): Minimum x-coordinate for cropping (if crop_border is True).
+            x_max (int): Maximum x-coordinate for cropping (if crop_border is True).
+            y_min (int): Minimum y-coordinate for cropping (if crop_border is True).
+            y_max (int): Maximum y-coordinate for cropping (if crop_border is True).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transformed keypoints.
+
+        """
         keypoints_out = fgeometric.keypoints_affine(
             keypoints,
             matrix,
@@ -344,12 +456,14 @@ class Rotate(DualTransform):
         width: int,
         angle: float,
     ) -> dict[str, int]:
-        """Given a rectangle of size wxh that has been rotated by 'angle' (in
+        """
+        Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
         References:
             Rotate image and crop out black borders: https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
+
         """
         angle = math.radians(angle)
         width_is_longer = width >= height
@@ -383,6 +497,17 @@ class Rotate(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters.
+            data (dict[str, Any]): Dictionary containing data.
+
+        Returns:
+            dict[str, Any]: Dictionary with parameters for transformation.
+
+        """
         angle = self.py_random.uniform(*self.limit)
 
         if self.crop_border:
@@ -420,7 +545,8 @@ class Rotate(DualTransform):
 
 
 class SafeRotate(Affine):
-    """Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
+    """
+    Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
 
     This transformation ensures that the entire rotated image fits within the original frame by scaling it
     down if necessary. The resulting image maintains its original dimensions but may contain artifacts due to the
@@ -484,6 +610,7 @@ class SafeRotate(Affine):
         >>> rotated_image = result['image']
         # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees,
         # scaled to fit within the original 100x100 frame
+
     """
 
     _targets = ALL_TARGETS
@@ -569,6 +696,17 @@ class SafeRotate(Affine):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters.
+            data (dict[str, Any]): Dictionary containing data.
+
+        Returns:
+            dict[str, Any]: Dictionary with parameters for transformation.
+
+        """
         image_shape = params["shape"][:2]
         angle = self.py_random.uniform(*self.limit)
 

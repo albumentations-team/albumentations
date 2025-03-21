@@ -1,4 +1,5 @@
-"""Implementation of grid-based dropout augmentation.
+"""
+Implementation of grid-based dropout augmentation.
 
 This module provides GridDropout, which creates a regular grid over the image and drops out
 rectangular regions according to the specified grid pattern. Unlike random dropout methods,
@@ -20,7 +21,8 @@ __all__ = ["GridDropout"]
 
 
 class GridDropout(BaseDropout):
-    """Apply GridDropout augmentation to images, masks, bounding boxes, and keypoints.
+    """
+    Apply GridDropout augmentation to images, masks, bounding boxes, and keypoints.
 
     GridDropout drops out rectangular regions of an image and the corresponding mask in a grid fashion.
     This technique can help improve model robustness by forcing the network to rely on a broader context
@@ -97,6 +99,7 @@ class GridDropout(BaseDropout):
     Reference:
         - Paper: https://arxiv.org/abs/2001.04086
         - OpenCV Inpainting methods: https://docs.opencv.org/master/df/d3d/tutorial_py_inpainting.html
+
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -131,6 +134,17 @@ class GridDropout(BaseDropout):
         self.shift_xy = shift_xy
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Get parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters.
+            data (dict[str, Any]): Dictionary containing data.
+
+        Returns:
+            dict[str, Any]: Dictionary with parameters for transformation.
+
+        """
         image_shape = params["shape"]
         if self.holes_number_xy:
             grid = self.holes_number_xy

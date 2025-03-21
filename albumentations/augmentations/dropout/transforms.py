@@ -1,4 +1,5 @@
-"""Transform classes for dropout-based augmentations.
+"""
+Transform classes for dropout-based augmentations.
 
 This module contains transform classes for various dropout techniques used in image
 augmentation. It provides the base dropout class and specialized implementations like
@@ -30,7 +31,8 @@ __all__ = ["PixelDropout"]
 
 
 class BaseDropout(DualTransform):
-    """Base class for dropout-style transformations.
+    """
+    Base class for dropout-style transformations.
 
     This class provides common functionality for various dropout techniques,
     including applying cutouts to images and masks.
@@ -47,6 +49,7 @@ class BaseDropout(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     _targets: tuple[Targets, ...] | Targets = ALL_TARGETS
@@ -125,7 +128,8 @@ class BaseDropout(DualTransform):
 
 
 class PixelDropout(DualTransform):
-    """Drops random pixels from the image.
+    """
+    Drops random pixels from the image.
 
     This transform randomly sets pixels in the image to a specified value, effectively "dropping out" those pixels.
     It can be applied to both the image and its corresponding mask.
@@ -175,6 +179,7 @@ class PixelDropout(DualTransform):
         >>> transform = A.PixelDropout(dropout_prob=0.1, per_channel=True, p=1.0)
         >>> result = transform(image=image, mask=mask)
         >>> dropped_image, dropped_mask = result['image'], result['mask']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -206,6 +211,19 @@ class PixelDropout(DualTransform):
         drop_values: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply pixel dropout to the image.
+
+        Args:
+            img (np.ndarray): The image to apply the transform to.
+            drop_mask (np.ndarray): The dropout mask.
+            drop_values (np.ndarray): The values to assign to the dropped pixels.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed image.
+
+        """
         return fmain.pixel_dropout(img, drop_mask, drop_values)
 
     def apply_to_mask(
@@ -215,6 +233,19 @@ class PixelDropout(DualTransform):
         mask_drop_values: float | np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply pixel dropout to the mask.
+
+        Args:
+            mask (np.ndarray): The mask to apply the transform to.
+            mask_drop_mask (np.ndarray): The dropout mask for the mask.
+            mask_drop_values (float | np.ndarray): The values to assign to the dropped pixels in the mask.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed mask.
+
+        """
         if self.mask_drop_value is None:
             return mask
 
@@ -226,6 +257,18 @@ class PixelDropout(DualTransform):
         drop_mask: np.ndarray | None,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply pixel dropout to the bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): The bounding boxes to apply the transform to.
+            drop_mask (np.ndarray | None): The dropout mask for the bounding boxes.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed bounding boxes.
+
+        """
         if drop_mask is None or self.per_channel:
             return bboxes
 
@@ -261,9 +304,19 @@ class PixelDropout(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: np.ndarray,
-        drop_mask: np.ndarray | None,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply pixel dropout to the keypoints.
+
+        Args:
+            keypoints (np.ndarray): The keypoints to apply the transform to.
+            **params (Any): Additional parameters for the transform.
+
+        Returns:
+            np.ndarray: The transformed keypoints.
+
+        """
         return keypoints
 
     def get_params_dependent_on_data(
@@ -271,7 +324,8 @@ class PixelDropout(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate parameters for pixel dropout based on input data.
+        """
+        Generate parameters for pixel dropout based on input data.
 
         Args:
             params (dict[str, Any]): Transform parameters
@@ -279,6 +333,7 @@ class PixelDropout(DualTransform):
 
         Returns:
             dict[str, Any]: Dictionary of parameters for applying the transform
+
         """
         reference_array = data["image"] if "image" in data else data["images"][0]
 

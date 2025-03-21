@@ -1,4 +1,5 @@
-"""Module containing base interfaces for all transform implementations.
+"""
+Module containing base interfaces for all transform implementations.
 
 This module defines the fundamental transform interfaces that form the base hierarchy for
 all transformation classes in Albumentations. It provides abstract classes and mixins that
@@ -47,7 +48,8 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
-    """Base class for all transforms in Albumentations.
+    """
+    Base class for all transforms in Albumentations.
 
     This class provides core functionality for transform application, serialization,
     and parameter handling. It defines the interface that all transforms must follow
@@ -67,6 +69,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         replay_mode (bool, optional): Whether the transform is in replay mode.
         applied_in_replay (bool, optional): Whether the transform was applied in replay.
         p (float): Probability of applying the transform.
+
     """
 
     _targets: tuple[Targets, ...] | Targets  # targets that this transform can work on
@@ -103,10 +106,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     @property
     def strict(self) -> bool:
-        """Get the current strict mode setting.
+        """
+        Get the current strict mode setting.
 
         Returns:
             bool: True if strict mode is enabled, False otherwise.
+
         """
         return self._strict
 
@@ -141,37 +146,44 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         random_generator: np.random.Generator,
         py_random: random.Random,
     ) -> None:
-        """Set random state directly from generators.
+        """
+        Set random state directly from generators.
 
         Args:
             random_generator (np.random.Generator): numpy random generator to use
             py_random (random.Random): python random generator to use
+
         """
         self.random_generator = random_generator
         self.py_random = py_random
 
     def set_random_seed(self, seed: int | None) -> None:
-        """Set random state from seed.
+        """
+        Set random state from seed.
 
         Args:
             seed (int | None): Random seed to use
+
         """
         self.seed = seed
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
 
     def get_dict_with_id(self) -> dict[str, Any]:
-        """Return a dictionary representation of the transform with its ID.
+        """
+        Return a dictionary representation of the transform with its ID.
 
         Returns:
             dict[str, Any]: Dictionary containing transform parameters and ID.
+
         """
         d = self.to_dict_private()
         d.update({"id": id(self)})
         return d
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        """Returns names of arguments that are used in __init__ method of the transform.
+        """
+        Returns names of arguments that are used in __init__ method of the transform.
 
         This method introspects the entire Method Resolution Order (MRO) to gather the names
         of parameters accepted by the __init__ methods of all parent classes,
@@ -201,27 +213,32 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return tuple(sorted(all_param_names - {"self", "strict"}))
 
     def set_processors(self, processors: dict[str, BboxProcessor | KeypointsProcessor]) -> None:
-        """Set the processors dictionary used for processing bbox and keypoint transformations.
+        """
+        Set the processors dictionary used for processing bbox and keypoint transformations.
 
         Args:
             processors (dict[str, BboxProcessor | KeypointsProcessor]): Dictionary mapping processor
                 names to processor instances.
+
         """
         self.processors = processors
 
     def get_processor(self, key: str) -> BboxProcessor | KeypointsProcessor | None:
-        """Get the processor for a specific key.
+        """
+        Get the processor for a specific key.
 
         Args:
             key (str): The processor key to retrieve.
 
         Returns:
             BboxProcessor | KeypointsProcessor | None: The processor instance if found, None otherwise.
+
         """
         return self.processors.get(key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
-        """Apply the transform to the input data.
+        """
+        Apply the transform to the input data.
 
         Args:
             *args (Any): Positional arguments are not supported and will raise an error.
@@ -233,6 +250,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         Raises:
             KeyError: If positional arguments are provided.
+
         """
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
@@ -268,19 +286,22 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return kwargs
 
     def get_applied_params(self) -> dict[str, Any]:
-        """Returns the parameters that were used in the last transform application.
+        """
+        Returns the parameters that were used in the last transform application.
         Returns empty dict if transform was not applied.
         """
         return self.params
 
     def should_apply(self, force_apply: bool = False) -> bool:
-        """Determine whether to apply the transform based on probability and force flag.
+        """
+        Determine whether to apply the transform based on probability and force flag.
 
         Args:
             force_apply (bool, optional): If True, always apply the transform regardless of probability.
 
         Returns:
             bool: True if the transform should be applied, False otherwise.
+
         """
         if self.p <= 0.0:
             return False
@@ -327,7 +348,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         raise NotImplementedError
 
     def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform on images.
+        """
+        Apply transform on images.
 
         Args:
             images (np.ndarray): Input images as numpy array of shape:
@@ -338,13 +360,15 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         Returns:
             Transformed images as numpy array in the same format as input
+
         """
         # Handle batched numpy array input
         transformed = np.stack([self.apply(image, **params) for image in images])
         return np.require(transformed, requirements=["C_CONTIGUOUS"])
 
     def apply_to_volume(self, volume: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform slice by slice to a volume.
+        """
+        Apply transform slice by slice to a volume.
 
         Args:
             volume (np.ndarray): Input volume of shape (depth, height, width) or (depth, height, width, channels)
@@ -353,6 +377,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         Returns:
             Transformed volume as numpy array in the same format as input
+
         """
         return self.apply_to_images(volume, *args, **params)
 
@@ -365,7 +390,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return {}
 
     def update_transform_params(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Updates parameters with input shape and transform-specific params.
+        """
+        Updates parameters with input shape and transform-specific params.
 
         Args:
             params (dict[str, Any]): Parameters to be updated
@@ -373,6 +399,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         Returns:
             Updated parameters dictionary with shape and transform-specific params
+
         """
         # Extract shape from volume, volumes, image, or images
         if "volume" in data:
@@ -403,10 +430,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
-        """Get mapping of target keys to their corresponding processing functions.
+        """
+        Get mapping of target keys to their corresponding processing functions.
 
         Returns:
             dict[str, Callable[..., Any]]: Dictionary mapping target keys to their processing functions.
+
         """
         # mapping for targets and methods for which they depend
         # for example:
@@ -432,7 +461,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return self._available_keys
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
-        """Add targets to transform them the same way as one of existing targets.
+        """
+        Add targets to transform them the same way as one of existing targets.
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
         by the way you must have at least one object with key 'image'
@@ -454,26 +484,31 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     @property
     def targets_as_params(self) -> list[str]:
-        """Targets used to get params dependent on targets.
+        """
+        Targets used to get params dependent on targets.
         This is used to check input has all required targets.
         """
         return []
 
     @classmethod
     def get_class_fullname(cls) -> str:
-        """Get the full qualified name of the class.
+        """
+        Get the full qualified name of the class.
 
         Returns:
             str: The shortest class fullname.
+
         """
         return get_shortest_class_fullname(cls)
 
     @classmethod
     def is_serializable(cls) -> bool:
-        """Check if the transform class is serializable.
+        """
+        Check if the transform class is serializable.
 
         Returns:
             bool: True if the class is serializable, False otherwise.
+
         """
         return True
 
@@ -482,7 +517,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return {"p": self.p}
 
     def get_transform_init_args(self) -> dict[str, Any]:
-        """Get transform initialization arguments for serialization.
+        """
+        Get transform initialization arguments for serialization.
 
         Returns a dictionary of parameter names and their values, excluding parameters
         that are not actually set on the instance or that shouldn't be serialized.
@@ -524,7 +560,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
 
 class DualTransform(BasicTransform):
-    """A base class for transformations that should be applied both to an image and its corresponding properties
+    """
+    A base class for transformations that should be applied both to an image and its corresponding properties
     such as masks, bounding boxes, and keypoints. This class ensures that when a transform is applied to an image,
     all associated entities are transformed accordingly to maintain consistency between the image and its annotations.
 
@@ -621,10 +658,12 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
-        """Get mapping of target keys to their corresponding processing functions for DualTransform.
+        """
+        Get mapping of target keys to their corresponding processing functions for DualTransform.
 
         Returns:
             dict[str, Callable[..., Any]]: Dictionary mapping target keys to their processing functions.
+
         """
         return {
             "image": self.apply,
@@ -640,7 +679,8 @@ class DualTransform(BasicTransform):
         }
 
     def apply_to_keypoints(self, keypoints: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to keypoints.
+        """
+        Apply transform to keypoints.
 
         Args:
             keypoints (np.ndarray): Array of keypoints of shape (N, 2+).
@@ -652,12 +692,14 @@ class DualTransform(BasicTransform):
 
         Returns:
             np.ndarray: Transformed keypoints.
+
         """
         msg = f"Method apply_to_keypoints is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to bounding boxes.
+        """
+        Apply transform to bounding boxes.
 
         Args:
             bboxes (np.ndarray): Array of bounding boxes of shape (N, 4+).
@@ -669,11 +711,13 @@ class DualTransform(BasicTransform):
 
         Returns:
             np.ndarray: Transformed bounding boxes.
+
         """
         raise NotImplementedError(f"BBoxes not implemented for {self.__class__.__name__}")
 
     def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to mask.
+        """
+        Apply transform to mask.
 
         Args:
             mask (np.ndarray): Input mask.
@@ -682,11 +726,13 @@ class DualTransform(BasicTransform):
 
         Returns:
             np.ndarray: Transformed mask.
+
         """
         return self.apply(mask, *args, **params)
 
     def apply_to_masks(self, masks: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to multiple masks.
+        """
+        Apply transform to multiple masks.
 
         Args:
             masks (np.ndarray): Input masks as numpy array
@@ -695,12 +741,14 @@ class DualTransform(BasicTransform):
 
         Returns:
             Transformed masks as numpy array
+
         """
         return np.stack([self.apply_to_mask(mask, **params) for mask in masks])
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_mask3d(self, mask3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to a 3D mask.
+        """
+        Apply transform to a 3D mask.
 
         Args:
             mask3d (np.ndarray): Input 3D mask as numpy array
@@ -709,12 +757,14 @@ class DualTransform(BasicTransform):
 
         Returns:
             Transformed 3D mask as numpy array
+
         """
         return self.apply_to_mask(mask3d, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_masks3d(self, masks3d: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        """Apply transform to multiple 3D masks.
+        """
+        Apply transform to multiple 3D masks.
 
         Args:
             masks3d (np.ndarray): Input 3D masks as numpy array
@@ -723,6 +773,7 @@ class DualTransform(BasicTransform):
 
         Returns:
             Transformed 3D masks as numpy array
+
         """
         return np.stack([self.apply_to_mask3d(mask3d, **params) for mask3d in masks3d])
 
@@ -734,10 +785,12 @@ class ImageOnlyTransform(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
-        """Get mapping of target keys to their corresponding processing functions for ImageOnlyTransform.
+        """
+        Get mapping of target keys to their corresponding processing functions for ImageOnlyTransform.
 
         Returns:
             dict[str, Callable[..., Any]]: Dictionary mapping target keys to their processing functions.
+
         """
         return {
             "image": self.apply,
@@ -748,7 +801,8 @@ class ImageOnlyTransform(BasicTransform):
 
 
 class NoOp(DualTransform):
-    """Identity transform (does nothing).
+    """
+    Identity transform (does nothing).
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
@@ -757,7 +811,8 @@ class NoOp(DualTransform):
     _targets = ALL_TARGETS
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to keypoints (identity operation).
+        """
+        Apply transform to keypoints (identity operation).
 
         Args:
             keypoints (np.ndarray): Array of keypoints.
@@ -765,11 +820,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged keypoints array.
+
         """
         return keypoints
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to bounding boxes (identity operation).
+        """
+        Apply transform to bounding boxes (identity operation).
 
         Args:
             bboxes (np.ndarray): Array of bounding boxes.
@@ -777,11 +834,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged bounding boxes array.
+
         """
         return bboxes
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to image (identity operation).
+        """
+        Apply transform to image (identity operation).
 
         Args:
             img (np.ndarray): Input image.
@@ -789,11 +848,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged image.
+
         """
         return img
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to mask (identity operation).
+        """
+        Apply transform to mask (identity operation).
 
         Args:
             mask (np.ndarray): Input mask.
@@ -801,11 +862,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged mask.
+
         """
         return mask
 
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to volume (identity operation).
+        """
+        Apply transform to volume (identity operation).
 
         Args:
             volume (np.ndarray): Input volume.
@@ -813,11 +876,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged volume.
+
         """
         return volume
 
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to multiple volumes (identity operation).
+        """
+        Apply transform to multiple volumes (identity operation).
 
         Args:
             volumes (np.ndarray): Input volumes.
@@ -825,11 +890,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged volumes.
+
         """
         return volumes
 
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to 3D mask (identity operation).
+        """
+        Apply transform to 3D mask (identity operation).
 
         Args:
             mask3d (np.ndarray): Input 3D mask.
@@ -837,11 +904,13 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged 3D mask.
+
         """
         return mask3d
 
     def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply transform to multiple 3D masks (identity operation).
+        """
+        Apply transform to multiple 3D masks (identity operation).
 
         Args:
             masks3d (np.ndarray): Input 3D masks.
@@ -849,12 +918,14 @@ class NoOp(DualTransform):
 
         Returns:
             np.ndarray: Unchanged 3D masks.
+
         """
         return masks3d
 
 
 class Transform3D(DualTransform):
-    """Base class for all 3D transforms.
+    """
+    Base class for all 3D transforms.
 
     Transform3D inherits from DualTransform because 3D transforms can be applied to both
     volumes and masks, similar to how 2D DualTransforms work with images and masks.

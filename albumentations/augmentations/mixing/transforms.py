@@ -1,4 +1,5 @@
-"""Transforms for mixing and overlaying images.
+"""
+Transforms for mixing and overlaying images.
 
 This module provides transform classes for image mixing operations, including
 overlay elements like stickers, logos, or other images onto the input image.
@@ -21,7 +22,8 @@ __all__ = ["OverlayElements"]
 
 
 class OverlayElements(DualTransform):
-    """Apply overlay elements such as images and masks onto an input image. This transformation can be used to add
+    """
+    Apply overlay elements such as images and masks onto an input image. This transformation can be used to add
     various objects (e.g., stickers, logos) to images with optional masks and bounding boxes for better placement
     control.
 
@@ -67,10 +69,12 @@ class OverlayElements(DualTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
-        """Get list of targets that should be passed as parameters to transforms.
+        """
+        Get list of targets that should be passed as parameters to transforms.
 
         Returns:
             list[str]: List containing the metadata key name
+
         """
         return [self.metadata_key]
 
@@ -80,7 +84,8 @@ class OverlayElements(DualTransform):
         img_shape: tuple[int, int],
         random_state: random.Random,
     ) -> dict[str, Any]:
-        """Process overlay metadata to prepare for application.
+        """
+        Process overlay metadata to prepare for application.
 
         Args:
             metadata (dict[str, Any]): Dictionary containing overlay data such as image, mask, bbox
@@ -90,6 +95,7 @@ class OverlayElements(DualTransform):
         Returns:
             dict[str, Any]: Processed overlay data including resized overlay image, mask,
                             offset coordinates, and bounding box information
+
         """
         overlay_image = metadata["image"]
         overlay_height, overlay_width = overlay_image.shape[:2]
@@ -154,7 +160,8 @@ class OverlayElements(DualTransform):
         return result
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Generate parameters for overlay transform based on input data.
+        """
+        Generate parameters for overlay transform based on input data.
 
         Args:
             params (dict[str, Any]): Dictionary of existing parameters
@@ -162,6 +169,7 @@ class OverlayElements(DualTransform):
 
         Returns:
             dict[str, Any]: Dictionary containing processed overlay data ready for application
+
         """
         metadata = data[self.metadata_key]
         img_shape = params["shape"]
@@ -181,7 +189,8 @@ class OverlayElements(DualTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
-        """Apply overlay elements to the input image.
+        """
+        Apply overlay elements to the input image.
 
         Args:
             img (np.ndarray): Input image
@@ -190,6 +199,7 @@ class OverlayElements(DualTransform):
 
         Returns:
             np.ndarray: Image with overlays applied
+
         """
         for data in overlay_data:
             overlay_image = data["overlay_image"]
@@ -204,7 +214,8 @@ class OverlayElements(DualTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
-        """Apply overlay masks to the input mask.
+        """
+        Apply overlay masks to the input mask.
 
         Args:
             mask (np.ndarray): Input mask
@@ -213,6 +224,7 @@ class OverlayElements(DualTransform):
 
         Returns:
             np.ndarray: Mask with overlay masks applied using the specified mask_id values
+
         """
         for data in overlay_data:
             if "mask_id" in data and data["mask_id"] is not None:

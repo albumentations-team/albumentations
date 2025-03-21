@@ -1,4 +1,5 @@
-"""Transform classes for applying various blur operations to images.
+"""
+Transform classes for applying various blur operations to images.
 
 This module contains transform classes that implement different blur effects including
 standard blur, motion blur, median blur, Gaussian blur, glass blur, advanced blur, defocus,
@@ -65,7 +66,8 @@ class BlurInitSchema(BaseTransformInitSchema):
 
 
 class Blur(ImageOnlyTransform):
-    """Apply uniform box blur to the input image using a randomly sized square kernel.
+    """
+    Apply uniform box blur to the input image using a randomly sized square kernel.
 
     This transform uses OpenCV's cv2.blur function, which performs a simple box filter blur.
     The size of the blur kernel is randomly selected for each application, allowing for
@@ -103,6 +105,7 @@ class Blur(ImageOnlyTransform):
         >>> transform = A.Blur(blur_limit=(3, 7), p=1.0)
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
+
     """
 
     class InitSchema(BlurInitSchema):
@@ -117,7 +120,8 @@ class Blur(ImageOnlyTransform):
         self.blur_limit = cast("tuple[int, int]", blur_limit)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
-        """Apply blur to the input image.
+        """
+        Apply blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -126,14 +130,17 @@ class Blur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Blurred image.
+
         """
         return fblur.blur(img, kernel)
 
     def get_params(self) -> dict[str, Any]:
-        """Get parameters for the transform.
+        """
+        Get parameters for the transform.
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         kernel = fblur.sample_odd_from_range(
             self.py_random,
@@ -144,7 +151,8 @@ class Blur(ImageOnlyTransform):
 
 
 class MotionBlur(Blur):
-    """Apply motion blur to the input image using a directional kernel.
+    """
+    Apply motion blur to the input image using a directional kernel.
 
     This transform simulates motion blur effects that occur during image capture,
     such as camera shake or object movement. It creates a directional blur using
@@ -281,7 +289,8 @@ class MotionBlur(Blur):
         self.direction_range = direction_range
 
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply motion blur to the input image.
+        """
+        Apply motion blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -290,14 +299,17 @@ class MotionBlur(Blur):
 
         Returns:
             np.ndarray: Motion blurred image.
+
         """
         return fmain.convolve(img, kernel=kernel)
 
     def get_params(self) -> dict[str, Any]:
-        """Get parameters for the transform.
+        """
+        Get parameters for the transform.
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         ksize = fblur.sample_odd_from_range(
             self.py_random,
@@ -321,7 +333,8 @@ class MotionBlur(Blur):
 
 
 class MedianBlur(Blur):
-    """Apply median blur to the input image.
+    """
+    Apply median blur to the input image.
 
     This transform uses a median filter to blur the input image. Median filtering is particularly
     effective at removing salt-and-pepper noise while preserving edges, making it a popular choice
@@ -370,6 +383,7 @@ class MedianBlur(Blur):
     References:
         - Median filter: https://en.wikipedia.org/wiki/Median_filter
         - OpenCV medianBlur: https://docs.opencv.org/master/d4/d86/group__imgproc__filter.html#ga564869aa33e58769b4469101aac458f9
+
     """
 
     def __init__(
@@ -380,7 +394,8 @@ class MedianBlur(Blur):
         super().__init__(blur_limit=blur_limit, p=p)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
-        """Apply median blur to the input image.
+        """
+        Apply median blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -389,12 +404,14 @@ class MedianBlur(Blur):
 
         Returns:
             np.ndarray: Median blurred image.
+
         """
         return fblur.median_blur(img, kernel)
 
 
 class GaussianBlur(ImageOnlyTransform):
-    """Apply Gaussian blur to the input image using a randomly sized kernel.
+    """
+    Apply Gaussian blur to the input image using a randomly sized kernel.
 
     This transform blurs the input image using a Gaussian filter with a random kernel size
     and sigma value. Gaussian blur is a widely used image processing technique that reduces
@@ -455,6 +472,7 @@ class GaussianBlur(ImageOnlyTransform):
         >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.5, 3.0), p=1.0)
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -485,7 +503,8 @@ class GaussianBlur(ImageOnlyTransform):
         kernel: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply Gaussian blur to the input image.
+        """
+        Apply Gaussian blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -494,11 +513,13 @@ class GaussianBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Gaussian blurred image.
+
         """
         return fmain.separable_convolve(img, kernel=kernel)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
-        """Get parameters that depend on input data.
+        """
+        Get parameters that depend on input data.
 
         Args:
             params (dict[str, Any]): Parameters.
@@ -506,6 +527,7 @@ class GaussianBlur(ImageOnlyTransform):
 
         Returns:
             dict[str, float]: Dictionary with parameters.
+
         """
         sigma = self.py_random.uniform(*self.sigma_limit)
         ksize = self.py_random.randint(*self.blur_limit)
@@ -513,7 +535,8 @@ class GaussianBlur(ImageOnlyTransform):
 
 
 class GlassBlur(ImageOnlyTransform):
-    """Apply a glass blur effect to the input image.
+    """
+    Apply a glass blur effect to the input image.
 
     This transform simulates the effect of looking through textured glass by locally
     shuffling pixels in the image. It creates a distorted, frosted glass-like appearance.
@@ -572,6 +595,7 @@ class GlassBlur(ImageOnlyTransform):
           https://arxiv.org/abs/1903.12261
         - Original implementation:
           https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -601,7 +625,8 @@ class GlassBlur(ImageOnlyTransform):
         dxy: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply glass blur effect to the input image.
+        """
+        Apply glass blur effect to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -611,6 +636,7 @@ class GlassBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Image with glass blur effect.
+
         """
         return fblur.glass_blur(
             img,
@@ -626,7 +652,8 @@ class GlassBlur(ImageOnlyTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, np.ndarray]:
-        """Get parameters that depend on input data.
+        """
+        Get parameters that depend on input data.
 
         Args:
             params (dict[str, Any]): Parameters.
@@ -634,6 +661,7 @@ class GlassBlur(ImageOnlyTransform):
 
         Returns:
             dict[str, np.ndarray]: Dictionary with parameters.
+
         """
         height, width = params["shape"][:2]
         # generate array containing all necessary values for transformations
@@ -650,7 +678,8 @@ class GlassBlur(ImageOnlyTransform):
 
 
 class AdvancedBlur(ImageOnlyTransform):
-    """Applies a Generalized Gaussian blur to the input image with randomized parameters for advanced data augmentation.
+    """
+    Applies a Generalized Gaussian blur to the input image with randomized parameters for advanced data augmentation.
 
     This transform creates a custom blur kernel based on the Generalized Gaussian distribution,
     which allows for a wide range of blur effects beyond standard Gaussian blur. It then applies
@@ -730,6 +759,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
     """
 
     class InitSchema(BlurInitSchema):
@@ -781,7 +811,8 @@ class AdvancedBlur(ImageOnlyTransform):
         self.noise_limit = cast("tuple[float, float]", noise_limit)
 
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply advanced blur to the input image.
+        """
+        Apply advanced blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -790,14 +821,17 @@ class AdvancedBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Blurred image.
+
         """
         return fmain.convolve(img, kernel=kernel)
 
     def get_params(self) -> dict[str, np.ndarray]:
-        """Get parameters for the transform.
+        """
+        Get parameters for the transform.
 
         Returns:
             dict[str, np.ndarray]: Dictionary with parameters.
+
         """
         ksize = fblur.sample_odd_from_range(
             self.py_random,
@@ -846,7 +880,8 @@ class AdvancedBlur(ImageOnlyTransform):
 
 
 class Defocus(ImageOnlyTransform):
-    """Apply defocus blur to the input image.
+    """
+    Apply defocus blur to the input image.
 
     This transform simulates the effect of an out-of-focus camera by applying a defocus blur
     to the image. It uses a combination of disc kernels and Gaussian blur to create a realistic
@@ -891,6 +926,7 @@ class Defocus(ImageOnlyTransform):
 
     References:
         Defocus aberration: https://en.wikipedia.org/wiki/Defocus_aberration
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -914,7 +950,8 @@ class Defocus(ImageOnlyTransform):
         alias_blur: float,
         **params: Any,
     ) -> np.ndarray:
-        """Apply defocus blur to the input image.
+        """
+        Apply defocus blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -924,14 +961,17 @@ class Defocus(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Defocused image.
+
         """
         return fblur.defocus(img, radius, alias_blur)
 
     def get_params(self) -> dict[str, Any]:
-        """Get parameters for the transform.
+        """
+        Get parameters for the transform.
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         return {
             "radius": self.py_random.randint(*self.radius),
@@ -940,7 +980,8 @@ class Defocus(ImageOnlyTransform):
 
 
 class ZoomBlur(ImageOnlyTransform):
-    """Apply zoom blur transform.
+    """
+    Apply zoom blur transform.
 
     Args:
         max_factor ((float, float) or float): range for max factor for blurring.
@@ -959,6 +1000,7 @@ class ZoomBlur(ImageOnlyTransform):
 
     Reference:
         Zoom Blur: https://arxiv.org/abs/1903.12261
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -981,7 +1023,8 @@ class ZoomBlur(ImageOnlyTransform):
         zoom_factors: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """Apply zoom blur to the input image.
+        """
+        Apply zoom blur to the input image.
 
         Args:
             img (np.ndarray): Image to blur.
@@ -990,14 +1033,17 @@ class ZoomBlur(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Zoom blurred image.
+
         """
         return fblur.zoom_blur(img, zoom_factors)
 
     def get_params(self) -> dict[str, Any]:
-        """Get parameters for the transform.
+        """
+        Get parameters for the transform.
 
         Returns:
             dict[str, Any]: Dictionary with parameters.
+
         """
         step_factor = self.py_random.uniform(*self.step_factor)
         max_factor = max(1 + step_factor, self.py_random.uniform(*self.max_factor))

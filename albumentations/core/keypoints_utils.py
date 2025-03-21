@@ -1,4 +1,5 @@
-"""Module for handling keypoint operations during augmentation.
+"""
+Module for handling keypoint operations during augmentation.
 
 This module provides utilities for working with keypoints in various formats during
 the augmentation process. It includes functions for converting between coordinate systems,
@@ -37,7 +38,8 @@ def angle_to_2pi_range(angles: np.ndarray) -> np.ndarray:
 
 
 class KeypointParams(Params):
-    """Parameters of keypoints
+    """
+    Parameters of keypoints
 
     Args:
         format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa', 'xyz'.
@@ -62,6 +64,7 @@ class KeypointParams(Params):
     Note:
         The internal Albumentations format is [x, y, z, angle, scale]. For 2D formats (xy, yx, xya, xys, xyas, xysa),
         z coordinate is set to 0. For formats without angle or scale, these values are set to 0.
+
     """
 
     def __init__(
@@ -78,10 +81,12 @@ class KeypointParams(Params):
         self.check_each_transform = check_each_transform
 
     def to_dict_private(self) -> dict[str, Any]:
-        """Get the private dictionary representation of keypoint parameters.
+        """
+        Get the private dictionary representation of keypoint parameters.
 
         Returns:
             dict[str, Any]: Dictionary containing the keypoint parameters.
+
         """
         data = super().to_dict_private()
         data.update(
@@ -95,19 +100,23 @@ class KeypointParams(Params):
 
     @classmethod
     def is_serializable(cls) -> bool:
-        """Check if the keypoint parameters are serializable.
+        """
+        Check if the keypoint parameters are serializable.
 
         Returns:
             bool: Always returns True as KeypointParams is serializable.
+
         """
         return True
 
     @classmethod
     def get_class_fullname(cls) -> str:
-        """Get the full name of the class.
+        """
+        Get the full name of the class.
 
         Returns:
             str: The string "KeypointParams".
+
         """
         return "KeypointParams"
 
@@ -120,7 +129,8 @@ class KeypointParams(Params):
 
 
 class KeypointsProcessor(DataProcessor):
-    """Processor for keypoint data transformation.
+    """
+    Processor for keypoint data transformation.
 
     This class handles the conversion, validation, and filtering of keypoints
     during transformations. It ensures keypoints are correctly formatted and
@@ -129,6 +139,7 @@ class KeypointsProcessor(DataProcessor):
     Args:
         params (KeypointParams): Parameters for keypoint processing.
         additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+
     """
 
     def __init__(self, params: KeypointParams, additional_targets: dict[str, str] | None = None):
@@ -136,21 +147,25 @@ class KeypointsProcessor(DataProcessor):
 
     @property
     def default_data_name(self) -> str:
-        """Get the default name for keypoint data.
+        """
+        Get the default name for keypoint data.
 
         Returns:
             str: The string "keypoints".
+
         """
         return "keypoints"
 
     def ensure_data_valid(self, data: dict[str, Any]) -> None:
-        """Ensure the provided data dictionary contains all required label fields.
+        """
+        Ensure the provided data dictionary contains all required label fields.
 
         Args:
             data (dict[str, Any]): The data dictionary to validate.
 
         Raises:
             ValueError: If any label field specified in params is missing from the data.
+
         """
         if self.params.label_fields and not all(i in data for i in self.params.label_fields):
             msg = "Your 'label_fields' are not valid - them must have same names as params in 'keypoint_params' dict"
@@ -161,7 +176,8 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        """Filter keypoints based on visibility within given shape.
+        """
+        Filter keypoints based on visibility within given shape.
 
         Args:
             data (np.ndarray): Keypoints in [x, y, z, angle, scale] format
@@ -169,16 +185,19 @@ class KeypointsProcessor(DataProcessor):
 
         Returns:
             Filtered keypoints
+
         """
         self.params: KeypointParams
         return filter_keypoints(data, shape, remove_invisible=self.params.remove_invisible)
 
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
-        """Check if keypoints are valid within the given shape.
+        """
+        Check if keypoints are valid within the given shape.
 
         Args:
             data (np.ndarray): Keypoints to validate.
             shape (ShapeType): Shape to check against.
+
         """
         check_keypoints(data, shape)
 
@@ -187,7 +206,8 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        """Convert keypoints from internal Albumentations format to the specified format.
+        """
+        Convert keypoints from internal Albumentations format to the specified format.
 
         Args:
             data (np.ndarray): Keypoints in Albumentations format.
@@ -195,6 +215,7 @@ class KeypointsProcessor(DataProcessor):
 
         Returns:
             np.ndarray: Converted keypoints in the target format.
+
         """
         if not data.size:
             return data
@@ -213,7 +234,8 @@ class KeypointsProcessor(DataProcessor):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        """Convert keypoints from the specified format to internal Albumentations format.
+        """
+        Convert keypoints from the specified format to internal Albumentations format.
 
         Args:
             data (np.ndarray): Keypoints in source format.
@@ -221,6 +243,7 @@ class KeypointsProcessor(DataProcessor):
 
         Returns:
             np.ndarray: Converted keypoints in Albumentations format.
+
         """
         if not data.size:
             return data
@@ -235,7 +258,8 @@ class KeypointsProcessor(DataProcessor):
 
 
 def check_keypoints(keypoints: np.ndarray, shape: ShapeType) -> None:
-    """Check if keypoint coordinates are within valid ranges for the given shape.
+    """
+    Check if keypoint coordinates are within valid ranges for the given shape.
 
     This function validates that:
     1. All x-coordinates are within [0, width)
@@ -261,6 +285,7 @@ def check_keypoints(keypoints: np.ndarray, shape: ShapeType) -> None:
         - The function assumes that keypoint coordinates are in absolute pixel values, not normalized
         - Angles are in radians
         - Z-coordinates are only checked if 'depth' is present in shape
+
     """
     height, width = shape["height"], shape["width"]
     has_depth = "depth" in shape
@@ -310,7 +335,8 @@ def filter_keypoints(
     shape: ShapeType,
     remove_invisible: bool,
 ) -> np.ndarray:
-    """Filter keypoints to remove those outside the boundaries.
+    """
+    Filter keypoints to remove those outside the boundaries.
 
     Args:
         keypoints (np.ndarray): A numpy array of shape (N, 5+) where N is the number of keypoints.
@@ -320,6 +346,7 @@ def filter_keypoints(
 
     Returns:
         A numpy array of filtered keypoints.
+
     """
     if not remove_invisible:
         return keypoints
@@ -347,7 +374,8 @@ def convert_keypoints_to_albumentations(
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> np.ndarray:
-    """Convert keypoints from various formats to the Albumentations format.
+    """
+    Convert keypoints from various formats to the Albumentations format.
 
     This function takes keypoints in different formats and converts them to the standard
     Albumentations format: [x, y, z, angle, scale]. For 2D formats, z is set to 0.
@@ -383,6 +411,7 @@ def convert_keypoints_to_albumentations(
         - Angles are converted to the range [0, 2π) radians
         - If the input keypoints have additional columns beyond what's specified in the source_format,
           these columns are preserved in the output
+
     """
     if source_format not in keypoint_formats:
         raise ValueError(f"Unknown source_format {source_format}. Supported formats are: {keypoint_formats}")
@@ -426,7 +455,8 @@ def convert_keypoints_from_albumentations(
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> np.ndarray:
-    """Convert keypoints from Albumentations format to various other formats.
+    """
+    Convert keypoints from Albumentations format to various other formats.
 
     This function takes keypoints in the standard Albumentations format [x, y, z, angle, scale]
     and converts them to the specified target format.
@@ -462,6 +492,7 @@ def convert_keypoints_from_albumentations(
         - Input angles are assumed to be in the range [0, 2π) radians
         - If the input keypoints have additional columns beyond the first 5,
           these columns are preserved in the output
+
     """
     if target_format not in keypoint_formats:
         raise ValueError(f"Unknown target_format {target_format}. Supported formats are: {keypoint_formats}")

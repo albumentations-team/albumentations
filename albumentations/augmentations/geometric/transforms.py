@@ -1,4 +1,5 @@
-"""Geometric transformation classes for image augmentation.
+"""
+Geometric transformation classes for image augmentation.
 
 This module provides a collection of transforms that modify the geometric properties
 of images and associated data (masks, bounding boxes, keypoints). Includes implementations
@@ -74,7 +75,8 @@ NUM_PADS_ALL_SIDES = 4
 
 
 class BaseDistortion(DualTransform):
-    """Base class for distortion-based transformations.
+    """
+    Base class for distortion-based transformations.
 
     This class provides a foundation for implementing various types of image distortions,
     such as optical distortions, grid distortions, and elastic transformations. It handles
@@ -115,6 +117,7 @@ class BaseDistortion(DualTransform):
             def get_params_dependent_on_data(self, params, data):
                 # Generate and return map_x and map_y based on the distortion logic
                 return {"map_x": map_x, "map_y": map_y}
+
     """
 
     _targets = ALL_TARGETS
@@ -182,6 +185,19 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the distortion to the input image.
+
+        Args:
+            img (np.ndarray): Input image to be distorted.
+            map_x (np.ndarray): X-coordinate map of the distortion.
+            map_y (np.ndarray): Y-coordinate map of the distortion.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted image.
+
+        """
         return fgeometric.remap(
             img,
             map_x,
@@ -193,18 +209,62 @@ class BaseDistortion(DualTransform):
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the distortion to a batch of images.
+
+        Args:
+            images (np.ndarray): Batch of images to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of distorted images.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the distortion to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted volume.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the distortion to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Batch of volumes to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of distorted volumes.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the distortion to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted 3D mask.
+
+        """
         return self.apply_to_mask(mask3d, **params)
 
     def apply_to_mask(
@@ -214,6 +274,19 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the distortion to a mask.
+
+        Args:
+            mask (np.ndarray): Mask to be distorted.
+            map_x (np.ndarray): X-coordinate map of the distortion.
+            map_y (np.ndarray): Y-coordinate map of the distortion.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted mask.
+
+        """
         return fgeometric.remap(
             mask,
             map_x,
@@ -230,6 +303,19 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the distortion to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be distorted.
+            map_x (np.ndarray): X-coordinate map of the distortion.
+            map_y (np.ndarray): Y-coordinate map of the distortion.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted bounding boxes.
+
+        """
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
         bboxes_returned = fgeometric.remap_bboxes(
@@ -247,13 +333,27 @@ class BaseDistortion(DualTransform):
         map_y: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the distortion to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be distorted.
+            map_x (np.ndarray): X-coordinate map of the distortion.
+            map_y (np.ndarray): Y-coordinate map of the distortion.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted keypoints.
+
+        """
         if self.keypoint_remapping_method == "direct":
             return fgeometric.remap_keypoints(keypoints, map_x, map_y, params["shape"])
         return fgeometric.remap_keypoints_via_mask(keypoints, map_x, map_y, params["shape"])
 
 
 class ElasticTransform(BaseDistortion):
-    """Apply elastic deformation to images, masks, bounding boxes, and keypoints.
+    """
+    Apply elastic deformation to images, masks, bounding boxes, and keypoints.
 
     This transformation introduces random elastic distortions to the input data. It's particularly
     useful for data augmentation in training deep learning models, especially for tasks like
@@ -315,6 +415,7 @@ class ElasticTransform(BaseDistortion):
         >>> transformed_mask = transformed['mask']
         >>> transformed_bboxes = transformed['bboxes']
         >>> transformed_keypoints = transformed['keypoints']
+
     """
 
     class InitSchema(BaseDistortion.InitSchema):
@@ -378,6 +479,17 @@ class ElasticTransform(BaseDistortion):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Generate displacement fields for the elastic transform.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters for the transform.
+            data (dict[str, Any]): Dictionary containing data for the transform.
+
+        Returns:
+            dict[str, Any]: Dictionary containing displacement fields for the elastic transform.
+
+        """
         height, width = params["shape"][:2]
         kernel_size = (17, 17) if self.approximate else (0, 0)
 
@@ -402,7 +514,8 @@ class ElasticTransform(BaseDistortion):
 
 
 class Perspective(DualTransform):
-    """Apply random four point perspective transformation to the input.
+    """
+    Apply random four point perspective transformation to the input.
 
     Args:
         scale (float or tuple of float): Standard deviation of the normal distributions. These are used to sample
@@ -455,6 +568,7 @@ class Perspective(DualTransform):
         ... ])
         >>> result = transform(image=image)
         >>> transformed_image = result['image']
+
     """
 
     _targets = ALL_TARGETS
@@ -535,6 +649,20 @@ class Perspective(DualTransform):
         max_width: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the perspective transform to an image.
+
+        Args:
+            img (np.ndarray): Image to be distorted.
+            matrix (np.ndarray): Transformation matrix.
+            max_height (int): Maximum height of the image.
+            max_width (int): Maximum width of the image.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted image.
+
+        """
         return fgeometric.perspective(
             img,
             matrix,
@@ -548,18 +676,62 @@ class Perspective(DualTransform):
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the perspective transform to a batch of images.
+
+        Args:
+            images (np.ndarray): Batch of images to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of distorted images.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the perspective transform to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted volume.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the perspective transform to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Batch of volumes to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of distorted volumes.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the perspective transform to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted 3D mask.
+
+        """
         return self.apply_to_mask(mask3d, **params)
 
     def apply_to_mask(
@@ -570,6 +742,20 @@ class Perspective(DualTransform):
         max_width: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the perspective transform to a mask.
+
+        Args:
+            mask (np.ndarray): Mask to be distorted.
+            matrix (np.ndarray): Transformation matrix.
+            max_height (int): Maximum height of the mask.
+            max_width (int): Maximum width of the mask.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted mask.
+
+        """
         return fgeometric.perspective(
             mask,
             matrix,
@@ -589,6 +775,20 @@ class Perspective(DualTransform):
         max_width: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the perspective transform to a batch of bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Batch of bounding boxes to be distorted.
+            matrix_bbox (np.ndarray): Transformation matrix.
+            max_height (int): Maximum height of the bounding boxes.
+            max_width (int): Maximum width of the bounding boxes.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of distorted bounding boxes.
+
+        """
         return fgeometric.perspective_bboxes(
             bboxes,
             params["shape"],
@@ -606,6 +806,20 @@ class Perspective(DualTransform):
         max_width: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the perspective transform to a batch of keypoints.
+
+        Args:
+            keypoints (np.ndarray): Batch of keypoints to be distorted.
+            matrix (np.ndarray): Transformation matrix.
+            max_height (int): Maximum height of the keypoints.
+            max_width (int): Maximum width of the keypoints.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of distorted keypoints.
+
+        """
         return fgeometric.perspective_keypoints(
             keypoints,
             params["shape"],
@@ -620,8 +834,18 @@ class Perspective(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        image_shape = params["shape"][:2]
+        """
+        Get the parameters dependent on the data.
 
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
+        image_shape = params["shape"][:2]
         scale = self.py_random.uniform(*self.scale)
 
         points = fgeometric.generate_perspective_points(
@@ -651,7 +875,8 @@ class Perspective(DualTransform):
 
 
 class Affine(DualTransform):
-    """Augmentation to apply affine transformations to images.
+    """
+    Augmentation to apply affine transformations to images.
 
     Affine transformations involve:
 
@@ -796,7 +1021,7 @@ class Affine(DualTransform):
 
         @field_validator("shear", "scale")
         @classmethod
-        def process_shear(
+        def _process_shear(
             cls,
             value: tuple[float, float] | float | dict[str, float | tuple[float, float]],
             info: ValidationInfo,
@@ -805,14 +1030,14 @@ class Affine(DualTransform):
 
         @field_validator("rotate")
         @classmethod
-        def process_rotate(
+        def _process_rotate(
             cls,
             value: tuple[float, float] | float,
         ) -> tuple[float, float]:
             return to_tuple(value, value)
 
         @model_validator(mode="after")
-        def handle_translate(self) -> Self:
+        def _handle_translate(self) -> Self:
             if self.translate_percent is None and self.translate_px is None:
                 self.translate_px = 0
 
@@ -923,6 +1148,19 @@ class Affine(DualTransform):
         output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the affine transform to an image.
+
+        Args:
+            img (np.ndarray): Image to be distorted.
+            matrix (np.ndarray): Transformation matrix.
+            output_shape (tuple[int, int]): Output shape.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted image.
+
+        """
         return fgeometric.warp_affine(
             img,
             matrix,
@@ -939,6 +1177,19 @@ class Affine(DualTransform):
         output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the affine transform to a mask.
+
+        Args:
+            mask (np.ndarray): Mask to be distorted.
+            matrix (np.ndarray): Transformation matrix.
+            output_shape (tuple[int, int]): Output shape.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted mask.
+
+        """
         return fgeometric.warp_affine(
             mask,
             matrix,
@@ -955,6 +1206,19 @@ class Affine(DualTransform):
         output_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the affine transform to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be distorted.
+            bbox_matrix (np.ndarray): Transformation matrix.
+            output_shape (tuple[int, int]): Output shape.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted bounding boxes.
+
+        """
         return fgeometric.bboxes_affine(
             bboxes,
             bbox_matrix,
@@ -971,6 +1235,19 @@ class Affine(DualTransform):
         scale: dict[str, float],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the affine transform to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be distorted.
+            matrix (np.ndarray): Transformation matrix.
+            scale (dict[str, float]): Scale.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted keypoints.
+
+        """
         return fgeometric.keypoints_affine(
             keypoints,
             matrix,
@@ -981,22 +1258,66 @@ class Affine(DualTransform):
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the affine transform to a batch of images.
+
+        Args:
+            images (np.ndarray): Images to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted images.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the affine transform to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted volume.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the affine transform to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted volumes.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the affine transform to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be distorted.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Distorted 3D mask.
+
+        """
         return self.apply_to_mask(mask3d, **params)
 
     @staticmethod
-    def get_scale(
+    def _get_scale(
         scale: dict[str, tuple[float, float]],
         keep_ratio: bool,
         balanced_scale: bool,
@@ -1041,11 +1362,22 @@ class Affine(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         image_shape = params["shape"][:2]
 
         translate = self._get_translate_params(image_shape)
         shear = self._get_shear_params()
-        scale = self.get_scale(
+        scale = self._get_scale(
             self.scale,
             self.keep_ratio,
             self.balanced_scale,
@@ -1114,7 +1446,8 @@ class Affine(DualTransform):
 
 
 class ShiftScaleRotate(Affine):
-    """Randomly apply affine transforms: translate, scale and rotate the input.
+    """
+    Randomly apply affine transforms: translate, scale and rotate the input.
 
     Args:
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
@@ -1209,7 +1542,7 @@ class ShiftScaleRotate(Affine):
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(
+        def _check_scale_limit(
             cls,
             value: tuple[float, float] | float,
             info: ValidationInfo,
@@ -1278,6 +1611,13 @@ class ShiftScaleRotate(Affine):
         self.fill_mask = fill_mask
 
     def get_transform_init_args(self) -> dict[str, Any]:
+        """
+        Get the transform initialization arguments.
+
+        Returns:
+            dict[str, Any]: Transform initialization arguments.
+
+        """
         return {
             "shift_limit_x": self.shift_limit_x,
             "shift_limit_y": self.shift_limit_y,
@@ -1293,7 +1633,8 @@ class ShiftScaleRotate(Affine):
 
 
 class PiecewiseAffine(BaseDistortion):
-    """Apply piecewise affine transformations to the input image.
+    """
+    Apply piecewise affine transformations to the input image.
 
     This augmentation places a regular grid of points on an image and randomly moves the neighborhood of these points
     around via affine transformations. This leads to local distortions in the image.
@@ -1351,6 +1692,7 @@ class PiecewiseAffine(BaseDistortion):
         ... ])
         >>> transformed = transform(image=image)
         >>> transformed_image = transformed["image"]
+
     """
 
     class InitSchema(BaseDistortion.InitSchema):
@@ -1361,7 +1703,7 @@ class PiecewiseAffine(BaseDistortion):
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
-        def process_range(
+        def _process_range(
             cls,
             value: tuple[int, int] | int,
             info: ValidationInfo,
@@ -1428,6 +1770,17 @@ class PiecewiseAffine(BaseDistortion):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         image_shape = params["shape"][:2]
 
         nb_rows = np.clip(self.py_random.randint(*self.nb_rows), 2, None)
@@ -1446,7 +1799,8 @@ class PiecewiseAffine(BaseDistortion):
 
 
 class VerticalFlip(DualTransform):
-    """Flip the input vertically around the x-axis.
+    """
+    Flip the input vertically around the x-axis.
 
     Args:
         p (float): Probability of applying the transform. Default: 0.5.
@@ -1495,33 +1849,111 @@ class VerticalFlip(DualTransform):
     _targets = ALL_TARGETS
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to an image.
+
+        Args:
+            img (np.ndarray): Image to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped image.
+
+        """
         return vflip(img)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped bounding boxes.
+
+        """
         return fgeometric.bboxes_vflip(bboxes)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped keypoints.
+
+        """
         return fgeometric.keypoints_vflip(keypoints, params["shape"][0])
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to a batch of images.
+
+        Args:
+            images (np.ndarray): Images to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped images.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped volume.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped volumes.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the vertical flip to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped 3D mask.
+
+        """
         return self.apply(mask3d, **params)
 
 
 class HorizontalFlip(DualTransform):
-    """Flip the input horizontally around the y-axis.
+    """
+    Flip the input horizontally around the y-axis.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -1537,33 +1969,108 @@ class HorizontalFlip(DualTransform):
     _targets = ALL_TARGETS
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to an image.
+
+        Args:
+            img (np.ndarray): Image to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped image.
+
+        """
         return hflip(img)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped bounding boxes.
+
+        """
         return fgeometric.bboxes_hflip(bboxes)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped keypoints.
+
+        """
         return fgeometric.keypoints_hflip(keypoints, params["shape"][1])
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to a batch of images.
+
+        Args:
+            images (np.ndarray): Images to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped images.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped volume.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped volumes.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the horizontal flip to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be flipped.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(mask3d, **params)
 
 
 class Transpose(DualTransform):
-    """Transpose the input by swapping its rows and columns.
+    """
+    Transpose the input by swapping its rows and columns.
 
     This transform flips the image over its main diagonal, effectively switching its width and height.
     It's equivalent to a 90-degree rotation followed by a horizontal flip.
@@ -1615,17 +2122,51 @@ class Transpose(DualTransform):
     _targets = ALL_TARGETS
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the transpose to an image.
+
+        Args:
+            img (np.ndarray): Image to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed image.
+
+        """
         return fgeometric.transpose(img)
 
     def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the transpose to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed bounding boxes.
+
+        """
         return fgeometric.bboxes_transpose(bboxes)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the transpose to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed keypoints.
+
+        """
         return fgeometric.keypoints_transpose(keypoints)
 
 
 class OpticalDistortion(BaseDistortion):
-    """Apply optical distortion to images, masks, bounding boxes, and keypoints.
+    """
+    Apply optical distortion to images, masks, bounding boxes, and keypoints.
 
     Supports two distortion models:
     1. Camera matrix model (original):
@@ -1683,6 +2224,7 @@ class OpticalDistortion(BaseDistortion):
         >>> transformed_mask = transformed['mask']
         >>> transformed_bboxes = transformed['bboxes']
         >>> transformed_keypoints = transformed['keypoints']
+
     """
 
     class InitSchema(BaseDistortion.InitSchema):
@@ -1737,6 +2279,17 @@ class OpticalDistortion(BaseDistortion):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         image_shape = params["shape"][:2]
 
         # Get distortion coefficient
@@ -1758,7 +2311,8 @@ class OpticalDistortion(BaseDistortion):
 
 
 class GridDistortion(BaseDistortion):
-    """Apply grid distortion to images, masks, bounding boxes, and keypoints.
+    """
+    Apply grid distortion to images, masks, bounding boxes, and keypoints.
 
     This transformation divides the image into a grid and randomly distorts each cell,
     creating localized warping effects. It's particularly useful for data augmentation
@@ -1820,7 +2374,7 @@ class GridDistortion(BaseDistortion):
 
         @field_validator("distort_limit")
         @classmethod
-        def check_limits(
+        def _check_limits(
             cls,
             v: tuple[float, float],
             info: ValidationInfo,
@@ -1879,6 +2433,17 @@ class GridDistortion(BaseDistortion):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         image_shape = params["shape"][:2]
         steps_x = [1 + self.py_random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
         steps_y = [1 + self.py_random.uniform(*self.distort_limit) for _ in range(self.num_steps + 1)]
@@ -1906,7 +2471,8 @@ class GridDistortion(BaseDistortion):
 
 
 class D4(DualTransform):
-    """Applies one of the eight possible D4 dihedral group transformations to a square-shaped input,
+    """
+    Applies one of the eight possible D4 dihedral group transformations to a square-shaped input,
     maintaining the square shape. These transformations correspond to the symmetries of a square,
     including rotations and reflections.
 
@@ -1951,6 +2517,7 @@ class D4(DualTransform):
         >>> transformed = transform(image=image)
         >>> transformed_image = transformed['image']
         # The resulting image will be one of the 8 possible D4 transformations of the input
+
     """
 
     _targets = ALL_TARGETS
@@ -1970,6 +2537,18 @@ class D4(DualTransform):
         group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the D4 transform to an image.
+
+        Args:
+            img (np.ndarray): Image to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transformed image.
+
+        """
         return fgeometric.d4(img, group_element)
 
     def apply_to_bboxes(
@@ -1978,6 +2557,18 @@ class D4(DualTransform):
         group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the D4 transform to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transformed bounding boxes.
+
+        """
         return fgeometric.bboxes_d4(bboxes, group_element)
 
     def apply_to_keypoints(
@@ -1986,32 +2577,81 @@ class D4(DualTransform):
         group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the D4 transform to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.keypoints_d4(keypoints, group_element, params["shape"])
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the D4 transform to a batch of images.
+
+        Args:
+            images (np.ndarray): Images to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the D4 transform to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the D4 transform to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the D4 transform to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(mask3d, **params)
 
     def get_params(self) -> dict[str, Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]]:
+        """
+        Get the parameters for the D4 transform.
+
+        Returns:
+            dict[str, Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]]: Parameters.
+
+        """
         return {
             "group_element": self.random_generator.choice(d4_group_elements),
         }
 
 
 class GridElasticDeform(DualTransform):
-    """Apply elastic deformations to images, masks, bounding boxes, and keypoints using a grid-based approach.
+    """
+    Apply elastic deformations to images, masks, bounding boxes, and keypoints using a grid-based approach.
 
     This transformation overlays a grid on the input and applies random displacements to the grid points,
     resulting in local elastic distortions. The granularity and intensity of the distortions can be
@@ -2045,6 +2685,7 @@ class GridElasticDeform(DualTransform):
     Note:
         This transformation is particularly useful for data augmentation in medical imaging
         and other domains where elastic deformations can simulate realistic variations.
+
     """
 
     _targets = ALL_TARGETS
@@ -2094,7 +2735,7 @@ class GridElasticDeform(DualTransform):
         self.mask_interpolation = mask_interpolation
 
     @staticmethod
-    def generate_mesh(polygons: np.ndarray, dimensions: np.ndarray) -> np.ndarray:
+    def _generate_mesh(polygons: np.ndarray, dimensions: np.ndarray) -> np.ndarray:
         return np.hstack((dimensions.reshape(-1, 4), polygons))
 
     def get_params_dependent_on_data(
@@ -2102,6 +2743,17 @@ class GridElasticDeform(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         image_shape = params["shape"][:2]
 
         # Replace calculate_grid_dimensions with split_uniform_grid
@@ -2132,7 +2784,7 @@ class GridElasticDeform(DualTransform):
             self.random_generator,
         )
 
-        generated_mesh = self.generate_mesh(polygons, dimensions)
+        generated_mesh = self._generate_mesh(polygons, dimensions)
 
         return {"generated_mesh": generated_mesh}
 
@@ -2142,6 +2794,15 @@ class GridElasticDeform(DualTransform):
         generated_mesh: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the GridElasticDeform transform to an image.
+
+        Args:
+            img (np.ndarray): Image to be transformed.
+            generated_mesh (np.ndarray): Generated mesh.
+            **params (Any): Additional parameters.
+
+        """
         if not is_rgb_image(img) and not is_grayscale_image(img):
             raise ValueError("GridElasticDeform transform is only supported for RGB and grayscale images.")
         return fgeometric.distort_image(img, generated_mesh, self.interpolation)
@@ -2152,6 +2813,15 @@ class GridElasticDeform(DualTransform):
         generated_mesh: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the GridElasticDeform transform to a mask.
+
+        Args:
+            mask (np.ndarray): Mask to be transformed.
+            generated_mesh (np.ndarray): Generated mesh.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.distort_image(mask, generated_mesh, self.mask_interpolation)
 
     def apply_to_bboxes(
@@ -2160,6 +2830,15 @@ class GridElasticDeform(DualTransform):
         generated_mesh: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the GridElasticDeform transform to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be transformed.
+            generated_mesh (np.ndarray): Generated mesh.
+            **params (Any): Additional parameters.
+
+        """
         bboxes_denorm = denormalize_bboxes(bboxes, params["shape"][:2])
         return normalize_bboxes(
             fgeometric.bbox_distort_image(
@@ -2176,6 +2855,15 @@ class GridElasticDeform(DualTransform):
         generated_mesh: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the GridElasticDeform transform to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be transformed.
+            generated_mesh (np.ndarray): Generated mesh.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.distort_image_keypoints(
             keypoints,
             generated_mesh,
@@ -2184,7 +2872,8 @@ class GridElasticDeform(DualTransform):
 
 
 class RandomGridShuffle(DualTransform):
-    """Randomly shuffles the grid's cells on an image, mask, or keypoints,
+    """
+    Randomly shuffles the grid's cells on an image, mask, or keypoints,
     effectively rearranging patches within the image.
     This transformation divides the image into a grid and then permutes these grid cells based on a random mapping.
 
@@ -2264,6 +2953,16 @@ class RandomGridShuffle(DualTransform):
         mapping: list[int],
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to an image.
+
+        Args:
+            img (np.ndarray): Image to be transformed.
+            tiles (np.ndarray): Tiles to be transformed.
+            mapping (list[int]): Mapping of the tiles.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.swap_tiles_on_image(img, tiles, mapping)
 
     def apply_to_bboxes(
@@ -2273,6 +2972,16 @@ class RandomGridShuffle(DualTransform):
         mapping: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be transformed.
+            tiles (np.ndarray): Tiles to be transformed.
+            mapping (np.ndarray): Mapping of the tiles.
+            **params (Any): Additional parameters.
+
+        """
         image_shape = params["shape"][:2]
         bboxes_denorm = denormalize_bboxes(bboxes, image_shape)
         processor = cast("BboxProcessor", self.get_processor("bboxes"))
@@ -2295,22 +3004,64 @@ class RandomGridShuffle(DualTransform):
         mapping: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be transformed.
+            tiles (np.ndarray): Tiles to be transformed.
+            mapping (np.ndarray): Mapping of the tiles.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.swap_tiles_on_keypoints(keypoints, tiles, mapping)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to a batch of images.
+
+        Args:
+            images (np.ndarray): Images to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(images, **params)
 
     @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(volume, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(volumes, **params)
 
     @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """
+        Apply the RandomGridShuffle transform to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be transformed.
+            **params (Any): Additional parameters.
+
+        """
         return self.apply(mask3d, **params)
 
     def get_params_dependent_on_data(
@@ -2318,6 +3069,17 @@ class RandomGridShuffle(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, np.ndarray]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, np.ndarray]: Parameters.
+
+        """
         image_shape = params["shape"][:2]
 
         original_tiles = fgeometric.split_uniform_grid(
@@ -2335,7 +3097,8 @@ class RandomGridShuffle(DualTransform):
 
 
 class Pad(DualTransform):
-    """Pad the sides of an image by specified number of pixels.
+    """
+    Pad the sides of an image by specified number of pixels.
 
     Args:
         padding (int, tuple[int, int] or tuple[int, int, int, int]): Padding values. Can be:
@@ -2355,6 +3118,7 @@ class Pad(DualTransform):
 
     References:
         PyTorch Pad: https://pytorch.org/vision/main/generated/torchvision.transforms.v2.Pad.html
+
     """
 
     _targets = ALL_TARGETS
@@ -2400,6 +3164,18 @@ class Pad(DualTransform):
         pad_right: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the Pad transform to an image.
+
+        Args:
+            img (np.ndarray): Image to be transformed.
+            pad_top (int): Top padding.
+            pad_bottom (int): Bottom padding.
+            pad_left (int): Left padding.
+            pad_right (int): Right padding.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.pad_with_params(
             img,
             pad_top,
@@ -2419,6 +3195,18 @@ class Pad(DualTransform):
         pad_right: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the Pad transform to a mask.
+
+        Args:
+            mask (np.ndarray): Mask to be transformed.
+            pad_top (int): Top padding.
+            pad_bottom (int): Bottom padding.
+            pad_left (int): Left padding.
+            pad_right (int): Right padding.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.pad_with_params(
             mask,
             pad_top,
@@ -2438,6 +3226,18 @@ class Pad(DualTransform):
         pad_right: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the Pad transform to bounding boxes.
+
+        Args:
+            bboxes (np.ndarray): Bounding boxes to be transformed.
+            pad_top (int): Top padding.
+            pad_bottom (int): Bottom padding.
+            pad_left (int): Left padding.
+            pad_right (int): Right padding.
+            **params (Any): Additional parameters.
+
+        """
         image_shape = params["shape"][:2]
         bboxes_np = denormalize_bboxes(bboxes, params["shape"])
 
@@ -2466,6 +3266,18 @@ class Pad(DualTransform):
         pad_right: int,
         **params: Any,
     ) -> np.ndarray:
+        """
+        Apply the Pad transform to keypoints.
+
+        Args:
+            keypoints (np.ndarray): Keypoints to be transformed.
+            pad_top (int): Top padding.
+            pad_bottom (int): Bottom padding.
+            pad_left (int): Left padding.
+            pad_right (int): Right padding.
+            **params (Any): Additional parameters.
+
+        """
         return fgeometric.pad_keypoints(
             keypoints,
             pad_top,
@@ -2481,6 +3293,17 @@ class Pad(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         if isinstance(self.padding, Real):
             pad_top = pad_bottom = pad_left = pad_right = self.padding
         elif isinstance(self.padding, (tuple, list)):
@@ -2507,7 +3330,8 @@ class Pad(DualTransform):
 
 
 class PadIfNeeded(Pad):
-    """Pads the sides of an image if the image dimensions are less than the specified minimum dimensions.
+    """
+    Pads the sides of an image if the image dimensions are less than the specified minimum dimensions.
     If the `pad_height_divisor` or `pad_width_divisor` is specified, the function additionally ensures
     that the image dimensions are divisible by these values.
 
@@ -2553,6 +3377,7 @@ class PadIfNeeded(Pad):
         >>> padded_mask = transformed['mask']
         >>> adjusted_bboxes = transformed['bboxes']
         >>> adjusted_keypoints = transformed['keypoints']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -2624,6 +3449,17 @@ class PadIfNeeded(Pad):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Get the parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
         h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = fgeometric.get_padding_params(
             image_shape=params["shape"][:2],
             min_height=self.min_height,
@@ -2650,7 +3486,8 @@ class PadIfNeeded(Pad):
 
 
 class ThinPlateSpline(BaseDistortion):
-    r"""Apply Thin Plate Spline (TPS) transformation to create smooth, non-rigid deformations.
+    r"""
+    Apply Thin Plate Spline (TPS) transformation to create smooth, non-rigid deformations.
 
     Imagine the image printed on a thin metal plate that can be bent and warped smoothly:
     - Control points act like pins pushing or pulling the plate
@@ -2741,6 +3578,7 @@ class ThinPlateSpline(BaseDistortion):
         - ElasticTransform: For different type of non-rigid deformation
         - GridDistortion: For grid-based warping
         - OpticalDistortion: For lens-like distortions
+
     """
 
     class InitSchema(BaseDistortion.InitSchema):
@@ -2795,8 +3633,18 @@ class ThinPlateSpline(BaseDistortion):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        """
+        Get the parameters dependent on the data.
 
+        Args:
+            params (dict[str, Any]): Parameters.
+            data (dict[str, Any]): Data.
+
+        Returns:
+            dict[str, Any]: Parameters.
+
+        """
+        height, width = params["shape"][:2]
         src_points = fgeometric.generate_control_points(self.num_control_points)
 
         # Add random displacement to destination points

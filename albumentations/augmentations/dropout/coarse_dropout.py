@@ -1,4 +1,5 @@
-"""Implementation of coarse dropout and random erasing augmentations.
+"""
+Implementation of coarse dropout and random erasing augmentations.
 
 This module provides several variations of coarse dropout augmentations, which drop out
 rectangular regions from images. It includes CoarseDropout for randomly placed dropouts,
@@ -24,7 +25,8 @@ __all__ = ["CoarseDropout", "ConstrainedCoarseDropout", "Erasing"]
 
 
 class CoarseDropout(BaseDropout):
-    """CoarseDropout randomly drops out rectangular regions from the image and optionally,
+    """
+    CoarseDropout randomly drops out rectangular regions from the image and optionally,
     the corresponding regions in an associated mask, to simulate occlusion and
     varied object sizes found in real-world settings.
 
@@ -96,6 +98,7 @@ class CoarseDropout(BaseDropout):
         - CutOut: https://arxiv.org/abs/1708.04552
         - Random Erasing: https://arxiv.org/abs/1708.04896
         - OpenCV Inpainting methods: https://docs.opencv.org/master/df/d3d/tutorial_py_inpainting.html
+
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -158,6 +161,17 @@ class CoarseDropout(BaseDropout):
         return hole_heights, hole_widths
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Get parameters dependent on the data.
+
+        Args:
+            params (dict[str, Any]): Dictionary containing parameters.
+            data (dict[str, Any]): Dictionary containing data.
+
+        Returns:
+            dict[str, Any]: Dictionary with parameters for transformation.
+
+        """
         image_shape = params["shape"][:2]
 
         num_holes = self.py_random.randint(*self.num_holes_range)
@@ -182,7 +196,8 @@ class CoarseDropout(BaseDropout):
 
 
 class Erasing(BaseDropout):
-    """Randomly erases rectangular regions in an image, following the Random Erasing Data Augmentation technique.
+    """
+    Randomly erases rectangular regions in an image, following the Random Erasing Data Augmentation technique.
 
     This augmentation helps improve model robustness by randomly masking out rectangular regions in the image,
     simulating occlusions and encouraging the model to learn from partial information. It's particularly
@@ -241,6 +256,7 @@ class Erasing(BaseDropout):
         - Paper: https://arxiv.org/abs/1708.04896
         - Implementation inspired by torchvision:
           https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.RandomErasing
+
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -269,7 +285,8 @@ class Erasing(BaseDropout):
         self.ratio = ratio
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Calculate erasing parameters using direct mathematical derivation.
+        """
+        Calculate erasing parameters using direct mathematical derivation.
 
         Given:
         - Image dimensions (H, W)
@@ -337,7 +354,8 @@ class Erasing(BaseDropout):
 
 
 class ConstrainedCoarseDropout(BaseDropout):
-    """Applies coarse dropout to regions containing specific objects in the image.
+    """
+    Applies coarse dropout to regions containing specific objects in the image.
 
     This augmentation creates holes (dropout regions) for each target object in the image.
     Objects can be specified either by their class indices in a segmentation mask or
@@ -438,6 +456,7 @@ class ConstrainedCoarseDropout(BaseDropout):
         ...     bboxes=[[0, 0, 100, 100, 'car'], [150, 150, 300, 300, 'person']],
         ...     labels=['car', 'person']
         ... )
+
     """
 
     class InitSchema(BaseDropout.InitSchema):
@@ -485,7 +504,8 @@ class ConstrainedCoarseDropout(BaseDropout):
         self.bbox_labels = bbox_labels
 
     def get_boxes_from_bboxes(self, bboxes: np.ndarray) -> np.ndarray | None:
-        """Get bounding boxes that match specified labels.
+        """
+        Get bounding boxes that match specified labels.
 
         Uses BboxProcessor's label encoder if bbox_labels contain strings.
         """

@@ -1,4 +1,5 @@
-"""Module containing type definitions and constants used throughout Albumentations.
+"""
+Module containing type definitions and constants used throughout Albumentations.
 
 This module defines common types, constants, and enumerations that are used across the
 Albumentations library. It includes type aliases for numeric types, enumerations for
@@ -27,7 +28,8 @@ d4_group_elements = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 
 
 class ReferenceImage(TypedDict):
-    """Dictionary-like container for reference image data.
+    """
+    Dictionary-like container for reference image data.
 
     A typed dictionary defining the structure of reference image data used within
     Albumentations, including optional components like masks, bounding boxes,
@@ -38,6 +40,7 @@ class ReferenceImage(TypedDict):
         mask (np.ndarray | None): Optional mask array.
         bbox (tuple[float, ...] | np.ndarray | None): Optional bounding box coordinates.
         keypoints (tuple[float, ...] | np.ndarray | None): Optional keypoint coordinates.
+
     """
 
     image: np.ndarray
@@ -47,7 +50,8 @@ class ReferenceImage(TypedDict):
 
 
 class Targets(Enum):
-    """Enumeration of supported target types in Albumentations.
+    """
+    Enumeration of supported target types in Albumentations.
 
     This enum defines the different types of data that can be augmented
     by Albumentations transforms, including both 2D and 3D targets.
@@ -59,6 +63,7 @@ class Targets(Enum):
         KEYPOINTS (str): Keypoint coordinates target.
         VOLUME (str): 3D volume target.
         MASK3D (str): 3D mask target.
+
     """
 
     IMAGE = "Image"

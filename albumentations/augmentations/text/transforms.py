@@ -1,4 +1,5 @@
-"""Transforms for text rendering and augmentation on images.
+"""
+Transforms for text rendering and augmentation on images.
 
 This module provides transforms for adding and manipulating text on images,
 including text augmentation techniques like word insertion, deletion, and swapping.
@@ -22,7 +23,8 @@ __all__ = ["TextImage"]
 
 
 class TextImage(ImageOnlyTransform):
-    """Apply text rendering transformations on images.
+    """
+    Apply text rendering transformations on images.
 
     This class supports rendering text directly onto images using a variety of configurations,
     such as custom fonts, font sizes, colors, and augmentation methods. The text can be placed
@@ -70,6 +72,7 @@ class TextImage(ImageOnlyTransform):
         >>> transformed = transform(image=my_image, text_metadata=my_metadata)
         >>> image = transformed['image']
         # This will render text on `my_image` based on the metadata provided in `my_metadata`.
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -114,10 +117,12 @@ class TextImage(ImageOnlyTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
-        """Get list of targets that should be passed as parameters to transforms.
+        """
+        Get list of targets that should be passed as parameters to transforms.
 
         Returns:
             list[str]: List containing the metadata key name
+
         """
         return [self.metadata_key]
 
@@ -127,7 +132,8 @@ class TextImage(ImageOnlyTransform):
         fraction: float,
         choice: Literal["insertion", "swap", "deletion"],
     ) -> str:
-        """Apply a random text augmentation to the input text.
+        """
+        Apply a random text augmentation to the input text.
 
         Args:
             text (str): Original text to augment
@@ -139,6 +145,7 @@ class TextImage(ImageOnlyTransform):
 
         Raises:
             ValueError: If an invalid choice is provided
+
         """
         words = [word for word in text.strip().split() if word]
         num_words = len(words)
@@ -163,7 +170,8 @@ class TextImage(ImageOnlyTransform):
         text: str,
         bbox_index: int,
     ) -> dict[str, Any]:
-        """Preprocess text metadata for a single bounding box.
+        """
+        Preprocess text metadata for a single bounding box.
 
         Args:
             image (np.ndarray): Input image
@@ -176,6 +184,7 @@ class TextImage(ImageOnlyTransform):
 
         Raises:
             ImportError: If PIL.ImageFont is not installed
+
         """
         try:
             from PIL import ImageFont
@@ -212,7 +221,8 @@ class TextImage(ImageOnlyTransform):
         }
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Generate parameters based on input data.
+        """
+        Generate parameters based on input data.
 
         Args:
             params (dict[str, Any]): Dictionary of existing parameters
@@ -220,6 +230,7 @@ class TextImage(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: Dictionary containing the overlay data for text rendering
+
         """
         image = data["image"] if "image" in data else data["images"][0]
 
@@ -254,7 +265,8 @@ class TextImage(ImageOnlyTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
-        """Apply text rendering to the input image.
+        """
+        Apply text rendering to the input image.
 
         Args:
             img (np.ndarray): Input image
@@ -263,11 +275,13 @@ class TextImage(ImageOnlyTransform):
 
         Returns:
             np.ndarray: Image with rendered text
+
         """
         return ftext.render_text(img, overlay_data, clear_bg=self.clear_bg)
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
-        """Apply the transform and include overlay data in the result.
+        """
+        Apply the transform and include overlay data in the result.
 
         Args:
             params (dict[str, Any]): Parameters for the transform
@@ -276,6 +290,7 @@ class TextImage(ImageOnlyTransform):
 
         Returns:
             dict[str, Any]: Dictionary containing the transformed data and simplified overlay information
+
         """
         res = super().apply_with_params(params, *args, **kwargs)
         res["overlay_data"] = [

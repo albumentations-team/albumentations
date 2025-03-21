@@ -1,4 +1,5 @@
-"""Functional implementations for domain adaptation image transformations.
+"""
+Functional implementations for domain adaptation image transformations.
 
 This module provides low-level functions and classes for performing domain adaptation
 between images. It includes implementations for histogram matching, Fourier domain adaptation,
@@ -235,7 +236,8 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
 @clipped
 @preserve_channel_dim
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
-    """Apply Fourier Domain Adaptation to the input image using a target image.
+    """
+    Apply Fourier Domain Adaptation to the input image using a target image.
 
     This function performs domain adaptation in the frequency domain by modifying the amplitude
     spectrum of the source image based on the target image's amplitude spectrum. It preserves
@@ -284,6 +286,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     References:
         FDA: Fourier Domain Adaptation for Semantic Segmentation: Yang and Soatto, 2020, CVPR
             https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+
     """
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
@@ -329,7 +332,8 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 @clipped
 @preserve_channel_dim
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
-    """Apply histogram matching to an input image using a reference image and blend the result.
+    """
+    Apply histogram matching to an input image using a reference image and blend the result.
 
     This function performs histogram matching between the input image and a reference image,
     then blends the result with the original input image based on the specified blend ratio.
@@ -358,6 +362,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
         - The function uses a custom implementation of histogram matching based on OpenCV and NumPy.
         - The @clipped and @preserve_channel_dim decorators ensure the output is within
           the valid range and maintains the original number of dimensions.
+
     """
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
@@ -376,7 +381,8 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
 @uint8_io
 @preserve_channel_dim
 def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
-    """Adjust an image so that its cumulative histogram matches that of another.
+    """
+    Adjust an image so that its cumulative histogram matches that of another.
 
     The adjustment is applied separately for each channel.
 
@@ -391,6 +397,7 @@ def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
 
     Raises:
         ValueError: Thrown when the number of channels in the input image and the reference differ.
+
     """
     if reference.dtype != np.uint8:
         reference = from_float(reference, np.uint8)

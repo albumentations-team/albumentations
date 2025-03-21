@@ -1,4 +1,5 @@
-"""Module containing utility functions and classes for the core Albumentations framework.
+"""
+Module containing utility functions and classes for the core Albumentations framework.
 
 This module provides a collection of helper functions and base classes used throughout
 the Albumentations library. It includes utilities for shape handling, parameter processing,
@@ -54,7 +55,8 @@ def get_volume_shape(vol: np.ndarray | torch.Tensor) -> tuple[int, int, int]:
 
 
 def get_shape(data: dict[str, Any]) -> ShapeType:
-    """Extract spatial dimensions from input data dictionary containing image or volume.
+    """
+    Extract spatial dimensions from input data dictionary containing image or volume.
 
     Args:
         data (dict[str, Any]): Dictionary containing image or volume data with one of:
@@ -64,6 +66,7 @@ def get_shape(data: dict[str, Any]) -> ShapeType:
 
     Returns:
         dict[Literal["depth", "height", "width"], int]: Dictionary containing spatial dimensions
+
     """
     if "volume" in data:
         depth, height, width = get_volume_shape(data["volume"])
@@ -86,11 +89,13 @@ def format_args(args_dict: dict[str, Any]) -> str:
 
 
 class Params(Serializable, ABC):
-    """Base class for parameter handling in transforms.
+    """
+    Base class for parameter handling in transforms.
 
     Args:
         format (Any): The format of the data this parameter object will process.
         label_fields (Sequence[str] | None): List of fields that are joined with the data, such as labels.
+
     """
 
     def __init__(self, format: Any, label_fields: Sequence[str] | None):  # noqa: A002
@@ -98,16 +103,19 @@ class Params(Serializable, ABC):
         self.label_fields = label_fields
 
     def to_dict_private(self) -> dict[str, Any]:
-        """Return a dictionary containing the private parameters of this object.
+        """
+        Return a dictionary containing the private parameters of this object.
 
         Returns:
             dict[str, Any]: Dictionary with format and label_fields parameters.
+
         """
         return {"format": self.format, "label_fields": self.label_fields}
 
 
 class DataProcessor(ABC):
-    """Abstract base class for data processors.
+    """
+    Abstract base class for data processors.
 
     Data processors handle the conversion, validation, and filtering of data
     during transformations.
@@ -115,6 +123,7 @@ class DataProcessor(ABC):
     Args:
         params (Params): Parameters for data processing.
         additional_targets (dict[str, str] | None): Dictionary mapping additional target names to their types.
+
     """
 
     def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
@@ -129,10 +138,12 @@ class DataProcessor(ABC):
     @property
     @abstractmethod
     def default_data_name(self) -> str:
-        """Return the default name of the data field.
+        """
+        Return the default name of the data field.
 
         Returns:
             str: Default data field name.
+
         """
         raise NotImplementedError
 
@@ -143,27 +154,33 @@ class DataProcessor(ABC):
                 self.data_fields.append(k)
 
     def ensure_data_valid(self, data: dict[str, Any]) -> None:
-        """Validate input data before processing.
+        """
+        Validate input data before processing.
 
         Args:
             data (dict[str, Any]): Input data dictionary to validate.
+
         """
 
     def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
-        """Validate transforms before applying them.
+        """
+        Validate transforms before applying them.
 
         Args:
             transforms (Sequence[object]): Sequence of transforms to validate.
+
         """
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Process data after transformation.
+        """
+        Process data after transformation.
 
         Args:
             data (dict[str, Any]): Data dictionary after transformation.
 
         Returns:
             dict[str, Any]: Processed data dictionary.
+
         """
         shape = get_shape(data)
         data = self._process_data_fields(data, shape)
@@ -193,10 +210,12 @@ class DataProcessor(ABC):
         return data
 
     def preprocess(self, data: dict[str, Any]) -> None:
-        """Process data before transformation.
+        """
+        Process data before transformation.
 
         Args:
             data (dict[str, Any]): Data dictionary to preprocess.
+
         """
         shape = get_shape(data)
 
@@ -217,7 +236,8 @@ class DataProcessor(ABC):
         shape: ShapeType,
         direction: Literal["to", "from"] = "to",
     ) -> np.ndarray:
-        """Check and convert data between Albumentations and external formats.
+        """
+        Check and convert data between Albumentations and external formats.
 
         Args:
             data (np.ndarray): Input data array.
@@ -228,6 +248,7 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Converted data array.
+
         """
         if self.params.format == "albumentations":
             self.check(data, shape)
@@ -239,7 +260,8 @@ class DataProcessor(ABC):
 
     @abstractmethod
     def filter(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
-        """Filter data based on shapes.
+        """
+        Filter data based on shapes.
 
         Args:
             data (np.ndarray): Data to filter.
@@ -247,15 +269,18 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Filtered data.
+
         """
 
     @abstractmethod
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
-        """Validate data structure against shape requirements.
+        """
+        Validate data structure against shape requirements.
 
         Args:
             data (np.ndarray): Data to validate.
             shape (ShapeType): Shape information containing dimensions.
+
         """
 
     @abstractmethod
@@ -264,7 +289,8 @@ class DataProcessor(ABC):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        """Convert data from external format to Albumentations internal format.
+        """
+        Convert data from external format to Albumentations internal format.
 
         Args:
             data (np.ndarray): Data in external format.
@@ -272,6 +298,7 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Data in Albumentations format.
+
         """
 
     @abstractmethod
@@ -280,7 +307,8 @@ class DataProcessor(ABC):
         data: np.ndarray,
         shape: ShapeType,
     ) -> np.ndarray:
-        """Convert data from Albumentations internal format to external format.
+        """
+        Convert data from Albumentations internal format to external format.
 
         Args:
             data (np.ndarray): Data in Albumentations format.
@@ -288,10 +316,12 @@ class DataProcessor(ABC):
 
         Returns:
             np.ndarray: Data in external format.
+
         """
 
     def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Add label fields to data arrays.
+        """
+        Add label fields to data arrays.
 
         This method processes label fields and joins them with the corresponding data arrays.
 
@@ -300,6 +330,7 @@ class DataProcessor(ABC):
 
         Returns:
             dict[str, Any]: Data with label fields added.
+
         """
         if not self.params.label_fields:
             return data
@@ -329,13 +360,15 @@ class DataProcessor(ABC):
             )
 
     def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Remove label fields from data arrays and restore them as separate entries.
+        """
+        Remove label fields from data arrays and restore them as separate entries.
 
         Args:
             data (dict[str, Any]): Input data dictionary with combined label fields.
 
         Returns:
             dict[str, Any]: Data with label fields extracted as separate entries.
+
         """
         if not self.params.label_fields:
             return data
@@ -429,7 +462,8 @@ def to_tuple(
     low: float | tuple[float, float] | tuple[int, int] | None = None,
     bias: float | None = None,
 ) -> tuple[float, float] | tuple[int, int]:
-    """Convert input argument to a min-max tuple.
+    """
+    Convert input argument to a min-max tuple.
 
     This function processes various input types and returns a tuple representing a range.
     It handles single values, sequences, and can apply optional low bounds or biases.
@@ -471,6 +505,7 @@ def to_tuple(
         - When 'param' is a single value and 'low' is not provided, the function creates a symmetric range around zero.
         - The function preserves the type (int or float) of the input in the output.
         - If a sequence is provided, it must contain exactly 2 elements.
+
     """
     validate_args(low, bias)
 

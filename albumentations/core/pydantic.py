@@ -1,4 +1,5 @@
-"""Module containing Pydantic validation utilities for Albumentations.
+"""
+Module containing Pydantic validation utilities for Albumentations.
 
 This module provides a collection of validators and utility functions used for validating
 parameters in the Pydantic models throughout the Albumentations library. It includes
@@ -85,7 +86,8 @@ def check_range_bounds(
     min_inclusive: bool = True,
     max_inclusive: bool = True,
 ) -> Callable[[tuple[T, ...] | None], tuple[T, ...] | None]:
-    """Validates that all values in a tuple are within specified bounds.
+    """
+    Validates that all values in a tuple are within specified bounds.
 
     Args:
         min_val (int | float):
@@ -113,6 +115,7 @@ def check_range_bounds(
         >>> validator((1.1, 0.5))  # Raises ValueError - outside range
         >>> validator = check_range_bounds(0, 1, max_inclusive=False)  # For [0, 1) range
         >>> validator((0, 1))  # Raises ValueError - 1 not included
+
     """
 
     def validator(value: tuple[T, ...] | None) -> tuple[T, ...] | None:

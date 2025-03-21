@@ -1,4 +1,5 @@
-"""Functional implementations of image cropping operations.
+"""
+Functional implementations of image cropping operations.
 
 This module provides utility functions for performing various cropping operations on images,
 bounding boxes, and keypoints. It includes functions to calculate crop coordinates, crop images,
@@ -58,7 +59,8 @@ def crop_bboxes_by_coords(
     image_shape: tuple[int, int],
     normalized_input: bool = True,
 ) -> np.ndarray:
-    """Crop bounding boxes based on given crop coordinates.
+    """
+    Crop bounding boxes based on given crop coordinates.
 
     This function adjusts bounding boxes to fit within a cropped image.
 
@@ -82,6 +84,7 @@ def crop_bboxes_by_coords(
     Note:
         Bounding boxes that fall completely outside the crop area will be removed.
         Bounding boxes that partially overlap with the crop area will be adjusted to fit within it.
+
     """
     if not bboxes.size:
         return bboxes
@@ -112,7 +115,8 @@ def crop_keypoints_by_coords(
     keypoints: np.ndarray,
     crop_coords: tuple[int, int, int, int],
 ) -> np.ndarray:
-    """Crop keypoints using the provided coordinates of bottom-left and top-right corners in pixels.
+    """
+    Crop keypoints using the provided coordinates of bottom-left and top-right corners in pixels.
 
     Args:
         keypoints (np.ndarray): An array of keypoints with shape (N, 4+) where each row is (x, y, angle, scale, ...).
@@ -120,6 +124,7 @@ def crop_keypoints_by_coords(
 
     Returns:
         np.ndarray: An array of cropped keypoints with the same shape as the input.
+
     """
     x1, y1 = crop_coords[:2]
 
@@ -229,7 +234,8 @@ def crop_and_pad_keypoints(
     result_shape: tuple[int, int] = (0, 0),
     keep_size: bool = False,
 ) -> np.ndarray:
-    """Crop and pad multiple keypoints simultaneously.
+    """
+    Crop and pad multiple keypoints simultaneously.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (N, 4+) where each row is (x, y, angle, scale, ...).
@@ -241,6 +247,7 @@ def crop_and_pad_keypoints(
 
     Returns:
         np.ndarray: Array of transformed keypoints with the same shape as input.
+
     """
     transformed_keypoints = keypoints.copy()
 
