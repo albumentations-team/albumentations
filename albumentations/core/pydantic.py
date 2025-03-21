@@ -18,12 +18,39 @@ from albumentations.core.utils import to_tuple
 
 
 def nondecreasing(value: tuple[Number, Number]) -> tuple[Number, Number]:
+    """Ensure a tuple of two numbers is in non-decreasing order.
+
+    Args:
+        value (tuple[Number, Number]): Tuple of two numeric values to validate.
+
+    Returns:
+        tuple[Number, Number]: The original tuple if valid.
+
+    Raises:
+        ValueError: If the first value is greater than the second value.
+
+    """
     if not value[0] <= value[1]:
         raise ValueError(f"First value should be less than the second value, got {value} instead")
     return value
 
 
 def process_non_negative_range(value: tuple[float, float] | float | None) -> tuple[float, float]:
+    """Process and validate a non-negative range.
+
+    Args:
+        value (tuple[float, float] | float | None): Value to process. Can be:
+            - A tuple of two floats
+            - A single float (converted to symmetric range)
+            - None (defaults to 0)
+
+    Returns:
+        tuple[float, float]: Validated non-negative range.
+
+    Raises:
+        ValueError: If any values in the range are negative.
+
+    """
     result = to_tuple(value if value is not None else 0, 0)
     if not all(x >= 0 for x in result):
         msg = "All values in the non negative range should be non negative"
@@ -32,6 +59,15 @@ def process_non_negative_range(value: tuple[float, float] | float | None) -> tup
 
 
 def float2int(value: tuple[float, float]) -> tuple[int, int]:
+    """Convert a tuple of floats to a tuple of integers.
+
+    Args:
+        value (tuple[float, float]): Tuple of two float values.
+
+    Returns:
+        tuple[int, int]: Tuple of two integer values.
+
+    """
     return int(value[0]), int(value[1])
 
 
@@ -58,6 +94,17 @@ def create_symmetric_range(value: tuple[float, float] | float) -> tuple[float, f
 
 
 def create_symmetric_range(value: tuple[float, float] | float) -> tuple[float, float]:
+    """Create a symmetric range around zero or use provided range.
+
+    Args:
+        value (tuple[float, float] | float): Input value, either:
+            - A tuple of two floats (used directly)
+            - A single float (converted to (-value, value))
+
+    Returns:
+        tuple[float, float]: Symmetric range.
+
+    """
     return to_tuple(value)
 
 
@@ -65,14 +112,41 @@ SymmetricRangeType = Annotated[Union[tuple[float, float], float], AfterValidator
 
 
 def convert_to_1plus_range(value: tuple[float, float] | float) -> tuple[float, float]:
+    """Convert value to a range with lower bound of 1.
+
+    Args:
+        value (tuple[float, float] | float): Input value.
+
+    Returns:
+        tuple[float, float]: Range with minimum value of at least 1.
+
+    """
     return to_tuple(value, low=1)
 
 
 def convert_to_0plus_range(value: tuple[float, float] | float) -> tuple[float, float]:
+    """Convert value to a range with lower bound of 0.
+
+    Args:
+        value (tuple[float, float] | float): Input value.
+
+    Returns:
+        tuple[float, float]: Range with minimum value of at least 0.
+
+    """
     return to_tuple(value, low=0)
 
 
 def repeat_if_scalar(value: tuple[float, float] | float) -> tuple[float, float]:
+    """Convert a scalar value to a tuple by repeating it, or return the tuple as is.
+
+    Args:
+        value (tuple[float, float] | float): Input value, either a scalar or tuple.
+
+    Returns:
+        tuple[float, float]: If input is scalar, returns (value, value), otherwise returns input unchanged.
+
+    """
     return (value, value) if isinstance(value, (int, float)) else value
 
 
