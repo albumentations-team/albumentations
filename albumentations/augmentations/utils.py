@@ -42,21 +42,66 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def read_bgr_image(path: str | Path) -> np.ndarray:
+    """Read an image in BGR format from the specified path.
+
+    Args:
+        path (str | Path): Path to the image file.
+
+    Returns:
+        np.ndarray: Image in BGR format as a numpy array.
+
+    """
     return cv2.imread(str(path), cv2.IMREAD_COLOR)
 
 
 def read_rgb_image(path: str | Path) -> np.ndarray:
+    """Read an image in RGB format from the specified path.
+
+    This function reads an image in BGR format using OpenCV and then
+    converts it to RGB format.
+
+    Args:
+        path (str | Path): Path to the image file.
+
+    Returns:
+        np.ndarray: Image in RGB format as a numpy array.
+
+    """
     image = read_bgr_image(path)
     return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
 def read_grayscale(path: str | Path) -> np.ndarray:
+    """Read a grayscale image from the specified path.
+
+    Args:
+        path (str | Path): Path to the image file.
+
+    Returns:
+        np.ndarray: Grayscale image as a numpy array.
+
+    """
     return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
 
 
 def angle_2pi_range(
     func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
+    """Decorator to normalize angle values to the range [0, 2π).
+
+    This decorator wraps a function that processes keypoints, ensuring that
+    angle values (stored in the 4th column, index 3) are normalized to the
+    range [0, 2π) after the wrapped function executes.
+
+    Args:
+        func (Callable): Function that processes keypoints and returns a numpy array.
+            The function should take a keypoints array as its first parameter.
+
+    Returns:
+        Callable: Wrapped function that normalizes angles after processing keypoints.
+
+    """
+
     @wraps(func)
     def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         result = func(keypoints, *args, **kwargs)

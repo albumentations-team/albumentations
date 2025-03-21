@@ -28,6 +28,18 @@ __all__ = ["blur", "central_zoom", "defocus", "glass_blur", "median_blur", "zoom
 
 @preserve_channel_dim
 def blur(img: np.ndarray, ksize: int) -> np.ndarray:
+    """Blur an image.
+
+    This function applies a blur to an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        ksize (int): Kernel size.
+
+    Returns:
+        np.ndarray: Blurred image.
+
+    """
     blur_fn = maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
     return blur_fn(img)
 
@@ -35,6 +47,18 @@ def blur(img: np.ndarray, ksize: int) -> np.ndarray:
 @preserve_channel_dim
 @uint8_io
 def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
+    """Median blur an image.
+
+    This function applies a median blur to an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        ksize (int): Kernel size.
+
+    Returns:
+        np.ndarray: Median blurred image.
+
+    """
     blur_fn = maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
     return blur_fn(img)
 
@@ -48,6 +72,22 @@ def glass_blur(
     dxy: np.ndarray,
     mode: Literal["fast", "exact"],
 ) -> np.ndarray:
+    """Glass blur an image.
+
+    This function applies a glass blur to an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        sigma (float): Sigma.
+        max_delta (int): Maximum delta.
+        iterations (int): Number of iterations.
+        dxy (np.ndarray): Dxy.
+        mode (Literal["fast", "exact"]): Mode.
+
+    Returns:
+        np.ndarray: Glass blurred image.
+
+    """
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
     if mode == "fast":
@@ -80,6 +120,19 @@ def glass_blur(
 
 
 def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
+    """Defocus an image.
+
+    This function defocuses an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        radius (int): Radius.
+        alias_blur (float): Alias blur.
+
+    Returns:
+        np.ndarray: Defocused image.
+
+    """
     length = np.arange(-max(8, radius), max(8, radius) + 1)
     ksize = 3 if radius <= EIGHT else 5
 
@@ -93,6 +146,18 @@ def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
 
 
 def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
+    """Central zoom an image.
+
+    This function zooms an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        zoom_factor (int): Zoom factor.
+
+    Returns:
+        np.ndarray: Zoomed image.
+
+    """
     height, width = img.shape[:2]
     h_ch, w_ch = ceil(height / zoom_factor), ceil(width / zoom_factor)
     h_top, w_top = (height - h_ch) // 2, (width - w_ch) // 2
@@ -105,6 +170,18 @@ def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
 @float32_io
 @clipped
 def zoom_blur(img: np.ndarray, zoom_factors: np.ndarray | Sequence[int]) -> np.ndarray:
+    """Zoom blur an image.
+
+    This function zooms and blurs an image.
+
+    Args:
+        img (np.ndarray): Input image.
+        zoom_factors (np.ndarray | Sequence[int]): Zoom factors.
+
+    Returns:
+        np.ndarray: Zoomed and blurred image.
+
+    """
     out = np.zeros_like(img, dtype=np.float32)
 
     for zoom_factor in zoom_factors:

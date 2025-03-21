@@ -19,6 +19,20 @@ import numpy as np
 
 
 def custom_sort(item: Any) -> tuple[int, Real | str]:
+    """Sort items by type then value for consistent label ordering.
+
+    This function is used to sort labels in a consistent order, prioritizing numerical
+    values before string values. All numerical values are given priority 0, while
+    string values are given priority 1, ensuring numerical values are sorted first.
+
+    Args:
+        item (Any): Item to be sorted, can be either a numeric value or any other type.
+
+    Returns:
+        tuple[int, Real | str]: A tuple with sort priority (0 for numbers, 1 for others)
+            and the value itself (or string representation for non-numeric values).
+
+    """
     return (0, item) if isinstance(item, Real) else (1, str(item))
 
 
