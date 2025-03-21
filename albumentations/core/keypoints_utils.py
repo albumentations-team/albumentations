@@ -33,6 +33,18 @@ keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa", "xyz"}
 
 
 def angle_to_2pi_range(angles: np.ndarray) -> np.ndarray:
+    """Convert angles to the range [0, 2π).
+
+    This function takes an array of angles and ensures they are all within
+    the range of 0 to 2π (exclusive) by applying modulo 2π.
+
+    Args:
+        angles (np.ndarray): Array of angle values in radians.
+
+    Returns:
+        np.ndarray: Array of the same shape as input with angles normalized to [0, 2π).
+
+    """
     return np.mod(angles, 2 * np.pi)
 
 
