@@ -254,6 +254,21 @@ def resize(
     target_shape: tuple[int, int],
     interpolation: int,
 ) -> np.ndarray:
+    """Resize an image to the specified dimensions.
+
+    This function resizes an input image to the target shape using the specified
+    interpolation method. If the image is already the target size, it is returned unchanged.
+
+    Args:
+        img (np.ndarray): Input image to resize.
+        target_shape (tuple[int, int]): Target (height, width) dimensions.
+        interpolation (int): Interpolation method to use (cv2 interpolation flag).
+            Examples: cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_NEAREST, etc.
+
+    Returns:
+        np.ndarray: Resized image with shape target_shape + original channel dimensions.
+
+    """
     if target_shape == img.shape[:2]:
         return img
 
@@ -268,6 +283,19 @@ def resize(
 
 @preserve_channel_dim
 def scale(img: np.ndarray, scale: float, interpolation: int) -> np.ndarray:
+    """Scale an image by a factor while preserving aspect ratio.
+
+    This function scales both height and width dimensions of the image by the same factor.
+
+    Args:
+        img (np.ndarray): Input image to scale.
+        scale (float): Scale factor. Values > 1 will enlarge the image, values < 1 will shrink it.
+        interpolation (int): Interpolation method to use (cv2 interpolation flag).
+
+    Returns:
+        np.ndarray: Scaled image.
+
+    """
     height, width = img.shape[:2]
     new_size = int(height * scale), int(width * scale)
     return resize(img, new_size, interpolation)
@@ -329,6 +357,25 @@ def perspective(
     keep_size: bool,
     interpolation: int,
 ) -> np.ndarray:
+    """Apply perspective transformation to an image.
+
+    This function warps an image according to a perspective transformation matrix.
+    It can either maintain the original dimensions or use the specified max dimensions.
+
+    Args:
+        img (np.ndarray): Input image to transform.
+        matrix (np.ndarray): 3x3 perspective transformation matrix.
+        max_width (int): Maximum width of the output image if keep_size is False.
+        max_height (int): Maximum height of the output image if keep_size is False.
+        border_val (float | list[float] | np.ndarray): Border value(s) to fill areas outside the transformed image.
+        border_mode (int): OpenCV border mode (e.g., cv2.BORDER_CONSTANT, cv2.BORDER_REFLECT).
+        keep_size (bool): If True, maintain the original image dimensions.
+        interpolation (int): Interpolation method for resampling (cv2 interpolation flag).
+
+    Returns:
+        np.ndarray: Perspective-transformed image.
+
+    """
     if not keep_size:
         perspective_func = maybe_process_in_chunks(
             cv2.warpPerspective,
@@ -565,6 +612,23 @@ def warp_affine(
     border_mode: int,
     output_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Apply an affine transformation to an image.
+
+    This function transforms an image using the specified affine transformation matrix.
+    If the transformation matrix is an identity matrix, the original image is returned.
+
+    Args:
+        image (np.ndarray): Input image to transform.
+        matrix (np.ndarray): 2x3 or 3x3 affine transformation matrix.
+        interpolation (int): Interpolation method for resampling.
+        fill (tuple[float, ...] | float): Border value(s) to fill areas outside the transformed image.
+        border_mode (int): OpenCV border mode for handling pixels outside the image boundaries.
+        output_shape (tuple[int, int]): Shape (height, width) of the output image.
+
+    Returns:
+        np.ndarray: Affine-transformed image with dimensions specified by output_shape.
+
+    """
     if is_identity_matrix(matrix):
         return image
 
@@ -1321,6 +1385,22 @@ def pad(
     border_mode: int,
     value: tuple[float, ...] | float | None,
 ) -> np.ndarray:
+    """Pad an image to ensure minimum dimensions.
+
+    This function adds padding to an image if its dimensions are smaller than
+    the specified minimum dimensions. Padding is added evenly on all sides.
+
+    Args:
+        img (np.ndarray): Input image to pad.
+        min_height (int): Minimum height of the output image.
+        min_width (int): Minimum width of the output image.
+        border_mode (int): OpenCV border mode for padding.
+        value (tuple[float, ...] | float | None): Value(s) to fill the border pixels.
+
+    Returns:
+        np.ndarray: Padded image with dimensions at least (min_height, min_width).
+
+    """
     height, width = img.shape[:2]
 
     if height < min_height:
@@ -1400,6 +1480,23 @@ def pad_with_params(
     border_mode: int,
     value: tuple[float, ...] | float | None,
 ) -> np.ndarray:
+    """Pad an image with explicitly defined padding on each side.
+
+    This function adds specified amounts of padding to each side of the image.
+
+    Args:
+        img (np.ndarray): Input image to pad.
+        h_pad_top (int): Number of pixels to add at the top.
+        h_pad_bottom (int): Number of pixels to add at the bottom.
+        w_pad_left (int): Number of pixels to add on the left.
+        w_pad_right (int): Number of pixels to add on the right.
+        border_mode (int): OpenCV border mode for padding.
+        value (tuple[float, ...] | float | None): Value(s) to fill the border pixels.
+
+    Returns:
+        np.ndarray: Padded image.
+
+    """
     pad_fn = maybe_process_in_chunks(
         copy_make_border_with_value_extension,
         top=h_pad_top,
@@ -1422,6 +1519,23 @@ def remap(
     border_mode: int,
     value: tuple[float, ...] | float | None = None,
 ) -> np.ndarray:
+    """Remap an image according to given coordinate maps.
+
+    This function applies a generic geometrical transformation using
+    mapping functions that specify the position of each pixel in the output image.
+
+    Args:
+        img (np.ndarray): Input image to transform.
+        map_x (np.ndarray): Map of x-coordinates with same height and width as the input image.
+        map_y (np.ndarray): Map of y-coordinates with same height and width as the input image.
+        interpolation (int): Interpolation method for resampling.
+        border_mode (int): OpenCV border mode for handling pixels outside the image boundaries.
+        value (tuple[float, ...] | float | None, optional): Border value(s) if border_mode is BORDER_CONSTANT.
+
+    Returns:
+        np.ndarray: Remapped image with the same shape as the input image.
+
+    """
     # Combine map_x and map_y into a single map array of type CV_32FC2
     map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
 
@@ -1487,6 +1601,25 @@ def remap_keypoints(
     map_y: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Transform keypoints using coordinate mapping functions.
+
+    This function applies the inverse of the mapping defined by map_x and map_y
+    to keypoint coordinates. The inverse mapping is necessary because the mapping
+    functions define how pixels move from the source to the destination image,
+    while keypoints need to be transformed from the destination back to the source.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, 2+), where
+            the first two columns are x and y coordinates.
+        map_x (np.ndarray): Map of x-coordinates with shape equal to image_shape.
+        map_y (np.ndarray): Map of y-coordinates with shape equal to image_shape.
+        image_shape (tuple[int, int]): Shape (height, width) of the original image.
+
+    Returns:
+        np.ndarray: Transformed keypoints with the same shape as the input keypoints.
+            Returns an empty array if input keypoints is empty.
+
+    """
     height, width = image_shape[:2]
 
     # Extract x and y coordinates
