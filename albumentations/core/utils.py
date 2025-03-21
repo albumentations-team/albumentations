@@ -28,6 +28,19 @@ ShapeType = dict[Literal["depth", "height", "width"], int]
 
 
 def get_image_shape(img: np.ndarray | torch.Tensor) -> tuple[int, int]:
+    """Extract height and width dimensions from an image.
+
+    Args:
+        img (np.ndarray | torch.Tensor): Image as either numpy array (HWC format)
+            or torch tensor (CHW format).
+
+    Returns:
+        tuple[int, int]: Image dimensions as (height, width).
+
+    Raises:
+        RuntimeError: If the image type is not supported.
+
+    """
     if isinstance(img, np.ndarray):
         return img.shape[:2]  # HWC format
     try:
@@ -41,6 +54,19 @@ def get_image_shape(img: np.ndarray | torch.Tensor) -> tuple[int, int]:
 
 
 def get_volume_shape(vol: np.ndarray | torch.Tensor) -> tuple[int, int, int]:
+    """Extract depth, height, and width dimensions from a volume.
+
+    Args:
+        vol (np.ndarray | torch.Tensor): Volume as either numpy array (DHWC format)
+            or torch tensor (CDHW format).
+
+    Returns:
+        tuple[int, int, int]: Volume dimensions as (depth, height, width).
+
+    Raises:
+        RuntimeError: If the volume type is not supported.
+
+    """
     if isinstance(vol, np.ndarray):
         return vol.shape[:3]  # DHWC format
     try:
@@ -79,6 +105,15 @@ def get_shape(data: dict[str, Any]) -> ShapeType:
 
 
 def format_args(args_dict: dict[str, Any]) -> str:
+    """Format a dictionary of arguments into a string representation.
+
+    Args:
+        args_dict (dict[str, Any]): Dictionary of argument names and values.
+
+    Returns:
+        str: Formatted string of arguments in the form "key1='value1', key2=value2".
+
+    """
     formatted_args = []
     for k, v in args_dict.items():
         v_formatted = f"'{v}'" if isinstance(v, str) else str(v)
@@ -388,23 +423,68 @@ def validate_args(
     low: float | Sequence[int] | Sequence[float] | None,
     bias: float | None,
 ) -> None:
+    """Validate that 'low' and 'bias' parameters are not used together.
+
+    Args:
+        low (float | Sequence[int] | Sequence[float] | None): Lower bound value.
+        bias (float | None): Bias value to be added to both min and max values.
+
+    Raises:
+        ValueError: If both 'low' and 'bias' are provided.
+
+    """
     if low is not None and bias is not None:
         raise ValueError("Arguments 'low' and 'bias' cannot be used together.")
 
 
 def process_sequence(param: Sequence[Number]) -> tuple[Number, Number]:
+    """Process a sequence and return it as a (min, max) tuple.
+
+    Args:
+        param (Sequence[Number]): Sequence of numeric values.
+
+    Returns:
+        tuple[Number, Number]: Tuple containing (min_value, max_value) from the sequence.
+
+    Raises:
+        ValueError: If the sequence doesn't contain exactly 2 elements.
+
+    """
     if len(param) != PAIR:
         raise ValueError("Sequence must contain exactly 2 elements.")
     return min(param), max(param)
 
 
 def process_scalar(param: Number, low: Number | None) -> tuple[Number, Number]:
+    """Process a scalar value and optional low bound into a (min, max) tuple.
+
+    Args:
+        param (Number): Scalar numeric value.
+        low (Number | None): Optional lower bound.
+
+    Returns:
+        tuple[Number, Number]: Tuple containing (min_value, max_value) where:
+            - If low is provided: (low, param) if low < param else (param, low)
+            - If low is None: (-param, param) creating a symmetric range around zero
+
+    """
     if isinstance(low, Real):
         return (low, param) if low < param else (param, low)
     return -param, param
 
 
 def apply_bias(min_val: Number, max_val: Number, bias: Number) -> tuple[Number, Number]:
+    """Apply a bias to both values in a range.
+
+    Args:
+        min_val (Number): Minimum value.
+        max_val (Number): Maximum value.
+        bias (Number): Value to add to both min and max.
+
+    Returns:
+        tuple[Number, Number]: Tuple containing (min_val + bias, max_val + bias).
+
+    """
     return bias + min_val, bias + max_val
 
 
@@ -413,10 +493,31 @@ def ensure_int_output(
     max_val: Number,
     param: Number,
 ) -> tuple[int, int] | tuple[float, float]:
+    """Ensure output is of the same type (int or float) as the input parameter.
+
+    Args:
+        min_val (Number): Minimum value.
+        max_val (Number): Maximum value.
+        param (Number): Original parameter used to determine the output type.
+
+    Returns:
+        tuple[int, int] | tuple[float, float]: Tuple with values converted to int if param is int,
+        otherwise values remain as float.
+
+    """
     return (int(min_val), int(max_val)) if isinstance(param, int) else (float(min_val), float(max_val))
 
 
 def ensure_contiguous_output(arg: np.ndarray | Sequence[np.ndarray]) -> np.ndarray | list[np.ndarray]:
+    """Ensure that numpy arrays are contiguous in memory.
+
+    Args:
+        arg (np.ndarray | Sequence[np.ndarray]): A numpy array or sequence of numpy arrays.
+
+    Returns:
+        np.ndarray | list[np.ndarray]: Contiguous array(s) with the same data.
+
+    """
     if isinstance(arg, np.ndarray):
         arg = np.ascontiguousarray(arg)
     elif isinstance(arg, Sequence):
