@@ -1,5 +1,4 @@
-"""
-Module for checking and comparing albumentations package versions.
+"""Module for checking and comparing albumentations package versions.
 
 This module provides utilities for version checking and comparison, including
 the ability to fetch the latest version from PyPI and compare it with the currently
@@ -59,8 +58,7 @@ def parse_version(data: str) -> str:
 
 
 def compare_versions(v1: tuple[int | str, ...], v2: tuple[int | str, ...]) -> bool:
-    """
-    Compare two version tuples.
+    """Compare two version tuples.
     Returns True if v1 > v2, False otherwise.
 
     Special rules:
@@ -91,8 +89,7 @@ def compare_versions(v1: tuple[int | str, ...], v2: tuple[int | str, ...]) -> bo
 
 
 def parse_version_parts(version_str: str) -> tuple[int | str, ...]:
-    """
-    Convert version string to tuple of (int | str) parts following PEP 440 conventions.
+    """Convert version string to tuple of (int | str) parts following PEP 440 conventions.
 
     Examples:
         "1.4.24" -> (1, 4, 24)

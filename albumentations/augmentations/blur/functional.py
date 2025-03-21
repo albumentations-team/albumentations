@@ -1,5 +1,4 @@
-"""
-Functional implementations of various blur operations for image processing.
+"""Functional implementations of various blur operations for image processing.
 
 This module provides a collection of low-level functions for applying different blur effects
 to images, including standard blur, median blur, glass blur, defocus, and zoom effects.
@@ -174,8 +173,7 @@ def create_motion_kernel(
     allow_shifted: bool,
     random_state: random.Random,
 ) -> np.ndarray:
-    """
-    Create a motion blur kernel.
+    """Create a motion blur kernel.
 
     Args:
         kernel_size (int): Size of the kernel (must be odd)
@@ -235,8 +233,7 @@ def create_motion_kernel(
 
 
 def sample_odd_from_range(random_state: random.Random, low: int, high: int) -> int:
-    """
-    Sample an odd number from the range [low, high] (inclusive).
+    """Sample an odd number from the range [low, high] (inclusive).
 
     Args:
         random_state (random.Random): instance of random.Random
@@ -272,8 +269,7 @@ def sample_odd_from_range(random_state: random.Random, low: int, high: int) -> i
 
 
 def create_gaussian_kernel(sigma: float, ksize: int = 0) -> np.ndarray:
-    """
-    Create a Gaussian kernel following PIL's approach.
+    """Create a Gaussian kernel following PIL's approach.
 
     Args:
         sigma (float): Standard deviation for Gaussian kernel.
@@ -302,8 +298,7 @@ def create_gaussian_kernel(sigma: float, ksize: int = 0) -> np.ndarray:
 
 
 def create_gaussian_kernel_1d(sigma: float, ksize: int = 0) -> np.ndarray:
-    """
-    Create a 1D Gaussian kernel following PIL's approach.
+    """Create a 1D Gaussian kernel following PIL's approach.
 
     Args:
         sigma (float): Standard deviation for Gaussian kernel.
@@ -329,8 +324,7 @@ def create_gaussian_kernel_1d(sigma: float, ksize: int = 0) -> np.ndarray:
 
 
 def create_gaussian_kernel_input_array(size: int) -> np.ndarray:
-    """
-    Creates a 1-D array which will create an array of x-coordinates which will be input for the
+    """Creates a 1-D array which will create an array of x-coordinates which will be input for the
     gaussian function (values from -size/2 to size/2 with step size of 1)
 
     Piecewise function is needed as equivalent python list comprehension is faster than np.linspace

@@ -1,5 +1,4 @@
-"""
-Transforms for rotating images and associated data.
+"""Transforms for rotating images and associated data.
 
 This module provides classes for rotating images, masks, bounding boxes, and keypoints.
 Includes transforms for 90-degree rotations and arbitrary angle rotations with various
@@ -32,8 +31,7 @@ SMALL_NUMBER = 1e-10
 
 
 class RandomRotate90(DualTransform):
-    """
-    Randomly rotate the input by 90 degrees zero or more times.
+    """Randomly rotate the input by 90 degrees zero or more times.
 
     Even with p=1.0, the transform has a 1/4 probability of being identity:
     - With probability p * 1/4: no rotation (0 degrees)
@@ -89,8 +87,7 @@ class RandomRotate90(DualTransform):
         super().__init__(p=p)
 
     def apply(self, img: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
-        """
-        Apply rotation to the input image.
+        """Apply rotation to the input image.
 
         Args:
             img (np.ndarray): Image to rotate.
@@ -104,8 +101,7 @@ class RandomRotate90(DualTransform):
         return fgeometric.rot90(img, factor)
 
     def get_params(self) -> dict[str, int]:
-        """
-        Get parameters for the transform.
+        """Get parameters for the transform.
 
         Returns:
             dict[str, int]: Dictionary with the rotation factor.
@@ -120,8 +116,7 @@ class RandomRotate90(DualTransform):
         factor: Literal[0, 1, 2, 3],
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply rotation to bounding boxes.
+        """Apply rotation to bounding boxes.
 
         Args:
             bboxes (np.ndarray): Bounding boxes to rotate.
@@ -140,8 +135,7 @@ class RandomRotate90(DualTransform):
         factor: Literal[0, 1, 2, 3],
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply rotation to keypoints.
+        """Apply rotation to keypoints.
 
         Args:
             keypoints (np.ndarray): Keypoints to rotate.
@@ -181,8 +175,7 @@ class RotateInitSchema(BaseTransformInitSchema):
 
 
 class Rotate(DualTransform):
-    """
-    Rotate the input by an angle selected randomly from the uniform distribution.
+    """Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
         limit (float | tuple[float, float]): Range from which a random angle is picked. If limit is a single float,
@@ -301,8 +294,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply affine transformation to the image.
+        """Apply affine transformation to the image.
 
         Args:
             img (np.ndarray): Image to transform.
@@ -339,8 +331,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply affine transformation to the mask.
+        """Apply affine transformation to the mask.
 
         Args:
             mask (np.ndarray): Mask to transform.
@@ -377,8 +368,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply affine transformation to bounding boxes.
+        """Apply affine transformation to bounding boxes.
 
         Args:
             bboxes (np.ndarray): Bounding boxes to transform.
@@ -420,8 +410,7 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply affine transformation to keypoints.
+        """Apply affine transformation to keypoints.
 
         Args:
             keypoints (np.ndarray): Keypoints to transform.
@@ -456,8 +445,7 @@ class Rotate(DualTransform):
         width: int,
         angle: float,
     ) -> dict[str, int]:
-        """
-        Given a rectangle of size wxh that has been rotated by 'angle' (in
+        """Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
@@ -497,8 +485,7 @@ class Rotate(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Get parameters dependent on the data.
+        """Get parameters dependent on the data.
 
         Args:
             params (dict[str, Any]): Dictionary containing parameters.
@@ -545,8 +532,7 @@ class Rotate(DualTransform):
 
 
 class SafeRotate(Affine):
-    """
-    Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
+    """Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
 
     This transformation ensures that the entire rotated image fits within the original frame by scaling it
     down if necessary. The resulting image maintains its original dimensions but may contain artifacts due to the
@@ -696,8 +682,7 @@ class SafeRotate(Affine):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Get parameters dependent on the data.
+        """Get parameters dependent on the data.
 
         Args:
             params (dict[str, Any]): Dictionary containing parameters.

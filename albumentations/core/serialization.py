@@ -1,5 +1,4 @@
-"""
-Module for serialization and deserialization of Albumentations transforms.
+"""Module for serialization and deserialization of Albumentations transforms.
 
 This module provides functionality to serialize transforms to JSON or YAML format and
 deserialize them back. It implements the Serializable interface that allows transforms
@@ -50,8 +49,7 @@ def shorten_class_name(class_fullname: str) -> str:
 
 
 class SerializableMeta(ABCMeta):
-    """
-    A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
+    """A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
     so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
@@ -93,8 +91,7 @@ class Serializable(metaclass=SerializableMeta):
         raise NotImplementedError
 
     def to_dict(self, on_not_implemented_error: str = "raise") -> dict[str, Any]:
-        """
-        Take a transform pipeline and convert it to a serializable representation that uses only standard
+        """Take a transform pipeline and convert it to a serializable representation that uses only standard
         python data types: dictionaries, lists, strings, integers, and floats.
 
         Args:
@@ -126,8 +123,7 @@ class Serializable(metaclass=SerializableMeta):
 
 
 def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") -> dict[str, Any]:
-    """
-    Take a transform pipeline and convert it to a serializable representation that uses only standard
+    """Take a transform pipeline and convert it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
 
     Args:
@@ -162,8 +158,7 @@ def from_dict(
     transform_dict: dict[str, Any],
     nonserializable: dict[str, Any] | None = None,
 ) -> Serializable | None:
-    """
-    Args:
+    """Args:
     transform_dict: A dictionary with serialized transform pipeline.
     nonserializable (dict): A dictionary that contains non-serializable transforms.
         This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
@@ -196,8 +191,7 @@ def check_data_format(data_format: Literal["json", "yaml"]) -> None:
 
 
 def serialize_enum(obj: Any) -> Any:
-    """
-    Recursively search for Enum objects and convert them to their value.
+    """Recursively search for Enum objects and convert them to their value.
     Also handle any Mapping or Sequence types.
     """
     if isinstance(obj, Mapping):
@@ -213,8 +207,7 @@ def save(
     data_format: Literal["json", "yaml"] = "json",
     on_not_implemented_error: Literal["raise", "warn"] = "raise",
 ) -> None:
-    """
-    Serialize a transform pipeline and save it to either a file specified by a path or a file-like object
+    """Serialize a transform pipeline and save it to either a file specified by a path or a file-like object
     in either JSON or YAML format.
 
     Args:
@@ -261,8 +254,7 @@ def load(
     data_format: Literal["json", "yaml"] = "json",
     nonserializable: dict[str, Any] | None = None,
 ) -> object:
-    """
-    Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
+    """Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
 
     Args:
         filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to read the serialized
@@ -306,8 +298,7 @@ def load(
 
 
 def register_additional_transforms() -> None:
-    """
-    Register transforms that are not imported directly into the `albumentations` module by checking
+    """Register transforms that are not imported directly into the `albumentations` module by checking
     the availability of optional dependencies.
     """
     if importlib.util.find_spec("torch") is not None:
@@ -322,8 +313,7 @@ def register_additional_transforms() -> None:
 
 
 def get_shortest_class_fullname(cls: type[Any]) -> str:
-    """
-    The function `get_shortest_class_fullname` takes a class object as input and returns its shortened
+    """The function `get_shortest_class_fullname` takes a class object as input and returns its shortened
     full name.
 
     :param cls: The parameter `cls` is of type `Type[BasicCompose]`, which means it expects a class that

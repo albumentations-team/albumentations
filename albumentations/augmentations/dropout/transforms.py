@@ -1,5 +1,4 @@
-"""
-Transform classes for dropout-based augmentations.
+"""Transform classes for dropout-based augmentations.
 
 This module contains transform classes for various dropout techniques used in image
 augmentation. It provides the base dropout class and specialized implementations like
@@ -31,8 +30,7 @@ __all__ = ["PixelDropout"]
 
 
 class BaseDropout(DualTransform):
-    """
-    Base class for dropout-style transformations.
+    """Base class for dropout-style transformations.
 
     This class provides common functionality for various dropout techniques,
     including applying cutouts to images and masks.
@@ -128,8 +126,7 @@ class BaseDropout(DualTransform):
 
 
 class PixelDropout(DualTransform):
-    """
-    Drops random pixels from the image.
+    """Drops random pixels from the image.
 
     This transform randomly sets pixels in the image to a specified value, effectively "dropping out" those pixels.
     It can be applied to both the image and its corresponding mask.
@@ -211,8 +208,7 @@ class PixelDropout(DualTransform):
         drop_values: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply pixel dropout to the image.
+        """Apply pixel dropout to the image.
 
         Args:
             img (np.ndarray): The image to apply the transform to.
@@ -233,8 +229,7 @@ class PixelDropout(DualTransform):
         mask_drop_values: float | np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply pixel dropout to the mask.
+        """Apply pixel dropout to the mask.
 
         Args:
             mask (np.ndarray): The mask to apply the transform to.
@@ -257,8 +252,7 @@ class PixelDropout(DualTransform):
         drop_mask: np.ndarray | None,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply pixel dropout to the bounding boxes.
+        """Apply pixel dropout to the bounding boxes.
 
         Args:
             bboxes (np.ndarray): The bounding boxes to apply the transform to.
@@ -306,8 +300,7 @@ class PixelDropout(DualTransform):
         keypoints: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply pixel dropout to the keypoints.
+        """Apply pixel dropout to the keypoints.
 
         Args:
             keypoints (np.ndarray): The keypoints to apply the transform to.
@@ -324,8 +317,7 @@ class PixelDropout(DualTransform):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        """
-        Generate parameters for pixel dropout based on input data.
+        """Generate parameters for pixel dropout based on input data.
 
         Args:
             params (dict[str, Any]): Transform parameters

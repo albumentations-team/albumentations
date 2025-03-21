@@ -1,5 +1,4 @@
-"""
-Domain adaptation transforms for image augmentation.
+"""Domain adaptation transforms for image augmentation.
 
 This module provides transformations for adapting images between different domains
 by matching their statistical properties. Includes methods for histogram matching,
@@ -34,8 +33,7 @@ MAX_BETA_LIMIT = 0.5
 
 
 class HistogramMatching(ImageOnlyTransform):
-    """
-    Adjust the pixel values of an input image to match the histogram of a reference image.
+    """Adjust the pixel values of an input image to match the histogram of a reference image.
 
     This transform applies histogram matching, a technique that modifies the distribution of pixel
     intensities in the input image to closely resemble that of a reference image. This process is
@@ -121,8 +119,7 @@ class HistogramMatching(ImageOnlyTransform):
         blend_ratio: float,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply histogram matching to the input image.
+        """Apply histogram matching to the input image.
 
         Args:
             self (np.ndarray): The transform object
@@ -138,8 +135,7 @@ class HistogramMatching(ImageOnlyTransform):
         return apply_histogram(img, reference_image, blend_ratio)
 
     def get_params(self) -> dict[str, np.ndarray]:
-        """
-        Get parameters for the transform.
+        """Get parameters for the transform.
 
         Returns:
             dict[str, np.ndarray]: Dictionary containing the reference image and blend ratio
@@ -151,8 +147,7 @@ class HistogramMatching(ImageOnlyTransform):
         }
 
     def to_dict_private(self) -> dict[str, Any]:
-        """
-        Convert the transform to a dictionary for serialization.
+        """Convert the transform to a dictionary for serialization.
 
         Raises:
             NotImplementedError: HistogramMatching cannot be serialized
@@ -163,8 +158,7 @@ class HistogramMatching(ImageOnlyTransform):
 
 
 class FDA(ImageOnlyTransform):
-    """
-    Fourier Domain Adaptation (FDA) for simple "style transfer" in the context of unsupervised domain adaptation
+    """Fourier Domain Adaptation (FDA) for simple "style transfer" in the context of unsupervised domain adaptation
     (UDA). FDA manipulates the frequency components of images to reduce the domain gap between source
     and target datasets, effectively adapting images from one domain to closely resemble those from another without
     altering their semantic content.
@@ -223,8 +217,7 @@ class FDA(ImageOnlyTransform):
         @field_validator("beta_limit")
         @classmethod
         def check_ranges(cls, value: tuple[float, float]) -> tuple[float, float]:
-            """
-            Validate that beta_limit is within the acceptable range.
+            """Validate that beta_limit is within the acceptable range.
 
             Args:
                 cls (type): The class object
@@ -261,8 +254,7 @@ class FDA(ImageOnlyTransform):
         beta: float,
         **params: Any,
     ) -> np.ndarray:
-        """
-        Apply Fourier Domain Adaptation to the input image.
+        """Apply Fourier Domain Adaptation to the input image.
 
         Args:
             img (np.ndarray): Input image to be transformed
@@ -277,8 +269,7 @@ class FDA(ImageOnlyTransform):
         return fourier_domain_adaptation(img, target_image, beta)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
-        """
-        Generate parameters for the transform based on input data.
+        """Generate parameters for the transform based on input data.
 
         Args:
             params (dict[str, Any]): Dictionary of existing parameters
@@ -295,8 +286,7 @@ class FDA(ImageOnlyTransform):
         return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
 
     def to_dict_private(self) -> dict[str, Any]:
-        """
-        Convert the transform to a dictionary for serialization.
+        """Convert the transform to a dictionary for serialization.
 
         Raises:
             NotImplementedError: FDA cannot be serialized
@@ -307,8 +297,7 @@ class FDA(ImageOnlyTransform):
 
 
 class PixelDistributionAdaptation(ImageOnlyTransform):
-    """
-    Performs pixel-level domain adaptation by aligning the pixel value distribution of an input image
+    """Performs pixel-level domain adaptation by aligning the pixel value distribution of an input image
     with that of a reference image. This process involves fitting a simple statistical transformation
     (such as PCA, StandardScaler, or MinMaxScaler) to both the original and the reference images,
     transforming the original image with the transformation trained on it, and then applying the inverse
@@ -401,8 +390,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self.transform_type = transform_type
 
     def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params: Any) -> np.ndarray:
-        """
-        Apply pixel distribution adaptation to the input image.
+        """Apply pixel distribution adaptation to the input image.
 
         Args:
             img (np.ndarray): Input image to be transformed
@@ -422,8 +410,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         )
 
     def get_params(self) -> dict[str, Any]:
-        """
-        Get parameters for the transform.
+        """Get parameters for the transform.
 
         Returns:
             dict[str, Any]: Dictionary containing the reference image and blend ratio
@@ -435,8 +422,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         }
 
     def to_dict_private(self) -> dict[str, Any]:
-        """
-        Convert the transform to a dictionary for serialization.
+        """Convert the transform to a dictionary for serialization.
 
         Raises:
             NotImplementedError: PixelDistributionAdaptation cannot be serialized

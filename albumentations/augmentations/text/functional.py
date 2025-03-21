@@ -1,5 +1,4 @@
-"""
-Functional implementations for text manipulation and rendering.
+"""Functional implementations for text manipulation and rendering.
 
 This module provides utility functions for manipulating text in strings and
 rendering text onto images. Includes functions for word manipulation, text drawing,

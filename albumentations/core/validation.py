@@ -1,5 +1,4 @@
-"""
-Module containing validation mechanisms for transform parameters.
+"""Module containing validation mechanisms for transform parameters.
 
 This module provides a metaclass that enables parameter validation for transforms using
 Pydantic models. It intercepts the initialization of transform classes to validate their
@@ -18,8 +17,7 @@ from pydantic import BaseModel, ValidationError
 
 
 class ValidatedTransformMeta(type):
-    """
-    Metaclass that validates transform parameters during instantiation.
+    """Metaclass that validates transform parameters during instantiation.
 
     This metaclass enables automatic validation of transform parameters using Pydantic models,
     ensuring proper typing and constraints are enforced before object creation.
@@ -87,8 +85,7 @@ class ValidatedTransformMeta(type):
         return validated_kwargs
 
     def __new__(cls: type[Any], name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> type[Any]:
-        """
-        This is a custom metaclass that validates the parameters of the class during instantiation.
+        """This is a custom metaclass that validates the parameters of the class during instantiation.
         It is used to ensure that the parameters of the class are valid and that they are of the correct type.
         """
         if "InitSchema" in dct and issubclass(dct["InitSchema"], BaseModel):

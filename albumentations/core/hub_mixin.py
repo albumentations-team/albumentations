@@ -1,5 +1,4 @@
-"""
-This module provides mixin functionality for the Albumentations library.
+"""This module provides mixin functionality for the Albumentations library.
 It includes utility functions and classes to enhance the core capabilities.
 """
 
@@ -38,8 +37,7 @@ def require_huggingface_hub(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 class HubMixin:
-    """
-    Mixin class for Hugging Face Hub integration.
+    """Mixin class for Hugging Face Hub integration.
 
     This class provides functionality for saving and loading transforms to/from
     the Hugging Face Hub. It enables serialization, deserialization, and sharing
@@ -55,8 +53,7 @@ class HubMixin:
     _CONFIG_FILE_NAME_TEMPLATE = "albumentations_config_{}.json"
 
     def _save_pretrained(self, save_directory: str | Path, filename: str) -> Path:
-        """
-        Save the transform to a specified directory.
+        """Save the transform to a specified directory.
 
         Args:
             save_directory (Union[str, Path]):
@@ -80,8 +77,7 @@ class HubMixin:
 
     @classmethod
     def _from_pretrained(cls, save_directory: str | Path, filename: str) -> object:
-        """
-        Load a transform from a specified directory.
+        """Load a transform from a specified directory.
 
         Args:
             save_directory (Union[str, Path]):
@@ -106,8 +102,7 @@ class HubMixin:
         push_to_hub: bool = False,
         **push_to_hub_kwargs: Any,
     ) -> str | None:
-        """
-        Save the transform and optionally push it to the Huggingface Hub.
+        """Save the transform and optionally push it to the Huggingface Hub.
 
         Args:
             save_directory (`str` or `Path`):
@@ -159,8 +154,7 @@ class HubMixin:
         local_files_only: bool = False,
         revision: str | None = None,
     ) -> object:
-        """
-        Load a transform from the Huggingface Hub or a local directory.
+        """Load a transform from the Huggingface Hub or a local directory.
 
         Args:
             directory_or_repo_id (`str`, `Path`):
@@ -238,8 +232,7 @@ class HubMixin:
         branch: str | None = None,
         create_pr: bool | None = None,
     ) -> str:
-        """
-        Push the transform to the Huggingface Hub.
+        """Push the transform to the Huggingface Hub.
 
         Use `allow_patterns` and `ignore_patterns` to precisely filter which files should be pushed to the hub. Use
         `delete_patterns` to delete existing remote files in the same commit. See [`upload_folder`] reference for more

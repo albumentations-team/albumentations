@@ -1,5 +1,4 @@
-"""
-Functional implementations of geometric image transformations.
+"""Functional implementations of geometric image transformations.
 
 This module provides low-level functions for geometric operations such as rotation,
 resizing, flipping, perspective transforms, and affine transformations on images,
@@ -79,8 +78,7 @@ ROT90_270_FACTOR = 3
 
 @handle_empty_array("bboxes")
 def bboxes_rot90(bboxes: np.ndarray, factor: int) -> np.ndarray:
-    """
-    Rotates bounding boxes by 90 degrees CCW (see np.rot90)
+    """Rotates bounding boxes by 90 degrees CCW (see np.rot90)
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
@@ -120,8 +118,7 @@ def bboxes_d4(
     bboxes: np.ndarray,
     group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
 ) -> np.ndarray:
-    """
-    Applies a `D_4` symmetry group transformation to a bounding box.
+    """Applies a `D_4` symmetry group transformation to a bounding box.
 
     The function transforms a bounding box according to the specified group member from the `D_4` group.
     These transformations include rotations and reflections, specified to work on an image's bounding box given
@@ -167,8 +164,7 @@ def keypoints_rot90(
     factor: Literal[0, 1, 2, 3],
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    """
-    Rotate keypoints by 90 degrees counter-clockwise (CCW) a specified number of times.
+    """Rotate keypoints by 90 degrees counter-clockwise (CCW) a specified number of times.
 
     Args:
         keypoints (np.ndarray): An array of keypoints with shape (N, 4+) in the format (x, y, angle, scale, ...).
@@ -210,8 +206,7 @@ def keypoints_d4(
     image_shape: tuple[int, int],
     **params: Any,
 ) -> np.ndarray:
-    """
-    Applies a `D_4` symmetry group transformation to a keypoint.
+    """Applies a `D_4` symmetry group transformation to a keypoint.
 
     This function adjusts a keypoint's coordinates according to the specified `D_4` group transformation,
     which includes rotations and reflections suitable for image processing tasks. These transformations account
@@ -284,8 +279,7 @@ def keypoints_scale(
     scale_x: float,
     scale_y: float,
 ) -> np.ndarray:
-    """
-    Scale keypoints by given factors.
+    """Scale keypoints by given factors.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
@@ -373,8 +367,7 @@ def perspective_bboxes(
     max_height: int,
     keep_size: bool,
 ) -> np.ndarray:
-    """
-    Applies perspective transformation to bounding boxes.
+    """Applies perspective transformation to bounding boxes.
 
     This function transforms bounding boxes using the given perspective transformation matrix.
     It handles bounding boxes with additional attributes beyond the standard coordinates.
@@ -441,8 +434,7 @@ def perspective_bboxes(
 
 
 def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
-    """
-    Args:
+    """Args:
     matrix (np.ndarray): Rotation matrix
     y_up (bool): is Y axis looks up or down
 
@@ -462,8 +454,7 @@ def perspective_keypoints(
     max_height: int,
     keep_size: bool,
 ) -> np.ndarray:
-    """
-    Apply perspective transformation to keypoints.
+    """Apply perspective transformation to keypoints.
 
     Args:
         keypoints (np.ndarray): Array of shape (N, 5+) in format [x, y, z, angle, scale, ...]
@@ -532,8 +523,7 @@ def perspective_keypoints(
 
 
 def is_identity_matrix(matrix: np.ndarray) -> bool:
-    """
-    Check if the given matrix is an identity matrix.
+    """Check if the given matrix is an identity matrix.
 
     Args:
         matrix (np.ndarray): A 3x3 affine transformation matrix.
@@ -603,8 +593,7 @@ def keypoints_affine(
     scale: dict[str, float],
     border_mode: int,
 ) -> np.ndarray:
-    """
-    Apply an affine transformation to keypoints.
+    """Apply an affine transformation to keypoints.
 
     This function transforms keypoints using the given affine transformation matrix.
     It handles reflection padding if necessary, updates coordinates, angles, and scales.
@@ -689,8 +678,7 @@ def keypoints_affine(
 
 @handle_empty_array("points")
 def apply_affine_to_points(points: np.ndarray, matrix: np.ndarray) -> np.ndarray:
-    """
-    Apply affine transformation to a set of points.
+    """Apply affine transformation to a set of points.
 
     This function handles potential division by zero by replacing zero values
     in the homogeneous coordinate with a small epsilon value.
@@ -767,8 +755,7 @@ def calculate_affine_transform_padding(
 
 @handle_empty_array("bboxes")
 def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
-    """
-    Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
+    """Apply an affine transformation to bounding boxes and return the largest enclosing boxes.
 
     This function transforms each corner of every bounding box using the given affine transformation
     matrix, then computes the new bounding boxes that fully enclose the transformed corners.
@@ -823,8 +810,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndar
 
 @handle_empty_array("bboxes")
 def bboxes_affine_ellipse(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndarray:
-    """
-    Apply an affine transformation to bounding boxes using an ellipse approximation method.
+    """Apply an affine transformation to bounding boxes using an ellipse approximation method.
 
     This function transforms bounding boxes by approximating each box with an ellipse,
     transforming points along the ellipse's circumference, and then computing the
@@ -889,8 +875,7 @@ def bboxes_affine(
     border_mode: int,
     output_shape: tuple[int, int],
 ) -> np.ndarray:
-    """
-    Apply an affine transformation to bounding boxes.
+    """Apply an affine transformation to bounding boxes.
 
     For reflection border modes (cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT), this function:
     1. Calculates necessary padding to avoid information loss
@@ -957,8 +942,7 @@ def to_distance_maps(
     image_shape: tuple[int, int],
     inverted: bool = False,
 ) -> np.ndarray:
-    """
-    Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
+    """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
     The ``n``-th distance map contains at every location ``(y, x)`` the
     euclidean distance to the ``n``-th keypoint.
     This function can be used as a helper when augmenting keypoints with a
@@ -1042,8 +1026,7 @@ def from_distance_maps(
     if_not_found_coords: Sequence[int] | dict[str, Any] | None = None,
     threshold: float | None = None,
 ) -> np.ndarray:
-    """
-    Convert distance maps back to keypoints coordinates.
+    """Convert distance maps back to keypoints coordinates.
 
     This function is the inverse of `to_distance_maps`. It takes distance maps generated for a set of keypoints
     and reconstructs the original keypoint coordinates. The function supports both regular and inverted distance maps,
@@ -1134,8 +1117,7 @@ def from_distance_maps(
 
 
 def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]) -> np.ndarray:
-    """
-    Applies a `D_4` symmetry group transformation to an image array.
+    """Applies a `D_4` symmetry group transformation to an image array.
 
     This function manipulates an image using transformations such as rotations and flips,
     corresponding to the `D_4` dihedral group symmetry operations.
@@ -1180,8 +1162,7 @@ def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "
 
 
 def transpose(img: np.ndarray) -> np.ndarray:
-    """
-    Transposes the first two dimensions of an array of any dimensionality.
+    """Transposes the first two dimensions of an array of any dimensionality.
     Retains the order of any additional dimensions.
 
     Args:
@@ -1205,8 +1186,7 @@ def rot90(img: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
 
 @handle_empty_array("bboxes")
 def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
-    """
-    Flip bounding boxes vertically.
+    """Flip bounding boxes vertically.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
@@ -1224,8 +1204,7 @@ def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
 
 @handle_empty_array("bboxes")
 def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
-    """
-    Flip bounding boxes horizontally.
+    """Flip bounding boxes horizontally.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
@@ -1243,8 +1222,7 @@ def bboxes_hflip(bboxes: np.ndarray) -> np.ndarray:
 
 @handle_empty_array("bboxes")
 def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
-    """
-    Transpose bounding boxes along the main diagonal.
+    """Transpose bounding boxes along the main diagonal.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
@@ -1262,8 +1240,7 @@ def bboxes_transpose(bboxes: np.ndarray) -> np.ndarray:
 @handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
-    """
-    Flip keypoints vertically.
+    """Flip keypoints vertically.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
@@ -1287,8 +1264,7 @@ def keypoints_vflip(keypoints: np.ndarray, rows: int) -> np.ndarray:
 @handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
-    """
-    Flip keypoints horizontally.
+    """Flip keypoints horizontally.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
@@ -1312,8 +1288,7 @@ def keypoints_hflip(keypoints: np.ndarray, cols: int) -> np.ndarray:
 @handle_empty_array("keypoints")
 @angle_2pi_range
 def keypoints_transpose(keypoints: np.ndarray) -> np.ndarray:
-    """
-    Transpose keypoints along the main diagonal.
+    """Transpose keypoints along the main diagonal.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 2+)
@@ -1695,8 +1670,7 @@ def pad_bboxes(
 
 
 def validate_bboxes(bboxes: np.ndarray, image_shape: Sequence[int]) -> np.ndarray:
-    """
-    Validate bounding boxes and remove invalid ones.
+    """Validate bounding boxes and remove invalid ones.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (n, 4) where each row is [x_min, y_min, x_max, y_max].
@@ -1722,8 +1696,7 @@ def validate_bboxes(bboxes: np.ndarray, image_shape: Sequence[int]) -> np.ndarra
 
 
 def shift_bboxes(bboxes: np.ndarray, shift_vector: np.ndarray) -> np.ndarray:
-    """
-    Shift bounding boxes by a given vector.
+    """Shift bounding boxes by a given vector.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (n, m) where n is the number of bboxes
@@ -1751,8 +1724,7 @@ def get_pad_grid_dimensions(
     pad_right: int,
     image_shape: tuple[int, int],
 ) -> dict[str, tuple[int, int]]:
-    """
-    Calculate the dimensions of the grid needed for reflection padding and the position of the original image.
+    """Calculate the dimensions of the grid needed for reflection padding and the position of the original image.
 
     Args:
         pad_top (int): Number of pixels to pad above the image.
@@ -1790,8 +1762,7 @@ def generate_reflected_bboxes(
     image_shape: tuple[int, int],
     center_in_origin: bool = False,
 ) -> np.ndarray:
-    """
-    Generate reflected bounding boxes for the entire reflection grid.
+    """Generate reflected bounding boxes for the entire reflection grid.
 
     Args:
         bboxes (np.ndarray): Original bounding boxes.
@@ -1870,8 +1841,7 @@ def flip_bboxes(
     flip_vertical: bool = False,
     image_shape: tuple[int, int] = (0, 0),
 ) -> np.ndarray:
-    """
-    Flip bounding boxes horizontally and/or vertically.
+    """Flip bounding boxes horizontally and/or vertically.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (n, m) where each row is
@@ -1899,8 +1869,7 @@ def distort_image(
     generated_mesh: np.ndarray,
     interpolation: int,
 ) -> np.ndarray:
-    """
-    Apply perspective distortion to an image based on a generated mesh.
+    """Apply perspective distortion to an image based on a generated mesh.
 
     This function applies a perspective transformation to each cell of the image defined by the
     generated mesh. The distortion is applied using OpenCV's perspective transformation and
@@ -2055,8 +2024,7 @@ def generate_distorted_grid_polygons(
     magnitude: int,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """
-    Generate distorted grid polygons based on input dimensions and magnitude.
+    """Generate distorted grid polygons based on input dimensions and magnitude.
 
     This function creates a grid of polygons and applies random distortions to the internal vertices,
     while keeping the boundary vertices fixed. The distortion is applied consistently across shared
@@ -2183,8 +2151,7 @@ def validate_keypoints(
     keypoints: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    """
-    Validate keypoints and remove those that fall outside the image boundaries.
+    """Validate keypoints and remove those that fall outside the image boundaries.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (N, M) where N is the number of keypoints
@@ -2220,8 +2187,7 @@ def generate_reflected_keypoints(
     image_shape: tuple[int, int],
     center_in_origin: bool = False,
 ) -> np.ndarray:
-    """
-    Generate reflected keypoints for the entire reflection grid.
+    """Generate reflected keypoints for the entire reflection grid.
 
     This function creates a grid of keypoints by reflecting and shifting the original keypoints.
     It handles both centered and non-centered grids based on the `center_in_origin` parameter.
@@ -2336,8 +2302,7 @@ def create_affine_transformation_matrix(
     rotate: float,
     shift: tuple[float, float],
 ) -> np.ndarray:
-    """
-    Create an affine transformation matrix combining translation, shear, scale, and rotation.
+    """Create an affine transformation matrix combining translation, shear, scale, and rotation.
 
     Args:
         translate (dict[str, float]): Translation in x and y directions.
@@ -2397,8 +2362,7 @@ def compute_transformed_image_bounds(
     matrix: np.ndarray,
     image_shape: tuple[int, int],
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Compute the bounds of an image after applying an affine transformation.
+    """Compute the bounds of an image after applying an affine transformation.
 
     Args:
         matrix (np.ndarray): The 3x3 affine transformation matrix.
@@ -2457,8 +2421,7 @@ def compute_affine_warp_output_shape(
 
 
 def center(image_shape: tuple[int, int]) -> tuple[float, float]:
-    """
-    Calculate the center coordinates if image. Used by images, masks and keypoints.
+    """Calculate the center coordinates if image. Used by images, masks and keypoints.
 
     Args:
         image_shape (tuple[int, int]): The shape of the image.
@@ -2472,8 +2435,7 @@ def center(image_shape: tuple[int, int]) -> tuple[float, float]:
 
 
 def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
-    """
-    Calculate the center coordinates for of image for bounding boxes.
+    """Calculate the center coordinates for of image for bounding boxes.
 
     Args:
         image_shape (tuple[int, int]): The shape of the image.
@@ -2492,8 +2454,7 @@ def generate_grid(
     steps_y: list[float],
     num_steps: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Generate a distorted grid for image transformation based on given step sizes.
+    """Generate a distorted grid for image transformation based on given step sizes.
 
     This function creates two 2D arrays (map_x and map_y) that represent a distorted version
     of the original image grid. These arrays can be used with OpenCV's remap function to
@@ -2588,8 +2549,7 @@ def normalize_grid_distortion_steps(
 
 
 def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
-    """
-    Generates an array of nearly equal integer intervals that sum up to `n`.
+    """Generates an array of nearly equal integer intervals that sum up to `n`.
 
     This function divides the number `n` into `parts` nearly equal parts. It ensures that
     the sum of all parts equals `n`, and the difference between any two parts is at most one.
@@ -2621,8 +2581,7 @@ def generate_shuffled_splits(
     divisions: int,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """
-    Generate shuffled splits for a given dimension size and number of divisions.
+    """Generate shuffled splits for a given dimension size and number of divisions.
 
     Args:
         size (int): Total size of the dimension (height or width).
@@ -2644,8 +2603,7 @@ def split_uniform_grid(
     grid: tuple[int, int],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
-    """
-    Splits an image shape into a uniform grid specified by the grid dimensions.
+    """Splits an image shape into a uniform grid specified by the grid dimensions.
 
     Args:
         image_shape (tuple[int, int]): The shape of the image as (height, width).
@@ -2890,8 +2848,7 @@ def get_dimension_padding(
     min_size: int | None,
     divisor: int | None,
 ) -> tuple[int, int]:
-    """
-    Calculate padding for a single dimension.
+    """Calculate padding for a single dimension.
 
     Args:
         current_size (int): Current size of the dimension
@@ -2925,8 +2882,7 @@ def get_padding_params(
     pad_height_divisor: int | None,
     pad_width_divisor: int | None,
 ) -> tuple[int, int, int, int]:
-    """
-    Calculate padding parameters based on target dimensions.
+    """Calculate padding parameters based on target dimensions.
 
     Args:
         image_shape (tuple[int, int]): (height, width) of the image
@@ -2992,8 +2948,7 @@ def swap_tiles_on_keypoints(
     tiles: np.ndarray,
     mapping: np.ndarray,
 ) -> np.ndarray:
-    """
-    Swap the positions of keypoints based on a tile mapping.
+    """Swap the positions of keypoints based on a tile mapping.
 
     This function takes a set of keypoints and repositions them according to a mapping of tile swaps.
     Keypoints are moved from their original tiles to new positions in the swapped tiles.
@@ -3068,8 +3023,7 @@ def swap_tiles_on_image(
     tiles: np.ndarray,
     mapping: list[int] | None = None,
 ) -> np.ndarray:
-    """
-    Swap tiles on the image according to the new format.
+    """Swap tiles on the image according to the new format.
 
     Args:
         image (np.ndarray): Input image.
@@ -3118,8 +3072,7 @@ def bboxes_grid_shuffle(
     min_area: float,
     min_visibility: float,
 ) -> np.ndarray:
-    """
-    Shuffle bounding boxes according to grid mapping.
+    """Shuffle bounding boxes according to grid mapping.
 
     Args:
         bboxes (np.ndarray): Array of bounding boxes with shape (num_boxes, 4+)
@@ -3198,8 +3151,7 @@ def shuffle_tiles_within_shape_groups(
     shape_groups: dict[tuple[int, int], list[int]],
     random_generator: np.random.Generator,
 ) -> list[int]:
-    """
-    Shuffles indices within each group of similar shapes and creates a list where each
+    """Shuffles indices within each group of similar shapes and creates a list where each
     index points to the index of the tile it should be mapped to.
 
     Args:
@@ -3231,8 +3183,7 @@ def compute_pairwise_distances(
     points1: np.ndarray,
     points2: np.ndarray,
 ) -> np.ndarray:
-    """
-    Compute pairwise distances between two sets of points.
+    """Compute pairwise distances between two sets of points.
 
     Args:
         points1 (np.ndarray): First set of points with shape (N, 2)
@@ -3259,8 +3210,7 @@ def compute_tps_weights(
     src_points: np.ndarray,
     dst_points: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Compute Thin Plate Spline weights.
+    """Compute Thin Plate Spline weights.
 
     Args:
         src_points (np.ndarray): Source control points with shape (num_points, 2)
@@ -3348,8 +3298,7 @@ def get_camera_matrix_distortion_maps(
     image_shape: tuple[int, int],
     k: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Generate distortion maps using camera matrix model.
+    """Generate distortion maps using camera matrix model.
 
     Args:
         image_shape (tuple[int, int]): Image shape (height, width)
@@ -3382,8 +3331,7 @@ def get_fisheye_distortion_maps(
     image_shape: tuple[int, int],
     k: float,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Generate distortion maps using fisheye model.
+    """Generate distortion maps using fisheye model.
 
     Args:
         image_shape (tuple[int, int]): Image shape (height, width)
@@ -3421,8 +3369,7 @@ def get_fisheye_distortion_maps(
 
 
 def generate_control_points(num_control_points: int) -> np.ndarray:
-    """
-    Generate control points for TPS transformation.
+    """Generate control points for TPS transformation.
 
     Args:
         num_control_points (int): Number of control points per side

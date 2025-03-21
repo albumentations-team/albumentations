@@ -1,5 +1,4 @@
-"""
-Module containing utility functions for augmentation operations.
+"""Module containing utility functions for augmentation operations.
 
 This module provides a collection of helper functions and utilities used throughout
 the augmentation pipeline. It includes functions for image loading, type checking,
@@ -69,8 +68,7 @@ def angle_2pi_range(
 
 
 def non_rgb_error(image: np.ndarray) -> None:
-    """
-    Check if the input image is RGB and raise a ValueError if it's not.
+    """Check if the input image is RGB and raise a ValueError if it's not.
 
     This function is used to ensure that certain transformations are only applied to
     RGB images. It provides helpful error messages for grayscale and multi-spectral images.
@@ -112,8 +110,7 @@ def non_rgb_error(image: np.ndarray) -> None:
 
 
 def check_range(value: tuple[float, float], lower_bound: float, upper_bound: float, name: str | None) -> None:
-    """
-    Checks if the given value is within the specified bounds
+    """Checks if the given value is within the specified bounds
 
     Args:
         value (tuple[float, float]): The value to check and convert. Can be a single float or a tuple of floats.

@@ -1,5 +1,4 @@
-"""
-Functional implementations for domain adaptation image transformations.
+"""Functional implementations for domain adaptation image transformations.
 
 This module provides low-level functions and classes for performing domain adaptation
 between images. It includes implementations for histogram matching, Fourier domain adaptation,
@@ -236,8 +235,7 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
 @clipped
 @preserve_channel_dim
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
-    """
-    Apply Fourier Domain Adaptation to the input image using a target image.
+    """Apply Fourier Domain Adaptation to the input image using a target image.
 
     This function performs domain adaptation in the frequency domain by modifying the amplitude
     spectrum of the source image based on the target image's amplitude spectrum. It preserves
@@ -332,8 +330,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 @clipped
 @preserve_channel_dim
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
-    """
-    Apply histogram matching to an input image using a reference image and blend the result.
+    """Apply histogram matching to an input image using a reference image and blend the result.
 
     This function performs histogram matching between the input image and a reference image,
     then blends the result with the original input image based on the specified blend ratio.
@@ -381,8 +378,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
 @uint8_io
 @preserve_channel_dim
 def match_histograms(image: np.ndarray, reference: np.ndarray) -> np.ndarray:
-    """
-    Adjust an image so that its cumulative histogram matches that of another.
+    """Adjust an image so that its cumulative histogram matches that of another.
 
     The adjustment is applied separately for each channel.
 

@@ -1,5 +1,4 @@
-"""
-Module containing functional implementations of 3D transformations.
+"""Module containing functional implementations of 3D transformations.
 
 This module provides a collection of utility functions for manipulating and transforming
 3D volumetric data (such as medical imaging volumes). The functions here implement the core
@@ -23,8 +22,7 @@ def adjust_padding_by_position3d(
     position: Literal["center", "random"],
     py_random: random.Random,
 ) -> tuple[int, int, int, int, int, int]:
-    """
-    Adjust padding values based on desired position for 3D data.
+    """Adjust padding values based on desired position for 3D data.
 
     Args:
         paddings (list[tuple[int, int]]): List of tuples containing padding pairs
@@ -66,8 +64,7 @@ def pad_3d_with_params(
     padding: tuple[int, int, int, int, int, int],
     value: tuple[float, ...] | float,
 ) -> np.ndarray:
-    """
-    Pad 3D volume with given parameters.
+    """Pad 3D volume with given parameters.
 
     Args:
         volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
@@ -117,8 +114,7 @@ def crop3d(
     volume: np.ndarray,
     crop_coords: tuple[int, int, int, int, int, int],
 ) -> np.ndarray:
-    """
-    Crop 3D volume using coordinates.
+    """Crop 3D volume using coordinates.
 
     Args:
         volume (np.ndarray): Input volume with shape (z, y, x) or (z, y, x, channels)
@@ -135,8 +131,7 @@ def crop3d(
 
 
 def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: tuple[float, ...] | float) -> np.ndarray:
-    """
-    Cut out holes in 3D volume and fill them with a given value.
+    """Cut out holes in 3D volume and fill them with a given value.
 
     Args:
         volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
@@ -155,8 +150,7 @@ def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: tuple[float, ...
 
 
 def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
-    """
-    Transform cube by index (0-47)
+    """Transform cube by index (0-47)
 
     Args:
         cube (np.ndarray): Input array with shape (D, H, W) or (D, H, W, C)
@@ -230,8 +224,7 @@ def transform_cube(cube: np.ndarray, index: int) -> np.ndarray:
 
 @handle_empty_array("keypoints")
 def filter_keypoints_in_holes3d(keypoints: np.ndarray, holes: np.ndarray) -> np.ndarray:
-    """
-    Filter out keypoints that are inside any of the 3D holes.
+    """Filter out keypoints that are inside any of the 3D holes.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).
@@ -287,8 +280,7 @@ def keypoints_rot90(
     axes: tuple[int, int],
     volume_shape: tuple[int, int, int],
 ) -> np.ndarray:
-    """
-    Rotate keypoints 90 degrees k times around the specified axes.
+    """Rotate keypoints 90 degrees k times around the specified axes.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).
@@ -336,8 +328,7 @@ def transform_cube_keypoints(
     index: int,
     volume_shape: tuple[int, int, int],
 ) -> np.ndarray:
-    """
-    Transform keypoints according to the cube transformation specified by index.
+    """Transform keypoints according to the cube transformation specified by index.
 
     Args:
         keypoints (np.ndarray): Array of keypoints with shape (num_keypoints, 3+).

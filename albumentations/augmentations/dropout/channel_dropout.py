@@ -1,5 +1,4 @@
-"""
-Implementation of the Channel Dropout transform for multi-channel images.
+"""Implementation of the Channel Dropout transform for multi-channel images.
 
 This module provides the ChannelDropout transform, which randomly drops (sets to a fill value)
 one or more channels in multi-channel images. This augmentation can help models become more
@@ -26,8 +25,7 @@ MIN_DROPOUT_CHANNEL_LIST_LENGTH = 2
 
 
 class ChannelDropout(ImageOnlyTransform):
-    """
-    Randomly drop channels in the input image.
+    """Randomly drop channels in the input image.
 
     This transform randomly selects a number of channels to drop from the input image
     and replaces them with a specified fill value. This can improve model robustness
@@ -97,8 +95,7 @@ class ChannelDropout(ImageOnlyTransform):
         self.fill = fill
 
     def apply(self, img: np.ndarray, channels_to_drop: list[int], **params: Any) -> np.ndarray:
-        """
-        Apply channel dropout to the image.
+        """Apply channel dropout to the image.
 
         Args:
             img (np.ndarray): Image to apply channel dropout to.
@@ -112,8 +109,7 @@ class ChannelDropout(ImageOnlyTransform):
         return channel_dropout(img, channels_to_drop, self.fill)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[int]]:
-        """
-        Get parameters that depend on input data.
+        """Get parameters that depend on input data.
 
         Args:
             params (dict[str, Any]): Parameters.

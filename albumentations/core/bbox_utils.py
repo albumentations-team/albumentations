@@ -1,5 +1,4 @@
-"""
-Utilities for handling bounding box operations during image augmentation.
+"""Utilities for handling bounding box operations during image augmentation.
 
 This module provides tools for processing bounding boxes in various formats (COCO, Pascal VOC, YOLO),
 converting between coordinate systems, normalizing and denormalizing coordinates, filtering
@@ -36,8 +35,7 @@ BBOX_WITH_LABEL_SHAPE = 5
 
 
 class BboxParams(Params):
-    """
-    Parameters for bounding box transforms.
+    """Parameters for bounding box transforms.
 
     Args:
         format (Literal["coco", "pascal_voc", "albumentations", "yolo"]): Format of bounding boxes.
@@ -137,8 +135,7 @@ class BboxParams(Params):
         self.max_accept_ratio = max_accept_ratio  # e.g., 5.0
 
     def to_dict_private(self) -> dict[str, Any]:
-        """
-        Get the private dictionary representation of bounding box parameters.
+        """Get the private dictionary representation of bounding box parameters.
 
         Returns:
             dict[str, Any]: Dictionary containing the bounding box parameters.
@@ -160,8 +157,7 @@ class BboxParams(Params):
 
     @classmethod
     def is_serializable(cls) -> bool:
-        """
-        Check if the bounding box parameters are serializable.
+        """Check if the bounding box parameters are serializable.
 
         Returns:
             bool: Always returns True as BboxParams is serializable.
@@ -171,8 +167,7 @@ class BboxParams(Params):
 
     @classmethod
     def get_class_fullname(cls) -> str:
-        """
-        Get the full name of the class.
+        """Get the full name of the class.
 
         Returns:
             str: The string "BboxParams".
@@ -189,8 +184,7 @@ class BboxParams(Params):
 
 
 class BboxProcessor(DataProcessor):
-    """
-    Processor for bounding box transformations.
+    """Processor for bounding box transformations.
 
     This class handles the preprocessing and postprocessing of bounding boxes during augmentation pipeline,
     including format conversion, validation, clipping, and filtering.
@@ -237,8 +231,7 @@ class BboxProcessor(DataProcessor):
 
     @property
     def default_data_name(self) -> str:
-        """
-        Returns the default key for bounding box data in transformations.
+        """Returns the default key for bounding box data in transformations.
 
         Returns:
             str: The string 'bboxes'.
@@ -247,8 +240,7 @@ class BboxProcessor(DataProcessor):
         return "bboxes"
 
     def ensure_data_valid(self, data: dict[str, Any]) -> None:
-        """
-        Validates the input bounding box data.
+        """Validates the input bounding box data.
 
         Checks that:
         - Bounding boxes have labels (either in the bbox array or in label_fields)
@@ -274,8 +266,7 @@ class BboxProcessor(DataProcessor):
             raise ValueError(msg)
 
     def filter(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
-        """
-        Filter bounding boxes based on size and visibility criteria.
+        """Filter bounding boxes based on size and visibility criteria.
 
         Args:
             data (np.ndarray): Array of bounding boxes in Albumentations format.
@@ -302,8 +293,7 @@ class BboxProcessor(DataProcessor):
         shape: ShapeType,
         direction: Literal["to", "from"] = "to",
     ) -> np.ndarray:
-        """
-        Converts bounding boxes between formats and applies preprocessing/postprocessing.
+        """Converts bounding boxes between formats and applies preprocessing/postprocessing.
 
         Args:
             data (np.ndarray): Array of bounding boxes to process.
@@ -363,8 +353,7 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_from_albumentations(data, self.params.format, shape)
 
     def check(self, data: np.ndarray, shape: ShapeType) -> None:
-        """
-        Check if bounding boxes are valid.
+        """Check if bounding boxes are valid.
 
         Args:
             data (np.ndarray): Array of bounding boxes to validate.
@@ -374,8 +363,7 @@ class BboxProcessor(DataProcessor):
         check_bboxes(data)
 
     def convert_from_albumentations(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
-        """
-        Convert bounding boxes from internal Albumentations format to the specified format.
+        """Convert bounding boxes from internal Albumentations format to the specified format.
 
         Args:
             data (np.ndarray): Bounding boxes in Albumentations format.
@@ -391,8 +379,7 @@ class BboxProcessor(DataProcessor):
         )
 
     def convert_to_albumentations(self, data: np.ndarray, shape: ShapeType) -> np.ndarray:
-        """
-        Convert bounding boxes from the specified format to internal Albumentations format.
+        """Convert bounding boxes from the specified format to internal Albumentations format.
 
         Args:
             data (np.ndarray): Bounding boxes in source format.
@@ -413,8 +400,7 @@ class BboxProcessor(DataProcessor):
 
 @handle_empty_array("bboxes")
 def normalize_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) -> np.ndarray:
-    """
-    Normalize array of bounding boxes.
+    """Normalize array of bounding boxes.
 
     Args:
         bboxes (np.ndarray): Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
@@ -440,8 +426,7 @@ def denormalize_bboxes(
     bboxes: np.ndarray,
     shape: ShapeType | tuple[int, int],
 ) -> np.ndarray:
-    """
-    Denormalize array of bounding boxes.
+    """Denormalize array of bounding boxes.
 
     Args:
         bboxes (np.ndarray): Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
@@ -458,8 +443,7 @@ def denormalize_bboxes(
 
 
 def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
-    """
-    Calculate areas for multiple bounding boxes.
+    """Calculate areas for multiple bounding boxes.
     This function computes the areas of bounding boxes given their normalized coordinates
     and the dimensions of the image they belong to. The bounding boxes are expected to be
     in the format [x_min, y_min, x_max, y_max] with normalized coordinates (0 to 1).
@@ -508,8 +492,7 @@ def convert_bboxes_to_albumentations(
     shape: ShapeType,
     check_validity: bool = False,
 ) -> np.ndarray:
-    """
-    Convert bounding boxes from a specified format to the format used by albumentations:
+    """Convert bounding boxes from a specified format to the format used by albumentations:
     normalized coordinates of top-left and bottom-right corners of the bounding box in the form of
     `(x_min, y_min, x_max, y_max)` e.g. `(0.15, 0.27, 0.67, 0.5)`.
 
@@ -569,8 +552,7 @@ def convert_bboxes_from_albumentations(
     shape: ShapeType,
     check_validity: bool = False,
 ) -> np.ndarray:
-    """
-    Convert bounding boxes from the format used by albumentations to a specified format.
+    """Convert bounding boxes from the format used by albumentations to a specified format.
 
     Args:
         bboxes (np.ndarray): A numpy array of albumentations bounding boxes with shape (num_bboxes, 4+).
@@ -617,8 +599,7 @@ def convert_bboxes_from_albumentations(
 
 @handle_empty_array("bboxes")
 def check_bboxes(bboxes: np.ndarray) -> None:
-    """
-    Check if bounding boxes are valid.
+    """Check if bounding boxes are valid.
 
     Args:
         bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
@@ -656,8 +637,7 @@ def check_bboxes(bboxes: np.ndarray) -> None:
 
 @handle_empty_array("bboxes")
 def clip_bboxes(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
-    """
-    Clip bounding boxes to the image shape.
+    """Clip bounding boxes to the image shape.
 
     Args:
         bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
@@ -707,8 +687,7 @@ def filter_bboxes(
     min_height: float = 1.0,
     max_accept_ratio: float | None = None,
 ) -> np.ndarray:
-    """
-    Remove bounding boxes that either lie outside of the visible area by more than min_visibility
+    """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also crops boxes to final image size.
 
     Args:
@@ -774,8 +753,7 @@ def filter_bboxes(
 
 
 def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | None:
-    """
-    Calculate union of bounding boxes. Boxes could be in albumentations or Pascal Voc format.
+    """Calculate union of bounding boxes. Boxes could be in albumentations or Pascal Voc format.
 
     Args:
         bboxes (np.ndarray): List of bounding boxes
@@ -819,8 +797,7 @@ def union_of_bboxes(bboxes: np.ndarray, erosion_rate: float) -> np.ndarray | Non
 
 
 def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
-    """
-    Create bounding boxes from binary masks (fast version)
+    """Create bounding boxes from binary masks (fast version)
 
     Args:
         masks (np.ndarray): Binary masks of shape (H, W) or (N, H, W) where N is the number of masks,
@@ -852,8 +829,7 @@ def bboxes_from_masks(masks: np.ndarray) -> np.ndarray:
 
 
 def masks_from_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) -> np.ndarray:
-    """
-    Convert bounding boxes to masks.
+    """Convert bounding boxes to masks.
 
     Args:
         bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
@@ -881,8 +857,7 @@ def bboxes_to_mask(
     bboxes: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
-    """
-    Convert bounding boxes to a single mask.
+    """Convert bounding boxes to a single mask.
 
     Args:
         bboxes (np.ndarray): A numpy array of bounding boxes with shape (num_bboxes, 4+).
@@ -914,8 +889,7 @@ def mask_to_bboxes(
     masks: np.ndarray,
     original_bboxes: np.ndarray,
 ) -> np.ndarray:
-    """
-    Convert masks back to bounding boxes.
+    """Convert masks back to bounding boxes.
 
     Args:
         masks (np.ndarray): A numpy array of masks with shape (num_masks, height, width).

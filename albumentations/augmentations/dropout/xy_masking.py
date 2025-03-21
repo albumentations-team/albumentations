@@ -1,5 +1,4 @@
-"""
-Implementation of XY masking for time-frequency domain transformations.
+"""Implementation of XY masking for time-frequency domain transformations.
 
 This module provides the XYMasking transform, which applies masking strips along the X and Y axes
 of an image. This is particularly useful for audio spectrograms, time-series data visualizations,
@@ -23,8 +22,7 @@ __all__ = ["XYMasking"]
 
 
 class XYMasking(BaseDropout):
-    """
-    Applies masking strips to an image, either horizontally (X axis) or vertically (Y axis),
+    """Applies masking strips to an image, either horizontally (X axis) or vertically (Y axis),
     simulating occlusions. This transform is useful for training models to recognize images
     with varied visibility conditions. It's particularly effective for spectrogram images,
     allowing spectral and frequency masking to improve model robustness.
@@ -128,8 +126,7 @@ class XYMasking(BaseDropout):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, np.ndarray]:
-        """
-        Get parameters dependent on the data.
+        """Get parameters dependent on the data.
 
         Args:
             params (dict[str, Any]): Dictionary containing parameters.
