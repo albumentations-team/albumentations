@@ -3583,5 +3583,47 @@ class ThinPlateSpline(BaseDistortion):
         }
 
 
-## Alias for D4 for people who are not familiar with the concept of group of symmetries
-SquareSymmetry = D4
+class SquareSymmetry(D4):
+    """Applies one of the eight possible square symmetry transformations to a square-shaped input.
+    This is an alias for D4 transform with a more intuitive name for those not familiar with group theory.
+
+    The square symmetry transformations include:
+    - Identity: No transformation is applied
+    - 90° rotation: Rotate 90 degrees counterclockwise
+    - 180° rotation: Rotate 180 degrees
+    - 270° rotation: Rotate 270 degrees counterclockwise
+    - Vertical flip: Mirror across vertical axis
+    - Anti-diagonal flip: Mirror across anti-diagonal
+    - Horizontal flip: Mirror across horizontal axis
+    - Main diagonal flip: Mirror across main diagonal
+
+    Args:
+        p (float): Probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - This transform is particularly useful for augmenting data that does not have a clear orientation,
+          such as top-view satellite or drone imagery, or certain types of medical images.
+        - The input image should be square-shaped for optimal results. Non-square inputs may lead to
+          unexpected behavior or distortions.
+        - When applied to bounding boxes or keypoints, their coordinates will be adjusted according
+          to the selected transformation.
+        - This transform preserves the aspect ratio and size of the input.
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = A.Compose([
+        ...     A.SquareSymmetry(p=1.0),
+        ... ])
+        >>> transformed = transform(image=image)
+        >>> transformed_image = transformed['image']
+        # The resulting image will be one of the 8 possible square symmetry transformations of the input
+
+    """
