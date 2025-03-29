@@ -92,4 +92,6 @@ repos:
     rev: 0.0.7  # Use the latest version
     hooks:
       - id: check-google-docstrings
+        files: ^albumentations/
+        exclude: ^build/
         additional_dependencies: ["tomli>=2.0.0"]
