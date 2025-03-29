@@ -64,7 +64,7 @@ class KeypointParams(Params):
 
             a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
 
-        label_fields (list): list of fields that are joined with keypoints, e.g labels.
+        label_fields (list[str]): list of fields that are joined with keypoints, e.g labels.
             Should be same type as keypoints.
         remove_invisible (bool): to remove invisible points after transform or not
         angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
@@ -187,7 +187,7 @@ class KeypointsProcessor(DataProcessor):
             shape (ShapeType): Shape to check against as {'height': height, 'width': width, 'depth': depth}
 
         Returns:
-            Filtered keypoints
+            np.ndarray: Filtered keypoints
 
         """
         self.params: KeypointParams
@@ -343,7 +343,7 @@ def filter_keypoints(
         remove_invisible (bool): If True, remove keypoints outside the boundaries.
 
     Returns:
-        A numpy array of filtered keypoints.
+        np.ndarray: Filtered keypoints.
 
     """
     if not remove_invisible:

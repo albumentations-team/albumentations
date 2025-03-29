@@ -3448,7 +3448,7 @@ def generate_random_values(
         random_generator (np.random.Generator): Random number generator
 
     Returns:
-        Array of random values
+        np.ndarray: Random values
 
     """
     if dtype == np.uint8:

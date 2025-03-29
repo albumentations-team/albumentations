@@ -272,7 +272,7 @@ class HubMixin:
                 Whether or not to create a Pull Request from `branch` with that commit. Defaults to `False`.
 
         Returns:
-            The url of the commit of your transform in the given repository.
+            str: The url of the commit of your transform in the given repository.
 
         """
         if not allow_custom_keys and key not in self._CONFIG_KEYS:

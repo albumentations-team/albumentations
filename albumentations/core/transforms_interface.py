@@ -346,7 +346,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed images as numpy array in the same format as input
+            np.ndarray: Transformed images as numpy array in the same format as input
 
         """
         # Handle batched numpy array input
@@ -362,7 +362,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed volume as numpy array in the same format as input
+            np.ndarray: Transformed volume as numpy array in the same format as input
 
         """
         return self.apply_to_images(volume, *args, **params)
@@ -383,7 +383,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             data (dict[str, Any]): Input data dictionary containing images/volumes
 
         Returns:
-            Updated parameters dictionary with shape and transform-specific params
+            dict[str, Any]: Updated parameters dictionary with shape and transform-specific params
 
         """
         # Extract shape from volume, volumes, image, or images
@@ -451,7 +451,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         by the way you must have at least one object with key 'image'
 
         Args:
-            additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
+            additional_targets (dict[str, str]): keys - new target name, values
+                - old target name. ex: {'image2': 'image'}
 
         """
         for k, v in additional_targets.items():
@@ -713,7 +714,7 @@ class DualTransform(BasicTransform):
             **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed masks as numpy array
+            np.ndarray: Transformed masks as numpy array
 
         """
         return np.stack([self.apply_to_mask(mask, **params) for mask in masks])
@@ -728,7 +729,7 @@ class DualTransform(BasicTransform):
             **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed 3D mask as numpy array
+            np.ndarray: Transformed 3D mask as numpy array
 
         """
         return self.apply_to_mask(mask3d, **params)
@@ -743,7 +744,7 @@ class DualTransform(BasicTransform):
             **params (Any): Additional parameters specific to the transform
 
         Returns:
-            Transformed 3D masks as numpy array
+            np.ndarray: Transformed 3D masks as numpy array
 
         """
         return np.stack([self.apply_to_mask3d(mask3d, **params) for mask3d in masks3d])

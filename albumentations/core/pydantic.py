@@ -172,8 +172,8 @@ def check_range_bounds(
             If True, max_val is inclusive (<=). If False, exclusive (<).
 
     Returns:
-        Validator function that checks if all values in tuple are within bounds.
-        Returns None if input is None.
+        Callable[[tuple[T, ...] | None], tuple[T, ...] | None]: Validator function that
+            checks if all values in tuple are within bounds. Returns None if input is None.
 
     Raises:
         ValueError: If any value in tuple is outside the allowed range
