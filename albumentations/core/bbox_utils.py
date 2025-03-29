@@ -407,7 +407,7 @@ def normalize_bboxes(bboxes: np.ndarray, shape: ShapeType | tuple[int, int]) -> 
         shape (ShapeType | tuple[int, int]): Image shape `(height, width)`.
 
     Returns:
-        Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
+        np.ndarray: Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
     if isinstance(shape, tuple):
@@ -433,7 +433,7 @@ def denormalize_bboxes(
         shape (ShapeType | tuple[int, int]): Image shape `(height, width)`.
 
     Returns:
-        Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
+        np.ndarray: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
     scale_factors = (shape[1], shape[0]) if isinstance(shape, tuple) else (shape["width"], shape["height"])
@@ -703,7 +703,7 @@ def filter_bboxes(
             Boxes with higher ratios will be filtered out. Default: None.
 
     Returns:
-        numpy array of filtered bounding boxes.
+        np.ndarray: Filtered bounding boxes.
 
     """
     epsilon = 1e-7
