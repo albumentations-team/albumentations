@@ -2,6 +2,7 @@ import io
 from pathlib import Path
 from typing import Any, Dict, Set
 from unittest.mock import patch
+from io import StringIO
 
 import numpy as np
 import pytest
@@ -150,40 +151,51 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 ):
     transforms3d = {A.PadIfNeeded3D, A.RandomCrop3D, A.CenterCrop3D, A.CoarseDropout3D, A.Pad3D, A.CubicSymmetry}
     mask = image[:, :, 0].copy()
-    with patch("builtins.open", OpenMock()):
-        aug = augmentation_cls(p=p, **params)
-        aug.set_random_seed(seed)
 
-        filepath = f"serialized.{data_format}"
-        A.save(aug, filepath, data_format=data_format)
-        deserialized_aug = A.load(filepath, data_format=data_format)
-        deserialized_aug.set_random_seed(seed)
+    # Create in-memory file objects
+    yaml_buffer = StringIO()
+    json_buffer = StringIO()
 
-        data = {
-            "image": image,
-            "mask": mask,
-        }
+    aug = augmentation_cls(p=p, **params)
+    aug.set_random_seed(seed)
 
-        if augmentation_cls == A.OverlayElements:
-            data["overlay_metadata"] = []
-        elif augmentation_cls == A.RandomCropNearBBox:
-            data["cropping_bbox"] = [10, 20, 40, 50]
-        elif augmentation_cls == A.TextImage:
-            data["textimage_metadata"] = []
-        elif augmentation_cls in transforms3d:
-            data = {"volume": np.array([image] * 10), "mask3d": np.array([mask] * 10)}
-        elif augmentation_cls in {A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop}:
-            data["bboxes"] = np.array([[10, 20, 40, 50]])
+    # Save to in-memory buffer
+    if data_format == "yaml":
+        A.save(aug, yaml_buffer, data_format=data_format)
+        yaml_buffer.seek(0)
+        deserialized_aug = A.load(yaml_buffer, data_format=data_format)
+    else:
+        A.save(aug, json_buffer, data_format=data_format)
+        json_buffer.seek(0)
+        deserialized_aug = A.load(json_buffer, data_format=data_format)
 
-        aug_data = aug(**data)
-        deserialized_aug_data = deserialized_aug(**data)
+    deserialized_aug.set_random_seed(seed)
 
-        if augmentation_cls not in transforms3d:
-            np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
-            np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
-        else:
-            np.testing.assert_array_equal(aug_data["volume"], deserialized_aug_data["volume"])
-            np.testing.assert_array_equal(aug_data["mask3d"], deserialized_aug_data["mask3d"])
+    data = {
+        "image": image,
+        "mask": mask,
+    }
+
+    if augmentation_cls == A.OverlayElements:
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.RandomCropNearBBox:
+        data["cropping_bbox"] = [10, 20, 40, 50]
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
+    elif augmentation_cls in transforms3d:
+        data = {"volume": np.array([image] * 10), "mask3d": np.array([mask] * 10)}
+    elif augmentation_cls in {A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop}:
+        data["bboxes"] = np.array([[10, 20, 40, 50]])
+
+    aug_data = aug(**data)
+    deserialized_aug_data = deserialized_aug(**data)
+
+    if augmentation_cls not in transforms3d:
+        np.testing.assert_array_equal(aug_data["image"], deserialized_aug_data["image"])
+        np.testing.assert_array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+    else:
+        np.testing.assert_array_equal(aug_data["volume"], deserialized_aug_data["volume"])
+        np.testing.assert_array_equal(aug_data["mask3d"], deserialized_aug_data["mask3d"])
 
 
 @pytest.mark.parametrize(
