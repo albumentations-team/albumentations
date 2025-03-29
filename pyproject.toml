@@ -280,8 +280,9 @@ test-framework = "pytest"
 ignore-paths = [  ]
 formatter-cmds = [ "ruff check --exit-zero --fix $file", "ruff format $file" ]
 
-[tool.docstring_checker]
+[tool.google_docstring_parser]
 paths = [ "albumentations", "tools" ] # Directories or files to scan
 require_param_types = true            # Require parameter types in docstrings
 exclude_files = [ "__init__.py" ]     # Files to exclude from checks
 verbose = false                       # Enable verbose output
+check_references = true
