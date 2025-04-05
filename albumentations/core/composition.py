@@ -394,12 +394,12 @@ class Compose(BaseCompose, HubMixin):
     the appropriate parameters are provided.
 
     Args:
-        transforms (List[Union[BasicTransform, BaseCompose]]): A list of transforms to apply.
-        bbox_params (Union[dict, BboxParams, None]): Parameters for bounding box transforms.
+        transforms (list[BasicTransform | BaseCompose]): A list of transforms to apply.
+        bbox_params (dict[str, Any] | BboxParams | None): Parameters for bounding box transforms.
             Can be a dict of params or a BboxParams object. Default is None.
-        keypoint_params (Union[dict, KeypointParams, None]): Parameters for keypoint transforms.
+        keypoint_params (dict[str, Any] | KeypointParams | None): Parameters for keypoint transforms.
             Can be a dict of params or a KeypointParams object. Default is None.
-        additional_targets (Dict[str, str], optional): A dictionary mapping additional target names
+        additional_targets (dict[str, str] | None): A dictionary mapping additional target names
             to their types. For example, {'image2': 'image'}. Default is None.
         p (float): Probability of applying all transforms. Should be in range [0, 1]. Default is 1.0.
         is_check_shapes (bool): If True, checks consistency of shapes for image/mask/masks on each call.
@@ -994,37 +994,49 @@ class OneOf(BaseCompose):
 
 
 class SomeOf(BaseCompose):
-    """Apply a random subset of transforms from the given list.
+    """Selects exactly `n` transforms from the given list and applies them.
 
-    This class selects a specified number of transforms from the provided list
-    and applies them to the input data. The selection can be done with or without
-    replacement, allowing for the same transform to be potentially applied multiple times.
+    The selection of which `n` transforms to apply is done **uniformly at random**
+    from the provided list. Each transform in the list has an equal chance of being selected.
+
+    Once the `n` transforms are selected, each one is applied **based on its
+    individual probability** `p`.
 
     Args:
-        transforms (List[Union[BasicTransform, BaseCompose]]): A list of transforms to choose from.
-        n (int): The number of transforms to apply. If greater than the number of
-                 transforms and replace=False, it will be set to the number of transforms.
-        replace (bool): Whether to sample transforms with replacement. Default is True.
-        p (float): Probability of applying the selected transforms. Should be in the range [0, 1].
+        transforms (list[BasicTransform | BaseCompose]): A list of transforms to choose from.
+        n (int): The exact number of transforms to select and potentially apply.
+                 If `replace=False` and `n` is greater than the number of available transforms,
+                 `n` will be capped at the number of transforms.
+        replace (bool): Whether to sample transforms with replacement. If True, the same
+                        transform can be selected multiple times (up to `n` times).
+                        Default is False.
+        p (float): The probability that this `SomeOf` composition will be applied.
+                   If applied, it will select `n` transforms and attempt to apply them.
                    Default is 1.0.
-        mask_interpolation (int, optional): Interpolation method for mask transforms.
-                                            When defined, it overrides the interpolation method
-                                            specified in individual transforms. Default is None.
 
     Note:
-        - If `n` is greater than the number of transforms and `replace` is False,
-          `n` will be set to the number of transforms with a warning.
-        - The probabilities of individual transforms are used as weights for sampling.
-        - When `replace` is True, the same transform can be selected multiple times.
+        - The overall probability `p` of the `SomeOf` block determines if *any* selection
+          and application occurs.
+        - The individual probability `p` of each transform inside the list determines if
+          that specific transform runs *if it is selected*.
+        - If `replace` is True, the same transform might be selected multiple times, and
+          its individual probability `p` will be checked each time it's encountered.
 
     Example:
         >>> import albumentations as A
         >>> transform = A.SomeOf([
-        ...     A.HorizontalFlip(p=1),
-        ...     A.VerticalFlip(p=1),
-        ...     A.RandomBrightnessContrast(p=1),
-        ... ], n=2, replace=False, p=0.5)
-        >>> # This will apply 2 out of the 3 transforms with 50% probability
+        ...     A.HorizontalFlip(p=0.5),  # 50% chance to apply if selected
+        ...     A.VerticalFlip(p=0.8),    # 80% chance to apply if selected
+        ...     A.RandomRotate90(p=1.0), # 100% chance to apply if selected
+        ... ], n=2, replace=False, p=1.0) # Always select 2 transforms uniformly
+
+        # In each call, 2 transforms out of 3 are chosen uniformly.
+        # For example, if HFlip and VFlip are chosen:
+        # - HFlip runs if random() < 0.5
+        # - VFlip runs if random() < 0.8
+        # If VFlip and Rotate90 are chosen:
+        # - VFlip runs if random() < 0.8
+        # - Rotate90 runs if random() < 1.0 (always)
 
     """
 
@@ -1039,9 +1051,6 @@ class SomeOf(BaseCompose):
                 stacklevel=2,
             )
         self.replace = replace
-        transforms_ps = [t.p for t in self.transforms]
-        s = sum(transforms_ps)
-        self.transforms_ps = [t / s for t in transforms_ps]
 
     def __call__(self, *arg: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         """Apply n randomly selected transforms from the list of transforms.
@@ -1061,21 +1070,25 @@ class SomeOf(BaseCompose):
                 data = self.check_data_post_transform(data)
             return data
 
-        if self.transforms_ps and (force_apply or self.py_random.random() < self.p):
-            for i in self._get_idx():
+        if self.py_random.random() < self.p:  # Check overall SomeOf probability
+            # Get indices uniformly
+            indices_to_consider = self._get_idx()
+            for i in indices_to_consider:
                 t = self.transforms[i]
-                data = t(force_apply=True, **data)
+                # Apply the transform respecting its own probability `t.p`
+                data = t(**data)
                 self._track_transform_params(t, data)
                 data = self.check_data_post_transform(data)
         return data
 
     def _get_idx(self) -> np.ndarray[np.int_]:
+        # Use uniform probability for selection, ignore individual p values here
         idx = self.random_generator.choice(
             len(self.transforms),
             size=self.n,
             replace=self.replace,
-            p=self.transforms_ps,
         )
+        # Sorting is optional but can make replay/debugging easier if needed
         idx.sort()
         return idx
 
@@ -1094,9 +1107,9 @@ class SomeOf(BaseCompose):
 class RandomOrder(SomeOf):
     """Apply a random subset of transforms from the given list in a random order.
 
-    The `RandomOrder` class allows you to select a specified number of transforms from a list and apply them
-    to the input data in a random order. This is useful for creating more diverse augmentation pipelines
-    where the order of transformations can vary, potentially leading to different results.
+    Selects exactly `n` transforms uniformly at random from the list, and then applies
+    the selected transforms in a random order. Each selected transform is applied
+    based on its individual probability `p`.
 
     Attributes:
         transforms (TransformsSeqType): A list of transformations to choose from.
@@ -1109,28 +1122,30 @@ class RandomOrder(SomeOf):
     Example:
         >>> import albumentations as A
         >>> transform = A.RandomOrder([
-        ...     A.HorizontalFlip(p=1),
-        ...     A.VerticalFlip(p=1),
-        ...     A.RandomBrightnessContrast(p=1),
-        ... ], n=2, replace=False, p=0.5)
-        >>> # This will apply 2 out of the 3 transforms in a random order with 50% probability
+        ...     A.HorizontalFlip(p=0.5),
+        ...     A.VerticalFlip(p=1.0),
+        ...     A.RandomBrightnessContrast(p=0.8),
+        ... ], n=2, replace=False, p=1.0)
+        >>> # This will uniformly select 2 transforms and apply them in a random order,
+        >>> # respecting their individual probabilities (0.5, 1.0, 0.8).
 
     Note:
-        - The probabilities of individual transforms are used as weights for sampling.
-        - When `replace` is True, the same transform can be selected multiple times.
-        - The random order of transforms will not be replayed in `ReplayCompose`.
+        - Inherits from SomeOf, but overrides `_get_idx` to ensure random order without sorting.
+        - Selection is uniform; application depends on individual transform probabilities.
 
     """
 
     def __init__(self, transforms: TransformsSeqType, n: int = 1, replace: bool = False, p: float = 1):
+        # Initialize using SomeOf's logic (which now does uniform selection setup)
         super().__init__(transforms=transforms, n=n, replace=replace, p=p)
 
     def _get_idx(self) -> np.ndarray[np.int_]:
+        # Perform uniform random selection without replacement, like SomeOf
+        # Crucially, DO NOT sort the indices here to maintain random order.
         return self.random_generator.choice(
             len(self.transforms),
             size=self.n,
             replace=self.replace,
-            p=self.transforms_ps,
         )
 
 
