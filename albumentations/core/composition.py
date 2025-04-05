@@ -1088,7 +1088,6 @@ class SomeOf(BaseCompose):
             size=self.n,
             replace=self.replace,
         )
-        # Sorting is optional but can make replay/debugging easier if needed
         idx.sort()
         return idx
 
