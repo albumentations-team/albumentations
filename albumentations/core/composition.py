@@ -132,9 +132,6 @@ class BaseCompose(Serializable):
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self._set_keys()
         self.set_mask_interpolation(mask_interpolation)
-        self.seed = seed
-        self.random_generator = np.random.default_rng(seed)
-        self.py_random = random.Random(seed)
         self.set_random_seed(seed)
         self.save_applied_params = save_applied_params
 

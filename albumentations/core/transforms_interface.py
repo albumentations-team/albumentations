@@ -97,8 +97,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._set_keys()
         self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self.seed: int | None = None
-        self.random_generator = np.random.default_rng(self.seed)
-        self.py_random = random.Random(self.seed)
+        self.set_random_seed(self.seed)
         self._strict = False  # Use private attribute
         self.invalid_args: list[str] = []  # Store invalid args found during init
 
