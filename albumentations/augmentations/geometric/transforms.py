@@ -1850,7 +1850,6 @@ class VerticalFlip(DualTransform):
         """
         return fgeometric.keypoints_vflip(keypoints, params["shape"][0])
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the vertical flip to a batch of images.
 
@@ -1862,9 +1861,8 @@ class VerticalFlip(DualTransform):
             np.ndarray: Flipped images.
 
         """
-        return self.apply(images, **params)
+        return fgeometric.volume_vflip(images)
 
-    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the vertical flip to a volume.
 
@@ -1876,9 +1874,8 @@ class VerticalFlip(DualTransform):
             np.ndarray: Flipped volume.
 
         """
-        return self.apply(volume, **params)
+        return fgeometric.volume_vflip(volume)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the vertical flip to a batch of volumes.
 
@@ -1890,9 +1887,8 @@ class VerticalFlip(DualTransform):
             np.ndarray: Flipped volumes.
 
         """
-        return self.apply(volumes, **params)
+        return fgeometric.volumes_vflip(volumes)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the vertical flip to a 3D mask.
 
@@ -1904,7 +1900,20 @@ class VerticalFlip(DualTransform):
             np.ndarray: Flipped 3D mask.
 
         """
-        return self.apply(mask3d, **params)
+        return fgeometric.volume_vflip(mask3d)
+
+    def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the vertical flip to a 3D mask.
+
+        Args:
+            masks3d (np.ndarray): 3D masks to be flipped.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Flipped 3D mask.
+
+        """
+        return fgeometric.volumes_vflip(masks3d)
 
 
 class HorizontalFlip(DualTransform):
