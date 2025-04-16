@@ -148,6 +148,62 @@ class RandomRotate90(DualTransform):
         """
         return fgeometric.keypoints_rot90(keypoints, factor, params["shape"])
 
+    def apply_to_volume(self, volume: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
+        """Apply rotation to the input volume.
+
+        Args:
+            volume (np.ndarray): Volume to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated volume.
+
+        """
+        return fgeometric.volume_rot90(volume, factor)
+
+    def apply_to_volumes(self, volumes: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
+        """Apply rotation to the input volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated volumes.
+
+        """
+        return fgeometric.volumes_rot90(volumes, factor)
+
+    def apply_to_mask3d(self, mask3d: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
+        """Apply rotation to the input mask3d.
+
+        Args:
+            mask3d (np.ndarray): Mask3d to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated mask3d.
+
+        """
+        return fgeometric.volume_rot90(mask3d, factor)
+
+    def apply_to_masks3d(self, masks3d: np.ndarray, factor: Literal[0, 1, 2, 3], **params: Any) -> np.ndarray:
+        """Apply rotation to the input masks3d.
+
+        Args:
+            masks3d (np.ndarray): Masks3d to rotate.
+            factor (Literal[0, 1, 2, 3]): Number of times to rotate by 90 degrees.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Rotated masks3d.
+
+        """
+        return fgeometric.volumes_rot90(masks3d, factor)
+
 
 class RotateInitSchema(BaseTransformInitSchema):
     limit: SymmetricRangeType
