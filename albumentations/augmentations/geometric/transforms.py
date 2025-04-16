@@ -1962,7 +1962,6 @@ class HorizontalFlip(DualTransform):
         """
         return fgeometric.keypoints_hflip(keypoints, params["shape"][1])
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the horizontal flip to a batch of images.
 
@@ -1974,9 +1973,8 @@ class HorizontalFlip(DualTransform):
             np.ndarray: Flipped images.
 
         """
-        return self.apply(images, **params)
+        return fgeometric.volume_hflip(images)
 
-    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the horizontal flip to a volume.
 
@@ -1988,9 +1986,8 @@ class HorizontalFlip(DualTransform):
             np.ndarray: Flipped volume.
 
         """
-        return self.apply(volume, **params)
+        return fgeometric.volume_hflip(volume)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the horizontal flip to a batch of volumes.
 
@@ -2002,9 +1999,8 @@ class HorizontalFlip(DualTransform):
             np.ndarray: Flipped volumes.
 
         """
-        return self.apply(volumes, **params)
+        return fgeometric.volumes_hflip(volumes)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the horizontal flip to a 3D mask.
 
@@ -2013,7 +2009,17 @@ class HorizontalFlip(DualTransform):
             **params (Any): Additional parameters.
 
         """
-        return self.apply(mask3d, **params)
+        return fgeometric.volume_hflip(mask3d)
+
+    def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the horizontal flip to a 3D mask.
+
+        Args:
+            masks3d (np.ndarray): 3D masks to be flipped.
+            **params (Any): Additional parameters.
+
+        """
+        return fgeometric.volumes_hflip(masks3d)
 
 
 class Transpose(DualTransform):

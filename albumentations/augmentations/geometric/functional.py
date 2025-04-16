@@ -3528,3 +3528,69 @@ def generate_control_points(num_control_points: int) -> np.ndarray:
     x = np.linspace(0, 1, num_control_points)
     y = np.linspace(0, 1, num_control_points)
     return np.stack(np.meshgrid(x, y), axis=-1).reshape(-1, 2)
+
+
+def volume_hflip(volume: np.ndarray) -> np.ndarray:
+    """Perform horizontal flip on a volume (numpy array).
+
+    Flips the volume along the width axis (axis=2). Handles inputs with
+    shapes (D, H, W) or (D, H, W, C).
+
+    Args:
+        volume (np.ndarray): Input volume.
+
+    Returns:
+        np.ndarray: Horizontally flipped volume.
+
+    """
+    return np.flip(volume, axis=2)
+
+
+def volume_vflip(volume: np.ndarray) -> np.ndarray:
+    """Perform vertical flip on a volume (numpy array).
+
+    Flips the volume along the height axis (axis=1). Handles inputs with
+    shapes (D, H, W) or (D, H, W, C).
+
+    Args:
+        volume (np.ndarray): Input volume.
+
+    Returns:
+        np.ndarray: Vertically flipped volume.
+
+    """
+    return np.flip(volume, axis=1)
+
+
+def volumes_hflip(volumes: np.ndarray) -> np.ndarray:
+    """Perform horizontal flip on a batch of volumes (numpy array).
+
+    Flips the volumes along the width axis (axis=3). Handles inputs with
+    shapes (B, D, H, W) or (B, D, H, W, C).
+
+    Args:
+        volumes (np.ndarray): Input batch of volumes.
+
+    Returns:
+        np.ndarray: Horizontally flipped batch of volumes.
+
+    """
+    # Width axis is 3 for both (B, D, H, W) and (B, D, H, W, C)
+    return np.flip(volumes, axis=3)
+
+
+def volumes_vflip(volumes: np.ndarray) -> np.ndarray:
+    """Perform vertical flip on a batch of volumes (numpy array).
+
+    Flips the volumes along the height axis (axis=2). Handles inputs with
+    shapes (B, D, H, W) or (B, D, H, W, C).
+
+    Args:
+        volumes (np.ndarray): Input batch of volumes.
+
+    Returns:
+        np.ndarray: Vertically flipped batch of volumes.
+
+    """
+    # Height axis is 2 for both (B, D, H, W) and (B, D, H, W, C)
+    return np.flip(volumes, axis=2)
