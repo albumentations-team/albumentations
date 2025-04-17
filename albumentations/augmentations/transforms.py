@@ -2900,14 +2900,14 @@ class ChannelShuffle(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        channels_shuffled: tuple[int, ...] | None,
+        channels_shuffled: list[int] | None,
         **params: Any,
     ) -> np.ndarray:
         """Apply the ChannelShuffle transform to the input image.
 
         Args:
             img (np.ndarray): The input image to apply the ChannelShuffle transform to.
-            channels_shuffled (tuple[int, ...] | None): The channels to shuffle.
+            channels_shuffled (list[int] | None): The channels to shuffle.
             **params (Any): Additional parameters (not used in this transform).
 
         Returns:
@@ -2917,6 +2917,54 @@ class ChannelShuffle(ImageOnlyTransform):
         if channels_shuffled is None:
             return img
         return fmain.channel_shuffle(img, channels_shuffled)
+
+    def apply_to_images(self, images: np.ndarray, channels_shuffled: list[int] | None, **params: Any) -> np.ndarray:
+        """Apply the ChannelShuffle transform to the input images.
+
+        Args:
+            images (np.ndarray): The input images to apply the ChannelShuffle transform to.
+            channels_shuffled (list[int] | None): The channels to shuffle.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The images with the applied ChannelShuffle transform.
+
+        """
+        if channels_shuffled is None:
+            return images
+        return fmain.volume_channel_shuffle(images, channels_shuffled)
+
+    def apply_to_volumes(self, volumes: np.ndarray, channels_shuffled: list[int] | None, **params: Any) -> np.ndarray:
+        """Apply the ChannelShuffle transform to the input volumes.
+
+        Args:
+            volumes (np.ndarray): The input volumes to apply the ChannelShuffle transform to.
+            channels_shuffled (list[int] | None): The channels to shuffle.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The volumes with the applied ChannelShuffle transform.
+
+        """
+        if channels_shuffled is None:
+            return volumes
+        return fmain.volumes_channel_shuffle(volumes, channels_shuffled)
+
+    def apply_to_volume(self, volume: np.ndarray, channels_shuffled: list[int] | None, **params: Any) -> np.ndarray:
+        """Apply the ChannelShuffle transform to the input volume.
+
+        Args:
+            volume (np.ndarray): The input volume to apply the ChannelShuffle transform to.
+            channels_shuffled (list[int] | None): The channels to shuffle.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The volume with the applied ChannelShuffle transform.
+
+        """
+        if channels_shuffled is None:
+            return volume
+        return fmain.volume_channel_shuffle(volume, channels_shuffled)
 
     def get_params_dependent_on_data(
         self,

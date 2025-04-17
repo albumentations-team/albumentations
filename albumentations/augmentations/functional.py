@@ -1208,7 +1208,7 @@ def invert(img: np.ndarray) -> np.ndarray:
     return MAX_VALUES_BY_DTYPE[img.dtype] - img
 
 
-def channel_shuffle(img: np.ndarray, channels_shuffled: np.ndarray) -> np.ndarray:
+def channel_shuffle(img: np.ndarray, channels_shuffled: list[int]) -> np.ndarray:
     """Shuffle the channels of an image.
 
     This function shuffles the channels of an image by using the cv2.mixChannels function.
@@ -1222,12 +1222,44 @@ def channel_shuffle(img: np.ndarray, channels_shuffled: np.ndarray) -> np.ndarra
         np.ndarray: The shuffled image.
 
     """
-    img = img.copy()
+    output = np.empty_like(img)
     from_to = []
     for i, j in enumerate(channels_shuffled):
-        from_to.extend([i, j])
-    cv2.mixChannels([img], [img], from_to)
-    return img
+        from_to.extend([j, i])  # Use [src, dst]
+    cv2.mixChannels([img], [output], from_to)
+    return output
+
+
+def volume_channel_shuffle(volume: np.ndarray, channels_shuffled: Sequence[int]) -> np.ndarray:
+    """Shuffle channels of a single volume (D, H, W, C) or (D, H, W).
+
+    Args:
+        volume (np.ndarray): Input volume.
+        channels_shuffled (Sequence[int]): New channel order.
+
+    Returns:
+        np.ndarray: Volume with channels shuffled.
+
+    """
+    if volume.ndim == 4:
+        return volume.copy()[..., channels_shuffled]
+    return volume
+
+
+def volumes_channel_shuffle(volumes: np.ndarray, channels_shuffled: Sequence[int]) -> np.ndarray:
+    """Shuffle channels of a batch of volumes (B, D, H, W, C) or (B, D, H, W).
+
+    Args:
+        volumes (np.ndarray): Input batch of volumes.
+        channels_shuffled (Sequence[int]): New channel order.
+
+    Returns:
+        np.ndarray: Batch of volumes with channels shuffled.
+
+    """
+    if volumes.ndim == 5:
+        return volumes.copy()[..., channels_shuffled]
+    return volumes
 
 
 def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
