@@ -119,6 +119,46 @@ class BaseCrop(DualTransform):
         """
         return fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
 
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volume_crop_yx(images, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volume_crop_yx(volume, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
+    def apply_to_volumes(
+        self,
+        volumes: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volumes_crop_yx(volumes, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
+    def apply_to_mask3d(
+        self,
+        mask3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volume_crop_yx(mask3d, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
+    def apply_to_masks3d(
+        self,
+        masks3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volumes_crop_yx(masks3d, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
     @staticmethod
     def _clip_bbox(bbox: tuple[int, int, int, int], image_shape: tuple[int, int]) -> tuple[int, int, int, int]:
         height, width = image_shape[:2]
