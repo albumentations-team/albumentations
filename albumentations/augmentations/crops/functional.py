@@ -8,6 +8,9 @@ consistency between different data types during cropping operations.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 import cv2
 import numpy as np
 from albucore import maybe_process_in_chunks, preserve_channel_dim
@@ -25,6 +28,7 @@ __all__ = [
     "crop_keypoints_by_coords",
     "get_center_crop_coords",
     "get_crop_coords",
+    "pad_along_axes",
     "volume_crop_yx",
     "volumes_crop_yx",
 ]
@@ -427,3 +431,64 @@ def volumes_crop_yx(
 
     # Crop along H (axis 2) and W (axis 3)
     return volumes[:, :, y_min:y_max, x_min:x_max]
+
+
+def pad_along_axes(
+    arr: np.ndarray,
+    pad_top: int,
+    pad_bottom: int,
+    pad_left: int,
+    pad_right: int,
+    h_axis: int,
+    w_axis: int,
+    border_mode: int,
+    pad_value: float | Sequence[float] = 0,
+) -> np.ndarray:
+    """Pad an array along specified height (H) and width (W) axes using np.pad.
+
+    Args:
+        arr (np.ndarray): Input array.
+        pad_top (int): Padding added to the top (start of H axis).
+        pad_bottom (int): Padding added to the bottom (end of H axis).
+        pad_left (int): Padding added to the left (start of W axis).
+        pad_right (int): Padding added to the right (end of W axis).
+        h_axis (int): Index of the height axis (Y).
+        w_axis (int): Index of the width axis (X).
+        border_mode (int): OpenCV border mode.
+        pad_value (float | Sequence[float]): Value for constant padding.
+
+    Returns:
+        np.ndarray: Padded array.
+
+    Raises:
+        ValueError: If border_mode is unsupported or axis indices are out of bounds.
+
+    """
+    ndim = arr.ndim
+    if not (0 <= h_axis < ndim and 0 <= w_axis < ndim):
+        raise ValueError(f"Axis indices {h_axis}, {w_axis} are out of bounds for array with {ndim} dimensions.")
+    if h_axis == w_axis:
+        raise ValueError(f"Height axis {h_axis} and width axis {w_axis} cannot be the same.")
+
+    mode_map = {
+        cv2.BORDER_CONSTANT: "constant",
+        cv2.BORDER_REPLICATE: "edge",
+        cv2.BORDER_REFLECT: "reflect",
+        cv2.BORDER_REFLECT_101: "symmetric",
+        cv2.BORDER_WRAP: "wrap",
+    }
+    if border_mode not in mode_map:
+        raise ValueError(f"Unsupported border_mode: {border_mode}")
+    np_mode = mode_map[border_mode]
+
+    pad_width = [(0, 0)] * ndim  # Initialize padding for all dimensions
+    pad_width[h_axis] = (pad_top, pad_bottom)
+    pad_width[w_axis] = (pad_left, pad_right)
+
+    # Initialize kwargs with mode
+    kwargs: dict[str, Any] = {"mode": np_mode}
+    # Add constant_values only if mode is constant
+    if np_mode == "constant":
+        kwargs["constant_values"] = pad_value
+
+    return np.pad(arr, pad_width, **kwargs)

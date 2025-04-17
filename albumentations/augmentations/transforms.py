@@ -2962,9 +2962,7 @@ class ChannelShuffle(ImageOnlyTransform):
             np.ndarray: The volume with the applied ChannelShuffle transform.
 
         """
-        if channels_shuffled is None:
-            return volume
-        return fmain.volume_channel_shuffle(volume, channels_shuffled)
+        return self.apply_to_images(volume, channels_shuffled, **params)
 
     def get_params_dependent_on_data(
         self,
