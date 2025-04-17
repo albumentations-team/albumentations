@@ -119,6 +119,46 @@ class BaseCrop(DualTransform):
         """
         return fcrops.crop_keypoints_by_coords(keypoints, crop_coords)
 
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volume_crop_yx(images, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return self.apply_to_images(volume, crop_coords, **params)
+
+    def apply_to_volumes(
+        self,
+        volumes: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return fcrops.volumes_crop_yx(volumes, crop_coords[0], crop_coords[1], crop_coords[2], crop_coords[3])
+
+    def apply_to_mask3d(
+        self,
+        mask3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return self.apply_to_images(mask3d, crop_coords, **params)
+
+    def apply_to_masks3d(
+        self,
+        masks3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return self.apply_to_volumes(masks3d, crop_coords, **params)
+
     @staticmethod
     def _clip_bbox(bbox: tuple[int, int, int, int], image_shape: tuple[int, int]) -> tuple[int, int, int, int]:
         height, width = image_shape[:2]
@@ -261,6 +301,72 @@ class BaseCropAndPad(BaseCrop):
             )
         # Note' that super().apply would apply the padding twice as it is looped to this.apply
         return BaseCrop.apply(self, mask, crop_coords=crop_coords, **params)
+
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        pad_params = params.get("pad_params")
+        if pad_params is not None:
+            images = fcrops.pad_along_axes(
+                images,
+                pad_params["pad_top"],
+                pad_params["pad_bottom"],
+                pad_params["pad_left"],
+                pad_params["pad_right"],
+                h_axis=2,
+                w_axis=3,
+                border_mode=self.border_mode,
+                pad_value=self.fill,
+            )
+        return BaseCrop.apply_to_images(self, images, crop_coords, **params)
+
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return self.apply_to_images(volume, crop_coords, **params)
+
+    def apply_to_volumes(
+        self,
+        volumes: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        pad_params = params.get("pad_params")
+        if pad_params is not None:
+            volumes = fcrops.pad_along_axes(
+                volumes,
+                pad_params["pad_top"],
+                pad_params["pad_bottom"],
+                pad_params["pad_left"],
+                pad_params["pad_right"],
+                h_axis=3,
+                w_axis=4,
+                border_mode=self.border_mode,
+                pad_value=self.fill,
+            )
+        return BaseCrop.apply_to_volumes(self, volumes, crop_coords, **params)
+
+    def apply_to_mask3d(
+        self,
+        mask3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return self.apply_to_images(mask3d, crop_coords, **params)
+
+    def apply_to_masks3d(
+        self,
+        masks3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        return self.apply_to_volumes(masks3d, crop_coords, **params)
 
     def apply_to_bboxes(
         self,
