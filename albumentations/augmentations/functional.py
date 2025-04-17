@@ -1241,9 +1241,7 @@ def volume_channel_shuffle(volume: np.ndarray, channels_shuffled: Sequence[int])
         np.ndarray: Volume with channels shuffled.
 
     """
-    if volume.ndim == 4:
-        return volume.copy()[..., channels_shuffled]
-    return volume
+    return volume.copy()[..., channels_shuffled] if volume.ndim == 4 else volume
 
 
 def volumes_channel_shuffle(volumes: np.ndarray, channels_shuffled: Sequence[int]) -> np.ndarray:
@@ -1257,9 +1255,7 @@ def volumes_channel_shuffle(volumes: np.ndarray, channels_shuffled: Sequence[int
         np.ndarray: Batch of volumes with channels shuffled.
 
     """
-    if volumes.ndim == 5:
-        return volumes.copy()[..., channels_shuffled]
-    return volumes
+    return volumes.copy()[..., channels_shuffled] if volumes.ndim == 5 else volumes
 
 
 def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
