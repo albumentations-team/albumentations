@@ -69,6 +69,11 @@ class LabelEncoder:
         if isinstance(y, np.ndarray):
             y = y.flatten().tolist()
 
+        # If input is empty, default to non-numerical to allow potential updates later
+        if not y:
+            self.is_numerical = False
+            return self
+
         self.is_numerical = all(isinstance(label, Real) for label in y)
 
         if self.is_numerical:
@@ -131,6 +136,57 @@ class LabelEncoder:
 
         return np.array([self.inverse_classes_[label] for label in y])
 
+    def update(self, y: Sequence[Any] | np.ndarray) -> LabelEncoder:
+        """Update the encoder with new labels encountered after initial fitting.
+
+        This method identifies labels in the input sequence that are not already
+        known to the encoder and adds them to the internal mapping. It does not
+        change the encoding of previously seen labels.
+
+        Args:
+            y (Sequence[Any] | np.ndarray): A sequence or array of potentially new labels.
+
+        Returns:
+            LabelEncoder: The updated encoder instance.
+
+        """
+        if self.is_numerical:
+            # Do not update if the original data was purely numerical
+            return self
+
+        # Standardize input type to list for easier processing
+        if isinstance(y, np.ndarray):
+            input_labels = y.flatten().tolist()
+        elif isinstance(y, Sequence) and not isinstance(y, str):
+            input_labels = list(y)
+        elif y is None:
+            # Handle cases where a label field might be None or empty
+            return self
+        else:
+            # Handle single item case or string (treat string as single label)
+            input_labels = [y]
+
+        # Find labels not already in the encoder efficiently using sets
+        current_labels_set = set(self.classes_.keys())
+        new_unique_labels = {label for label in input_labels if label not in current_labels_set}
+
+        if not new_unique_labels:
+            # No new labels to add
+            return self
+
+        # Sort new labels for deterministic encoding order, handling mixed types
+        # Use custom_sort defined earlier in the module
+        sorted_new_labels = sorted(new_unique_labels, key=custom_sort)
+
+        for label in sorted_new_labels:
+            # Double-check in case the input `y` contained duplicates of the same new label
+            if label not in self.classes_:
+                new_id = self.num_classes
+                self.classes_[label] = new_id
+                self.inverse_classes_[new_id] = label
+                self.num_classes += 1
+        return self
+
 
 @dataclass
 class LabelMetadata:
@@ -159,9 +215,32 @@ class LabelManager:
         self.metadata: dict[str, dict[str, LabelMetadata]] = defaultdict(dict)
 
     def process_field(self, data_name: str, label_field: str, field_data: Any) -> np.ndarray:
-        """Process a label field and store its metadata."""
-        metadata = self._analyze_input(field_data)
-        self.metadata[data_name][label_field] = metadata
+        """Process a label field, store metadata, and encode.
+
+        If the field has been processed before (metadata exists), this will update
+        the existing LabelEncoder with any new labels found in `field_data` before encoding.
+        Otherwise, it analyzes the input, creates metadata, and fits the encoder.
+
+        Args:
+            data_name (str): The name of the main data type (e.g., 'bboxes', 'keypoints').
+            label_field (str): The specific label field being processed (e.g., 'class_labels').
+            field_data (Any): The actual label data for this field.
+
+        Returns:
+            np.ndarray: The encoded label data as a numpy array.
+
+        """
+        if data_name in self.metadata and label_field in self.metadata[data_name]:
+            # Metadata exists, potentially update encoder
+            metadata = self.metadata[data_name][label_field]
+            if not metadata.is_numerical and metadata.encoder:
+                metadata.encoder.update(field_data)
+        else:
+            # First time seeing this field, analyze and create metadata
+            metadata = self._analyze_input(field_data)
+            self.metadata[data_name][label_field] = metadata
+
+        # Encode data using the (potentially updated) metadata/encoder
         return self._encode_data(field_data, metadata)
 
     def restore_field(self, data_name: str, label_field: str, encoded_data: np.ndarray) -> Any:
@@ -175,10 +254,16 @@ class LabelManager:
         input_type = type(field_data)
         dtype = field_data.dtype if isinstance(field_data, np.ndarray) else None
 
-        # Check if input is numpy array or if all elements are numerical
-        is_numerical = (isinstance(field_data, np.ndarray) and np.issubdtype(field_data.dtype, np.number)) or all(
-            isinstance(label, (int, float)) for label in field_data
-        )
+        # Determine if input is numerical. Handle empty case explicitly.
+        if isinstance(field_data, np.ndarray) and field_data.size > 0:
+            is_numerical = np.issubdtype(field_data.dtype, np.number)
+        elif isinstance(field_data, Sequence) and not isinstance(field_data, str) and field_data:
+            is_numerical = all(isinstance(label, (int, float)) for label in field_data)
+        elif isinstance(field_data, (int, float)):
+            is_numerical = True  # Handle single numeric item
+        else:
+            # Default to non-numerical for empty sequences, single strings, or other types
+            is_numerical = False
 
         metadata = LabelMetadata(
             input_type=input_type,
