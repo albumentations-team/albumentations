@@ -237,6 +237,12 @@ def test_augmentations_for_bboxes_serialization(
         data["mask"] = mask
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -280,8 +286,14 @@ def test_augmentations_for_keypoints_serialization(
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
-    if augmentation_cls == A.RandomCropNearBBox:
+    elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)

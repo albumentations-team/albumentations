@@ -700,6 +700,7 @@ def test_single_transform_compose(
             A.OverlayElements,
             A.TextImage,
             A.RandomCropNearBBox,
+            A.Mosaic,
         },
     ),
 )
@@ -752,7 +753,7 @@ def test_contiguous_output_dual(augmentation_cls, params):
     ),
 )
 def test_contiguous_output_imageonly(augmentation_cls, params):
-    set_seed(42)
+    set_seed(137)
     image = np.zeros([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
     # check preconditions
@@ -1022,7 +1023,8 @@ def test_compose_additional_targets_in_available_keys() -> None:
             A.OverlayElements,
             A.TextImage,
             A.RandomCropNearBBox,
-            A.Pad
+            A.Pad,
+            A.Mosaic,
         },
     ),
 )
@@ -1154,6 +1156,18 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             "mask": mask,
             "overlay_metadata": [],
         }
+    elif augmentation_cls == A.Mosaic:
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
+        data = {
+            "image": image,
+            "mask": mask,
+            "mosaic_metadata": [
+                {
+                    "image": image,
+                    "mask": mask,
+                }
+            ]
+        }
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:
@@ -1203,6 +1217,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             A.MaskDropout,
             A.RandomCropNearBBox,
             A.PadIfNeeded,
+            A.Mosaic,
         },
     ),
 )
@@ -1270,7 +1285,8 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.RandomSizedBBoxSafeCrop,
             A.RandomRotate90,
             A.TimeReverse,
-            A.TimeMasking
+            A.TimeMasking,
+            A.Mosaic,
         },
     ),
 )

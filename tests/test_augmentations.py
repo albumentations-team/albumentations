@@ -35,19 +35,6 @@ from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transf
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_UINT8_IMAGE
-                    },
-                    {
-                        "image": SQUARE_UINT8_IMAGE
-                    },
-                    {
-                        "image": SQUARE_UINT8_IMAGE
-                    }],
-                "read_fn": lambda x: x,
-            },
         },
         except_augmentations={
             A.FromFloat,
@@ -92,19 +79,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_FLOAT_IMAGE
-                    },
-                    {
-                        "image": SQUARE_FLOAT_IMAGE
-                    },
-                    {
-                        "image": SQUARE_FLOAT_IMAGE
-                    }],
-                "read_fn": lambda x: x,
-            },
         },
         except_augmentations={
             A.FromFloat,
@@ -117,6 +91,13 @@ def test_image_only_augmentations(augmentation_cls, params):
     if augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
         data = aug(image=image, mask=mask, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
+    elif augmentation_cls == A.Mosaic:
+        data = aug(image=image, mask=mask, mosaic_metadata=[
+            {
+                "image": SQUARE_FLOAT_IMAGE,
+                "mask": mask
+            }
+        ])
     else:
         aug = augmentation_cls(p=1, **params)
         data = aug(image=image, mask=mask)
@@ -128,24 +109,7 @@ def test_image_only_augmentations(augmentation_cls, params):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
-        custom_arguments={
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_UINT8_IMAGE + 1,
-                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
-                    },
-                    {
-                        "image": SQUARE_UINT8_IMAGE + 1,
-                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
-                    },
-                    {
-                        "image": SQUARE_UINT8_IMAGE + 1,
-                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
-                    }],
-                "read_fn": lambda x: x,
-            },
-        },
+        custom_arguments={ },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -161,6 +125,13 @@ def test_dual_augmentations(augmentation_cls, params):
         data["overlay_metadata"] = []
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [0, 0, 10, 10]
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": SQUARE_UINT8_IMAGE,
+                "mask": mask
+            }
+        ]
     data = aug(**data)
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
@@ -169,24 +140,7 @@ def test_dual_augmentations(augmentation_cls, params):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
-        custom_arguments={
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_FLOAT_IMAGE,
-                        "mask": SQUARE_FLOAT_IMAGE.copy()[:, :, 0].astype(np.uint8)
-                    },
-                    {
-                        "image": SQUARE_FLOAT_IMAGE,
-                        "mask": SQUARE_FLOAT_IMAGE.copy()[:, :, 0].astype(np.uint8)
-                    },
-                    {
-                        "image": SQUARE_FLOAT_IMAGE,
-                        "mask": SQUARE_FLOAT_IMAGE.copy()[:, :, 0].astype(np.uint8)
-                    }],
-                "read_fn": lambda x: x,
-            },
-        },
+        custom_arguments={ },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -204,6 +158,13 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
         data["overlay_metadata"] = []
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [0, 0, 10, 10]
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": SQUARE_FLOAT_IMAGE,
+                "mask": mask
+            }
+        ]
 
     data = aug(**data)
 
@@ -227,22 +188,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
-            },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_UINT8_IMAGE,
-                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
-                    },
-                    {
-                        "image": SQUARE_UINT8_IMAGE,
-                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
-                    },
-                    {
-                        "image": SQUARE_UINT8_IMAGE,
-                        "mask": SQUARE_UINT8_IMAGE[:, :, 0].copy()
-                    }],
-                "read_fn": lambda x: x,
             },
         },
         except_augmentations={
@@ -269,7 +214,13 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
         }
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [0, 0, 10, 10]
-
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": SQUARE_UINT8_IMAGE,
+                "mask": mask
+            }
+        ]
     aug(**data)
 
     np.testing.assert_array_equal(image, image_copy)
@@ -322,6 +273,12 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
         data["mask"] = mask
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [0, 0, 10, 10]
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     aug(**data)
 
@@ -402,6 +359,13 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             "text": "May the transformations be ever in your favor!",
             "bbox": (0.1, 0.1, 0.9, 0.2),
         }
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+                "mask": mask
+            }
+        ]
     result = aug(**data)
 
     np.testing.assert_array_equal(image.shape, result["image"].shape)
@@ -480,6 +444,17 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
             "image": SQUARE_FLOAT_IMAGE,
             "mask": mask_3ch,
         }
+    elif augmentation_cls == A.Mosaic:
+        data = {
+            "image": image_3ch,
+            "mask": mask_3ch,
+            "mosaic_metadata": [
+                {
+                    "image": image_3ch,
+                    "mask": mask_3ch,
+                }
+            ]
+        }
     else:
         data = {
             "image": image_3ch,
@@ -543,19 +518,6 @@ def test_mask_fill_value(augmentation_cls, params):
                 "method": "pca",
                 "num_output_channels": 5,
             },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_MULTI_UINT8_IMAGE
-                    },
-                    {
-                        "image": SQUARE_MULTI_UINT8_IMAGE
-                    },
-                    {
-                        "image": SQUARE_MULTI_UINT8_IMAGE
-                    }],
-                "read_fn": lambda x: x,
-            },
         },
         except_augmentations={
             A.CLAHE,
@@ -605,6 +567,12 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     data = aug(**data)
     assert data["image"].dtype == np.uint8
@@ -631,19 +599,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
-            },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_MULTI_FLOAT_IMAGE,
-                    },
-                    {
-                        "image": SQUARE_MULTI_FLOAT_IMAGE,
-                    },
-                    {
-                        "image": SQUARE_MULTI_FLOAT_IMAGE,
-                    }],
-                "read_fn": lambda x: x,
             },
         },
         except_augmentations={
@@ -691,6 +646,12 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     data = aug(**data)
 
@@ -710,19 +671,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
-            },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_MULTI_UINT8_IMAGE,
-                    },
-                    {
-                        "image": SQUARE_MULTI_UINT8_IMAGE
-                    },
-                    {
-                        "image": SQUARE_MULTI_UINT8_IMAGE,
-                    }],
-                "read_fn": lambda x: x,
             },
         },
         except_augmentations={
@@ -777,6 +725,12 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     data = aug(**data)
 
@@ -800,19 +754,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
-            },
-            A.Mosaic: {
-                "reference_data": [
-                    {
-                        "image": SQUARE_MULTI_FLOAT_IMAGE,
-                    },
-                    {
-                        "image": SQUARE_MULTI_FLOAT_IMAGE,
-                    },
-                    {
-                        "image": SQUARE_MULTI_FLOAT_IMAGE,
-                    }],
-                "read_fn": lambda x: x,
             },
         },
         except_augmentations={
@@ -863,6 +804,12 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     data = aug(**data)
 
@@ -1123,6 +1070,12 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
         data["mask"] = mask
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image_uint8,
+            }
+        ]
 
     transformed_uint8 = transform(**data)["image"]
 

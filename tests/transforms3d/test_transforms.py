@@ -524,6 +524,7 @@ def test2d_3d(volume, mask3d):
             A.PixelDistributionAdaptation,
             A.HistogramMatching,
             A.RandomCropNearBBox,
+            A.Mosaic,
         },
     ),
 )
@@ -555,6 +556,7 @@ def test_image_volume_matching(image, augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.RandomSizedBBoxSafeCrop,
             A.ConstrainedCoarseDropout,
+            A.Mosaic,
         },
     ),
 )
