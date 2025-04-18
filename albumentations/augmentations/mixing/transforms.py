@@ -451,66 +451,6 @@ class Mosaic(DualTransform):
         # Validate provided items using the helper method
         return [item for i, item in enumerate(metadata_input) if self._validate_metadata_item(item, i)]
 
-    def _prepare_mosaic_data(self, data: dict[str, Any]) -> list[dict[str, Any]]:
-        """Prepares the list of data dictionaries for mosaic assembly.
-
-        Handles validation, sampling, and replication based on provided metadata.
-
-        Args:
-            data (dict): The input data dictionary, including the metadata key and primary image data.
-
-        Returns:
-            list[dict[str, Any]]: The finalized list of additional data dictionaries for the mosaic.
-                                  Returns an empty list if the required number cannot be assembled.
-
-        """
-        # Validate the metadata list first
-        valid_metadata = self._validate_metadata(data.get(self.metadata_key))
-        num_needed = self.grid_yx[0] * self.grid_yx[1] - 1
-        num_provided = len(valid_metadata)
-
-        final_mosaic_data = []
-
-        if num_provided == num_needed:
-            final_mosaic_data = valid_metadata
-        elif num_provided > num_needed:
-            final_mosaic_data = self.py_random.sample(valid_metadata, num_needed)
-        else:  # num_provided < num_needed
-            final_mosaic_data = valid_metadata  # Start with the valid ones
-            num_replications = num_needed - num_provided
-
-            # Create the dictionary for the input image replication
-            input_data_copy = {"image": data["image"].copy()}
-            if "mask" in data and data["mask"] is not None:
-                input_data_copy["mask"] = data["mask"].copy()
-            if "bboxes" in data and data["bboxes"] is not None:
-                input_bboxes = (
-                    np.array(data["bboxes"]) if not isinstance(data["bboxes"], np.ndarray) else data["bboxes"]
-                )
-                input_data_copy["bboxes"] = input_bboxes.copy()
-            if "keypoints" in data and data["keypoints"] is not None:
-                input_keypoints = (
-                    np.array(data["keypoints"]) if not isinstance(data["keypoints"], np.ndarray) else data["keypoints"]
-                )
-                input_data_copy["keypoints"] = input_keypoints.copy()
-
-            for _ in range(num_replications):
-                replication_dict = {k: v.copy() if isinstance(v, np.ndarray) else v for k, v in input_data_copy.items()}
-                final_mosaic_data.append(replication_dict)
-
-        # Final check if we actually got the needed number
-        if len(final_mosaic_data) != num_needed:
-            # Avoid duplicate warning if validation already returned empty
-            if num_provided > 0 or not isinstance(data.get(self.metadata_key), Sequence):
-                warn(
-                    "Could not assemble the required number of images for mosaic after validation/replication.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            return []
-
-        return final_mosaic_data
-
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """Calculate all necessary parameters and process cell data for the mosaic transform."""
         # --- Step 1: Validate raw metadata ---

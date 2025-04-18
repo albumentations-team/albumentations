@@ -7,8 +7,8 @@ such as copy-and-paste operations with masking.
 from __future__ import annotations
 
 import random
-import warnings
 from typing import Any, Literal, cast
+from warnings import warn
 
 import cv2
 import numpy as np
@@ -26,6 +26,7 @@ __all__ = [
     "copy_and_paste_blend",
     "get_mosaic_transforms_coords",
     "prepare_mosaic_inputs",
+    "preprocess_mosaic_data",
     "process_mosaic_cell",
     "process_mosaic_grid",
 ]
@@ -129,7 +130,7 @@ def _prepare_data_item(
                     prepared_item[key] = np.array(prepared_item[key])
                 # np.array creates a copy, so no extra copy needed here
             except (ValueError, TypeError) as e:  # Catch specific conversion errors
-                warnings.warn(
+                warn(
                     f"Could not convert {key} to numpy array ({e}). Keeping original type.",
                     UserWarning,
                     stacklevel=3,
@@ -182,16 +183,21 @@ def prepare_mosaic_inputs(
 
     # --- 2. Identify optional keys present in primary data ---
     optional_keys = {"mask", "bboxes", "keypoints"}
+    # Also consider label fields associated with bboxes/keypoints if they exist
+    # This part becomes less relevant here if preprocessing happens *before* this function.
+    # Let's assume the caller handles identifying which keys *might* exist across all items.
+    # For simplicity now, we just ensure the main ones are handled.
     present_optional_keys = {k for k in optional_keys if k in primary_data and primary_data[k] is not None}
 
     # --- 3. Prepare all items (ensure consistent keys, copy arrays) ---
+    # This step might be removed if preprocessing handles consistency.
     prepared_primary = _prepare_data_item(primary_data, present_optional_keys)
     prepared_additional = [_prepare_data_item(item, present_optional_keys) for item in final_additional_data]
     all_data_items_prepared = [prepared_primary, *prepared_additional]
 
     # --- 4. Check final count ---
     if len(all_data_items_prepared) != num_total_images:
-        warnings.warn(
+        warn(
             f"Internal error after preparation: Expected {num_total_images} items, got {len(all_data_items_prepared)}.",
             RuntimeWarning,
             stacklevel=2,
@@ -221,6 +227,212 @@ def prepare_mosaic_inputs(
                     ) from e
 
     return output_grid
+
+
+def _gather_mosaic_item_data(
+    item: dict[str, Any],
+    data_key: Literal["bboxes", "keypoints"],
+    label_fields: list[str],
+    all_raw_list: list[np.ndarray],
+    labels_gathered_dict: dict[str, list[Any]],
+) -> int:
+    """Gathers raw data (bboxes/keypoints) and associated labels for a single item.
+
+    Returns:
+        int: The number of items (bboxes or keypoints) found for this item.
+
+    """
+    item_data = item.get(data_key)  # Assume np.ndarray or None
+    count = 0
+    if item_data is not None and item_data.size > 0:
+        count = len(item_data)
+        all_raw_list.append(item_data)
+        # Gather corresponding labels
+        for field in label_fields:
+            labels = item.get(field)
+            if labels is not None and len(labels) == count:
+                labels_gathered_dict[field].extend(labels)
+            else:
+                # Pad with None if mismatch or missing - processor must handle Nones if required
+                labels_gathered_dict[field].extend([None] * count)
+    return count
+
+
+def _preprocess_combined_data(
+    all_raw_items: list[np.ndarray],
+    labels_gathered: dict[str, list[Any]],
+    processor: Any | None,
+    data_key: Literal["bboxes", "keypoints"],
+    default_cols: int,
+) -> np.ndarray:
+    """Helper to preprocess combined lists of bboxes or keypoints using a processor."""
+    combined_preprocessed_data = None
+    original_cols = default_cols
+
+    if not all_raw_items:
+        # No items to process, return empty array with default shape
+        return np.empty((0, default_cols), dtype=np.float32)
+
+    combined_raw_np = np.vstack(all_raw_items)
+    original_cols = combined_raw_np.shape[1]
+
+    if not processor:
+        warn(
+            f"{data_key.capitalize()} found but no {data_key}_processor provided to preprocess them.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return np.empty((0, original_cols), dtype=np.float32)
+
+    # Prepare input for the processor
+    input_combined: dict[str, Any] = {data_key: combined_raw_np}
+    total_items = len(combined_raw_np)
+    for field, labels in labels_gathered.items():
+        if len(labels) == total_items:
+            input_combined[field] = labels
+        else:
+            warn(
+                f"Length mismatch for combined {data_key} label field '{field}'. "
+                f"Expected {total_items}, got {len(labels)}. Skipping field.",
+                UserWarning,
+                stacklevel=3,
+            )
+
+    # Preprocess
+    try:
+        processed_data = processor.preprocess(input_combined)
+        combined_preprocessed_data = processed_data.get(data_key)
+    except (ValueError, KeyError, TypeError) as e:
+        warn(
+            f"Error during combined {data_key} preprocessing: {e}. Resulting {data_key} will be empty.",
+            UserWarning,
+            stacklevel=3,
+        )
+
+    # Ensure array exists even if processing failed
+    if combined_preprocessed_data is None:
+        combined_preprocessed_data = np.empty((0, original_cols), dtype=np.float32)
+
+    return combined_preprocessed_data
+
+
+def preprocess_mosaic_data(
+    data_items: list[dict[str, Any]],
+    bbox_processor: Any | None = None,  # Replace Any with BboxProcessor type hint if possible
+    keypoint_processor: Any | None = None,  # Replace Any with KeypointsProcessor type hint if possible
+) -> list[dict[str, Any]]:  # Changed return type
+    """Preprocesses bboxes and keypoints for a list of mosaic data items.
+
+    Processes all items together to ensure consistent label encoding, then returns
+    a list of dictionaries, each corresponding to an input item, containing the
+    original image/mask and the preprocessed bboxes/keypoints.
+
+    Args:
+        data_items (list[dict]): List of raw data dictionaries for mosaic cells.
+        bbox_processor: BboxProcessor instance.
+        keypoint_processor: KeypointsProcessor instance.
+
+    Returns:
+        list[dict[str, Any]]: List of processed data dictionaries.
+
+    """
+    # Gather combined raw data and counts
+    all_raw_bboxes: list[np.ndarray] = []
+    all_raw_keypoints: list[np.ndarray] = []
+    # Use defaultdict for easier appending
+    from collections import defaultdict
+
+    bbox_labels_gathered: dict[str, list[Any]] = defaultdict(list)
+    kp_labels_gathered: dict[str, list[Any]] = defaultdict(list)
+    bbox_counts_per_item: list[int] = []
+    keypoint_counts_per_item: list[int] = []
+
+    # Determine expected label fields from processors if they exist
+    bbox_label_fields = []
+    if bbox_processor and bbox_processor.params.label_fields:
+        bbox_label_fields = bbox_processor.params.label_fields
+
+    kp_label_fields = []
+    if keypoint_processor and keypoint_processor.params.label_fields:
+        kp_label_fields = keypoint_processor.params.label_fields
+
+    for item in data_items:
+        # Gather BBoxes and their labels using helper
+        num_bboxes = _gather_mosaic_item_data(
+            item=item,
+            data_key="bboxes",
+            label_fields=bbox_label_fields,
+            all_raw_list=all_raw_bboxes,
+            labels_gathered_dict=bbox_labels_gathered,
+        )
+        bbox_counts_per_item.append(num_bboxes)
+
+        # Gather Keypoints and their labels using helper
+        num_keypoints = _gather_mosaic_item_data(
+            item=item,
+            data_key="keypoints",
+            label_fields=kp_label_fields,
+            all_raw_list=all_raw_keypoints,
+            labels_gathered_dict=kp_labels_gathered,
+        )
+        keypoint_counts_per_item.append(num_keypoints)
+
+    # Preprocess combined data using the helper
+    combined_preprocessed_bboxes = _preprocess_combined_data(
+        all_raw_bboxes,
+        bbox_labels_gathered,
+        bbox_processor,
+        "bboxes",
+        5,
+    )
+    combined_preprocessed_keypoints = _preprocess_combined_data(
+        all_raw_keypoints,
+        kp_labels_gathered,
+        keypoint_processor,
+        "keypoints",
+        4,
+    )
+
+    # Split the combined preprocessed data back into per-item dictionaries
+    result_data_items = []
+    bbox_start_idx = 0
+    kp_start_idx = 0
+
+    for i, item in enumerate(data_items):
+        processed_item_dict = {
+            "image": item.get("image"),  # Keep original image
+            "mask": item.get("mask"),  # Keep original mask
+        }
+
+        # Split BBoxes
+        num_bboxes = bbox_counts_per_item[i]
+        if num_bboxes > 0:
+            bbox_end_idx = bbox_start_idx + num_bboxes
+            processed_item_dict["bboxes"] = combined_preprocessed_bboxes[bbox_start_idx:bbox_end_idx]
+            bbox_start_idx = bbox_end_idx
+        else:
+            processed_item_dict["bboxes"] = np.empty(
+                (0, combined_preprocessed_bboxes.shape[1]),
+                dtype=combined_preprocessed_bboxes.dtype,
+            )
+
+        # Split Keypoints
+        num_keypoints = keypoint_counts_per_item[i]
+        if num_keypoints > 0:
+            kp_end_idx = kp_start_idx + num_keypoints
+            processed_item_dict["keypoints"] = combined_preprocessed_keypoints[kp_start_idx:kp_end_idx]
+            kp_start_idx = kp_end_idx
+        else:
+            processed_item_dict["keypoints"] = np.empty(
+                (0, combined_preprocessed_keypoints.shape[1]),
+                dtype=combined_preprocessed_keypoints.dtype,
+            )
+
+        # Do NOT include original label fields (e.g., class_labels) in the output dict
+
+        result_data_items.append(processed_item_dict)
+
+    return result_data_items
 
 
 def get_mosaic_transforms_coords(
@@ -260,7 +472,7 @@ def get_mosaic_transforms_coords(
     large_grid_h = rows * target_h
     large_grid_w = cols * target_w
     if not (0 <= center_x < large_grid_w and 0 <= center_y < large_grid_h):
-        warnings.warn(
+        warn(
             f"Center point {center_point} is outside the conceptual large grid dimensions "
             f"({large_grid_h}x{large_grid_w}). Cannot calculate transforms.",
             UserWarning,
@@ -454,7 +666,7 @@ def process_mosaic_cell(
         # Apply the pipeline
         processed_data = pipeline(**pipeline_input)
     except (ValueError, IndexError, cv2.error) as e:  # Catch more specific errors
-        warnings.warn(
+        warn(
             f"Error processing mosaic cell {grid_pos} with Compose: {e}. Returning empty data.",
             RuntimeWarning,
             stacklevel=2,
@@ -463,7 +675,7 @@ def process_mosaic_cell(
 
     # Ensure the output image has the exact target dimensions
     if "image" not in processed_data:
-        warnings.warn(
+        warn(
             f"Compose pipeline failed to return an image for cell {grid_pos}. Returning empty data.",
             RuntimeWarning,
             stacklevel=2,
@@ -475,7 +687,7 @@ def process_mosaic_cell(
         msg = (
             f"Processed cell {grid_pos} size ({out_h}x{out_w}) doesn't match target ({target_h}x{target_w}). Check pad."
         )
-        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+        warn(msg, RuntimeWarning, stacklevel=2)
 
     # Shift bboxes and keypoints
     tgt_x1, tgt_y1, _, _ = target_placement
@@ -539,7 +751,7 @@ def assemble_mosaic_image_mask(
             # If assembling masks, we might have already checked consistency.
             # If assembling images, this indicates an error in processing.
             if data_key == "image":
-                warnings.warn(
+                warn(
                     f"Missing '{data_key}' in processed data for cell {grid_pos}.",
                     RuntimeWarning,
                     stacklevel=2,
@@ -572,21 +784,21 @@ def assemble_mosaic_image_mask(
                 if 0 <= seg_y_start < seg_y_end <= seg_h and 0 <= seg_x_start < seg_x_end <= seg_w:
                     canvas[y_slice, x_slice] = segment[seg_y_start:seg_y_end, seg_x_start:seg_x_end]
                 else:
-                    warnings.warn(
+                    warn(
                         f"Calculated invalid slice for segment/canvas for cell {grid_pos}. Skipping paste.",
                         RuntimeWarning,
                         stacklevel=2,
                     )
 
             except (ValueError, IndexError) as e:  # Catch more specific errors for pasting
-                warnings.warn(f"Error pasting segment for cell {grid_pos}: {e}", RuntimeWarning, stacklevel=2)
+                warn(f"Error pasting segment for cell {grid_pos}: {e}", RuntimeWarning, stacklevel=2)
 
         else:
             msg = (
                 f"Size mismatch for {data_key} at {grid_pos}: "
                 f"target {place_h}x{place_w}, got {segment.shape[:2]}. Skip."
             )
-            warnings.warn(msg, RuntimeWarning, stacklevel=2)
+            warn(msg, RuntimeWarning, stacklevel=2)
 
     return canvas
 
@@ -629,7 +841,7 @@ def calculate_mosaic_center_point(
     max_center_y_incl = large_grid_h - 1 - (target_h // 2)
 
     if max_center_x_incl < min_center_x or max_center_y_incl < min_center_y:
-        warnings.warn(
+        warn(
             f"Target size {target_size} is too large for the conceptual grid {grid_yx}. "
             "Cannot guarantee overlap with all cells. Centering crop instead.",
             UserWarning,
@@ -695,7 +907,7 @@ def process_mosaic_grid(
 
     for grid_pos, coords_dict in transforms_coords.items():
         if grid_pos not in prepared_grid_data:
-            warnings.warn(
+            warn(
                 f"Mismatch: Transform coords exist for {grid_pos} but prepared data does not.",
                 RuntimeWarning,
                 stacklevel=3,
@@ -718,7 +930,7 @@ def process_mosaic_grid(
 
         # Check if cell processing failed (returned empty dict)
         if not processed_cell_data:
-            warnings.warn(
+            warn(
                 f"Processing failed for cell {grid_pos}. Skipping.",
                 RuntimeWarning,
                 stacklevel=3,
