@@ -1,0 +1,9 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# Your rule content
+
+- We use python 3.10+ typing. I.e. not Tuple, but tuple, not List, but list, not Optional, but | None

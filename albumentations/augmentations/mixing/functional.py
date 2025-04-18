@@ -6,22 +6,28 @@ such as copy-and-paste operations with masking.
 
 from __future__ import annotations
 
-import numpy as np
-from albucore import get_num_channels
+import random
+import warnings
+from typing import Any, Literal, cast
 
-import albumentations.augmentations.crops.functional as fcrops
+import cv2
+import numpy as np
+
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
+from albumentations.augmentations.crops.transforms import Crop
+from albumentations.augmentations.geometric.resize import LongestMaxSize
+from albumentations.augmentations.geometric.transforms import PadIfNeeded
+from albumentations.core.composition import Compose
 
 __all__ = [
+    "_determine_padding_position",
+    "assemble_mosaic_image_mask",
+    "calculate_mosaic_center_point",
     "copy_and_paste_blend",
-    "create_2x2_mosaic_image",
-    "get_2x2_mosaic_bboxes",
-    "get_2x2_mosaic_center_crop",
-    "get_2x2_mosaic_keypoints",
-    "get_2x2_mosaic_quadrant_offset",
-    "get_2x2_mosaic_quadrant_pad_after_resize",
-    "resize_and_pad_for_2x2_mosaic",
+    "get_mosaic_transforms_coords",
+    "prepare_mosaic_inputs",
+    "process_mosaic_cell",
+    "process_mosaic_grid",
 ]
 
 
@@ -60,470 +66,669 @@ def copy_and_paste_blend(
     return blended_image
 
 
-def get_2x2_mosaic_quadrant_pad_after_resize(
-    target_shape: tuple[int, int],
-    resized_shape: tuple[int, int],
-    quadrant_idx: int,
+def _determine_final_additional_data(
+    primary_data: dict[str, Any],
+    additional_data_list: list[dict[str, Any]],
+    num_needed_additional: int,
+    py_random: random.Random,
+) -> list[dict[str, Any]]:
+    """Determines the final list of additional data items by sampling or replication."""
+    num_provided_additional = len(additional_data_list)
+    final_additional_data = []
+
+    if num_provided_additional == num_needed_additional:
+        final_additional_data = additional_data_list
+    elif num_provided_additional > num_needed_additional:
+        final_additional_data = py_random.sample(additional_data_list, num_needed_additional)
+    else:  # num_provided_additional < num_needed_additional
+        final_additional_data = additional_data_list  # Start with the valid provided
+        num_replications = num_needed_additional - num_provided_additional
+
+        # Prepare replication source from primary data (only copy necessary keys)
+        primary_replication_source = {"image": primary_data["image"].copy()}
+        optional_keys_to_copy = {"mask", "bboxes", "keypoints"}
+        for key in optional_keys_to_copy:
+            if key in primary_data and primary_data[key] is not None:
+                arr = primary_data[key]
+                if not isinstance(arr, np.ndarray):
+                    arr = np.array(arr)
+                primary_replication_source[key] = arr.copy()
+
+        for _ in range(num_replications):
+            replication_dict = {
+                k: v.copy() if isinstance(v, np.ndarray) else v for k, v in primary_replication_source.items()
+            }
+            final_additional_data.append(replication_dict)
+    return final_additional_data
+
+
+def _prepare_data_item(
+    data_item: dict[str, Any],
+    present_optional_keys: set[str],
+) -> dict[str, Any]:
+    """Ensures consistent keys and deep copies arrays for a single data item."""
+    prepared_item = data_item.copy()  # Shallow copy first
+
+    # Deep copy image array
+    if "image" in prepared_item:
+        prepared_item["image"] = prepared_item["image"].copy()
+
+    # Ensure optional keys exist and deep copy their arrays if present
+    for key in present_optional_keys:
+        if key not in prepared_item or prepared_item[key] is None:
+            prepared_item[key] = None
+        elif isinstance(prepared_item[key], np.ndarray):
+            # Make sure it's copied, even if shallow copy was enough initially
+            prepared_item[key] = prepared_item[key].copy()
+        # If key is present but not None and not ndarray, try converting (e.g., list of lists for bbox)
+        # This part might need refinement based on expected input types for bboxes/keypoints
+        elif key in ["bboxes", "keypoints"]:
+            try:
+                # Ensure numpy conversion also happens if needed
+                if not isinstance(prepared_item[key], np.ndarray):
+                    prepared_item[key] = np.array(prepared_item[key])
+                # np.array creates a copy, so no extra copy needed here
+            except (ValueError, TypeError) as e:  # Catch specific conversion errors
+                warnings.warn(
+                    f"Could not convert {key} to numpy array ({e}). Keeping original type.",
+                    UserWarning,
+                    stacklevel=3,
+                )
+
+    # Ensure all optional keys are present, even if None
+    all_optional_keys = {"mask", "bboxes", "keypoints"}
+    for key in all_optional_keys:
+        if key not in prepared_item:
+            prepared_item[key] = None
+
+    return prepared_item
+
+
+def _determine_primary_placement(
+    grid_yx: tuple[int, int],
+    py_random: random.Random,
 ) -> tuple[int, int]:
-    """Gets the padding offset in pixels to apply when padding a quadrant of a 2x2 mosaic image
-    that has been resized while preserving the aspect ratio.
-
-    Args:
-        target_shape (tuple[int, int]): The (height, width) of the quadrant after padding.
-        resized_shape (tuple[int, int]): The current (height, width) of the quadrant (resized).
-        quadrant_idx (int): The quadran index (0 for top-left, 1 for top-right, 2 for bottom-left, and
-                            3 for bottom-right).
-
-    Returns:
-        tuple[int, int]: The (x, y) padding offset to apply to coordinates (bboxes, keypoints...).
-    """
-    target_h, target_w = target_shape
-    resized_h, resized_w = resized_shape
-
-    # Bottom-right quadrant (idx 3) -> resized image should be aligned on top-left corner, no effect
-    x_pad_offset, y_pad_offset = 0, 0
-    if quadrant_idx == 0:  # Top-left quadrant -> resized image should be aligned on bottom-right corner
-        y_pad_offset = max(0, target_h - resized_h)
-        x_pad_offset = max(0, target_w - resized_w)
-    elif quadrant_idx == 1:  # Top-right quadrant -> resized image should be aligned on bottom-left corner
-        y_pad_offset = max(0, target_h - resized_h)
-    elif quadrant_idx == 2:  # Bottom-left quadrant -> resized image should be aligned on top-right corner
-        x_pad_offset = max(0, target_w - resized_w)
-
-    return (x_pad_offset, y_pad_offset)
-
-
-def get_2x2_mosaic_quadrant_offset(
-    target_shape: tuple[int, int],
-    quadrant_idx: int,
-) -> tuple[int, int]:
-    """Gets the offset in pixels to apply when placing the quadrant in a 2x2 mosaic image
-    of shape 2 * target_shape.
-
-    Args:
-        target_shape (tuple[int, int]): The (height, width) of the quadrant.
-        quadrant_idx (int): The quadran index (0 for top-left, 1 for top-right, 2 for bottom-left, and
-                            3 for bottom-right).
-
-    Returns:
-        tuple[int, int]: The (x, y) offset to apply to coordinates (bboxes, keypoints...).
-    """
-    target_h, target_w = target_shape
-
-    # The mosaic has shape (2 * target_h, 2 * target_w), so coordinates need to be translated
-    # left/down by target_h and/or target_w depending on the quadrant.
-    x_offset, y_offset = 0, 0  # No effect for top-left quadrant (idx 0).
-    if quadrant_idx == 1:  # Top-right quadrant
-        x_offset = target_w
-    elif quadrant_idx == 2:  # Bottom-left quadrant
-        y_offset = target_h
-    elif quadrant_idx == 3:  # Bottom-right quadrant
-        x_offset = target_w
-        y_offset = target_h
-
-    return (x_offset, y_offset)
-
-
-def get_2x2_mosaic_center_crop(
-    center_pt: tuple[int, int],
-    target_shape: tuple[int, int],
-) -> tuple[int, int, int, int]:
-    """Gets the cropping area (shape `target_shape`) around a center point.
-
-    Args:
-        center_pt (tuple[int, int]): The center point coordinates (x, y).
-        target_shape (tuple[int, int]): The (height, width) of the cropping area.
-
-    Returns:
-        tuple[int, int, int, int]: The cropping area coordinates
-                                   (x_min, x_min + width, y_min, y_min + height).
-
-    Notes: When cropping, take the area from [y_min:y_min + height, x_min:x_min + width].
-    """
-    target_h, target_w = target_shape
-
-    # Extract the final (target_h, target_w) crop centered at center_pt.
-    # We already ensured center_pt[0] is in [target_w // 2, (target_w - 2) + target_w // 2].
-    # We already ensured center_pt[1] is in [target_h // 2, (target_h - 2) + target_h // 2].
-    x1, y1 = center_pt[0] - (target_w - 1) // 2, center_pt[1] - (target_h - 1) // 2
-    x2, y2 = x1 + target_w, y1 + target_h
-
-    return (x1, y1, x2, y2)
-
-
-def resize_and_pad_for_2x2_mosaic(
-    four_images: list[np.ndarray],
-    target_h: int,
-    target_w: int,
-    num_channels: int,
-    fill: tuple[float, ...] | float,
-    interpolation: int,
-    keep_aspect_ratio: bool,
-) -> list[np.ndarray]:
-    """Resize and pad (if necessary) images for a 2x2 mosaic.
-
-    This function resizes 4 images so that their shape match the desired target shape
-    (which is half the shape of the uncropped 2x2 mosaic image).
-    It will pad the necessary areas of each image if resizing preserves image aspect ratio.
-    The 1st image will be resized (and padded) to be placed in the top-left quadrant, the 2nd image
-    in the top-right quadrant, the 3rd image in the bottom-left quadrant, and the 4th image in the
-    bottom-right quadrant of the uncropped 2x2 mosaic image.
-
-    Args:
-        four_images (list[np.ndarray]): List of four images with shape (H, W) or (H, W, C).
-        target_h (int): The height of each resized image.
-        target_w (int): The width of each resized image.
-        num_channels (int): The number of channels of each (resized) image.
-        fill (tuple[float, ...] | float): The value used to fill the padding zone of each image
-                                          (in case aspect ratio preserving resizing).
-        interpolation (int): Interpolation mode for handling resizing.
-                            Use cv2.INTER_NEAREST, cv2.INTER_LINEAR, etc.
-        keep_aspect_ratio (bool): Whether to resize while preserving the aspect ratio.
-
-    Returns:
-        list[np.ndarray]: List of four resized (and padded if necessary) images with shape
-                          (`target_h`, `target_w`) or (`target_h`, `target_w`, C).
-
-    Notes: In case of `keep_aspect_ratio` set to `True`:
-        - The processing is expected to be longer.
-        - The first image will be padded (if needed) along its top & left borders.
-        - The second image will be padded (if needed) along its top & right borders.
-        - The third image will be padded (if needed) along its bottom & left borders.
-        - The fourth image will be padded (if needed) along its bottom & right borders.
-
-    Example:
-        >>> images = [np.full((100, 100, 3), fill_value=(255.0, 255.0, 255.0), dtype=np.uint8),
-        ...           np.full((200, 100, 3), fill_value=(255.0, 0.0, 0.0), dtype=np.uint8),
-        ...           np.full((50, 100, 3), fill_value=(0.0, 255.0, 0.0), dtype=np.uint8),
-        ...           np.full((50, 50, 3), fill_value=(0.0, 0.0, 255.0), dtype=np.uint8)]
-        >>> resized_images = resize_and_pad_for_2x2_mosaic(
-        ...     four_images=images,
-        ...     target_h=100,
-        ...     target_w=100,
-        ...     num_channels=3,
-        ...     fill=(0.0, 0.0, 0.0),
-        ...     interpolation=cv2.INTER_NEAREST,
-        ...     keep_aspect_ratio=True
-        ... )
-    """
-    quadrant_shape = (target_h, target_w, num_channels) if num_channels > 1 else (target_h, target_w)
-    fill_value = fgeometric.extend_value(fill, num_channels)
-
-    # Resize images to match mosaic quadrant size
-    if not keep_aspect_ratio:
-        # Direct resize (distorts aspect ratio)
-        resized_images = [fgeometric.resize(img, (target_h, target_w), interpolation) for img in four_images]
-
-    else:
-        # Preserve aspect ratio: scale to fit within (target_h, target_w), then pad
-        resized_images = []
-        for idx, img in enumerate(four_images):
-            h, w = img.shape[:2]
-            scale = min(target_h / h, target_w / w)
-            resized_img = fgeometric.scale(img, scale, interpolation)
-            resized_h, resized_w = resized_img.shape[:2]
-
-            # Create a blank canvas and place the resized image in the good position
-            canvas = np.full(
-                quadrant_shape,
-                fill_value,
-                dtype=img.dtype,
-            )  # We checked that all images have same type before
-
-            x_pad_offset, y_pad_offset = get_2x2_mosaic_quadrant_pad_after_resize(
-                target_shape=(target_h, target_w),
-                resized_shape=(resized_h, resized_w),
-                quadrant_idx=idx,
-            )
-
-            canvas[y_pad_offset : y_pad_offset + resized_h, x_pad_offset : x_pad_offset + resized_w] = resized_img
-
-            resized_images.append(canvas)
-
-    return resized_images
-
-
-def create_2x2_mosaic_image(
-    four_images: list[np.ndarray],
-    center_pt: tuple[int, int],
-    mosaic_size: tuple[int, int],
-    keep_aspect_ratio: bool,
-    interpolation: int,
-    fill: tuple[float, ...] | float,
-) -> np.ndarray:
-    """Creates a 2x2 mosaic image.
-
-    This function first creates a mosaic made from 4 images with double shape `mosaic_size`,
-    before cropping an area centered on `center_pt` with the desired  `mosaic_size`.
-    It resizes and pads as necessary the 4 images, and places them in the corresponding quadrant of
-    the uncropped mosaic in this order: top-left, top-right, bottom-left, and bottom-right.
-
-    Args:
-        four_images (list[np.ndarray]): List of four images with shape (H, W) or (H, W, C).
-        center_pt (tuple[int, int]): The (x,y) position of the center point around which
-                                     to crop the final mosaic.
-        mosaic_size (tuple[int, int]): The (height, width) of the final cropped mosaic
-                                       (and also the one of each quadrant).
-        keep_aspect_ratio (bool): Whether to resize while preserving the aspect ratio.
-        interpolation (int): Interpolation mode for handling resizing.
-                            Use cv2.INTER_NEAREST, cv2.INTER_LINEAR, etc.
-        fill (tuple[float, ...] | float): The value used to fill the padding zone of each image
-                                          (in case aspect ratio preserving resizing).
-
-    Returns:
-        np.ndarray: The final cropped mosaic image with shape (`mosaic_size[0]`, `mosaic_size[1]`)
-                    or (`mosaic_size[0]`, `mosaic_size[1]`, C).
-
-    Notes: In case of `keep_aspect_ratio` set to `True`, the processing is expected to be longer.
-
-    Example:
-        >>> images = [np.full((100, 100, 3), fill_value=(255.0, 255.0, 255.0), dtype=np.uint8),
-        ...           np.full((100, 200, 3), fill_value=(255.0, 0.0, 0.0), dtype=np.uint8),
-        ...           np.full((100, 50, 3), fill_value=(0.0, 255.0, 0.0), dtype=np.uint8),
-        ...           np.full((50, 50, 3), fill_value=(0.0, 0.0, 255.0), dtype=np.uint8)]
-        >>> mosaic = create_2x2_mosaic_image(
-        ...     four_images=images,
-        ...     center_pt=(100, 100),
-        ...     mosaic_size=(100, 100),
-        ...     keep_aspect_ratio=True,
-        ...     interpolation=cv2.INTER_NEAREST,
-        ...     fill=(0.0, 0.0, 0.0)
-        ... )
-    """
-    target_h, target_w = mosaic_size
-    num_channels = get_num_channels(four_images[0])
-    mosaic_shape = (2 * target_h, 2 * target_w, num_channels) if num_channels > 1 else (2 * target_h, 2 * target_w)
-
-    # Resize and pad each image for the 2x2 mosaic
-    resized_images = resize_and_pad_for_2x2_mosaic(
-        four_images,
-        target_h=target_h,
-        target_w=target_w,
-        num_channels=num_channels,
-        fill=fill,
-        interpolation=interpolation,
-        keep_aspect_ratio=keep_aspect_ratio,
-    )
-
-    # Create 2x2 mosaic
-    mosaic = np.zeros(mosaic_shape, dtype=resized_images[0].dtype)
-    # Place images in quadrants
-    mosaic[:target_h, :target_w] = resized_images[0]  # Top-left quadrant
-    mosaic[:target_h, target_w:] = resized_images[1]  # Top-right quadrant
-    mosaic[target_h:, :target_w] = resized_images[2]  # Bottom-left quadrant
-    mosaic[target_h:, target_w:] = resized_images[3]  # Bottom-right quadrant
-
-    x1, y1, x2, y2 = get_2x2_mosaic_center_crop(
-        center_pt=center_pt,
-        target_shape=(target_h, target_w),
-    )
-
-    return mosaic[y1:y2, x1:x2]
-
-
-def get_2x2_mosaic_bboxes(
-    all_bboxes: list[np.ndarray | None],
-    all_img_shapes: list[tuple[int, int]],
-    center_pt: tuple[int, int],
-    mosaic_size: tuple[int, int],
-    keep_aspect_ratio: bool,
-) -> np.ndarray:
-    """Gets all bounding boxes from a 2x2 cropped mosaic image.
-
-    This function applies the necessary transformations to the 4 images' bounding boxes when creating
-    a mosaic image through the function `A.augmentations.mixing.functional.create_2x2_mosaic_image()`.
-
-    Args:
-        all_bboxes (list[np.ndarray | None]): List of all bounding boxes (shape (N, 4+)) from the 4 images.
-        all_img_shapes (list[tuple[int, int]]): List of all 4 images (height, width).
-        center_pt (tuple[int, int]): The (x,y) position of the center point around which
-                                     the final mosaic has been cropped.
-        mosaic_size (tuple[int, int]): The (height, width) of the final cropped mosaic
-                                       (and also the one of each quadrant).
-        keep_aspect_ratio (bool): Whether resizing preserved the aspect ratio when creating the mosaic.
-
-    Returns:
-        np.ndarray: The bounding boxes of the final cropped mosaic image (shape (M, 4+), M <= N).
-
-    Notes:
-        Bounding boxes that fall completely outside the crop area will be removed.
-        Bounding boxes that partially overlap with the crop area will be adjusted to fit within it.
-
-    Example:
-        >>> bboxes = [np.array([[0, 0, 0.2, 0.2], [0.9, 0.9, 1.0, 1.0], [0.25, 0.25, 0.75, 0.75]])] * 4
-        >>> mosaic_bboxes = get_2x2_mosaic_bboxes(
-        ...     all_bboxes=bboxes,
-        ...     all_img_shapes=[(100, 100), (100, 200), (100, 50), (50, 50)],
-        ...     center_pt=(100, 100),
-        ...     mosaic_size=(100, 100),
-        ...     keep_aspect_ratio=True
-        ... )
-    """
-    target_h, target_w = mosaic_size
-
-    mosaic_bboxes = []
-    for idx, bboxes in enumerate(all_bboxes):
-        if bboxes is None:
-            continue
-
-        # Bounding box coordinates are scale invariant.
-        # Only the padding operation has an effect.
-        # Furthermore, the fourth image has been aligned on top-left corner
-        # when padding, so bbox coordinates are not changed for this one.
-        if keep_aspect_ratio:
-            h, w = all_img_shapes[idx]
-            scale = min(target_h / h, target_w / w)
-            resized_h, resized_w = int(h * scale), int(w * scale)
-
-            x_pad_offset, y_pad_offset = get_2x2_mosaic_quadrant_pad_after_resize(
-                target_shape=(target_h, target_w),
-                resized_shape=(resized_h, resized_w),
-                quadrant_idx=idx,
-            )
-
-            denorm_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), (resized_h, resized_w))
-            denorm_bboxes[:, [0, 2]] += x_pad_offset
-            denorm_bboxes[:, [1, 3]] += y_pad_offset
-        else:
-            denorm_bboxes = denormalize_bboxes(bboxes.copy().astype(np.float32), (target_h, target_w))
-
-        # Handle effect of placing each image in its corresponding quadrant.
-        x_offset, y_offset = get_2x2_mosaic_quadrant_offset(
-            target_shape=(target_h, target_w),
-            quadrant_idx=idx,
-        )
-
-        denorm_bboxes[:, [0, 2]] += x_offset
-        denorm_bboxes[:, [1, 3]] += y_offset
-
-        mosaic_bboxes.append(denorm_bboxes)
-
-    mosaic_bboxes_np = np.concatenate(mosaic_bboxes, axis=0)
-    if mosaic_bboxes_np.size == 0:
-        return mosaic_bboxes_np
-
-    # Handle center crop effect
-    crop_coords = get_2x2_mosaic_center_crop(
-        center_pt=center_pt,
-        target_shape=(target_h, target_w),
-    )
-    crop_mosaic_bboxes = fcrops.crop_bboxes_by_coords(
-        mosaic_bboxes_np,
-        crop_coords=crop_coords,
-        image_shape=(2 * target_h, 2 * target_w),
-        normalized_input=False,
-    )
-
-    norm_mosaic_bboxes = normalize_bboxes(crop_mosaic_bboxes, (target_h, target_w))
-
-    # Filter bboxes falling completely outside or partially overlapping
-    norm_mosaic_bboxes[:, :4] = np.clip(norm_mosaic_bboxes[:, :4], 0.0, 1.0)
-    keep_mosaic_bboxes = [bbox for bbox in norm_mosaic_bboxes if (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]) > 0]
-
-    return np.array(keep_mosaic_bboxes)
-
-
-def get_2x2_mosaic_keypoints(
-    all_keypoints: list[np.ndarray | None],
-    all_img_shapes: list[tuple[int, int]],
-    center_pt: tuple[int, int],
-    mosaic_size: tuple[int, int],
-) -> np.ndarray:
-    """Gets all keypoints from a 2x2 cropped mosaic image.
-
-    This function applies the necessary transformations to the 4 images' keypoints when creating
-    a mosaic image through the function `A.augmentations.mixing.functional.create_2x2_mosaic_image()`.
-
-    Args:
-        all_keypoints (list[np.ndarray | None]): List of all keypoints (shape (N, 4+)) from the 4 images.
-        all_img_shapes (list[tuple[int, int]]): List of all 4 images (height, width).
-        center_pt (tuple[int, int]): The (x,y) position of the center point around which
-                                     the final mosaic has been cropped.
-        mosaic_size (tuple[int, int]): The (height, width) of the final cropped mosaic
-                                       (and also the one of each quadrant).
-
-    Returns:
-        np.ndarray: The keypoints of the final cropped mosaic image (shape (M, 4+), M <= N).
-
-    Notes:
-        Keypoints that fall completely outside the crop area will be removed.
-        Keypoints scale cannot be strictly preserved when images have been resized without preserving
-            the aspect ratio, as they become ellipses instead of circles.
-
-    Example:
-        >>> keypoints = [
-        ...     np.array([[0, 0, 0, 45, 2.0], [99, 99, 0, 45, 2.0], [80, 80, 0, 45, 2.0]]),
-        ...     np.array([[0, 80, 0, 45, 2.0], [199, 0, 0, 45, 2.0], [40, 80, 0, 45, 2.0]]),
-        ...     np.array([[0, 99, 0, 45, 2.0], [49, 20, 0, 45, 2.0], [40, 20, 0, 45, 2.0]]),
-        ...     np.array([[15, 15, 0, 45, 2.0], [49, 49, 0, 45, 2.0]])
-        ... ]
-        >>> mosaic_keypoints = get_2x2_mosaic_keypoints(
-        ...     all_keypoints=keypoints,
-        ...     all_img_shapes=[(100, 100), (100, 200), (100, 50), (50, 50)],
-        ...     center_pt=(100, 100),
-        ...     mosaic_size=(100, 100)
-        ... )
-    """
-    target_h, target_w = mosaic_size
-
-    mosaic_keypoints = []
-    for idx, kps in enumerate(all_keypoints):
-        if kps is None:
-            continue
-
-        # Handle effect of resize and pad each image.
-        # For a resizing without keeping aspect ratio, it is not really accurate,
-        # but anyway in that case the keypoint is not a circle anymore, but an ellipse.
-        h, w = all_img_shapes[idx]
-        scale = min(target_h / h, target_w / w)
-        resized_h, resized_w = int(h * scale), int(w * scale)
-
-        x_pad_offset, y_pad_offset = get_2x2_mosaic_quadrant_pad_after_resize(
-            target_shape=(target_h, target_w),
-            resized_shape=(resized_h, resized_w),
-            quadrant_idx=idx,
-        )
-
-        kps[:, [0, 1, 2, 4]] *= scale
-        keypoints = fcrops.crop_and_pad_keypoints(
-            kps,
-            pad_params=(y_pad_offset, y_pad_offset + resized_h, x_pad_offset, x_pad_offset + resized_w),
-        )
-
-        # Handle effect of placing each image in its corresponding quadrant.
-        x_offset, y_offset = get_2x2_mosaic_quadrant_offset(
-            target_shape=(target_h, target_w),
-            quadrant_idx=idx,
-        )
-
-        keypoints[:, 0] += x_offset
-        keypoints[:, 1] += y_offset
-
-        mosaic_keypoints.append(keypoints)
-
-    mosaic_keypoints_np = np.concatenate(mosaic_keypoints, axis=0)
-    if mosaic_keypoints_np.size == 0:
-        return mosaic_keypoints_np
-
-    # Handle center crop effect
-    crop_coords = get_2x2_mosaic_center_crop(
-        center_pt=center_pt,
-        target_shape=(target_h, target_w),
-    )
-
-    crop_mosaic_keypoints = fcrops.crop_and_pad_keypoints(
-        mosaic_keypoints_np,
-        crop_params=crop_coords,
-    )
-
-    # Filter keypoints falling completely outside or disappearing
-    keep_mosaic_keypoints = [
-        keypoints
-        for keypoints in crop_mosaic_keypoints
-        if keypoints[0] >= 0
-        and keypoints[0] < target_w
-        and keypoints[1] >= 0
-        and keypoints[1] < target_h
-        and keypoints[4] > 0
+    """Determines the grid cell coordinates for placing the primary image."""
+    rows, cols = grid_yx
+    center_row_start = (rows - 1) // 2
+    center_row_end = rows // 2
+    center_col_start = (cols - 1) // 2
+    center_col_end = cols // 2
+
+    possible_primary_placements = [
+        (r, c) for r in range(center_row_start, center_row_end + 1) for c in range(center_col_start, center_col_end + 1)
     ]
-    return np.array(keep_mosaic_keypoints)
+    return py_random.choice(possible_primary_placements)
+
+
+def prepare_mosaic_inputs(
+    primary_data: dict[str, Any],
+    additional_data_list: list[dict[str, Any]],
+    grid_yx: tuple[int, int],
+    py_random: random.Random,
+) -> dict[tuple[int, int], dict[str, Any]]:
+    """Prepares and assigns input data dictionaries to grid positions for mosaic."""
+    rows, cols = grid_yx
+    num_total_images = rows * cols
+    num_needed_additional = num_total_images - 1
+
+    # --- 1. Determine final list of additional items ---
+    final_additional_data = _determine_final_additional_data(
+        primary_data,
+        additional_data_list,
+        num_needed_additional,
+        py_random,
+    )
+
+    # --- 2. Identify optional keys present in primary data ---
+    optional_keys = {"mask", "bboxes", "keypoints"}
+    present_optional_keys = {k for k in optional_keys if k in primary_data and primary_data[k] is not None}
+
+    # --- 3. Prepare all items (ensure consistent keys, copy arrays) ---
+    prepared_primary = _prepare_data_item(primary_data, present_optional_keys)
+    prepared_additional = [_prepare_data_item(item, present_optional_keys) for item in final_additional_data]
+    all_data_items_prepared = [prepared_primary, *prepared_additional]
+
+    # --- 4. Check final count ---
+    if len(all_data_items_prepared) != num_total_images:
+        warnings.warn(
+            f"Internal error after preparation: Expected {num_total_images} items, got {len(all_data_items_prepared)}.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return {}  # Indicate failure
+
+    # --- 5. Determine primary image placement ---
+    primary_placement = _determine_primary_placement(grid_yx, py_random)
+
+    # --- 6. Assign items to grid positions ---
+    output_grid = {}
+    items_to_place = prepared_additional  # Use prepared additional list
+    py_random.shuffle(items_to_place)
+    item_iterator = iter(items_to_place)
+
+    for r in range(rows):
+        for c in range(cols):
+            grid_pos = (r, c)
+            if grid_pos == primary_placement:
+                output_grid[grid_pos] = prepared_primary
+            else:
+                try:
+                    output_grid[grid_pos] = next(item_iterator)
+                except StopIteration as e:
+                    raise RuntimeError(
+                        "Mismatch between grid size and number of prepared data items during assignment.",
+                    ) from e
+
+    return output_grid
+
+
+def get_mosaic_transforms_coords(
+    grid_yx: tuple[int, int],
+    target_size: tuple[int, int],
+    center_point: tuple[int, int],
+) -> dict[tuple[int, int], dict[str, tuple[int, int, int, int]]]:
+    """Calculates source crop and target placement coordinates for each mosaic grid cell.
+
+    Assumes a conceptual large grid formed by placing target_size images,
+    and calculates the coordinates based on a central crop.
+
+    Args:
+        grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
+        target_size (tuple[int, int]): The final output (height, width). This is also
+                                       the assumed size of each cell's source image
+                                       for coordinate calculations.
+        center_point (tuple[int, int]): The (x, y) center of the final crop window,
+                                        relative to the top-left of the conceptual
+                                        large grid (size: rows*target_h, cols*target_w).
+
+    Returns:
+        dict[tuple[int, int], dict[str, tuple[int, int, int, int]]]:
+            A dictionary where keys are grid cell coordinates (row, col) and
+            values are dictionaries containing:
+            - 'source_crop': (x_min, y_min, x_max, y_max) relative to cell's image.
+            - 'target_placement': (x_min, y_min, x_max, y_max) relative to final output canvas.
+            Returns empty dict if calculation is not possible (e.g., invalid center).
+
+    """
+    rows, cols = grid_yx
+    target_h, target_w = target_size
+    center_x, center_y = center_point
+
+    # Calculate the boundaries of the final crop window on the large conceptual grid
+    # Ensure center point is valid (simplistic check, might need refinement based on center_range)
+    large_grid_h = rows * target_h
+    large_grid_w = cols * target_w
+    if not (0 <= center_x < large_grid_w and 0 <= center_y < large_grid_h):
+        warnings.warn(
+            f"Center point {center_point} is outside the conceptual large grid dimensions "
+            f"({large_grid_h}x{large_grid_w}). Cannot calculate transforms.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return {}
+
+    crop_x_min = center_x - (target_w - 1) // 2
+    crop_y_min = center_y - (target_h - 1) // 2
+    crop_x_max = crop_x_min + target_w
+    crop_y_max = crop_y_min + target_h
+
+    # Clip crop window to the large grid boundaries (important if center is near edge)
+    crop_x_min_clipped = max(0, crop_x_min)
+    crop_y_min_clipped = max(0, crop_y_min)
+    crop_x_max_clipped = min(large_grid_w, crop_x_max)
+    crop_y_max_clipped = min(large_grid_h, crop_y_max)
+
+    transforms_coords = {}
+
+    for r in range(rows):
+        for c in range(cols):
+            # Boundaries of the current cell on the large grid
+            cell_x_min = c * target_w
+            cell_y_min = r * target_h
+            cell_x_max = (c + 1) * target_w
+            cell_y_max = (r + 1) * target_h
+
+            # Find the intersection of the final crop window and the current cell
+            inter_x_min = max(crop_x_min_clipped, cell_x_min)
+            inter_y_min = max(crop_y_min_clipped, cell_y_min)
+            inter_x_max = min(crop_x_max_clipped, cell_x_max)
+            inter_y_max = min(crop_y_max_clipped, cell_y_max)
+
+            # If there is a valid intersection (positive area)
+            if inter_x_max > inter_x_min and inter_y_max > inter_y_min:
+                # Source crop coordinates (relative to the cell's image top-left)
+                # These coordinates are within the [0, target_w] and [0, target_h] range
+                src_x1 = inter_x_min - cell_x_min
+                src_y1 = inter_y_min - cell_y_min
+                src_x2 = inter_x_max - cell_x_min
+                src_y2 = inter_y_max - cell_y_min
+
+                # Target placement coordinates (relative to the final output image top-left)
+                # These coordinates are within the [0, target_w] and [0, target_h] range
+                # Need to account for cases where the overall crop starts negative
+                tgt_x1 = inter_x_min - crop_x_min
+                tgt_y1 = inter_y_min - crop_y_min
+                tgt_x2 = inter_x_max - crop_x_min
+                tgt_y2 = inter_y_max - crop_y_min
+
+                transforms_coords[(r, c)] = {
+                    "source_crop": (src_x1, src_y1, src_x2, src_y2),
+                    "target_placement": (tgt_x1, tgt_y1, tgt_x2, tgt_y2),
+                }
+
+    return transforms_coords
+
+
+def _determine_padding_position(grid_pos: tuple[int, int], grid_yx: tuple[int, int]) -> str:
+    """Determines the padding position to push content towards the mosaic center."""
+    r, c = grid_pos
+    rows, cols = grid_yx
+
+    # Determine vertical position relative to center midpoint ((rows - 1) / 2)
+    is_top_half = r < (rows - 1) / 2
+    is_bottom_half = r > (rows - 1) / 2
+    # If neither top nor bottom half, it's on the center row (for odd rows)
+    # or one of the two center rows (for even rows) - treat as vertically centered.
+
+    # Determine horizontal position relative to center midpoint ((cols - 1) / 2)
+    is_left_half = c < (cols - 1) / 2
+    is_right_half = c > (cols - 1) / 2
+    # If neither left nor right half, it's on the center col (for odd cols)
+    # or one of the two center cols (for even cols) - treat as horizontally centered.
+
+    # Combine positions to determine padding strategy
+    if is_top_half and is_left_half:
+        # Top-left quadrant -> pad bottom-right
+        return "bottom_right"
+    if is_top_half and is_right_half:
+        # Top-right quadrant -> pad bottom-left
+        return "bottom_left"
+    if is_bottom_half and is_left_half:
+        # Bottom-left quadrant -> pad top-right
+        return "top_right"
+    if is_bottom_half and is_right_half:
+        # Bottom-right quadrant -> pad top-left
+        return "top_left"
+
+    # Handle edges (cells that are in a center row or center column but not true center)
+    if is_top_half:  # And thus center col(s)
+        # Top edge, middle column(s) -> pad bottom
+        return "bottom"
+    if is_bottom_half:  # And thus center col(s)
+        # Bottom edge, middle column(s) -> pad top
+        return "top"
+    if is_left_half:  # And thus center row(s)
+        # Left edge, middle row(s) -> pad right
+        return "right"
+    if is_right_half:  # And thus center row(s)
+        # Right edge, middle row(s) -> pad left
+        return "left"
+
+    # If none of the above, it must be the true center cell(s)
+    return "center"
+
+
+def process_mosaic_cell(
+    cell_data: dict[str, Any],
+    transform_coords: dict[str, tuple[int, int, int, int]],
+    grid_pos: tuple[int, int],
+    grid_yx: tuple[int, int],
+    interpolation: int,
+    mask_interpolation: int,
+    fill: float | tuple[float, ...],
+    fill_mask: float | tuple[float, ...],
+) -> dict[str, Any]:
+    """Processes a single mosaic cell's data using Crop, LongestMaxSize, and PadIfNeeded.
+
+    Args:
+        cell_data (dict): Data dictionary for the cell (must contain 'image').
+        transform_coords (dict): Dictionary containing 'source_crop' and
+                                 'target_placement' coordinates.
+        grid_pos (tuple[int, int]): The (row, col) position of this cell in the grid.
+        grid_yx (tuple[int, int]): The total (rows, cols) of the mosaic grid.
+        interpolation (int): OpenCV interpolation flag for resizing images.
+        mask_interpolation (int): OpenCV interpolation flag for resizing masks.
+        fill (...): Fill value for image padding.
+        fill_mask (...): Fill value for mask padding.
+
+    Returns:
+        dict[str, Any]: The processed data dictionary for the cell.
+
+    """
+    source_crop = transform_coords["source_crop"]
+    target_placement = transform_coords["target_placement"]
+
+    src_x1, src_y1, src_x2, src_y2 = source_crop
+    tgt_x1, tgt_y1, tgt_x2, tgt_y2 = target_placement
+
+    # Target dimensions for the final padded output for this cell
+    target_h = tgt_y2 - tgt_y1
+    target_w = tgt_x2 - tgt_x1
+
+    # Max size for LongestMaxSize corresponds to the dimensions of the target slot
+    # Ensure max_size is at least 1, handle cases where target_h/w might be 0
+    max_size = max(1, target_h, target_w)
+
+    # Determine padding position
+    pad_position = _determine_padding_position(grid_pos, grid_yx)
+
+    # Create the processing pipeline
+    # Note: Using p=1 as we always want these steps applied here
+    pipeline = Compose(
+        [
+            Crop(x_min=src_x1, y_min=src_y1, x_max=src_x2, y_max=src_y2, p=1.0),
+            LongestMaxSize(
+                max_size=max_size,
+                interpolation=interpolation,
+                mask_interpolation=mask_interpolation,
+                p=1.0,
+            ),
+            PadIfNeeded(
+                min_height=target_h,
+                min_width=target_w,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=fill,
+                fill_mask=fill_mask,
+                position=cast(
+                    "Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']",
+                    pad_position,
+                ),
+                p=1.0,
+            ),
+        ],
+        p=1.0,
+    )  # Explicitly set p=1 for the Compose itself
+
+    # Prepare data for the pipeline (needs image, potentially mask, bboxes, keypoints)
+    pipeline_input = {"image": cell_data["image"]}
+    if "mask" in cell_data and cell_data["mask"] is not None:
+        pipeline_input["mask"] = cell_data["mask"]
+    # Warning: Bbox/Keypoint handling might be inaccurate without Compose setup
+    if "bboxes" in cell_data and cell_data["bboxes"] is not None:
+        pipeline_input["bboxes"] = cell_data["bboxes"]
+    if "keypoints" in cell_data and cell_data["keypoints"] is not None:
+        pipeline_input["keypoints"] = cell_data["keypoints"]
+
+    try:
+        # Apply the pipeline
+        processed_data = pipeline(**pipeline_input)
+    except (ValueError, IndexError, cv2.error) as e:  # Catch more specific errors
+        warnings.warn(
+            f"Error processing mosaic cell {grid_pos} with Compose: {e}. Returning empty data.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return {}
+
+    # Ensure the output image has the exact target dimensions
+    if "image" not in processed_data:
+        warnings.warn(
+            f"Compose pipeline failed to return an image for cell {grid_pos}. Returning empty data.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return {}
+
+    out_h, out_w = processed_data["image"].shape[:2]
+    if out_h != target_h or out_w != target_w:
+        msg = (
+            f"Processed cell {grid_pos} size ({out_h}x{out_w}) doesn't match target ({target_h}x{target_w}). Check pad."
+        )
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
+    # Shift bboxes and keypoints
+    tgt_x1, tgt_y1, _, _ = target_placement
+
+    # Define shift vectors (using int32 for safety with pixel coords)
+    kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+    # Assuming shift_bboxes needs [shift_x_min, shift_y_min, shift_x_max, shift_y_max]
+    bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
+
+    if "bboxes" in processed_data and processed_data["bboxes"] is not None and len(processed_data["bboxes"]) > 0:
+        bboxes_np = (
+            np.array(processed_data["bboxes"])
+            if not isinstance(processed_data["bboxes"], np.ndarray)
+            else processed_data["bboxes"]
+        )
+        # Correct call using shift_vector
+        processed_data["bboxes"] = fgeometric.shift_bboxes(bboxes_np, bbox_shift_vector)
+
+    if (
+        "keypoints" in processed_data
+        and processed_data["keypoints"] is not None
+        and len(processed_data["keypoints"]) > 0
+    ):
+        keypoints_np = (
+            np.array(processed_data["keypoints"])
+            if not isinstance(processed_data["keypoints"], np.ndarray)
+            else processed_data["keypoints"]
+        )
+        # Correct call using shift_vector
+        processed_data["keypoints"] = fgeometric.shift_keypoints(keypoints_np, kp_shift_vector)
+
+    # Return directly (Fix RET504)
+    return {k: v for k, v in processed_data.items() if k in pipeline_input}
+
+
+def assemble_mosaic_image_mask(
+    processed_data: dict[tuple[int, int], dict[str, Any]],
+    placements: dict[tuple[int, int], tuple[int, int, int, int]],
+    target_size: tuple[int, int],
+    num_channels: int,
+    fill: float | tuple[float, ...],
+    dtype: np.dtype,
+    data_key: str,
+) -> np.ndarray | None:
+    """Assembles the final mosaic image or mask from processed cell data."""
+    target_h, target_w = target_size
+
+    # Create blank canvas
+    canvas_shape = (target_h, target_w, num_channels) if num_channels > 0 else (target_h, target_w)
+    extended_fill_value = fgeometric.extend_value(fill, num_channels)
+    canvas = np.full(canvas_shape, extended_fill_value, dtype=dtype)
+
+    for grid_pos, placement_coords in placements.items():
+        if grid_pos not in processed_data:
+            continue  # Should not happen if called correctly
+
+        cell_data = processed_data[grid_pos]
+        segment = cell_data.get(data_key)
+
+        if segment is None:
+            # If assembling masks, we might have already checked consistency.
+            # If assembling images, this indicates an error in processing.
+            if data_key == "image":
+                warnings.warn(
+                    f"Missing '{data_key}' in processed data for cell {grid_pos}.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            continue  # Skip if the required data is missing
+
+        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
+        place_h = tgt_y2 - tgt_y1
+        place_w = tgt_x2 - tgt_x1
+
+        # Check if placement area is valid
+        if place_h <= 0 or place_w <= 0:
+            continue  # Skip pasting if target area is non-positive
+
+        # Check consistency and paste
+        if segment.shape[0] == place_h and segment.shape[1] == place_w:
+            try:
+                # Ensure target slice is valid within canvas bounds
+                y_slice = slice(max(0, tgt_y1), min(target_h, tgt_y2))
+                x_slice = slice(max(0, tgt_x1), min(target_w, tgt_x2))
+
+                # Ensure source segment slice matches target slice dimensions
+                seg_h, seg_w = segment.shape[:2]
+                seg_y_start = max(0, -tgt_y1)
+                seg_x_start = max(0, -tgt_x1)
+                seg_y_end = seg_y_start + (y_slice.stop - y_slice.start)
+                seg_x_end = seg_x_start + (x_slice.stop - x_slice.start)
+
+                # Double check slice validity before assignment
+                if 0 <= seg_y_start < seg_y_end <= seg_h and 0 <= seg_x_start < seg_x_end <= seg_w:
+                    canvas[y_slice, x_slice] = segment[seg_y_start:seg_y_end, seg_x_start:seg_x_end]
+                else:
+                    warnings.warn(
+                        f"Calculated invalid slice for segment/canvas for cell {grid_pos}. Skipping paste.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
+
+            except (ValueError, IndexError) as e:  # Catch more specific errors for pasting
+                warnings.warn(f"Error pasting segment for cell {grid_pos}: {e}", RuntimeWarning, stacklevel=2)
+
+        else:
+            msg = (
+                f"Size mismatch for {data_key} at {grid_pos}: "
+                f"target {place_h}x{place_w}, got {segment.shape[:2]}. Skip."
+            )
+            warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
+    return canvas
+
+
+def calculate_mosaic_center_point(
+    grid_yx: tuple[int, int],
+    target_size: tuple[int, int],
+    center_range: tuple[float, float],
+    py_random: random.Random,
+) -> tuple[int, int]:
+    """Calculates the center point for the mosaic crop.
+
+    Ensures the center point allows a crop of target_size to overlap
+    all grid cells, applying randomness based on center_range within
+    the valid zone.
+
+    Args:
+        grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
+        target_size (tuple[int, int]): The final output (height, width).
+        center_range (tuple[float, float]): Range [0.0-1.0] for sampling center proportionally
+                                            within the valid zone.
+        py_random (random.Random): Random state instance.
+
+    Returns:
+        tuple[int, int]: The calculated (x, y) center point relative to the
+                         top-left of the conceptual large grid.
+
+    """
+    rows, cols = grid_yx
+    target_h, target_w = target_size
+    large_grid_h = rows * target_h
+    large_grid_w = cols * target_w
+
+    # Define valid center range on the large grid to ensure full target crop
+    # Top-left corner of the crop window should be <= center
+    # Bottom-right corner should be >= center
+    min_center_x = (target_w - 1) // 2
+    max_center_x_incl = large_grid_w - 1 - (target_w // 2)  # Inclusive max index
+    min_center_y = (target_h - 1) // 2
+    max_center_y_incl = large_grid_h - 1 - (target_h // 2)
+
+    if max_center_x_incl < min_center_x or max_center_y_incl < min_center_y:
+        warnings.warn(
+            f"Target size {target_size} is too large for the conceptual grid {grid_yx}. "
+            "Cannot guarantee overlap with all cells. Centering crop instead.",
+            UserWarning,
+            stacklevel=3,  # Adjust stacklevel based on call depth
+        )
+        center_x = large_grid_w // 2
+        center_y = large_grid_h // 2
+    else:
+        # Calculate the valid range (width/height of the safe zone)
+        safe_zone_w = max_center_x_incl - min_center_x + 1  # +1 because range is inclusive
+        safe_zone_h = max_center_y_incl - min_center_y + 1
+
+        # Sample offsets within the safe zone based on center_range
+        # Using uniform(a, b) samples in [a, b), so adjust range slightly if needed,
+        # but int conversion handles it okay.
+        offset_x = int(safe_zone_w * py_random.uniform(*center_range))
+        offset_y = int(safe_zone_h * py_random.uniform(*center_range))
+
+        # Calculate final center point
+        center_x = min_center_x + offset_x
+        center_y = min_center_y + offset_y
+
+        # Safety clip to ensure center is within the large grid bounds
+        # This shouldn't be strictly necessary if calculations above are correct, but good practice
+        center_x = max(0, min(center_x, large_grid_w - 1))
+        center_y = max(0, min(center_y, large_grid_h - 1))
+
+    return center_x, center_y
+
+
+def process_mosaic_grid(
+    prepared_grid_data: dict[tuple[int, int], dict[str, Any]],
+    transforms_coords: dict[tuple[int, int], dict[str, tuple[int, int, int, int]]],
+    grid_yx: tuple[int, int],
+    interpolation: int,
+    mask_interpolation: int,
+    fill: float | tuple[float, ...],
+    fill_mask: float | tuple[float, ...],
+) -> tuple[dict[tuple[int, int], dict[str, Any]], dict[tuple[int, int], tuple[int, int, int, int]]]:
+    """Processes each cell in the mosaic grid using process_mosaic_cell.
+
+    Iterates through the calculated transform coordinates, processes the
+    corresponding cell data (cropping, resizing, padding), and shifts labels.
+
+    Args:
+        prepared_grid_data: Dict mapping (row, col) to prepared cell data.
+        transforms_coords: Dict mapping (row, col) to source/target coords.
+        grid_yx: The (rows, cols) of the mosaic grid.
+        interpolation: OpenCV interpolation for images.
+        mask_interpolation: OpenCV interpolation for masks.
+        fill: Fill value for image padding.
+        fill_mask: Fill value for mask padding.
+
+    Returns:
+        tuple containing:
+            - final_processed_data: Dict mapping (row, col) to fully processed cell data.
+            - final_placements: Dict mapping (row, col) to target placement coordinates.
+              Returns empty dicts if processing fails for all cells with coordinates.
+
+    """
+    final_processed_data = {}
+    final_placements = {}
+
+    for grid_pos, coords_dict in transforms_coords.items():
+        if grid_pos not in prepared_grid_data:
+            warnings.warn(
+                f"Mismatch: Transform coords exist for {grid_pos} but prepared data does not.",
+                RuntimeWarning,
+                stacklevel=3,
+            )  # Adjusted stacklevel
+            continue  # Skip this cell
+
+        cell_data = prepared_grid_data[grid_pos]
+
+        # Process image and mask using the temporary Compose pipeline
+        processed_cell_data = process_mosaic_cell(  # Assumes process_mosaic_cell exists
+            cell_data=cell_data,
+            transform_coords=coords_dict,
+            grid_pos=grid_pos,
+            grid_yx=grid_yx,
+            interpolation=interpolation,
+            mask_interpolation=mask_interpolation,
+            fill=fill,
+            fill_mask=fill_mask,
+        )
+
+        # Check if cell processing failed (returned empty dict)
+        if not processed_cell_data:
+            warnings.warn(
+                f"Processing failed for cell {grid_pos}. Skipping.",
+                RuntimeWarning,
+                stacklevel=3,
+            )  # Adjusted stacklevel
+            continue  # Skip this cell if processing failed
+
+        # Get target placement offset (shift is handled inside process_mosaic_cell)
+        target_placement = coords_dict["target_placement"]
+
+        final_processed_data[grid_pos] = processed_cell_data
+        final_placements[grid_pos] = target_placement  # Store placement coords
+
+    return final_processed_data, final_placements
