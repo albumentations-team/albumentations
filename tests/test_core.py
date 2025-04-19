@@ -1859,7 +1859,8 @@ def test_transform_strict_with_valid_params():
             A.RandomGridShuffle,
             A.OpticalDistortion,
             A.Morphological,
-            A.AtLeastOneBBoxRandomCrop
+            A.AtLeastOneBBoxRandomCrop,
+            A.Mosaic,
         },
     ),
 )
