@@ -444,8 +444,8 @@ class Mosaic(DualTransform):
         )
 
         # Step 5: Prepare Primary Data
-        primary = {
-            "image": data.get("image"),
+        primary: fmixing.ProcessedMosaicItem = {
+            "image": data["image"],
             "mask": data.get("mask"),
             "bboxes": data.get("bboxes"),
             "keypoints": data.get("keypoints"),
@@ -625,8 +625,7 @@ class Mosaic(DualTransform):
 
         return combined_keypoints[valid_indices]
 
-    # Helper methods definitions (implement TODOs later)
-    def _deepcopy_mosaic_item(self, item: dict[str, Any]) -> dict[str, Any]:
+    def _deepcopy_mosaic_item(self, item: fmixing.ProcessedMosaicItem) -> fmixing.ProcessedMosaicItem:
         """Deep copies a data item dictionary, ensuring numpy arrays are copied."""
         new_item = {}
         for k, v in item.items():
@@ -634,4 +633,4 @@ class Mosaic(DualTransform):
                 new_item[k] = v.copy()
             else:
                 new_item[k] = v
-        return new_item
+        return cast("fmixing.ProcessedMosaicItem", new_item)
