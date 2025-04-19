@@ -9,7 +9,6 @@ from __future__ import annotations
 import random
 from copy import deepcopy
 from typing import Annotated, Any, Literal, cast
-from warnings import warn
 
 import cv2
 import numpy as np
@@ -434,15 +433,21 @@ class Mosaic(DualTransform):
         else:
             selected_raw_additional_items = valid_additional_raw_items
 
-        # Step 4: Preprocess Selected Raw Additional Items (Combined)
-        bbox_processor = cast("BboxProcessor", self.get_processor("bboxes"))
-        keypoint_processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
+        if "bboxes" in data or "keypoints" in data:
+            # Step 4: Preprocess Selected Raw Additional Items (Combined)
+            bbox_processor = cast("BboxProcessor", self.get_processor("bboxes"))
+            keypoint_processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
 
-        preprocessed_selected_additional_items = fmixing.preprocess_selected_mosaic_items(
-            selected_raw_additional_items,
-            bbox_processor,
-            keypoint_processor,
-        )
+            preprocessed_selected_additional_items = fmixing.preprocess_selected_mosaic_items(
+                selected_raw_additional_items,
+                bbox_processor,
+                keypoint_processor,
+            )
+        else:
+            preprocessed_selected_additional_items = cast(
+                "list[fmixing.ProcessedMosaicItem]",
+                selected_raw_additional_items,
+            )
 
         # Step 5: Prepare Primary Data
         primary: fmixing.ProcessedMosaicItem = {
@@ -467,11 +472,6 @@ class Mosaic(DualTransform):
             cell_placements=cell_placements,
             py_random=self.py_random,
         )
-
-        # Check if assignment is empty (should not happen if cell_placements was not empty)
-        if not grid_coords_to_item_index:
-            warn("Assignment failed unexpectedly.", UserWarning, stacklevel=2)
-            return {}
 
         # Step 10: Process Geometry & Shift Coordinates
         processed_cells = fmixing.process_and_shift_cells(
