@@ -12,10 +12,12 @@ from collections.abc import Sequence
 from typing import Any, Literal, TypedDict, cast
 from warnings import warn
 
+import cv2
 import numpy as np
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.crops.transforms import RandomCrop
+from albumentations.augmentations.crops.transforms import Crop
+from albumentations.augmentations.geometric.transforms import PadIfNeeded
 from albumentations.core.bbox_utils import BboxProcessor
 from albumentations.core.composition import Compose
 from albumentations.core.keypoints_utils import KeypointsProcessor
@@ -465,11 +467,13 @@ def process_cell_geometry(
     target_w: int,
     fill: float | tuple[float, ...],
     fill_mask: float | tuple[float, ...],
+    pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "top_left",
+    border_mode: int = cv2.BORDER_CONSTANT,
 ) -> ProcessedMosaicItem:
-    """Applies geometric transformations (cropping/padding) to a single mosaic item.
+    """Applies geometric transformations (padding and/or cropping) to a single mosaic item.
 
-    Uses RandomCrop with pad_if_needed=True to fit the item's data (image, mask,
-    bboxes, keypoints) to the target cell dimensions.
+    Uses a Compose pipeline with PadIfNeeded and Crop to ensure the output
+    matches the target cell dimensions exactly, handling both padding and cropping cases.
 
     Args:
         item: (ProcessedMosaicItem): The preprocessed mosaic item dictionary.
@@ -477,34 +481,64 @@ def process_cell_geometry(
         target_w: (int): Target width of the cell.
         fill: (float | tuple[float, ...]): Fill value for image padding.
         fill_mask: (float | tuple[float, ...]): Fill value for mask padding.
+        pad_position: (Literal[...]): Position for padding if item is smaller than target. Default: "top_left".
+        border_mode: (int): OpenCV border mode for padding.
 
     Returns: (ProcessedMosaicItem): Dictionary containing the geometrically processed image,
-        mask, bboxes, and keypoints.
+        mask, bboxes, and keypoints, fitting the target dimensions.
 
     """
+    # Define the pipeline: PadIfNeeded first, then Crop
+    compose_kwargs: dict[str, Any] = {"p": 1.0}
+    if item.get("bboxes") is not None:
+        compose_kwargs["bbox_params"] = {"format": "albumentations"}
+    if item.get("keypoints") is not None:
+        compose_kwargs["keypoint_params"] = {"format": "albumentations"}
+
     geom_pipeline = Compose(
         [
-            RandomCrop(
-                height=target_h,
-                width=target_w,
-                pad_if_needed=True,
+            PadIfNeeded(
+                min_height=target_h,
+                min_width=target_w,
+                position=pad_position,
+                border_mode=border_mode,
                 fill=fill,
                 fill_mask=fill_mask,
                 p=1.0,
             ),
+            Crop(
+                x_min=0,
+                y_min=0,
+                x_max=target_w,
+                y_max=target_h,
+                p=1.0,
+            ),
         ],
-        p=1.0,
+        **compose_kwargs,
     )
 
+    # Prepare input data for the pipeline
     geom_input = {"image": item["image"]}
     if item.get("mask") is not None:
         geom_input["mask"] = item["mask"]
     if item.get("bboxes") is not None:
+        # Compose expects bboxes in a specific format, ensure it's compatible
+        # Assuming item['bboxes'] is already preprocessed correctly
         geom_input["bboxes"] = item["bboxes"]
     if item.get("keypoints") is not None:
         geom_input["keypoints"] = item["keypoints"]
 
-    return cast("ProcessedMosaicItem", geom_pipeline(**geom_input))
+    # Apply the pipeline
+    processed_item = geom_pipeline(**geom_input)
+
+    # Ensure output dict has the same structure as ProcessedMosaicItem
+    # Compose might not return None for missing keys, handle explicitly
+    return {
+        "image": processed_item["image"],
+        "mask": processed_item.get("mask"),
+        "bboxes": processed_item.get("bboxes"),
+        "keypoints": processed_item.get("keypoints"),
+    }
 
 
 def shift_cell_coordinates(

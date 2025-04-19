@@ -11,6 +11,7 @@ from albumentations.augmentations.mixing.functional import (
     calculate_cell_placements,
     calculate_mosaic_center_point,
     filter_valid_metadata,
+    process_cell_geometry,
 )
 
 
@@ -302,3 +303,80 @@ def test_assign_items_to_grid_cells(
         assignment = assign_items_to_grid_cells(num_items, cell_placements, py_random)
 
     assert assignment == expected_assignment
+
+
+# Helper fixtures for process_cell_geometry tests
+@pytest.fixture
+def base_item_geom() -> dict[str, Any]:
+    """A standard 100x100 image item for geometry tests."""
+    return {
+        "image": np.arange(100 * 100 * 3).reshape(100, 100, 3).astype(np.uint8),
+        "mask": (np.arange(100 * 100).reshape(100, 100) % 2).astype(np.uint8),
+        "bboxes": None, # Not testing annotation geometry here
+        "keypoints": None,
+    }
+
+@pytest.fixture
+def small_item_geom() -> dict[str, Any]:
+    """A smaller 50x50 image item for geometry tests."""
+    return {
+        "image": np.arange(50 * 50 * 3).reshape(50, 50, 3).astype(np.uint8),
+        "mask": (np.arange(50 * 50).reshape(50, 50) % 3).astype(np.uint8),
+        "bboxes": None,
+        "keypoints": None,
+    }
+
+
+# Tests for process_cell_geometry
+
+def test_process_cell_geometry_identity(base_item_geom) -> None:
+    """Test identity case: target size matches item size."""
+    item = base_item_geom
+    target_h, target_w = 100, 100
+
+    processed = process_cell_geometry(item, target_h, target_w, fill=0, fill_mask=0)
+
+    assert processed["image"].shape == (target_h, target_w, 3)
+    assert processed["mask"].shape == (target_h, target_w)
+    np.testing.assert_array_equal(processed["image"], item["image"])
+    np.testing.assert_array_equal(processed["mask"], item["mask"])
+
+def test_process_cell_geometry_crop(base_item_geom) -> None:
+    """Test cropping case: target size is smaller than item size."""
+    item = base_item_geom
+    target_h, target_w = 60, 50
+
+    processed = process_cell_geometry(item, target_h, target_w, fill=0, fill_mask=0)
+
+    assert processed["image"].shape == (target_h, target_w, 3)
+    assert processed["mask"].shape == (target_h, target_w)
+
+    # Exact content depends on RandomCrop, but check if it's a subset of the original
+    # We can check if the sum of the processed is less than the original sum
+    # (This is a weak check, but better than nothing without mocking RandomCrop)
+    assert np.sum(processed["image"]) < np.sum(item["image"])
+    assert np.sum(processed["mask"]) < np.sum(item["mask"])
+
+def test_process_cell_geometry_pad(small_item_geom) -> None:
+    """Test padding case: target size is larger than item size."""
+    item = small_item_geom # 50x50
+    target_h, target_w = 70, 80
+    fill_value = 111
+    mask_fill_value = 5
+
+    processed = process_cell_geometry(item, target_h, target_w, fill=fill_value, fill_mask=mask_fill_value)
+
+    assert processed["image"].shape == (target_h, target_w, 3)
+    assert processed["mask"].shape == (target_h, target_w)
+
+    # Check if top-left corner matches original
+    np.testing.assert_array_equal(processed["image"][:50, :50], item["image"])
+    np.testing.assert_array_equal(processed["mask"][:50, :50], item["mask"])
+
+    # Check padding values
+    assert np.all(processed["image"][50:, 50:] == fill_value)
+    assert np.all(processed["mask"][50:, 50:] == mask_fill_value)
+
+# Note: Annotations (bboxes, keypoints) are not directly tested here
+# as process_cell_geometry relies on the Compose([RandomCrop(...)]) call,
+# and testing the RandomCrop's annotation handling is done elsewhere.

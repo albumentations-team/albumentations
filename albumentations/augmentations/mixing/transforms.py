@@ -558,7 +558,7 @@ class Mosaic(DualTransform):
             **params (Any): Additional parameters (unused).
 
         Returns:
-            np.ndarray: Final combined, filtered, **normalized** bounding boxes.
+            np.ndarray: Final combined, filtered, bounding boxes.
 
         """
         all_shifted_bboxes = []
