@@ -12,7 +12,6 @@ from typing import Annotated, Any, Literal, cast
 
 import cv2
 import numpy as np
-from albucore import get_num_channels
 from pydantic import AfterValidator
 
 from albumentations.augmentations.mixing import functional as fmixing
@@ -482,12 +481,17 @@ class Mosaic(DualTransform):
             fill_mask=self.fill_mask if self.fill_mask is not None else self.fill,
         )
 
-        return {"processed_cells": processed_cells}
+        target_shape = list(data["image"].shape)
+        target_shape[0] = self.target_size[0]
+        target_shape[1] = self.target_size[1]
+
+        return {"processed_cells": processed_cells, "target_shape": target_shape}
 
     def apply(
         self,
         img: np.ndarray,
         processed_cells: dict[tuple[int, int, int, int], dict[str, Any]],
+        target_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
         """Apply mosaic transformation to the input image.
@@ -495,6 +499,7 @@ class Mosaic(DualTransform):
         Args:
             img (np.ndarray): Input image
             processed_cells (dict[tuple[int, int, int, int], dict[str, Any]]): Dictionary of processed cell data
+            target_shape (tuple[int, int]): Shape of the target image.
             **params (Any): Additional parameters
 
         Returns:
@@ -503,8 +508,7 @@ class Mosaic(DualTransform):
         """
         return fmixing.assemble_mosaic_from_processed_cells(
             processed_cells=processed_cells,
-            target_size=self.target_size,
-            num_channels=get_num_channels(img),
+            target_shape=target_shape,
             dtype=img.dtype,
             data_key="image",
         )
@@ -513,6 +517,7 @@ class Mosaic(DualTransform):
         self,
         mask: np.ndarray,
         processed_cells: dict[tuple[int, int, int, int], dict[str, Any]],
+        target_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
         """Apply mosaic transformation to the input mask.
@@ -520,6 +525,7 @@ class Mosaic(DualTransform):
         Args:
             mask (np.ndarray): Input mask.
             processed_cells (dict): Dictionary of processed cell data containing cropped/padded mask segments.
+            target_shape (tuple[int, int]): Shape of the target image.
             **params (Any): Additional parameters (unused).
 
         Returns:
@@ -528,8 +534,7 @@ class Mosaic(DualTransform):
         """
         return fmixing.assemble_mosaic_from_processed_cells(
             processed_cells=processed_cells,
-            target_size=self.target_size,
-            num_channels=get_num_channels(mask),
+            target_shape=target_shape,
             dtype=mask.dtype,
             data_key="mask",
         )

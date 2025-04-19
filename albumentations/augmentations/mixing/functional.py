@@ -548,19 +548,14 @@ def process_and_shift_cells(
 
 def assemble_mosaic_from_processed_cells(
     processed_cells: dict[tuple[int, int, int, int], dict[str, Any]],
-    target_size: tuple[int, int],
-    num_channels: int,
+    target_shape: tuple[int, int],
     dtype: np.dtype,
     data_key: Literal["image", "mask"],
 ) -> np.ndarray:
     """Assembles the final mosaic image or mask from processed cell data onto a zero canvas.
     Assumes input data is valid and correctly sized.
     """
-    target_h, target_w = target_size
-
-    # Create blank (zero) canvas
-    canvas_shape = (target_h, target_w, num_channels) if num_channels > 0 else (target_h, target_w)
-    canvas = np.zeros(canvas_shape, dtype=dtype)
+    canvas = np.zeros(target_shape, dtype=dtype)
 
     # Iterate and paste
     for placement_coords, cell_data in processed_cells.items():
