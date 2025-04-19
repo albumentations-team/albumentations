@@ -7,29 +7,31 @@ such as copy-and-paste operations with masking.
 from __future__ import annotations
 
 import random
-from typing import Any, Literal, cast
+from collections import defaultdict
+from collections.abc import Sequence
+from typing import Any, Literal, TypedDict, cast
 from warnings import warn
 
-import cv2
 import numpy as np
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.crops.transforms import Crop
-from albumentations.augmentations.geometric.resize import LongestMaxSize
-from albumentations.augmentations.geometric.transforms import PadIfNeeded
+from albumentations.augmentations.crops.transforms import RandomCrop
+from albumentations.core.bbox_utils import BboxProcessor
 from albumentations.core.composition import Compose
+from albumentations.core.keypoints_utils import KeypointsProcessor
 
-__all__ = [
-    "_determine_padding_position",
-    "assemble_mosaic_image_mask",
-    "calculate_mosaic_center_point",
-    "copy_and_paste_blend",
-    "get_mosaic_transforms_coords",
-    "prepare_mosaic_inputs",
-    "preprocess_mosaic_data",
-    "process_mosaic_cell",
-    "process_mosaic_grid",
-]
+
+# Type definition for a processed mosaic item
+class ProcessedMosaicItem(TypedDict):
+    """Represents a single data item (primary or additional) after preprocessing.
+
+    Includes the original image/mask and the *preprocessed* annotations.
+    """
+
+    image: np.ndarray  # Image is mandatory
+    mask: np.ndarray | None
+    bboxes: np.ndarray | None
+    keypoints: np.ndarray | None
 
 
 def copy_and_paste_blend(
@@ -67,166 +69,148 @@ def copy_and_paste_blend(
     return blended_image
 
 
-def _determine_final_additional_data(
-    primary_data: dict[str, Any],
-    additional_data_list: list[dict[str, Any]],
-    num_needed_additional: int,
-    py_random: random.Random,
-) -> list[dict[str, Any]]:
-    """Determines the final list of additional data items by sampling or replication."""
-    num_provided_additional = len(additional_data_list)
-    final_additional_data = []
-
-    if num_provided_additional == num_needed_additional:
-        final_additional_data = additional_data_list
-    elif num_provided_additional > num_needed_additional:
-        final_additional_data = py_random.sample(additional_data_list, num_needed_additional)
-    else:  # num_provided_additional < num_needed_additional
-        final_additional_data = additional_data_list  # Start with the valid provided
-        num_replications = num_needed_additional - num_provided_additional
-
-        # Prepare replication source from primary data (only copy necessary keys)
-        primary_replication_source = {"image": primary_data["image"].copy()}
-        optional_keys_to_copy = {"mask", "bboxes", "keypoints"}
-        for key in optional_keys_to_copy:
-            if key in primary_data and primary_data[key] is not None:
-                arr = primary_data[key]
-                if not isinstance(arr, np.ndarray):
-                    arr = np.array(arr)
-                primary_replication_source[key] = arr.copy()
-
-        for _ in range(num_replications):
-            replication_dict = {
-                k: v.copy() if isinstance(v, np.ndarray) else v for k, v in primary_replication_source.items()
-            }
-            final_additional_data.append(replication_dict)
-    return final_additional_data
-
-
-def _prepare_data_item(
-    data_item: dict[str, Any],
-    present_optional_keys: set[str],
-) -> dict[str, Any]:
-    """Ensures consistent keys and deep copies arrays for a single data item."""
-    prepared_item = data_item.copy()  # Shallow copy first
-
-    # Deep copy image array
-    if "image" in prepared_item:
-        prepared_item["image"] = prepared_item["image"].copy()
-
-    # Ensure optional keys exist and deep copy their arrays if present
-    for key in present_optional_keys:
-        if key not in prepared_item or prepared_item[key] is None:
-            prepared_item[key] = None
-        elif isinstance(prepared_item[key], np.ndarray):
-            # Make sure it's copied, even if shallow copy was enough initially
-            prepared_item[key] = prepared_item[key].copy()
-        # If key is present but not None and not ndarray, try converting (e.g., list of lists for bbox)
-        # This part might need refinement based on expected input types for bboxes/keypoints
-        elif key in ["bboxes", "keypoints"]:
-            try:
-                # Ensure numpy conversion also happens if needed
-                if not isinstance(prepared_item[key], np.ndarray):
-                    prepared_item[key] = np.array(prepared_item[key])
-                # np.array creates a copy, so no extra copy needed here
-            except (ValueError, TypeError) as e:  # Catch specific conversion errors
-                warn(
-                    f"Could not convert {key} to numpy array ({e}). Keeping original type.",
-                    UserWarning,
-                    stacklevel=3,
-                )
-
-    # Ensure all optional keys are present, even if None
-    all_optional_keys = {"mask", "bboxes", "keypoints"}
-    for key in all_optional_keys:
-        if key not in prepared_item:
-            prepared_item[key] = None
-
-    return prepared_item
-
-
-def _determine_primary_placement(
+def calculate_mosaic_center_point(
     grid_yx: tuple[int, int],
+    target_size: tuple[int, int],
+    center_range: tuple[float, float],
     py_random: random.Random,
 ) -> tuple[int, int]:
-    """Determines the grid cell coordinates for placing the primary image."""
+    """Calculates the center point for the mosaic crop.
+
+    Ensures the center point allows a crop of target_size to overlap
+    all grid cells, applying randomness based on center_range within
+    the valid zone.
+
+    Args:
+        grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
+        target_size (tuple[int, int]): The final output (height, width).
+        center_range (tuple[float, float]): Range [0.0-1.0] for sampling center proportionally
+                                            within the valid zone.
+        py_random (random.Random): Random state instance.
+
+    Returns:
+        tuple[int, int]: The calculated (x, y) center point relative to the
+                         top-left of the conceptual large grid.
+
+    """
     rows, cols = grid_yx
-    center_row_start = (rows - 1) // 2
-    center_row_end = rows // 2
-    center_col_start = (cols - 1) // 2
-    center_col_end = cols // 2
+    target_h, target_w = target_size
+    large_grid_h = rows * target_h
+    large_grid_w = cols * target_w
 
-    possible_primary_placements = [
-        (r, c) for r in range(center_row_start, center_row_end + 1) for c in range(center_col_start, center_col_end + 1)
-    ]
-    return py_random.choice(possible_primary_placements)
+    # Define valid center range on the large grid to ensure full target crop
+    min_center_x = (target_w - 1) // 2
+    max_center_x_incl = large_grid_w - 1 - (target_w // 2)  # Inclusive max index
+    min_center_y = (target_h - 1) // 2
+    max_center_y_incl = large_grid_h - 1 - (target_h // 2)
+
+    if max_center_x_incl < min_center_x or max_center_y_incl < min_center_y:
+        center_x = large_grid_w // 2
+        center_y = large_grid_h // 2
+    else:
+        # Calculate the valid range (width/height of the safe zone)
+        safe_zone_w = max_center_x_incl - min_center_x + 1
+        safe_zone_h = max_center_y_incl - min_center_y + 1
+
+        # Sample offsets within the safe zone based on center_range
+        offset_x = int(safe_zone_w * py_random.uniform(*center_range))
+        offset_y = int(safe_zone_h * py_random.uniform(*center_range))
+
+        # Calculate final center point
+        center_x = min_center_x + offset_x
+        center_y = min_center_y + offset_y
+
+        # Safety clip to ensure center is within the large grid bounds
+        center_x = max(0, min(center_x, large_grid_w - 1))
+        center_y = max(0, min(center_y, large_grid_h - 1))
+
+    return center_x, center_y
 
 
-def prepare_mosaic_inputs(
-    primary_data: dict[str, Any],
-    additional_data_list: list[dict[str, Any]],
+def calculate_cell_placements(
     grid_yx: tuple[int, int],
-    py_random: random.Random,
-) -> dict[tuple[int, int], dict[str, Any]]:
-    """Prepares and assigns input data dictionaries to grid positions for mosaic."""
+    target_size: tuple[int, int],
+    center_xy: tuple[int, int],
+) -> dict[tuple[int, int], tuple[int, int, int, int]]:
+    """Calculates the placement coordinates for grid cells that appear in the final crop.
+
+    Args:
+        grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
+        target_size (tuple[int, int]): The final output (height, width).
+        center_xy (tuple[int, int]): The calculated (x, y) center of the final crop window,
+                                        relative to the top-left of the conceptual large grid.
+
+    Returns:
+        dict[tuple[int, int], tuple[int, int, int, int]]:
+            A dictionary mapping grid cell coordinates `(r, c)` of visible cells to
+            their placement coordinates `(x_min, y_min, x_max, y_max)` on the
+            final output canvas.
+
+    """
     rows, cols = grid_yx
-    num_total_images = rows * cols
-    num_needed_additional = num_total_images - 1
+    target_h, target_w = target_size
+    center_x, center_y = center_xy
 
-    # --- 1. Determine final list of additional items ---
-    final_additional_data = _determine_final_additional_data(
-        primary_data,
-        additional_data_list,
-        num_needed_additional,
-        py_random,
-    )
+    # Calculate the boundaries of the final crop window on the large conceptual grid
+    large_grid_h = rows * target_h
+    large_grid_w = cols * target_w
 
-    # --- 2. Identify optional keys present in primary data ---
-    optional_keys = {"mask", "bboxes", "keypoints"}
-    # Also consider label fields associated with bboxes/keypoints if they exist
-    # This part becomes less relevant here if preprocessing happens *before* this function.
-    # Let's assume the caller handles identifying which keys *might* exist across all items.
-    # For simplicity now, we just ensure the main ones are handled.
-    present_optional_keys = {k for k in optional_keys if k in primary_data and primary_data[k] is not None}
-
-    # --- 3. Prepare all items (ensure consistent keys, copy arrays) ---
-    # This step might be removed if preprocessing handles consistency.
-    prepared_primary = _prepare_data_item(primary_data, present_optional_keys)
-    prepared_additional = [_prepare_data_item(item, present_optional_keys) for item in final_additional_data]
-    all_data_items_prepared = [prepared_primary, *prepared_additional]
-
-    # --- 4. Check final count ---
-    if len(all_data_items_prepared) != num_total_images:
+    # Ensure center point is within valid calculation range relative to target size
+    if not (0 <= center_x <= large_grid_w and 0 <= center_y <= large_grid_h):
         warn(
-            f"Internal error after preparation: Expected {num_total_images} items, got {len(all_data_items_prepared)}.",
-            RuntimeWarning,
+            f"Center point {center_xy} is outside the conceptual large grid dimensions "
+            f"({large_grid_h}x{large_grid_w}). Cannot calculate placements.",
+            UserWarning,
             stacklevel=2,
         )
-        return {}  # Indicate failure
+        return {}
 
-    # --- 5. Determine primary image placement ---
-    primary_placement = _determine_primary_placement(grid_yx, py_random)
+    # Determine the crop window coordinates relative to the large grid's top-left (0,0)
+    crop_x_min = center_x - target_w // 2
+    crop_y_min = center_y - target_h // 2
+    crop_x_max = crop_x_min + target_w
+    crop_y_max = crop_y_min + target_h
 
-    # --- 6. Assign items to grid positions ---
-    output_grid = {}
-    items_to_place = prepared_additional  # Use prepared additional list
-    py_random.shuffle(items_to_place)
-    item_iterator = iter(items_to_place)
+    cell_placements = {}
 
-    for r in range(rows):
-        for c in range(cols):
-            grid_pos = (r, c)
-            if grid_pos == primary_placement:
-                output_grid[grid_pos] = prepared_primary
-            else:
-                try:
-                    output_grid[grid_pos] = next(item_iterator)
-                except StopIteration as e:
-                    raise RuntimeError(
-                        "Mismatch between grid size and number of prepared data items during assignment.",
-                    ) from e
+    for row_idx in range(rows):
+        for col_idx in range(cols):
+            # Boundaries of the current cell on the large grid
+            cell_x_min = col_idx * target_w
+            cell_y_min = row_idx * target_h
+            cell_x_max = cell_x_min + target_w
+            cell_y_max = cell_y_min + target_h
 
-    return output_grid
+            # Find the intersection of the final crop window and the current cell
+            inter_x_min = max(crop_x_min, cell_x_min)
+            inter_y_min = max(crop_y_min, cell_y_min)
+            inter_x_max = min(crop_x_max, cell_x_max)
+            inter_y_max = min(crop_y_max, cell_y_max)
+
+            # If there is a valid intersection (positive area)
+            if inter_x_max > inter_x_min and inter_y_max > inter_y_min:
+                # Calculate placement coordinates relative to the final output canvas's top-left (0,0)
+                tgt_x1 = inter_x_min - crop_x_min
+                tgt_y1 = inter_y_min - crop_y_min
+                tgt_x2 = inter_x_max - crop_x_min
+                tgt_y2 = inter_y_max - crop_y_min
+
+                # Clip placement coords to target canvas boundaries
+                tgt_x1_clipped = max(0, tgt_x1)
+                tgt_y1_clipped = max(0, tgt_y1)
+                tgt_x2_clipped = min(target_w, tgt_x2)
+                tgt_y2_clipped = min(target_h, tgt_y2)
+
+                # Only add if the *clipped* placement still has positive area
+                if tgt_x2_clipped > tgt_x1_clipped and tgt_y2_clipped > tgt_y1_clipped:
+                    cell_placements[(row_idx, col_idx)] = (
+                        tgt_x1_clipped,
+                        tgt_y1_clipped,
+                        tgt_x2_clipped,
+                        tgt_y2_clipped,
+                    )
+
+    return cell_placements
 
 
 def _gather_mosaic_item_data(
@@ -261,28 +245,11 @@ def _gather_mosaic_item_data(
 def _preprocess_combined_data(
     all_raw_items: list[np.ndarray],
     labels_gathered: dict[str, list[Any]],
-    processor: Any | None,
+    processor: BboxProcessor | KeypointsProcessor,
     data_key: Literal["bboxes", "keypoints"],
-    default_cols: int,
 ) -> np.ndarray:
     """Helper to preprocess combined lists of bboxes or keypoints using a processor."""
-    combined_preprocessed_data = None
-    original_cols = default_cols
-
-    if not all_raw_items:
-        # No items to process, return empty array with default shape
-        return np.empty((0, default_cols), dtype=np.float32)
-
     combined_raw_np = np.vstack(all_raw_items)
-    original_cols = combined_raw_np.shape[1]
-
-    if not processor:
-        warn(
-            f"{data_key.capitalize()} found but no {data_key}_processor provided to preprocess them.",
-            UserWarning,
-            stacklevel=3,
-        )
-        return np.empty((0, original_cols), dtype=np.float32)
 
     # Prepare input for the processor
     input_combined: dict[str, Any] = {data_key: combined_raw_np}
@@ -298,82 +265,146 @@ def _preprocess_combined_data(
                 stacklevel=3,
             )
 
-    # Preprocess
-    try:
-        processed_data = processor.preprocess(input_combined)
-        combined_preprocessed_data = processed_data.get(data_key)
-    except (ValueError, KeyError, TypeError) as e:
+    processor.preprocess(input_combined)
+    return np.array(input_combined[data_key])
+
+
+def filter_valid_metadata(
+    metadata_input: Sequence[dict[str, Any]] | None,
+    metadata_key_name: str,  # Need the key name for warnings
+) -> list[dict[str, Any]]:
+    """Filters a list of metadata dicts, keeping only valid ones.
+
+    Valid items must be dictionaries and contain the 'image' key.
+    """
+    if not isinstance(metadata_input, Sequence):
         warn(
-            f"Error during combined {data_key} preprocessing: {e}. Resulting {data_key} will be empty.",
+            f"Metadata under key '{metadata_key_name}' is not a Sequence (e.g., list or tuple). "
+            f"Returning empty list for additional items.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return []
+
+    valid_items = []
+    for i, item in enumerate(metadata_input):
+        if isinstance(item, dict) and "image" in item:
+            valid_items.append(item)
+        else:
+            warn(
+                f"Item at index {i} in '{metadata_key_name}' is invalid "
+                f"(not a dict or lacks 'image' key) and will be skipped.",
+                UserWarning,
+                stacklevel=4,
+            )
+    return valid_items
+
+
+def assign_items_to_grid_cells(
+    num_items: int,
+    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+    py_random: random.Random,
+) -> dict[tuple[int, int], int]:
+    """Assigns item indices to grid cells based on placement data.
+
+    Assigns the primary item (index 0) to the cell with the largest area,
+    and assigns the remaining items (indices 1 to num_items-1) randomly to the
+    remaining cells specified in cell_placements.
+
+    Args:
+        num_items (int): The total number of items to assign (primary + additional + replicas).
+        cell_placements (dict): Maps grid coords (r, c) to placement
+                                coords (x1, y1, x2, y2) for cells to be filled.
+        py_random (random.Random): Random state instance.
+
+    Returns:
+        dict[tuple[int, int], int]: Dict mapping grid coords (r, c) to assigned item index.
+
+    """
+    grid_positions = list(cell_placements.keys())
+    if not grid_positions:
+        return {}
+
+    # Find the grid cell with the largest area for primary placement
+    primary_placement_pos = max(
+        grid_positions,
+        key=lambda pos: (cell_placements[pos][2] - cell_placements[pos][0])
+        * (cell_placements[pos][3] - cell_placements[pos][1]),
+    )
+
+    grid_coords_to_item_index: dict[tuple[int, int], int] = {}
+    grid_coords_to_item_index[primary_placement_pos] = 0  # Assign primary item (index 0)
+
+    remaining_grid_positions = [pos for pos in grid_positions if pos != primary_placement_pos]
+    # Indices for additional/replicated items start from 1
+    remaining_item_indices = list(range(1, num_items))
+    py_random.shuffle(remaining_item_indices)
+
+    num_to_assign = min(len(remaining_grid_positions), len(remaining_item_indices))
+    if len(remaining_grid_positions) != len(remaining_item_indices):
+        msg = (
+            f"Mismatch: {len(remaining_grid_positions)} remaining cells, but {len(remaining_item_indices)} "
+            f"remaining items. Assigning {num_to_assign}."
+        )
+        warn(
+            msg,
             UserWarning,
             stacklevel=3,
         )
 
-    # Ensure array exists even if processing failed
-    if combined_preprocessed_data is None:
-        combined_preprocessed_data = np.empty((0, original_cols), dtype=np.float32)
+    for i in range(num_to_assign):
+        grid_coords_to_item_index[remaining_grid_positions[i]] = remaining_item_indices[i]
 
-    return combined_preprocessed_data
+    return grid_coords_to_item_index
 
 
-def preprocess_mosaic_data(
-    data_items: list[dict[str, Any]],
-    bbox_processor: Any | None = None,  # Replace Any with BboxProcessor type hint if possible
-    keypoint_processor: Any | None = None,  # Replace Any with KeypointsProcessor type hint if possible
-) -> list[dict[str, Any]]:  # Changed return type
-    """Preprocesses bboxes and keypoints for a list of mosaic data items.
+def preprocess_selected_mosaic_items(
+    selected_raw_items: list[dict[str, Any]],
+    bbox_processor: BboxProcessor,
+    keypoint_processor: KeypointsProcessor,
+) -> list[ProcessedMosaicItem]:
+    """Preprocesses bboxes/keypoints for selected raw additional items combined.
 
-    Processes all items together to ensure consistent label encoding, then returns
-    a list of dictionaries, each corresponding to an input item, containing the
-    original image/mask and the preprocessed bboxes/keypoints.
-
-    Args:
-        data_items (list[dict]): List of raw data dictionaries for mosaic cells.
-        bbox_processor: BboxProcessor instance.
-        keypoint_processor: KeypointsProcessor instance.
-
-    Returns:
-        list[dict[str, Any]]: List of processed data dictionaries.
-
+    Gathers raw bboxes/kps/labels, preprocesses them together using the processors
+    (updating label encoders), and returns a list of dicts with original image/mask
+    and the corresponding chunk of preprocessed bboxes/keypoints.
     """
-    # Gather combined raw data and counts
+    if not selected_raw_items:
+        return []
+
+    # Gather combined raw data and counts from selected items
     all_raw_bboxes: list[np.ndarray] = []
     all_raw_keypoints: list[np.ndarray] = []
-    # Use defaultdict for easier appending
-    from collections import defaultdict
 
     bbox_labels_gathered: dict[str, list[Any]] = defaultdict(list)
     kp_labels_gathered: dict[str, list[Any]] = defaultdict(list)
     bbox_counts_per_item: list[int] = []
     keypoint_counts_per_item: list[int] = []
 
-    # Determine expected label fields from processors if they exist
-    bbox_label_fields = []
-    if bbox_processor and bbox_processor.params.label_fields:
-        bbox_label_fields = bbox_processor.params.label_fields
+    bbox_label_fields = cast(
+        "list[str]",
+        bbox_processor.params.label_fields if bbox_processor and bbox_processor.params.label_fields else [],
+    )
+    kp_label_fields = cast(
+        "list[str]",
+        keypoint_processor.params.label_fields if keypoint_processor and keypoint_processor.params.label_fields else [],
+    )
 
-    kp_label_fields = []
-    if keypoint_processor and keypoint_processor.params.label_fields:
-        kp_label_fields = keypoint_processor.params.label_fields
-
-    for item in data_items:
-        # Gather BBoxes and their labels using helper
+    for item in selected_raw_items:
         num_bboxes = _gather_mosaic_item_data(
-            item=item,
-            data_key="bboxes",
-            label_fields=bbox_label_fields,
-            all_raw_list=all_raw_bboxes,
-            labels_gathered_dict=bbox_labels_gathered,
+            item,
+            "bboxes",
+            bbox_label_fields,
+            all_raw_bboxes,
+            bbox_labels_gathered,
         )
         bbox_counts_per_item.append(num_bboxes)
-
-        # Gather Keypoints and their labels using helper
         num_keypoints = _gather_mosaic_item_data(
-            item=item,
-            data_key="keypoints",
-            label_fields=kp_label_fields,
-            all_raw_list=all_raw_keypoints,
-            labels_gathered_dict=kp_labels_gathered,
+            item,
+            "keypoints",
+            kp_label_fields,
+            all_raw_keypoints,
+            kp_labels_gathered,
         )
         keypoint_counts_per_item.append(num_keypoints)
 
@@ -383,28 +414,26 @@ def preprocess_mosaic_data(
         bbox_labels_gathered,
         bbox_processor,
         "bboxes",
-        5,
     )
     combined_preprocessed_keypoints = _preprocess_combined_data(
         all_raw_keypoints,
         kp_labels_gathered,
         keypoint_processor,
         "keypoints",
-        4,
     )
 
-    # Split the combined preprocessed data back into per-item dictionaries
-    result_data_items = []
+    # Split back into per-item dictionaries
+    result_data_items: list[ProcessedMosaicItem] = []
     bbox_start_idx = 0
     kp_start_idx = 0
 
-    for i, item in enumerate(data_items):
-        processed_item_dict = {
-            "image": item.get("image"),  # Keep original image
+    for i, item in enumerate(selected_raw_items):
+        processed_item_dict: ProcessedMosaicItem = {
+            "image": item["image"],  # Keep original image
             "mask": item.get("mask"),  # Keep original mask
+            "bboxes": None,
+            "keypoints": None,
         }
-
-        # Split BBoxes
         num_bboxes = bbox_counts_per_item[i]
         if num_bboxes > 0:
             bbox_end_idx = bbox_start_idx + num_bboxes
@@ -415,8 +444,6 @@ def preprocess_mosaic_data(
                 (0, combined_preprocessed_bboxes.shape[1]),
                 dtype=combined_preprocessed_bboxes.dtype,
             )
-
-        # Split Keypoints
         num_keypoints = keypoint_counts_per_item[i]
         if num_keypoints > 0:
             kp_end_idx = kp_start_idx + num_keypoints
@@ -427,520 +454,120 @@ def preprocess_mosaic_data(
                 (0, combined_preprocessed_keypoints.shape[1]),
                 dtype=combined_preprocessed_keypoints.dtype,
             )
-
-        # Do NOT include original label fields (e.g., class_labels) in the output dict
-
         result_data_items.append(processed_item_dict)
 
     return result_data_items
 
 
-def get_mosaic_transforms_coords(
-    grid_yx: tuple[int, int],
-    target_size: tuple[int, int],
-    center_point: tuple[int, int],
-) -> dict[tuple[int, int], dict[str, tuple[int, int, int, int]]]:
-    """Calculates source crop and target placement coordinates for each mosaic grid cell.
-
-    Assumes a conceptual large grid formed by placing target_size images,
-    and calculates the coordinates based on a central crop.
-
-    Args:
-        grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
-        target_size (tuple[int, int]): The final output (height, width). This is also
-                                       the assumed size of each cell's source image
-                                       for coordinate calculations.
-        center_point (tuple[int, int]): The (x, y) center of the final crop window,
-                                        relative to the top-left of the conceptual
-                                        large grid (size: rows*target_h, cols*target_w).
-
-    Returns:
-        dict[tuple[int, int], dict[str, tuple[int, int, int, int]]]:
-            A dictionary where keys are grid cell coordinates (row, col) and
-            values are dictionaries containing:
-            - 'source_crop': (x_min, y_min, x_max, y_max) relative to cell's image.
-            - 'target_placement': (x_min, y_min, x_max, y_max) relative to final output canvas.
-            Returns empty dict if calculation is not possible (e.g., invalid center).
-
-    """
-    rows, cols = grid_yx
-    target_h, target_w = target_size
-    center_x, center_y = center_point
-
-    # Calculate the boundaries of the final crop window on the large conceptual grid
-    # Ensure center point is valid (simplistic check, might need refinement based on center_range)
-    large_grid_h = rows * target_h
-    large_grid_w = cols * target_w
-    if not (0 <= center_x < large_grid_w and 0 <= center_y < large_grid_h):
-        warn(
-            f"Center point {center_point} is outside the conceptual large grid dimensions "
-            f"({large_grid_h}x{large_grid_w}). Cannot calculate transforms.",
-            UserWarning,
-            stacklevel=2,
-        )
-        return {}
-
-    crop_x_min = center_x - (target_w - 1) // 2
-    crop_y_min = center_y - (target_h - 1) // 2
-    crop_x_max = crop_x_min + target_w
-    crop_y_max = crop_y_min + target_h
-
-    # Clip crop window to the large grid boundaries (important if center is near edge)
-    crop_x_min_clipped = max(0, crop_x_min)
-    crop_y_min_clipped = max(0, crop_y_min)
-    crop_x_max_clipped = min(large_grid_w, crop_x_max)
-    crop_y_max_clipped = min(large_grid_h, crop_y_max)
-
-    transforms_coords = {}
-
-    for r in range(rows):
-        for c in range(cols):
-            # Boundaries of the current cell on the large grid
-            cell_x_min = c * target_w
-            cell_y_min = r * target_h
-            cell_x_max = (c + 1) * target_w
-            cell_y_max = (r + 1) * target_h
-
-            # Find the intersection of the final crop window and the current cell
-            inter_x_min = max(crop_x_min_clipped, cell_x_min)
-            inter_y_min = max(crop_y_min_clipped, cell_y_min)
-            inter_x_max = min(crop_x_max_clipped, cell_x_max)
-            inter_y_max = min(crop_y_max_clipped, cell_y_max)
-
-            # If there is a valid intersection (positive area)
-            if inter_x_max > inter_x_min and inter_y_max > inter_y_min:
-                # Source crop coordinates (relative to the cell's image top-left)
-                # These coordinates are within the [0, target_w] and [0, target_h] range
-                src_x1 = inter_x_min - cell_x_min
-                src_y1 = inter_y_min - cell_y_min
-                src_x2 = inter_x_max - cell_x_min
-                src_y2 = inter_y_max - cell_y_min
-
-                # Target placement coordinates (relative to the final output image top-left)
-                # These coordinates are within the [0, target_w] and [0, target_h] range
-                # Need to account for cases where the overall crop starts negative
-                tgt_x1 = inter_x_min - crop_x_min
-                tgt_y1 = inter_y_min - crop_y_min
-                tgt_x2 = inter_x_max - crop_x_min
-                tgt_y2 = inter_y_max - crop_y_min
-
-                transforms_coords[(r, c)] = {
-                    "source_crop": (src_x1, src_y1, src_x2, src_y2),
-                    "target_placement": (tgt_x1, tgt_y1, tgt_x2, tgt_y2),
-                }
-
-    return transforms_coords
-
-
-def _determine_padding_position(grid_pos: tuple[int, int], grid_yx: tuple[int, int]) -> str:
-    """Determines the padding position to push content towards the mosaic center."""
-    r, c = grid_pos
-    rows, cols = grid_yx
-
-    # Determine vertical position relative to center midpoint ((rows - 1) / 2)
-    is_top_half = r < (rows - 1) / 2
-    is_bottom_half = r > (rows - 1) / 2
-    # If neither top nor bottom half, it's on the center row (for odd rows)
-    # or one of the two center rows (for even rows) - treat as vertically centered.
-
-    # Determine horizontal position relative to center midpoint ((cols - 1) / 2)
-    is_left_half = c < (cols - 1) / 2
-    is_right_half = c > (cols - 1) / 2
-    # If neither left nor right half, it's on the center col (for odd cols)
-    # or one of the two center cols (for even cols) - treat as horizontally centered.
-
-    # Combine positions to determine padding strategy
-    if is_top_half and is_left_half:
-        # Top-left quadrant -> pad bottom-right
-        return "bottom_right"
-    if is_top_half and is_right_half:
-        # Top-right quadrant -> pad bottom-left
-        return "bottom_left"
-    if is_bottom_half and is_left_half:
-        # Bottom-left quadrant -> pad top-right
-        return "top_right"
-    if is_bottom_half and is_right_half:
-        # Bottom-right quadrant -> pad top-left
-        return "top_left"
-
-    # Handle edges (cells that are in a center row or center column but not true center)
-    if is_top_half:  # And thus center col(s)
-        # Top edge, middle column(s) -> pad bottom
-        return "bottom"
-    if is_bottom_half:  # And thus center col(s)
-        # Bottom edge, middle column(s) -> pad top
-        return "top"
-    if is_left_half:  # And thus center row(s)
-        # Left edge, middle row(s) -> pad right
-        return "right"
-    if is_right_half:  # And thus center row(s)
-        # Right edge, middle row(s) -> pad left
-        return "left"
-
-    # If none of the above, it must be the true center cell(s)
-    return "center"
-
-
-def process_mosaic_cell(
-    cell_data: dict[str, Any],
-    transform_coords: dict[str, tuple[int, int, int, int]],
-    grid_pos: tuple[int, int],
-    grid_yx: tuple[int, int],
-    interpolation: int,
-    mask_interpolation: int,
+def process_and_shift_cells(
+    grid_coords_to_item_index: dict[tuple[int, int], int],
+    final_items_for_grid: list[ProcessedMosaicItem],
+    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
     fill: float | tuple[float, ...],
-    fill_mask: float | tuple[float, ...],
-) -> dict[str, Any]:
-    """Processes a single mosaic cell's data using Crop, LongestMaxSize, and PadIfNeeded.
+    fill_mask: float | tuple[float, ...],  # grid_yx is not strictly needed if only using RandomCrop
+) -> dict[tuple[int, int, int, int], dict[str, Any]]:
+    """Process geometry and shift coordinates for each assigned cell.
 
-    Args:
-        cell_data (dict): Data dictionary for the cell (must contain 'image').
-        transform_coords (dict): Dictionary containing 'source_crop' and
-                                 'target_placement' coordinates.
-        grid_pos (tuple[int, int]): The (row, col) position of this cell in the grid.
-        grid_yx (tuple[int, int]): The total (rows, cols) of the mosaic grid.
-        interpolation (int): OpenCV interpolation flag for resizing images.
-        mask_interpolation (int): OpenCV interpolation flag for resizing masks.
-        fill (...): Fill value for image padding.
-        fill_mask (...): Fill value for mask padding.
-
-    Returns:
-        dict[str, Any]: The processed data dictionary for the cell.
-
+    Applies RandomCrop to image/mask/bboxes/keypoints and then shifts
+    the coordinates of bboxes/keypoints based on the final cell placement.
     """
-    source_crop = transform_coords["source_crop"]
-    target_placement = transform_coords["target_placement"]
+    processed_mosaic_pieces = {}
 
-    src_x1, src_y1, src_x2, src_y2 = source_crop
-    tgt_x1, tgt_y1, tgt_x2, tgt_y2 = target_placement
+    for grid_pos, item_idx in grid_coords_to_item_index.items():
+        item = final_items_for_grid[item_idx]
+        if item.get("image") is None:
+            warn(
+                f"Item at index {item_idx} assigned to {grid_pos} has no image. Skipping cell.",
+                UserWarning,
+                stacklevel=2,
+            )
+            continue
 
-    # Target dimensions for the final padded output for this cell
-    target_h = tgt_y2 - tgt_y1
-    target_w = tgt_x2 - tgt_x1
+        placement_coords = cell_placements[grid_pos]
+        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
+        target_h = tgt_y2 - tgt_y1
+        target_w = tgt_x2 - tgt_x1
 
-    # Max size for LongestMaxSize corresponds to the dimensions of the target slot
-    # Ensure max_size is at least 1, handle cases where target_h/w might be 0
-    max_size = max(1, target_h, target_w)
-
-    # Determine padding position
-    pad_position = _determine_padding_position(grid_pos, grid_yx)
-
-    # Create the processing pipeline
-    # Note: Using p=1 as we always want these steps applied here
-    pipeline = Compose(
-        [
-            Crop(x_min=src_x1, y_min=src_y1, x_max=src_x2, y_max=src_y2, p=1.0),
-            LongestMaxSize(
-                max_size=max_size,
-                interpolation=interpolation,
-                mask_interpolation=mask_interpolation,
-                p=1.0,
-            ),
-            PadIfNeeded(
-                min_height=target_h,
-                min_width=target_w,
-                border_mode=cv2.BORDER_CONSTANT,
-                fill=fill,
-                fill_mask=fill_mask,
-                position=cast(
-                    "Literal['center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', 'random']",
-                    pad_position,
+        # A. Geometric Processing using RandomCrop
+        geom_pipeline = Compose(
+            [
+                RandomCrop(
+                    height=target_h,
+                    width=target_w,
+                    pad_if_needed=True,
+                    fill=fill,
+                    fill_mask=fill_mask,
+                    p=1.0,
                 ),
-                p=1.0,
-            ),
-        ],
-        p=1.0,
-    )  # Explicitly set p=1 for the Compose itself
-
-    # Prepare data for the pipeline (needs image, potentially mask, bboxes, keypoints)
-    pipeline_input = {"image": cell_data["image"]}
-    if "mask" in cell_data and cell_data["mask"] is not None:
-        pipeline_input["mask"] = cell_data["mask"]
-    # Warning: Bbox/Keypoint handling might be inaccurate without Compose setup
-    if "bboxes" in cell_data and cell_data["bboxes"] is not None:
-        pipeline_input["bboxes"] = cell_data["bboxes"]
-    if "keypoints" in cell_data and cell_data["keypoints"] is not None:
-        pipeline_input["keypoints"] = cell_data["keypoints"]
-
-    try:
-        # Apply the pipeline
-        processed_data = pipeline(**pipeline_input)
-    except (ValueError, IndexError, cv2.error) as e:  # Catch more specific errors
-        warn(
-            f"Error processing mosaic cell {grid_pos} with Compose: {e}. Returning empty data.",
-            RuntimeWarning,
-            stacklevel=2,
+            ],
+            p=1.0,
         )
-        return {}
 
-    # Ensure the output image has the exact target dimensions
-    if "image" not in processed_data:
-        warn(
-            f"Compose pipeline failed to return an image for cell {grid_pos}. Returning empty data.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        return {}
+        geom_input = {"image": item["image"]}
+        if "mask" in item and item["mask"] is not None:
+            geom_input["mask"] = item["mask"]
+        if "bboxes" in item and item["bboxes"] is not None:
+            geom_input["bboxes"] = item["bboxes"]
+        if "keypoints" in item and item["keypoints"] is not None:
+            geom_input["keypoints"] = item["keypoints"]
 
-    out_h, out_w = processed_data["image"].shape[:2]
-    if out_h != target_h or out_w != target_w:
-        msg = (
-            f"Processed cell {grid_pos} size ({out_h}x{out_w}) doesn't match target ({target_h}x{target_w}). Check pad."
-        )
-        warn(msg, RuntimeWarning, stacklevel=2)
+        try:
+            processed_item_geom = geom_pipeline(**geom_input)
+        except ValueError as e:  # Catch more specific error
+            warn(
+                f"Error during geometric processing (RandomCrop) for cell {grid_pos}: {e}. Skipping cell.",
+                UserWarning,
+                stacklevel=2,
+            )
+            continue
 
-    # Shift bboxes and keypoints
-    tgt_x1, tgt_y1, _, _ = target_placement
+        # B. Coordinate Shifting
+        shifted_bboxes = None
+        shifted_keypoints = None
 
-    # Define shift vectors (using int32 for safety with pixel coords)
-    kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
-    # Assuming shift_bboxes needs [shift_x_min, shift_y_min, shift_x_max, shift_y_max]
-    bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
+        bboxes_geom = processed_item_geom.get("bboxes")
+        if bboxes_geom is not None and bboxes_geom.size > 0:
+            bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
+            shifted_bboxes = fgeometric.shift_bboxes(bboxes_geom, bbox_shift_vector)
 
-    if "bboxes" in processed_data and processed_data["bboxes"] is not None and len(processed_data["bboxes"]) > 0:
-        bboxes_np = (
-            np.array(processed_data["bboxes"])
-            if not isinstance(processed_data["bboxes"], np.ndarray)
-            else processed_data["bboxes"]
-        )
-        # Correct call using shift_vector
-        processed_data["bboxes"] = fgeometric.shift_bboxes(bboxes_np, bbox_shift_vector)
+        keypoints_geom = processed_item_geom.get("keypoints")
+        if keypoints_geom is not None and keypoints_geom.size > 0:
+            kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+            shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom, kp_shift_vector)
 
-    if (
-        "keypoints" in processed_data
-        and processed_data["keypoints"] is not None
-        and len(processed_data["keypoints"]) > 0
-    ):
-        keypoints_np = (
-            np.array(processed_data["keypoints"])
-            if not isinstance(processed_data["keypoints"], np.ndarray)
-            else processed_data["keypoints"]
-        )
-        # Correct call using shift_vector
-        processed_data["keypoints"] = fgeometric.shift_keypoints(keypoints_np, kp_shift_vector)
+        # C. Store results keyed by placement coordinates
+        processed_mosaic_pieces[placement_coords] = {
+            "image": processed_item_geom["image"],
+            "mask": processed_item_geom.get("mask"),
+            "bboxes": shifted_bboxes,
+            "keypoints": shifted_keypoints,
+        }
 
-    # Return directly (Fix RET504)
-    return {k: v for k, v in processed_data.items() if k in pipeline_input}
+    return processed_mosaic_pieces
 
 
-def assemble_mosaic_image_mask(
-    processed_data: dict[tuple[int, int], dict[str, Any]],
-    placements: dict[tuple[int, int], tuple[int, int, int, int]],
+def assemble_mosaic_from_processed_cells(
+    processed_cells: dict[tuple[int, int, int, int], dict[str, Any]],
     target_size: tuple[int, int],
     num_channels: int,
-    fill: float | tuple[float, ...],
     dtype: np.dtype,
-    data_key: str,
-) -> np.ndarray | None:
-    """Assembles the final mosaic image or mask from processed cell data."""
+    data_key: Literal["image", "mask"],
+) -> np.ndarray:
+    """Assembles the final mosaic image or mask from processed cell data onto a zero canvas.
+    Assumes input data is valid and correctly sized.
+    """
     target_h, target_w = target_size
 
-    # Create blank canvas
+    # Create blank (zero) canvas
     canvas_shape = (target_h, target_w, num_channels) if num_channels > 0 else (target_h, target_w)
-    extended_fill_value = fgeometric.extend_value(fill, num_channels)
-    canvas = np.full(canvas_shape, extended_fill_value, dtype=dtype)
+    canvas = np.zeros(canvas_shape, dtype=dtype)
 
-    for grid_pos, placement_coords in placements.items():
-        if grid_pos not in processed_data:
-            continue  # Should not happen if called correctly
-
-        cell_data = processed_data[grid_pos]
+    # Iterate and paste
+    for placement_coords, cell_data in processed_cells.items():
         segment = cell_data.get(data_key)
-
-        if segment is None:
-            # If assembling masks, we might have already checked consistency.
-            # If assembling images, this indicates an error in processing.
-            if data_key == "image":
-                warn(
-                    f"Missing '{data_key}' in processed data for cell {grid_pos}.",
-                    RuntimeWarning,
-                    stacklevel=2,
-                )
-            continue  # Skip if the required data is missing
-
-        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
-        place_h = tgt_y2 - tgt_y1
-        place_w = tgt_x2 - tgt_x1
-
-        # Check if placement area is valid
-        if place_h <= 0 or place_w <= 0:
-            continue  # Skip pasting if target area is non-positive
-
-        # Check consistency and paste
-        if segment.shape[0] == place_h and segment.shape[1] == place_w:
-            try:
-                # Ensure target slice is valid within canvas bounds
-                y_slice = slice(max(0, tgt_y1), min(target_h, tgt_y2))
-                x_slice = slice(max(0, tgt_x1), min(target_w, tgt_x2))
-
-                # Ensure source segment slice matches target slice dimensions
-                seg_h, seg_w = segment.shape[:2]
-                seg_y_start = max(0, -tgt_y1)
-                seg_x_start = max(0, -tgt_x1)
-                seg_y_end = seg_y_start + (y_slice.stop - y_slice.start)
-                seg_x_end = seg_x_start + (x_slice.stop - x_slice.start)
-
-                # Double check slice validity before assignment
-                if 0 <= seg_y_start < seg_y_end <= seg_h and 0 <= seg_x_start < seg_x_end <= seg_w:
-                    canvas[y_slice, x_slice] = segment[seg_y_start:seg_y_end, seg_x_start:seg_x_end]
-                else:
-                    warn(
-                        f"Calculated invalid slice for segment/canvas for cell {grid_pos}. Skipping paste.",
-                        RuntimeWarning,
-                        stacklevel=2,
-                    )
-
-            except (ValueError, IndexError) as e:  # Catch more specific errors for pasting
-                warn(f"Error pasting segment for cell {grid_pos}: {e}", RuntimeWarning, stacklevel=2)
-
-        else:
-            msg = (
-                f"Size mismatch for {data_key} at {grid_pos}: "
-                f"target {place_h}x{place_w}, got {segment.shape[:2]}. Skip."
-            )
-            warn(msg, RuntimeWarning, stacklevel=2)
+        if segment is not None:  # Minimal check to avoid error on .get() returning None
+            tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
+            # Use direct colon notation for slicing
+            canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = segment
 
     return canvas
-
-
-def calculate_mosaic_center_point(
-    grid_yx: tuple[int, int],
-    target_size: tuple[int, int],
-    center_range: tuple[float, float],
-    py_random: random.Random,
-) -> tuple[int, int]:
-    """Calculates the center point for the mosaic crop.
-
-    Ensures the center point allows a crop of target_size to overlap
-    all grid cells, applying randomness based on center_range within
-    the valid zone.
-
-    Args:
-        grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
-        target_size (tuple[int, int]): The final output (height, width).
-        center_range (tuple[float, float]): Range [0.0-1.0] for sampling center proportionally
-                                            within the valid zone.
-        py_random (random.Random): Random state instance.
-
-    Returns:
-        tuple[int, int]: The calculated (x, y) center point relative to the
-                         top-left of the conceptual large grid.
-
-    """
-    rows, cols = grid_yx
-    target_h, target_w = target_size
-    large_grid_h = rows * target_h
-    large_grid_w = cols * target_w
-
-    # Define valid center range on the large grid to ensure full target crop
-    # Top-left corner of the crop window should be <= center
-    # Bottom-right corner should be >= center
-    min_center_x = (target_w - 1) // 2
-    max_center_x_incl = large_grid_w - 1 - (target_w // 2)  # Inclusive max index
-    min_center_y = (target_h - 1) // 2
-    max_center_y_incl = large_grid_h - 1 - (target_h // 2)
-
-    if max_center_x_incl < min_center_x or max_center_y_incl < min_center_y:
-        warn(
-            f"Target size {target_size} is too large for the conceptual grid {grid_yx}. "
-            "Cannot guarantee overlap with all cells. Centering crop instead.",
-            UserWarning,
-            stacklevel=3,  # Adjust stacklevel based on call depth
-        )
-        center_x = large_grid_w // 2
-        center_y = large_grid_h // 2
-    else:
-        # Calculate the valid range (width/height of the safe zone)
-        safe_zone_w = max_center_x_incl - min_center_x + 1  # +1 because range is inclusive
-        safe_zone_h = max_center_y_incl - min_center_y + 1
-
-        # Sample offsets within the safe zone based on center_range
-        # Using uniform(a, b) samples in [a, b), so adjust range slightly if needed,
-        # but int conversion handles it okay.
-        offset_x = int(safe_zone_w * py_random.uniform(*center_range))
-        offset_y = int(safe_zone_h * py_random.uniform(*center_range))
-
-        # Calculate final center point
-        center_x = min_center_x + offset_x
-        center_y = min_center_y + offset_y
-
-        # Safety clip to ensure center is within the large grid bounds
-        # This shouldn't be strictly necessary if calculations above are correct, but good practice
-        center_x = max(0, min(center_x, large_grid_w - 1))
-        center_y = max(0, min(center_y, large_grid_h - 1))
-
-    return center_x, center_y
-
-
-def process_mosaic_grid(
-    prepared_grid_data: dict[tuple[int, int], dict[str, Any]],
-    transforms_coords: dict[tuple[int, int], dict[str, tuple[int, int, int, int]]],
-    grid_yx: tuple[int, int],
-    interpolation: int,
-    mask_interpolation: int,
-    fill: float | tuple[float, ...],
-    fill_mask: float | tuple[float, ...],
-) -> tuple[dict[tuple[int, int], dict[str, Any]], dict[tuple[int, int], tuple[int, int, int, int]]]:
-    """Processes each cell in the mosaic grid using process_mosaic_cell.
-
-    Iterates through the calculated transform coordinates, processes the
-    corresponding cell data (cropping, resizing, padding), and shifts labels.
-
-    Args:
-        prepared_grid_data: Dict mapping (row, col) to prepared cell data.
-        transforms_coords: Dict mapping (row, col) to source/target coords.
-        grid_yx: The (rows, cols) of the mosaic grid.
-        interpolation: OpenCV interpolation for images.
-        mask_interpolation: OpenCV interpolation for masks.
-        fill: Fill value for image padding.
-        fill_mask: Fill value for mask padding.
-
-    Returns:
-        tuple containing:
-            - final_processed_data: Dict mapping (row, col) to fully processed cell data.
-            - final_placements: Dict mapping (row, col) to target placement coordinates.
-              Returns empty dicts if processing fails for all cells with coordinates.
-
-    """
-    final_processed_data = {}
-    final_placements = {}
-
-    for grid_pos, coords_dict in transforms_coords.items():
-        if grid_pos not in prepared_grid_data:
-            warn(
-                f"Mismatch: Transform coords exist for {grid_pos} but prepared data does not.",
-                RuntimeWarning,
-                stacklevel=3,
-            )  # Adjusted stacklevel
-            continue  # Skip this cell
-
-        cell_data = prepared_grid_data[grid_pos]
-
-        # Process image and mask using the temporary Compose pipeline
-        processed_cell_data = process_mosaic_cell(  # Assumes process_mosaic_cell exists
-            cell_data=cell_data,
-            transform_coords=coords_dict,
-            grid_pos=grid_pos,
-            grid_yx=grid_yx,
-            interpolation=interpolation,
-            mask_interpolation=mask_interpolation,
-            fill=fill,
-            fill_mask=fill_mask,
-        )
-
-        # Check if cell processing failed (returned empty dict)
-        if not processed_cell_data:
-            warn(
-                f"Processing failed for cell {grid_pos}. Skipping.",
-                RuntimeWarning,
-                stacklevel=3,
-            )  # Adjusted stacklevel
-            continue  # Skip this cell if processing failed
-
-        # Get target placement offset (shift is handled inside process_mosaic_cell)
-        target_placement = coords_dict["target_placement"]
-
-        final_processed_data[grid_pos] = processed_cell_data
-        final_placements[grid_pos] = target_placement  # Store placement coords
-
-    return final_processed_data, final_placements
