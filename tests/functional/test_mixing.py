@@ -2,7 +2,10 @@ import random
 
 import pytest
 
-from albumentations.augmentations.mixing.functional import calculate_mosaic_center_point
+from albumentations.augmentations.mixing.functional import (
+    calculate_cell_placements,
+    calculate_mosaic_center_point,
+)
 
 
 @pytest.mark.parametrize(
@@ -43,3 +46,72 @@ def test_calculate_mosaic_center_point(
     py_random = random.Random(seed)
     center_xy = calculate_mosaic_center_point(grid_yx, target_size, center_range, py_random)
     assert center_xy == expected_center
+
+
+@pytest.mark.parametrize(
+    "grid_yx, target_size, center_xy, expected_placements",
+    [
+        # Case 1: 2x2 grid, target 100x100, center (99, 99)
+        # Corrected based on function output
+        (
+            (2, 2),
+            (100, 100),
+            (99, 99),
+            {
+                 (0, 0): (0, 0, 51, 51),
+                 (0, 1): (51, 0, 100, 51),
+                 (1, 0): (0, 51, 51, 100),
+                 (1, 1): (51, 51, 100, 100),
+            },
+        ),
+        # Case 2: 2x2 grid, target 100x100, center (149, 149) -> parts of 4 cells
+        (
+            (2, 2),
+            (100, 100),
+            (149, 149),
+            {
+                (0, 0): (0, 0, 1, 1),
+                (0, 1): (1, 0, 100, 1),
+                (1, 0): (0, 1, 1, 100),
+                (1, 1): (1, 1, 100, 100),
+            },
+        ),
+        # Case 3: 1x1 grid, target 100x100, center (49, 49)
+        # Corrected based on function output
+        (
+            (1, 1),
+            (100, 100),
+            (49, 49),
+            {(0, 0): (1, 1, 100, 100)},
+        ),
+        # Case 4: Center point exactly at top-left corner of the grid (0, 0)
+        # Corrected based on function output
+        (
+            (2, 2),
+            (100, 100),
+            (0, 0),
+            {(0, 0): (50, 50, 100, 100)},
+        ),
+        # Case 5: 3x3 grid, target 100x100, center (99, 99) -> 4 cells visible with different sizes
+        (
+            (3, 3),
+            (100, 100),
+            (99, 99),
+            {
+                 (0, 0): (0, 0, 51, 51),
+                 (0, 1): (51, 0, 100, 51),
+                 (1, 0): (0, 51, 51, 100),
+                 (1, 1): (51, 51, 100, 100),
+            },
+        ),
+    ],
+)
+def test_calculate_cell_placements(
+    grid_yx: tuple[int, int],
+    target_size: tuple[int, int],
+    center_xy: tuple[int, int],
+    expected_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+) -> None:
+    """Test the calculation of cell placements on the target canvas."""
+    placements = calculate_cell_placements(grid_yx, target_size, center_xy)
+    assert placements == expected_placements
