@@ -12,6 +12,7 @@ from albumentations.augmentations.mixing.functional import (
     calculate_mosaic_center_point,
     filter_valid_metadata,
     process_cell_geometry,
+    process_all_mosaic_geometries,
 )
 
 
@@ -380,3 +381,123 @@ def test_process_cell_geometry_pad(small_item_geom) -> None:
 # Note: Annotations (bboxes, keypoints) are not directly tested here
 # as process_cell_geometry relies on the Compose([RandomCrop(...)]) call,
 # and testing the RandomCrop's annotation handling is done elsewhere.
+
+# Tests for process_all_mosaic_geometries
+
+# Use the same fixtures as process_cell_geometry tests
+# (base_item_geom, small_item_geom)
+
+@pytest.fixture
+def items_list_geom(base_item_geom, small_item_geom) -> list[dict[str, Any]]:
+    return [base_item_geom, small_item_geom]
+
+def test_process_all_geometry_identity(base_item_geom) -> None:
+    """Test process_all for a single cell identity case."""
+    grid_coords_to_item_index = {(0, 0): 0}
+    cell_placements = {(0, 0): (0, 0, 100, 100)}  # Placement matches item size
+    final_items = [base_item_geom]
+
+    processed = process_all_mosaic_geometries(
+        grid_coords_to_item_index=grid_coords_to_item_index,
+        final_items_for_grid=final_items,
+        cell_placements=cell_placements,
+        fill=0,
+        fill_mask=0,
+    )
+
+    assert len(processed) == 1
+    placement_key = (0, 0, 100, 100)
+    assert placement_key in processed
+
+    processed_item = processed[placement_key]
+    assert processed_item["image"].shape == (100, 100, 3)
+    assert processed_item["mask"].shape == (100, 100)
+    # process_cell_geometry should handle identity correctly now
+    np.testing.assert_array_equal(processed_item["image"], base_item_geom["image"])
+    np.testing.assert_array_equal(processed_item["mask"], base_item_geom["mask"])
+
+def test_process_all_geometry_crop(base_item_geom) -> None:
+    """Test process_all for a single cell requiring cropping."""
+    grid_coords_to_item_index = {(0, 0): 0}
+    cell_placements = {(0, 0): (10, 20, 60, 80)}  # Placement 50x60
+    final_items = [base_item_geom] # Item is 100x100
+
+    processed = process_all_mosaic_geometries(
+        grid_coords_to_item_index=grid_coords_to_item_index,
+        final_items_for_grid=final_items,
+        cell_placements=cell_placements,
+        fill=0,
+        fill_mask=0,
+    )
+
+    assert len(processed) == 1
+    placement_key = (10, 20, 60, 80)
+    assert placement_key in processed
+    processed_item = processed[placement_key]
+    assert processed_item["image"].shape == (60, 50, 3) # Target H=60, W=50
+    assert processed_item["mask"].shape == (60, 50)
+
+def test_process_all_geometry_pad(small_item_geom) -> None:
+    """Test process_all for a single cell requiring padding."""
+    grid_coords_to_item_index = {(0, 0): 0}
+    cell_placements = {(0, 0): (0, 0, 80, 70)}  # Placement 80x70
+    final_items = [small_item_geom]  # Item is 50x50
+    fill_value = 111
+    mask_fill_value = 5
+
+    processed = process_all_mosaic_geometries(
+        grid_coords_to_item_index=grid_coords_to_item_index,
+        final_items_for_grid=final_items,
+        cell_placements=cell_placements,
+        fill=fill_value,
+        fill_mask=mask_fill_value,
+    )
+
+    assert len(processed) == 1
+    placement_key = (0, 0, 80, 70)
+    assert placement_key in processed
+    processed_item = processed[placement_key]
+    assert processed_item["image"].shape == (70, 80, 3) # Target H=70, W=80
+    assert processed_item["mask"].shape == (70, 80)
+    # Check if top-left matches (assuming pad_position="top_left" in process_cell_geometry)
+    np.testing.assert_array_equal(processed_item["image"][:50, :50], small_item_geom["image"])
+    np.testing.assert_array_equal(processed_item["mask"][:50, :50], small_item_geom["mask"])
+    assert np.all(processed_item["image"][50:, 50:] == fill_value)
+    assert np.all(processed_item["mask"][50:, 50:] == mask_fill_value)
+
+def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
+    """Test process_all processing two different items for two cells."""
+    grid_coords_to_item_index = {(0, 0): 0, (0, 1): 1} # Item 0 (100x100), Item 1 (50x50)
+    cell_placements = {
+        (0, 0): (0, 0, 50, 50),  # Crop base_item_geom to 50x50
+        (0, 1): (50, 0, 110, 60), # Pad small_item_geom to 60x60
+    }
+    final_items = items_list_geom
+
+    processed = process_all_mosaic_geometries(
+        grid_coords_to_item_index=grid_coords_to_item_index,
+        final_items_for_grid=final_items,
+        cell_placements=cell_placements,
+        fill=0,
+        fill_mask=0,
+    )
+
+    assert len(processed) == 2
+    placement1 = (0, 0, 50, 50)
+    placement2 = (50, 0, 110, 60)
+    assert placement1 in processed
+    assert placement2 in processed
+
+    # Check cell 1 (cropped from base_item_geom)
+    processed1 = processed[placement1]
+    assert processed1["image"].shape == (50, 50, 3)
+    assert processed1["mask"].shape == (50, 50)
+
+    # Check cell 2 (padded small_item_geom)
+    processed2 = processed[placement2]
+    assert processed2["image"].shape == (60, 60, 3) # Target H=60, W=60
+    assert processed2["mask"].shape == (60, 60)
+    np.testing.assert_array_equal(processed2["image"][:50, :50], items_list_geom[1]["image"])
+    np.testing.assert_array_equal(processed2["mask"][:50, :50], items_list_geom[1]["mask"])
+    assert np.all(processed2["image"][50:, 50:] == 0)
+    assert np.all(processed2["mask"][50:, 50:] == 0)
