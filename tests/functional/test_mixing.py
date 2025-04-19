@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 import numpy as np
 from typing import Any
@@ -5,6 +7,7 @@ from typing import Any
 import pytest
 
 from albumentations.augmentations.mixing.functional import (
+    assign_items_to_grid_cells,
     calculate_cell_placements,
     calculate_mosaic_center_point,
     filter_valid_metadata,
@@ -185,3 +188,117 @@ def test_filter_valid_metadata_tuple_input(valid_item_1, valid_item_2) -> None:
     expected_output = [valid_item_1, valid_item_2]
     result = filter_valid_metadata(metadata_input, "test_key")
     assert result == expected_output
+
+
+# Tests for assign_items_to_grid_cells
+
+
+@pytest.mark.parametrize(
+    "num_items, cell_placements, seed, expected_assignment, expected_warning_msg",
+    [
+        # Case 1: Enough items for all cells
+        (
+            4,
+            {
+                (0, 0): (0, 0, 50, 50),  # Area 2500
+                (0, 1): (50, 0, 100, 60), # Area 3000 (Largest)
+                (1, 0): (0, 50, 40, 100), # Area 2000
+                (1, 1): (40, 60, 100, 100),# Area 2400
+            },
+            42,
+            {
+                (0, 1): 0,  # Primary assigned to largest
+                (0, 0): 2,  # Corrected: Random assignment (seed 42: shuffle [1, 2, 3] -> [2, 1, 3])
+                (1, 0): 1,
+                (1, 1): 3,
+            },
+            None, # No warning expected
+        ),
+        # Case 2: More cells than items (warning expected)
+        (
+            3,
+            {
+                (0, 0): (0, 0, 50, 50),  # Area 2500
+                (0, 1): (50, 0, 100, 60), # Area 3000 (Largest)
+                (1, 0): (0, 50, 40, 100), # Area 2000
+                (1, 1): (40, 60, 100, 100),# Area 2400
+            },
+            42,
+            {
+                (0, 1): 0,  # Primary assigned to largest
+                (0, 0): 2,  # Random assignment (seed 42: shuffle [1, 2] -> [2, 1])
+                (1, 0): 1,
+                # (1, 1) is left unassigned
+            },
+            "Mismatch: 3 remaining cells, but 2 remaining items. Assigning 2.",
+        ),
+        # Case 3: More items than cells (warning expected)
+        (
+            5,
+            {
+                (0, 0): (0, 0, 100, 100), # Largest
+                (0, 1): (0, 0, 50, 50),
+            },
+            123,
+            {
+                (0, 0): 0, # Primary assigned to largest
+                (0, 1): 3, # Random assignment (seed 123: shuffle [1, 2, 3, 4] -> [3, 2, 1, 4])
+                # Items 1, 2, 4 are unused
+            },
+             "Mismatch: 1 remaining cells, but 4 remaining items. Assigning 1.",
+        ),
+        # Case 4: Only one cell visible
+        (
+            3,
+            {(1, 1): (0, 0, 100, 100)}, # Only one cell
+            42,
+            {(1, 1): 0}, # Primary assigned to the only cell
+             None, # No warning expected (0 remaining cells, 2 remaining items)
+        ),
+        # Case 5: Empty cell placements
+        (
+            2,
+            {},
+            42,
+            {},
+             None,
+        ),
+        # Case 6: Equal cell sizes (primary goes to first encountered in max)
+        (
+            4,
+            {
+                (0, 0): (0, 0, 50, 50),
+                (0, 1): (50, 0, 100, 50),
+                (1, 0): (0, 50, 50, 100),
+                (1, 1): (50, 50, 100, 100),
+            },
+            99,
+            {
+                (0, 0): 0,  # Primary assigned to first largest encountered ((0,0) here)
+                (0, 1): 1,  # Corrected: Random assignment (seed 99: shuffle [1, 2, 3] -> [1, 3, 2])
+                (1, 0): 3,
+                (1, 1): 2,
+            },
+            None,
+        ),
+    ],
+)
+def test_assign_items_to_grid_cells(
+    num_items: int,
+    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+    seed: int,
+    expected_assignment: dict[tuple[int, int], int],
+    expected_warning_msg: str | None,
+) -> None:
+    """Test assignment logic including primary placement, randomization, and mismatches."""
+    py_random = random.Random(seed)
+
+    if expected_warning_msg:
+        with pytest.warns(UserWarning, match=expected_warning_msg):
+            assignment = assign_items_to_grid_cells(num_items, cell_placements, py_random)
+    else:
+        # If no warning is expected, just run the function.
+        # An unexpected warning will cause a failure or be reported by pytest.
+        assignment = assign_items_to_grid_cells(num_items, cell_placements, py_random)
+
+    assert assignment == expected_assignment

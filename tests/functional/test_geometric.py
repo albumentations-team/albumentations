@@ -8,8 +8,6 @@ from albumentations.augmentations.geometric.functional import (
 )
 from tests.utils import set_seed
 
-import albumentations as A
-import math
 import cv2
 
 
