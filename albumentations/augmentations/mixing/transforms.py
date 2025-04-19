@@ -7,6 +7,7 @@ overlay elements like stickers, logos, or other images onto the input image.
 from __future__ import annotations
 
 import random
+from copy import deepcopy
 from typing import Annotated, Any, Literal, cast
 from warnings import warn
 
@@ -455,7 +456,7 @@ class Mosaic(DualTransform):
         num_replications = max(0, num_additional_needed - len(preprocessed_selected_additional_items))
 
         # Step 7: Replicate Primary Data
-        replicated_primary_items = [self._deepcopy_mosaic_item(primary) for _ in range(num_replications)]
+        replicated_primary_items = [deepcopy(primary) for _ in range(num_replications)]
 
         # Step 8: Combine Final Items
         final_items_for_grid = cast(
@@ -624,13 +625,3 @@ class Mosaic(DualTransform):
         )
 
         return combined_keypoints[valid_indices]
-
-    def _deepcopy_mosaic_item(self, item: fmixing.ProcessedMosaicItem) -> fmixing.ProcessedMosaicItem:
-        """Deep copies a data item dictionary, ensuring numpy arrays are copied."""
-        new_item = {}
-        for k, v in item.items():
-            if isinstance(v, np.ndarray):
-                new_item[k] = v.copy()
-            else:
-                new_item[k] = v
-        return cast("fmixing.ProcessedMosaicItem", new_item)
