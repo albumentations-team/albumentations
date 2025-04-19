@@ -459,91 +459,88 @@ def preprocess_selected_mosaic_items(
     return result_data_items
 
 
-def process_and_shift_cells(
-    grid_coords_to_item_index: dict[tuple[int, int], int],
-    final_items_for_grid: list[ProcessedMosaicItem],
-    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+def process_cell_geometry(
+    item: ProcessedMosaicItem,
+    target_h: int,
+    target_w: int,
     fill: float | tuple[float, ...],
-    fill_mask: float | tuple[float, ...],  # grid_yx is not strictly needed if only using RandomCrop
-) -> dict[tuple[int, int, int, int], dict[str, Any]]:
-    """Process geometry and shift coordinates for each assigned cell.
+    fill_mask: float | tuple[float, ...],
+) -> ProcessedMosaicItem:
+    """Applies geometric transformations (cropping/padding) to a single mosaic item.
 
-    Applies RandomCrop to image/mask/bboxes/keypoints and then shifts
-    the coordinates of bboxes/keypoints based on the final cell placement.
+    Uses RandomCrop with pad_if_needed=True to fit the item's data (image, mask,
+    bboxes, keypoints) to the target cell dimensions.
+
+    Args:
+        item: (ProcessedMosaicItem): The preprocessed mosaic item dictionary.
+        target_h: (int): Target height of the cell.
+        target_w: (int): Target width of the cell.
+        fill: (float | tuple[float, ...]): Fill value for image padding.
+        fill_mask: (float | tuple[float, ...]): Fill value for mask padding.
+
+    Returns: (ProcessedMosaicItem): Dictionary containing the geometrically processed image,
+        mask, bboxes, and keypoints.
+
     """
-    processed_mosaic_pieces = {}
+    geom_pipeline = Compose(
+        [
+            RandomCrop(
+                height=target_h,
+                width=target_w,
+                pad_if_needed=True,
+                fill=fill,
+                fill_mask=fill_mask,
+                p=1.0,
+            ),
+        ],
+        p=1.0,
+    )
 
-    for grid_pos, item_idx in grid_coords_to_item_index.items():
-        item = final_items_for_grid[item_idx]
-        if item.get("image") is None:
-            warn(
-                f"Item at index {item_idx} assigned to {grid_pos} has no image. Skipping cell.",
-                UserWarning,
-                stacklevel=2,
-            )
-            continue
+    geom_input = {"image": item["image"]}
+    if item.get("mask") is not None:
+        geom_input["mask"] = item["mask"]
+    if item.get("bboxes") is not None:
+        geom_input["bboxes"] = item["bboxes"]
+    if item.get("keypoints") is not None:
+        geom_input["keypoints"] = item["keypoints"]
 
-        placement_coords = cell_placements[grid_pos]
-        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
-        target_h = tgt_y2 - tgt_y1
-        target_w = tgt_x2 - tgt_x1
+    return cast("ProcessedMosaicItem", geom_pipeline(**geom_input))
 
-        # A. Geometric Processing using RandomCrop
-        geom_pipeline = Compose(
-            [
-                RandomCrop(
-                    height=target_h,
-                    width=target_w,
-                    pad_if_needed=True,
-                    fill=fill,
-                    fill_mask=fill_mask,
-                    p=1.0,
-                ),
-            ],
-            p=1.0,
-        )
 
-        geom_input = {"image": item["image"]}
-        if "mask" in item and item["mask"] is not None:
-            geom_input["mask"] = item["mask"]
-        if "bboxes" in item and item["bboxes"] is not None:
-            geom_input["bboxes"] = item["bboxes"]
-        if "keypoints" in item and item["keypoints"] is not None:
-            geom_input["keypoints"] = item["keypoints"]
+def shift_cell_coordinates(
+    processed_item_geom: ProcessedMosaicItem,
+    placement_coords: tuple[int, int, int, int],
+) -> ProcessedMosaicItem:
+    """Shifts the coordinates of geometrically processed bboxes and keypoints.
 
-        try:
-            processed_item_geom = geom_pipeline(**geom_input)
-        except ValueError as e:  # Catch more specific error
-            warn(
-                f"Error during geometric processing (RandomCrop) for cell {grid_pos}: {e}. Skipping cell.",
-                UserWarning,
-                stacklevel=2,
-            )
-            continue
+    Args:
+        processed_item_geom: (ProcessedMosaicItem): The output from process_cell_geometry.
+        placement_coords: (tuple[int, int, int, int]): The (x1, y1, x2, y2) placement on the final canvas.
 
-        # B. Coordinate Shifting
-        shifted_bboxes = None
-        shifted_keypoints = None
+    Returns: (ProcessedMosaicItem): A dictionary with keys 'bboxes' and 'keypoints', containing the shifted
+        numpy arrays (potentially empty).
 
-        bboxes_geom = processed_item_geom.get("bboxes")
-        if bboxes_geom is not None and bboxes_geom.size > 0:
-            bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
-            shifted_bboxes = fgeometric.shift_bboxes(bboxes_geom, bbox_shift_vector)
+    """
+    tgt_x1, tgt_y1, _, _ = placement_coords
 
-        keypoints_geom = processed_item_geom.get("keypoints")
-        if keypoints_geom is not None and keypoints_geom.size > 0:
-            kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
-            shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom, kp_shift_vector)
+    bboxes_geom = processed_item_geom.get("bboxes")
+    if bboxes_geom is not None and np.asarray(bboxes_geom).size > 0:
+        bboxes_geom_arr = np.asarray(bboxes_geom)  # Ensure it's an array
+        bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
+        shifted_bboxes = fgeometric.shift_bboxes(bboxes_geom_arr, bbox_shift_vector)
 
-        # C. Store results keyed by placement coordinates
-        processed_mosaic_pieces[placement_coords] = {
-            "image": processed_item_geom["image"],
-            "mask": processed_item_geom.get("mask"),
-            "bboxes": shifted_bboxes,
-            "keypoints": shifted_keypoints,
-        }
+    keypoints_geom = processed_item_geom.get("keypoints")
+    if keypoints_geom is not None and np.asarray(keypoints_geom).size > 0:
+        keypoints_geom_arr = np.asarray(keypoints_geom)  # Ensure it's an array
+        kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+        shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom_arr, kp_shift_vector)
 
-    return processed_mosaic_pieces
+    return {
+        "bboxes": shifted_bboxes,
+        "keypoints": shifted_keypoints,
+        "image": processed_item_geom["image"],
+        "mask": processed_item_geom.get("mask"),
+    }
 
 
 def assemble_mosaic_from_processed_cells(
@@ -566,3 +563,100 @@ def assemble_mosaic_from_processed_cells(
             canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = segment
 
     return canvas
+
+
+def process_all_mosaic_geometries(
+    grid_coords_to_item_index: dict[tuple[int, int], int],
+    final_items_for_grid: list[ProcessedMosaicItem],
+    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+    fill: float | tuple[float, ...],
+    fill_mask: float | tuple[float, ...],
+) -> dict[tuple[int, int, int, int], ProcessedMosaicItem]:  # Key is placement coords, value is processed item
+    """Processes the geometry (cropping/padding) for all assigned mosaic cells.
+
+    Iterates through assigned cells, applies geometric transforms, and returns
+    a dictionary mapping final placement coordinates to the processed item data.
+    The bbox/keypoint coordinates in the returned dict are *not* shifted yet.
+
+    Args:
+        grid_coords_to_item_index (dict[tuple[int, int], int]): Mapping from grid position (r, c) to item index.
+        final_items_for_grid (list[ProcessedMosaicItem]): List of all preprocessed items available for the grid.
+        cell_placements (dict[tuple[int, int], tuple[int, int, int, int]]): Mapping from grid
+            position (r, c) to placement coords (x1, y1, x2, y2).
+        fill (float | tuple[float, ...]): Fill value for image padding.
+        fill_mask (float | tuple[float, ...]): Fill value for mask padding.
+
+    Returns:
+        dict[tuple[int, int, int, int], ProcessedMosaicItem]: Dictionary mapping final placement
+        coordinates (x1, y1, x2, y2) to the geometrically processed item data (image, mask, un-shifted bboxes/kps).
+
+    """
+    processed_cells_geom: dict[tuple[int, int, int, int], ProcessedMosaicItem] = {}
+
+    for grid_pos, item_idx in grid_coords_to_item_index.items():
+        item = final_items_for_grid[item_idx]
+        placement_coords = cell_placements[grid_pos]
+        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
+        target_h = tgt_y2 - tgt_y1
+        target_w = tgt_x2 - tgt_x1
+
+        # Apply geometric processing (crop/pad)
+        processed_cells_geom[placement_coords] = process_cell_geometry(
+            item=item,
+            target_h=target_h,
+            target_w=target_w,
+            fill=fill,
+            fill_mask=fill_mask,
+        )
+
+    return processed_cells_geom
+
+
+def shift_all_coordinates(
+    processed_cells_geom: dict[tuple[int, int, int, int], ProcessedMosaicItem],
+) -> dict[tuple[int, int, int, int], ProcessedMosaicItem]:  # Return type matches input, but values are updated
+    """Shifts coordinates for all geometrically processed cells.
+
+    Iterates through the processed cells (keyed by placement coords), applies coordinate
+    shifting to bboxes/keypoints, and returns a new dictionary with the same keys
+    but updated ProcessedMosaicItem values containing the *shifted* coordinates.
+
+    Args:
+        processed_cells_geom (dict[tuple[int, int, int, int], ProcessedMosaicItem]):
+             Output from process_all_mosaic_geometries (keyed by placement coords).
+
+    Returns:
+        dict[tuple[int, int, int, int], ProcessedMosaicItem]: Final dictionary mapping
+        placement coords (x1, y1, x2, y2) to processed cell data with shifted coordinates.
+
+    """
+    final_processed_cells: dict[tuple[int, int, int, int], ProcessedMosaicItem] = {}
+
+    for placement_coords, cell_data_geom in processed_cells_geom.items():
+        tgt_x1, tgt_y1 = placement_coords[:2]
+
+        # Extract geometrically processed bboxes/keypoints
+        bboxes_geom = cell_data_geom.get("bboxes")
+        keypoints_geom = cell_data_geom.get("keypoints")
+
+        final_cell_data = {
+            "image": cell_data_geom["image"],
+            "mask": cell_data_geom.get("mask"),
+        }
+
+        # Perform shifting if data exists
+        if bboxes_geom is not None and bboxes_geom.size > 0:
+            bboxes_geom_arr = np.asarray(bboxes_geom)
+            bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
+            shifted_bboxes = fgeometric.shift_bboxes(bboxes_geom_arr, bbox_shift_vector)
+            final_cell_data["bboxes"] = shifted_bboxes
+
+        if keypoints_geom is not None and keypoints_geom.size > 0:
+            keypoints_geom_arr = np.asarray(keypoints_geom)
+            kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+            shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom_arr, kp_shift_vector)
+            final_cell_data["keypoints"] = shifted_keypoints
+
+        final_processed_cells[placement_coords] = cast("ProcessedMosaicItem", final_cell_data)
+
+    return final_processed_cells

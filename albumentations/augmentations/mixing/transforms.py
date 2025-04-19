@@ -472,14 +472,18 @@ class Mosaic(DualTransform):
             py_random=self.py_random,
         )
 
-        # Step 10: Process Geometry & Shift Coordinates
-        processed_cells = fmixing.process_and_shift_cells(
+        # Step 10a: Process Geometry for all cells
+        processed_cells = fmixing.process_all_mosaic_geometries(
             grid_coords_to_item_index=grid_coords_to_item_index,
             final_items_for_grid=final_items_for_grid,
             cell_placements=cell_placements,
             fill=self.fill,
             fill_mask=self.fill_mask if self.fill_mask is not None else self.fill,
         )
+
+        if "bboxes" in data or "keypoints" in data:
+            # Step 10b: Shift Coordinates for all processed cells
+            processed_cells = fmixing.shift_all_coordinates(processed_cells)
 
         target_shape = list(data["image"].shape)
         target_shape[0] = self.target_size[0]
