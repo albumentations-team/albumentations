@@ -77,11 +77,11 @@ def calculate_mosaic_center_point(
     center_range: tuple[float, float],
     py_random: random.Random,
 ) -> tuple[int, int]:
-    """Calculates the center point for the mosaic crop.
+    """Calculates the center point for the mosaic crop using proportional sampling within the valid zone.
 
     Ensures the center point allows a crop of target_size to overlap
-    all grid cells, applying randomness based on center_range within
-    the valid zone.
+    all grid cells, applying randomness based on center_range proportionally
+    within the valid region where the center can lie.
 
     Args:
         grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
@@ -100,31 +100,30 @@ def calculate_mosaic_center_point(
     large_grid_h = rows * target_h
     large_grid_w = cols * target_w
 
-    # Define valid center range on the large grid to ensure full target crop
-    min_center_x = (target_w - 1) // 2
-    max_center_x_incl = large_grid_w - 1 - (target_w // 2)  # Inclusive max index
-    min_center_y = (target_h - 1) // 2
-    max_center_y_incl = large_grid_h - 1 - (target_h // 2)
+    # Define valid center range bounds (inclusive)
+    # The center must be far enough from edges so the crop window fits
+    min_cx = target_w // 2
+    max_cx = large_grid_w - (target_w + 1) // 2
+    min_cy = target_h // 2
+    max_cy = large_grid_h - (target_h + 1) // 2
 
-    if max_center_x_incl < min_center_x or max_center_y_incl < min_center_y:
-        center_x = large_grid_w // 2
-        center_y = large_grid_h // 2
-    else:
-        # Calculate the valid range (width/height of the safe zone)
-        safe_zone_w = max_center_x_incl - min_center_x + 1
-        safe_zone_h = max_center_y_incl - min_center_y + 1
+    # Calculate valid range dimensions (size of the safe zone)
+    valid_w = max_cx - min_cx + 1
+    valid_h = max_cy - min_cy + 1
 
-        # Sample offsets within the safe zone based on center_range
-        offset_x = int(safe_zone_w * py_random.uniform(*center_range))
-        offset_y = int(safe_zone_h * py_random.uniform(*center_range))
+    # Sample relative position within the valid range using center_range
+    rel_x = py_random.uniform(*center_range)
+    rel_y = py_random.uniform(*center_range)
 
-        # Calculate final center point
-        center_x = min_center_x + offset_x
-        center_y = min_center_y + offset_y
+    # Calculate center coordinates by scaling relative position within valid range
+    # Add the minimum bound to shift the range start
+    center_x = min_cx + int(valid_w * rel_x)
+    center_y = min_cy + int(valid_h * rel_y)
 
-        # Safety clip to ensure center is within the large grid bounds
-        center_x = max(0, min(center_x, large_grid_w - 1))
-        center_y = max(0, min(center_y, large_grid_h - 1))
+    # Ensure the result is strictly within the calculated bounds after int conversion
+    # (This clip is mostly a safety measure, shouldn't be needed with correct int conversion)
+    center_x = max(min_cx, min(center_x, max_cx))
+    center_y = max(min_cy, min(center_y, max_cy))
 
     return center_x, center_y
 

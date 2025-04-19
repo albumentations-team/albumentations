@@ -13,6 +13,7 @@ from albumentations.augmentations.mixing.functional import (
     filter_valid_metadata,
     process_cell_geometry,
     process_all_mosaic_geometries,
+    assemble_mosaic_from_processed_cells,
 )
 
 
@@ -123,6 +124,33 @@ def test_calculate_cell_placements(
     """Test the calculation of cell placements on the target canvas."""
     placements = calculate_cell_placements(grid_yx, target_size, center_xy)
     assert placements == expected_placements
+
+    # Check for exact coverage of the target area
+    target_h, target_w = target_size
+    coverage_mask = np.zeros((target_h, target_w), dtype=bool)
+    total_placement_area = 0
+
+    for (x1, y1, x2, y2) in placements.values():
+        # Ensure placement is within bounds (should be guaranteed by calculate_cell_placements)
+        x1_c, y1_c = max(0, x1), max(0, y1)
+        x2_c, y2_c = min(target_w, x2), min(target_h, y2)
+
+        # Check for overlaps by verifying the mask area is currently False before setting to True
+        # If the design *guarantees* no overlaps, this check can be simplified/removed.
+        # For now, let's assume non-overlap is expected and check it.
+        if np.any(coverage_mask[y1_c:y2_c, x1_c:x2_c]):
+             pytest.fail(f"Overlapping placement detected: {(x1, y1, x2, y2)} in target_size {target_size}")
+
+        coverage_mask[y1_c:y2_c, x1_c:x2_c] = True
+        total_placement_area += (x2_c - x1_c) * (y2_c - y1_c)
+
+    # Assert that the total area covered by placements equals the target area
+    expected_area = target_h * target_w
+    assert total_placement_area == expected_area, \
+        f"Total placement area {total_placement_area} does not match target area {expected_area}"
+
+    # Assert that the entire coverage mask is True (ensures no gaps)
+    assert np.all(coverage_mask), "Coverage mask has gaps (False values)"
 
 
 # Fixtures for metadata tests
@@ -501,3 +529,83 @@ def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
     np.testing.assert_array_equal(processed2["mask"][:50, :50], items_list_geom[1]["mask"])
     assert np.all(processed2["image"][50:, 50:] == 0)
     assert np.all(processed2["mask"][50:, 50:] == 0)
+
+
+# Tests for assemble_mosaic_from_processed_cells
+
+@pytest.fixture
+def processed_cell_data_1() -> dict[str, Any]:
+    return {
+        "image": np.ones((50, 50, 3), dtype=np.uint8) * 1,
+        "mask": np.ones((50, 50), dtype=np.uint8) * 11,
+    }
+
+@pytest.fixture
+def processed_cell_data_2() -> dict[str, Any]:
+    return {
+        "image": np.ones((60, 60, 3), dtype=np.uint8) * 2,
+        "mask": np.ones((60, 60), dtype=np.uint8) * 22,
+    }
+
+def test_assemble_single_cell(processed_cell_data_1) -> None:
+    """Test assembling a mosaic from a single processed cell (identity case)."""
+    processed_cells = {(0, 0, 50, 50): processed_cell_data_1}
+    target_shape = (50, 50, 3) # RGB image
+    dtype = np.uint8
+
+    # Test for image
+    canvas_img = assemble_mosaic_from_processed_cells(processed_cells, target_shape, dtype, "image")
+    assert canvas_img.shape == target_shape
+    assert canvas_img.dtype == dtype
+    np.testing.assert_array_equal(canvas_img, processed_cell_data_1["image"])
+
+    # Test for mask
+    canvas_mask = assemble_mosaic_from_processed_cells(
+        processed_cells, target_shape[:2], dtype, "mask"
+    )
+    assert canvas_mask.shape == target_shape[:2]
+    assert canvas_mask.dtype == dtype
+    np.testing.assert_array_equal(canvas_mask, processed_cell_data_1["mask"])
+    # Ensure canvas is exactly the cell data (no extra non-zero pixels)
+    assert np.count_nonzero(canvas_img) == np.count_nonzero(processed_cell_data_1["image"])
+    assert np.count_nonzero(canvas_mask) == np.count_nonzero(processed_cell_data_1["mask"])
+
+def test_assemble_multiple_non_overlapping(processed_cell_data_1, processed_cell_data_2) -> None:
+    """Test assembling from multiple non-overlapping cells."""
+    processed_cells = {
+        (0, 0, 50, 50): processed_cell_data_1,    # Top-left 50x50
+        (50, 60, 110, 120): processed_cell_data_2, # Bottom-right 60x60
+    }
+    target_shape = (120, 120, 3) # Target canvas size
+    dtype = np.uint8
+
+    # Test for image
+    canvas_img = assemble_mosaic_from_processed_cells(processed_cells, target_shape, dtype, "image")
+    assert canvas_img.shape == target_shape
+    # Check content of cell 1
+    np.testing.assert_array_equal(canvas_img[0:50, 0:50], processed_cell_data_1["image"])
+    # Check content of cell 2
+    np.testing.assert_array_equal(canvas_img[60:120, 50:110], processed_cell_data_2["image"])
+    # Check empty areas are zero
+    assert np.all(canvas_img[50:60, :] == 0)
+    assert np.all(canvas_img[:, 50:50] == 0)
+    assert np.all(canvas_img[0:60, 110:] == 0)
+    assert np.all(canvas_img[110:, 0:50] == 0)
+    # Ensure total non-zero area matches sum of cell areas
+    expected_img_pixels = np.count_nonzero(processed_cell_data_1["image"]) + np.count_nonzero(processed_cell_data_2["image"])
+    assert np.count_nonzero(canvas_img) == expected_img_pixels
+
+    # Test for mask
+    canvas_mask = assemble_mosaic_from_processed_cells(
+        processed_cells, target_shape[:2], dtype, "mask"
+    )
+    assert canvas_mask.shape == target_shape[:2]
+    np.testing.assert_array_equal(canvas_mask[0:50, 0:50], processed_cell_data_1["mask"])
+    np.testing.assert_array_equal(canvas_mask[60:120, 50:110], processed_cell_data_2["mask"])
+    assert np.all(canvas_mask[50:60, :] == 0)
+    assert np.all(canvas_mask[:, 50:50] == 0)
+    # Ensure total non-zero area matches sum of cell areas
+    expected_mask_pixels = np.count_nonzero(processed_cell_data_1["mask"]) + np.count_nonzero(processed_cell_data_2["mask"])
+    assert np.count_nonzero(canvas_mask) == expected_mask_pixels
+
+# Test for overlapping cells (deleted)
