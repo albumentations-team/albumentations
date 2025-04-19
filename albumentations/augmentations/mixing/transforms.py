@@ -459,10 +459,7 @@ class Mosaic(DualTransform):
         replicated_primary_items = [deepcopy(primary) for _ in range(num_replications)]
 
         # Step 8: Combine Final Items
-        final_items_for_grid = cast(
-            "list[fmixing.ProcessedMosaicItem]",
-            [*[primary], *preprocessed_selected_additional_items, *replicated_primary_items],
-        )
+        final_items_for_grid = [*[primary], *preprocessed_selected_additional_items, *replicated_primary_items]
 
         # Step 9: Assign Items to Grid Cells
         grid_coords_to_item_index = fmixing.assign_items_to_grid_cells(
