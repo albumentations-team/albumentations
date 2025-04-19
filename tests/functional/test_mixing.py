@@ -1,10 +1,13 @@
 import random
+import numpy as np
+from typing import Any
 
 import pytest
 
 from albumentations.augmentations.mixing.functional import (
     calculate_cell_placements,
     calculate_mosaic_center_point,
+    filter_valid_metadata,
 )
 
 
@@ -115,3 +118,70 @@ def test_calculate_cell_placements(
     """Test the calculation of cell placements on the target canvas."""
     placements = calculate_cell_placements(grid_yx, target_size, center_xy)
     assert placements == expected_placements
+
+
+# Fixtures for metadata tests
+@pytest.fixture
+def valid_item_1() -> dict[str, Any]:
+    return {"image": np.zeros((10, 10, 3)), "label": "cat"}
+
+
+@pytest.fixture
+def valid_item_2() -> dict[str, Any]:
+    return {"image": np.ones((5, 5))}
+
+
+@pytest.fixture
+def invalid_item_no_image() -> dict[str, Any]:
+    return {"label": "dog"}
+
+
+@pytest.fixture
+def invalid_item_not_dict() -> str:
+    return "not_a_dict"
+
+
+# Tests for filter_valid_metadata
+def test_filter_valid_metadata_all_valid(valid_item_1, valid_item_2) -> None:
+    """Test with a list of only valid metadata items."""
+    metadata_input = [valid_item_1, valid_item_2]
+    result = filter_valid_metadata(metadata_input, "test_key")
+    assert result == metadata_input
+
+
+def test_filter_valid_metadata_mixed(valid_item_1, invalid_item_no_image, valid_item_2, invalid_item_not_dict) -> None:
+    """Test with a mix of valid and invalid items, checking warnings."""
+    metadata_input = [valid_item_1, invalid_item_no_image, valid_item_2, invalid_item_not_dict]
+    expected_output = [valid_item_1, valid_item_2]
+
+    with pytest.warns(UserWarning) as record:
+        result = filter_valid_metadata(metadata_input, "test_key")
+
+    assert result == expected_output
+    assert len(record) == 2 # One warning for each invalid item
+    assert "Item at index 1 in 'test_key' is invalid" in str(record[0].message)
+    assert "Item at index 3 in 'test_key' is invalid" in str(record[1].message)
+
+def test_filter_valid_metadata_empty_list() -> None:
+    """Test with an empty list."""
+    result = filter_valid_metadata([], "test_key")
+    assert result == []
+
+def test_filter_valid_metadata_none_input() -> None:
+    """Test with None as input, checking warning."""
+    with pytest.warns(UserWarning, match="Metadata under key 'test_key' is not a Sequence"):
+        result = filter_valid_metadata(None, "test_key")
+    assert result == []
+
+def test_filter_valid_metadata_dict_input(valid_item_1) -> None:
+    """Test with a dictionary as input instead of a sequence, checking warning."""
+    with pytest.warns(UserWarning, match="Metadata under key 'test_key' is not a Sequence"):
+        result = filter_valid_metadata(valid_item_1, "test_key")
+    assert result == []
+
+def test_filter_valid_metadata_tuple_input(valid_item_1, valid_item_2) -> None:
+    """Test with a tuple of valid items."""
+    metadata_input = (valid_item_1, valid_item_2)
+    expected_output = [valid_item_1, valid_item_2]
+    result = filter_valid_metadata(metadata_input, "test_key")
+    assert result == expected_output
