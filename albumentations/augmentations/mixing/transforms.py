@@ -466,7 +466,7 @@ class Mosaic(DualTransform):
         final_items_for_grid = [*[primary], *preprocessed_selected_additional_items, *replicated_primary_items]
 
         # Step 9: Assign Items to Grid Cells
-        grid_coords_to_item_index = fmixing.assign_items_to_grid_cells(
+        placement_to_item_index = fmixing.assign_items_to_grid_cells(
             num_items=len(final_items_for_grid),
             cell_placements=cell_placements,
             py_random=self.py_random,
@@ -474,9 +474,8 @@ class Mosaic(DualTransform):
 
         # Step 10a: Process Geometry for all cells
         processed_cells = fmixing.process_all_mosaic_geometries(
-            grid_coords_to_item_index=grid_coords_to_item_index,
+            placement_to_item_index=placement_to_item_index,
             final_items_for_grid=final_items_for_grid,
-            cell_placements=cell_placements,
             fill=self.fill,
             fill_mask=self.fill_mask if self.fill_mask is not None else self.fill,
         )

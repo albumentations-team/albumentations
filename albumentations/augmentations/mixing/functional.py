@@ -132,8 +132,8 @@ def calculate_cell_placements(
     grid_yx: tuple[int, int],
     target_size: tuple[int, int],
     center_xy: tuple[int, int],
-) -> dict[tuple[int, int], tuple[int, int, int, int]]:
-    """Calculates the placement coordinates for grid cells that appear in the final crop.
+) -> list[tuple[int, int, int, int]]:
+    """Calculates placements by clipping arange-defined grid lines to the crop window.
 
     Args:
         grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
@@ -142,76 +142,54 @@ def calculate_cell_placements(
                                         relative to the top-left of the conceptual large grid.
 
     Returns:
-        dict[tuple[int, int], tuple[int, int, int, int]]:
-            A dictionary mapping grid cell coordinates `(r, c)` of visible cells to
-            their placement coordinates `(x_min, y_min, x_max, y_max)` on the
-            final output canvas.
+        list[tuple[int, int, int, int]]:
+            A list containing placement coordinates `(x_min, y_min, x_max, y_max)`
+            for each resulting cell part on the final output canvas.
 
     """
     rows, cols = grid_yx
     target_h, target_w = target_size
     center_x, center_y = center_xy
 
-    # Calculate the boundaries of the final crop window on the large conceptual grid
-    large_grid_h = rows * target_h
-    large_grid_w = cols * target_w
+    # 1. Generate grid line coordinates using arange for the large grid
+    y_coords_large = np.arange(rows + 1) * target_h
+    x_coords_large = np.arange(cols + 1) * target_w
 
-    # Ensure center point is within valid calculation range relative to target size
-    if not (0 <= center_x <= large_grid_w and 0 <= center_y <= large_grid_h):
-        warn(
-            f"Center point {center_xy} is outside the conceptual large grid dimensions "
-            f"({large_grid_h}x{large_grid_w}). Cannot calculate placements.",
-            UserWarning,
-            stacklevel=2,
-        )
-        return {}
-
-    # Determine the crop window coordinates relative to the large grid's top-left (0,0)
+    # 2. Calculate Crop Window boundaries
     crop_x_min = center_x - target_w // 2
     crop_y_min = center_y - target_h // 2
     crop_x_max = crop_x_min + target_w
     crop_y_max = crop_y_min + target_h
 
-    cell_placements = {}
+    # 3. Clip grid lines to the crop window
+    y_coords_clipped = np.clip(y_coords_large, crop_y_min, crop_y_max)
+    x_coords_clipped = np.clip(x_coords_large, crop_x_min, crop_x_max)
 
-    for row_idx in range(rows):
-        for col_idx in range(cols):
-            # Boundaries of the current cell on the large grid
-            cell_x_min = col_idx * target_w
-            cell_y_min = row_idx * target_h
-            cell_x_max = cell_x_min + target_w
-            cell_y_max = cell_y_min + target_h
+    # 4. Get unique sorted coordinates
+    y_coords_unique = np.unique(y_coords_clipped) - crop_y_min
+    x_coords_unique = np.unique(x_coords_clipped) - crop_x_min
 
-            # Find the intersection of the final crop window and the current cell
-            inter_x_min = max(crop_x_min, cell_x_min)
-            inter_y_min = max(crop_y_min, cell_y_min)
-            inter_x_max = min(crop_x_max, cell_x_max)
-            inter_y_max = min(crop_y_max, cell_y_max)
+    # 5. Form all cell coordinates using numpy operations
+    x_mins = x_coords_unique[:-1]
+    x_maxs = x_coords_unique[1:]
+    y_mins = y_coords_unique[:-1]
+    y_maxs = y_coords_unique[1:]
 
-            # If there is a valid intersection (positive area)
-            if inter_x_max > inter_x_min and inter_y_max > inter_y_min:
-                # Calculate placement coordinates relative to the final output canvas's top-left (0,0)
-                tgt_x1 = inter_x_min - crop_x_min
-                tgt_y1 = inter_y_min - crop_y_min
-                tgt_x2 = inter_x_max - crop_x_min
-                tgt_y2 = inter_y_max - crop_y_min
+    num_x_intervals = len(x_mins)
+    num_y_intervals = len(y_mins)
 
-                # Clip placement coords to target canvas boundaries
-                tgt_x1_clipped = max(0, tgt_x1)
-                tgt_y1_clipped = max(0, tgt_y1)
-                tgt_x2_clipped = min(target_w, tgt_x2)
-                tgt_y2_clipped = min(target_h, tgt_y2)
+    # Create all combinations of intervals (Cartesian product)
+    all_x_mins = np.tile(x_mins, num_y_intervals)
+    all_y_mins = np.repeat(y_mins, num_x_intervals)
+    all_x_maxs = np.tile(x_maxs, num_y_intervals)
+    all_y_maxs = np.repeat(y_maxs, num_x_intervals)
 
-                # Only add if the *clipped* placement still has positive area
-                if tgt_x2_clipped > tgt_x1_clipped and tgt_y2_clipped > tgt_y1_clipped:
-                    cell_placements[(row_idx, col_idx)] = (
-                        tgt_x1_clipped,
-                        tgt_y1_clipped,
-                        tgt_x2_clipped,
-                        tgt_y2_clipped,
-                    )
+    # Stack into (N, 4) array of [x_min, y_min, x_max, y_max] mapped to target origin
+    np_result = np.stack([all_x_mins, all_y_mins, all_x_maxs, all_y_maxs], axis=-1)
 
-    return cell_placements
+    # Convert final numpy array to list of tuples of ints
+    # Note: Assumes np_result contains valid, non-zero area coordinates within target bounds
+    return cast("list[tuple[int, int, int, int]]", [tuple(map(int, row)) for row in np_result])
 
 
 def _gather_mosaic_item_data(
@@ -303,60 +281,50 @@ def filter_valid_metadata(
 
 def assign_items_to_grid_cells(
     num_items: int,
-    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+    cell_placements: list[tuple[int, int, int, int]],
     py_random: random.Random,
-) -> dict[tuple[int, int], int]:
-    """Assigns item indices to grid cells based on placement data.
+) -> dict[tuple[int, int, int, int], int]:
+    """Assigns item indices to placement coordinate tuples.
 
-    Assigns the primary item (index 0) to the cell with the largest area,
+    Assigns the primary item (index 0) to the placement with the largest area,
     and assigns the remaining items (indices 1 to num_items-1) randomly to the
-    remaining cells specified in cell_placements.
+    remaining placements.
 
     Args:
         num_items (int): The total number of items to assign (primary + additional + replicas).
-        cell_placements (dict): Maps grid coords (r, c) to placement
+        cell_placements (list[tuple[int, int, int, int]]): List of placement
                                 coords (x1, y1, x2, y2) for cells to be filled.
         py_random (random.Random): Random state instance.
 
     Returns:
-        dict[tuple[int, int], int]: Dict mapping grid coords (r, c) to assigned item index.
+        dict[tuple[int, int, int, int], int]: Dict mapping placement coords (x1, y1, x2, y2)
+                                            to assigned item index.
 
     """
-    grid_positions = list(cell_placements.keys())
-    if not grid_positions:
+    if not cell_placements:
         return {}
 
-    # Find the grid cell with the largest area for primary placement
-    primary_placement_pos = max(
-        grid_positions,
-        key=lambda pos: (cell_placements[pos][2] - cell_placements[pos][0])
-        * (cell_placements[pos][3] - cell_placements[pos][1]),
+    # Find the placement tuple with the largest area for primary assignment
+    primary_placement = max(
+        cell_placements,
+        key=lambda coords: (coords[2] - coords[0]) * (coords[3] - coords[1]),
     )
 
-    grid_coords_to_item_index: dict[tuple[int, int], int] = {}
-    grid_coords_to_item_index[primary_placement_pos] = 0  # Assign primary item (index 0)
+    placement_to_item_index: dict[tuple[int, int, int, int], int] = {}
+    placement_to_item_index[primary_placement] = 0  # Assign primary item (index 0)
 
-    remaining_grid_positions = [pos for pos in grid_positions if pos != primary_placement_pos]
+    # Use list comprehension for potentially better performance
+    remaining_placements = [coords for coords in cell_placements if coords != primary_placement]
+
     # Indices for additional/replicated items start from 1
     remaining_item_indices = list(range(1, num_items))
     py_random.shuffle(remaining_item_indices)
 
-    num_to_assign = min(len(remaining_grid_positions), len(remaining_item_indices))
-    if len(remaining_grid_positions) != len(remaining_item_indices):
-        msg = (
-            f"Mismatch: {len(remaining_grid_positions)} remaining cells, but {len(remaining_item_indices)} "
-            f"remaining items. Assigning {num_to_assign}."
-        )
-        warn(
-            msg,
-            UserWarning,
-            stacklevel=3,
-        )
-
+    num_to_assign = min(len(remaining_placements), len(remaining_item_indices))
     for i in range(num_to_assign):
-        grid_coords_to_item_index[remaining_grid_positions[i]] = remaining_item_indices[i]
+        placement_to_item_index[remaining_placements[i]] = remaining_item_indices[i]
 
-    return grid_coords_to_item_index
+    return placement_to_item_index
 
 
 def preprocess_selected_mosaic_items(
@@ -599,23 +567,21 @@ def assemble_mosaic_from_processed_cells(
 
 
 def process_all_mosaic_geometries(
-    grid_coords_to_item_index: dict[tuple[int, int], int],
+    placement_to_item_index: dict[tuple[int, int, int, int], int],
     final_items_for_grid: list[ProcessedMosaicItem],
-    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
     fill: float | tuple[float, ...],
     fill_mask: float | tuple[float, ...],
-) -> dict[tuple[int, int, int, int], ProcessedMosaicItem]:  # Key is placement coords, value is processed item
+) -> dict[tuple[int, int, int, int], ProcessedMosaicItem]:
     """Processes the geometry (cropping/padding) for all assigned mosaic cells.
 
-    Iterates through assigned cells, applies geometric transforms, and returns
-    a dictionary mapping final placement coordinates to the processed item data.
+    Iterates through assigned placements, applies geometric transforms via process_cell_geometry,
+    and returns a dictionary mapping final placement coordinates to the processed item data.
     The bbox/keypoint coordinates in the returned dict are *not* shifted yet.
 
     Args:
-        grid_coords_to_item_index (dict[tuple[int, int], int]): Mapping from grid position (r, c) to item index.
-        final_items_for_grid (list[ProcessedMosaicItem]): List of all preprocessed items available for the grid.
-        cell_placements (dict[tuple[int, int], tuple[int, int, int, int]]): Mapping from grid
-            position (r, c) to placement coords (x1, y1, x2, y2).
+        placement_to_item_index (dict[tuple[int, int, int, int], int]): Mapping from placement
+            coordinates (x1, y1, x2, y2) to assigned item index.
+        final_items_for_grid (list[ProcessedMosaicItem]): List of all preprocessed items available.
         fill (float | tuple[float, ...]): Fill value for image padding.
         fill_mask (float | tuple[float, ...]): Fill value for mask padding.
 
@@ -626,9 +592,9 @@ def process_all_mosaic_geometries(
     """
     processed_cells_geom: dict[tuple[int, int, int, int], ProcessedMosaicItem] = {}
 
-    for grid_pos, item_idx in grid_coords_to_item_index.items():
+    # Iterate directly over placements and their assigned item indices
+    for placement_coords, item_idx in placement_to_item_index.items():
         item = final_items_for_grid[item_idx]
-        placement_coords = cell_placements[grid_pos]
         tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
         target_h = tgt_y2 - tgt_y1
         target_w = tgt_x2 - tgt_x1
