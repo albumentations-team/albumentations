@@ -205,20 +205,19 @@ def _gather_mosaic_item_data(
         int: The number of items (bboxes or keypoints) found for this item.
 
     """
-    item_data = item.get(data_key)  # Assume np.ndarray or None
-    count = 0
-    if item_data is not None and item_data.size > 0:
+    item_data = item.get(data_key)
+    if item_data is not None and item_data.size != 0:
         count = len(item_data)
         all_raw_list.append(item_data)
-        # Gather corresponding labels
+
         for field in label_fields:
             labels = item.get(field)
             if labels is not None and len(labels) == count:
                 labels_gathered_dict[field].extend(labels)
             else:
-                # Pad with None if mismatch or missing - processor must handle Nones if required
                 labels_gathered_dict[field].extend([None] * count)
-    return count
+        return count
+    return 0
 
 
 def _preprocess_combined_data(
@@ -230,9 +229,10 @@ def _preprocess_combined_data(
     """Helper to preprocess combined lists of bboxes or keypoints using a processor."""
     combined_raw_np = np.vstack(all_raw_items)
 
-    # Prepare input for the processor
     input_combined: dict[str, Any] = {data_key: combined_raw_np}
-    total_items = len(combined_raw_np)
+    total_items = combined_raw_np.shape[0]  # Get total item count from shape
+
+    # Filter and prepare label fields
     for field, labels in labels_gathered.items():
         if len(labels) == total_items:
             input_combined[field] = labels
@@ -245,7 +245,7 @@ def _preprocess_combined_data(
             )
 
     processor.preprocess(input_combined)
-    return np.array(input_combined[data_key])
+    return input_combined[data_key]
 
 
 def filter_valid_metadata(
@@ -341,43 +341,27 @@ def preprocess_selected_mosaic_items(
     if not selected_raw_items:
         return []
 
-    # Gather combined raw data and counts from selected items
-    all_raw_bboxes: list[np.ndarray] = []
-    all_raw_keypoints: list[np.ndarray] = []
-
-    bbox_labels_gathered: dict[str, list[Any]] = defaultdict(list)
-    kp_labels_gathered: dict[str, list[Any]] = defaultdict(list)
-    bbox_counts_per_item: list[int] = []
-    keypoint_counts_per_item: list[int] = []
+    all_raw_bboxes, all_raw_keypoints = [], []
+    bbox_labels_gathered, kp_labels_gathered = defaultdict(list), defaultdict(list)
+    bbox_counts_per_item, keypoint_counts_per_item = [], []
 
     bbox_label_fields = cast(
         "list[str]",
-        bbox_processor.params.label_fields if bbox_processor and bbox_processor.params.label_fields else [],
+        bbox_processor.params.label_fields if bbox_processor.params.label_fields else [],
     )
     kp_label_fields = cast(
         "list[str]",
-        keypoint_processor.params.label_fields if keypoint_processor and keypoint_processor.params.label_fields else [],
+        keypoint_processor.params.label_fields if keypoint_processor.params.label_fields else [],
     )
 
     for item in selected_raw_items:
-        num_bboxes = _gather_mosaic_item_data(
-            item,
-            "bboxes",
-            bbox_label_fields,
-            all_raw_bboxes,
-            bbox_labels_gathered,
+        bbox_counts_per_item.append(
+            _gather_mosaic_item_data(item, "bboxes", bbox_label_fields, all_raw_bboxes, bbox_labels_gathered),
         )
-        bbox_counts_per_item.append(num_bboxes)
-        num_keypoints = _gather_mosaic_item_data(
-            item,
-            "keypoints",
-            kp_label_fields,
-            all_raw_keypoints,
-            kp_labels_gathered,
+        keypoint_counts_per_item.append(
+            _gather_mosaic_item_data(item, "keypoints", kp_label_fields, all_raw_keypoints, kp_labels_gathered),
         )
-        keypoint_counts_per_item.append(num_keypoints)
 
-    # Preprocess combined data using the helper
     combined_preprocessed_bboxes = _preprocess_combined_data(
         all_raw_bboxes,
         bbox_labels_gathered,
@@ -391,18 +375,17 @@ def preprocess_selected_mosaic_items(
         "keypoints",
     )
 
-    # Split back into per-item dictionaries
     result_data_items: list[ProcessedMosaicItem] = []
-    bbox_start_idx = 0
-    kp_start_idx = 0
+    bbox_start_idx, kp_start_idx = 0, 0
 
     for i, item in enumerate(selected_raw_items):
         processed_item_dict: ProcessedMosaicItem = {
-            "image": item["image"],  # Keep original image
-            "mask": item.get("mask"),  # Keep original mask
+            "image": item["image"],
+            "mask": item.get("mask"),
             "bboxes": None,
             "keypoints": None,
         }
+
         num_bboxes = bbox_counts_per_item[i]
         if num_bboxes > 0:
             bbox_end_idx = bbox_start_idx + num_bboxes
@@ -410,9 +393,9 @@ def preprocess_selected_mosaic_items(
             bbox_start_idx = bbox_end_idx
         else:
             processed_item_dict["bboxes"] = np.empty(
-                (0, combined_preprocessed_bboxes.shape[1]),
-                dtype=combined_preprocessed_bboxes.dtype,
+                (0, combined_preprocessed_bboxes.shape[1]), dtype=combined_preprocessed_bboxes.dtype
             )
+
         num_keypoints = keypoint_counts_per_item[i]
         if num_keypoints > 0:
             kp_end_idx = kp_start_idx + num_keypoints
@@ -420,9 +403,9 @@ def preprocess_selected_mosaic_items(
             kp_start_idx = kp_end_idx
         else:
             processed_item_dict["keypoints"] = np.empty(
-                (0, combined_preprocessed_keypoints.shape[1]),
-                dtype=combined_preprocessed_keypoints.dtype,
+                (0, combined_preprocessed_keypoints.shape[1]), dtype=combined_preprocessed_keypoints.dtype
             )
+
         result_data_items.append(processed_item_dict)
 
     return result_data_items
