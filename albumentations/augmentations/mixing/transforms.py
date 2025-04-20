@@ -490,11 +490,21 @@ class Mosaic(DualTransform):
             # Note: shift_all_coordinates expects dict keyed by placement_tuple
             processed_cells = fmixing.shift_all_coordinates(processed_cells)
 
-        target_shape = list(data["image"].shape)
+        result = {
+            "processed_cells": processed_cells,
+            "target_shape": self._get_target_shape(data["image"].shape),
+        }
+
+        if "mask" in data:
+            result["target_mask_shape"] = self._get_target_shape(data["mask"].shape)
+
+        return result
+
+    def _get_target_shape(self, np_shape: tuple[int, ...]) -> list[int]:
+        target_shape = list(np_shape)
         target_shape[0] = self.target_size[0]
         target_shape[1] = self.target_size[1]
-
-        return {"processed_cells": processed_cells, "target_shape": target_shape}
+        return target_shape
 
     def apply(
         self,
@@ -526,7 +536,7 @@ class Mosaic(DualTransform):
         self,
         mask: np.ndarray,
         processed_cells: dict[tuple[int, int, int, int], dict[str, Any]],
-        target_shape: tuple[int, int],
+        target_mask_shape: tuple[int, int],
         **params: Any,
     ) -> np.ndarray:
         """Apply mosaic transformation to the input mask.
@@ -534,7 +544,7 @@ class Mosaic(DualTransform):
         Args:
             mask (np.ndarray): Input mask.
             processed_cells (dict): Dictionary of processed cell data containing cropped/padded mask segments.
-            target_shape (tuple[int, int]): Shape of the target image.
+            target_mask_shape (tuple[int, int]): Shape of the target mask.
             **params (Any): Additional parameters (unused).
 
         Returns:
@@ -543,7 +553,7 @@ class Mosaic(DualTransform):
         """
         return fmixing.assemble_mosaic_from_processed_cells(
             processed_cells=processed_cells,
-            target_shape=target_shape,
+            target_shape=target_mask_shape,
             dtype=mask.dtype,
             data_key="mask",
         )
