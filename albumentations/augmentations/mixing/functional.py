@@ -228,7 +228,8 @@ def _preprocess_combined_data(
     data_key: Literal["bboxes", "keypoints"],
 ) -> np.ndarray:
     """Helper to preprocess combined lists of bboxes or keypoints using a processor."""
-    combined_raw_np = np.vstack(all_raw_items)
+    # Efficiently use concatenation for np.vstack
+    combined_raw_np = np.concatenate(all_raw_items, axis=0)  # Changed np.vstack to np.concatenate
 
     # Prepare input for the processor
     input_combined: dict[str, Any] = {data_key: combined_raw_np}
