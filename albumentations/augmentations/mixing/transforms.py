@@ -480,7 +480,6 @@ class Mosaic(DualTransform):
         processed_cells = fmixing.process_all_mosaic_geometries(
             placement_to_item_index=placement_to_item_index,
             final_items_for_grid=final_items_for_grid,
-            # cell_placements argument removed
             fill=self.fill,
             fill_mask=self.fill_mask if self.fill_mask is not None else self.fill,
         )

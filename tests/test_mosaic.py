@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 from albumentations.augmentations.mixing.transforms import Mosaic
+from albumentations.core.composition import Compose
+from albumentations.core.bbox_utils import BboxParams
 
 
 @pytest.mark.parametrize(
@@ -119,3 +121,58 @@ def test_mosaic_identity_monochromatic(
         assert np.all((transformed_mask == fill_mask) | (transformed_mask == 0))
         orig_h, orig_w = mask_shape[:2]
         assert np.all(transformed_mask[:orig_h, :orig_w] == fill_mask)
+
+
+def test_mosaic_identity_with_targets() -> None:
+    """Check Mosaic returns original image, mask, and bboxes when grid is (1, 1) and no metadata."""
+    img_size = (8, 6)
+    img = np.random.randint(0, 256, size=(*img_size, 3), dtype=np.uint8)
+    mask = np.random.randint(0, 2, size=img_size, dtype=np.uint8)
+    # Bbox in albumentations format [x_min, y_min, x_max, y_max, class_id]
+    bboxes = np.array([
+        [0.2, 0.3, 0.8, 0.7, 1],
+        [0.1, 0.1, 0.5, 0.5, 2],
+        [0.6, 0.2, 0.9, 0.4, 0]
+    ], dtype=np.float32)
+
+    transform = Mosaic(target_size=img_size, grid_yx=(1, 1), p=1.0)
+
+    # Use Compose to handle bbox processing
+    pipeline = Compose([
+        transform
+    ], bbox_params=BboxParams(format='albumentations', label_fields=['class_labels']))
+
+    data = {
+        "image": img.copy(),
+        "mask": mask.copy(),
+        "bboxes": bboxes.copy()[:, :4], # Pass only coords
+        "class_labels": bboxes[:, 4].tolist(), # Pass labels separately
+        "mosaic_metadata": []
+    }
+
+    result = pipeline(**data)
+
+    # Check image
+    assert result["image"].shape == img.shape
+    np.testing.assert_array_equal(result["image"], img)
+
+    # Check mask
+    assert result["mask"].shape == mask.shape
+    np.testing.assert_array_equal(result["mask"], mask)
+
+    # Check bboxes (coords + label)
+    expected_bboxes_coords = np.array([
+        [0.2, 0.3, 0.8, 0.7],
+        [0.1, 0.1, 0.5, 0.5],
+        [0.6, 0.2, 0.9, 0.4]
+    ], dtype=np.float32)
+    expected_labels = [1.0, 2.0, 0.0]
+
+    assert "bboxes" in result
+    assert len(result["bboxes"]) == 3
+    # Check coordinates only
+    np.testing.assert_allclose(result["bboxes"], expected_bboxes_coords, atol=1e-6)
+
+    assert "class_labels" in result # Check label field is returned
+    # Check labels separately
+    assert result["class_labels"] == expected_labels
