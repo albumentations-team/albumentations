@@ -19,7 +19,7 @@ def test_mosaic_identity_single_image(img_shape: tuple[int, ...], target_size: t
     else:
         img = np.random.randint(0, 256, size=img_shape, dtype=np.uint8)
 
-    transform = Mosaic(target_size=target_size, p=1.0)
+    transform = Mosaic(target_size=target_size, grid_yx=(1, 1), p=1.0)
 
     # Input data structure expects a list for metadata
     data = {"image": img, "mosaic_metadata": []}
