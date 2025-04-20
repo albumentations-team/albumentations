@@ -455,15 +455,13 @@ def process_cell_geometry(
         mask, bboxes, and keypoints, fitting the target dimensions.
 
     """
-    # Define the pipeline: PadIfNeeded first, then Crop
-    compose_kwargs: dict[str, Any] = {"p": 1.0}
-    if item.get("bboxes") is not None:
-        compose_kwargs["bbox_params"] = {"format": "albumentations"}
-    if item.get("keypoints") is not None:
-        compose_kwargs["keypoint_params"] = {"format": "albumentations"}
+    # Create a placeholder for pipeline stages
+    pipeline_steps = []
 
-    geom_pipeline = Compose(
-        [
+    # Check if padding is needed
+    height, width = item["image"].shape[:2]
+    if height < target_h or width < target_w:
+        pipeline_steps.append(
             PadIfNeeded(
                 min_height=target_h,
                 min_width=target_w,
@@ -473,33 +471,39 @@ def process_cell_geometry(
                 fill_mask=fill_mask,
                 p=1.0,
             ),
-            Crop(
-                x_min=0,
-                y_min=0,
-                x_max=target_w,
-                y_max=target_h,
-                p=1.0,
-            ),
-        ],
-        **compose_kwargs,
+        )
+
+    # Add cropping step
+    pipeline_steps.append(
+        Crop(
+            x_min=0,
+            y_min=0,
+            x_max=target_w,
+            y_max=target_h,
+            p=1.0,
+        ),
     )
 
-    # Prepare input data for the pipeline
-    geom_input = {"image": item["image"]}
-    if item.get("mask") is not None:
-        geom_input["mask"] = item["mask"]
+    # Define Compose with prepared pipeline steps
+    compose_kwargs: dict[str, Any] = {"p": 1.0}
     if item.get("bboxes") is not None:
-        # Compose expects bboxes in a specific format, ensure it's compatible
-        # Assuming item['bboxes'] is already preprocessed correctly
-        geom_input["bboxes"] = item["bboxes"]
+        compose_kwargs["bbox_params"] = {"format": "albumentations"}
     if item.get("keypoints") is not None:
-        geom_input["keypoints"] = item["keypoints"]
+        compose_kwargs["keypoint_params"] = {"format": "albumentations"}
+    geom_pipeline = Compose(pipeline_steps, **compose_kwargs)
+
+    # Prepare input data for the pipeline
+    geom_input = {
+        "image": item["image"],
+        "mask": item.get("mask"),
+        "bboxes": item.get("bboxes"),
+        "keypoints": item.get("keypoints"),
+    }
 
     # Apply the pipeline
     processed_item = geom_pipeline(**geom_input)
 
     # Ensure output dict has the same structure as ProcessedMosaicItem
-    # Compose might not return None for missing keys, handle explicitly
     return {
         "image": processed_item["image"],
         "mask": processed_item.get("mask"),
