@@ -548,5 +548,3 @@ def test_assemble_multiple_non_overlapping(processed_cell_data_1, processed_cell
     # Ensure total non-zero area matches sum of cell areas
     expected_mask_pixels = np.count_nonzero(processed_cell_data_1["mask"]) + np.count_nonzero(processed_cell_data_2["mask"])
     assert np.count_nonzero(canvas_mask) == expected_mask_pixels
-
-# Test for overlapping cells (deleted)
