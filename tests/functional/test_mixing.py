@@ -195,112 +195,82 @@ def test_filter_valid_metadata_tuple_input(valid_item_1, valid_item_2) -> None:
 
 
 @pytest.mark.parametrize(
-    "num_items, cell_placements, seed, expected_assignment, expected_warning_msg",
+    "num_items, cell_placements, seed, expected_assignment",
     [
         # Case 1: Enough items for all cells
         (
             4,
-            {
-                (0, 0): (0, 0, 50, 50),  # Area 2500
-                (0, 1): (50, 0, 100, 60), # Area 3000 (Largest)
-                (1, 0): (0, 50, 40, 100), # Area 2000
-                (1, 1): (40, 60, 100, 100),# Area 2400
-            },
+            [(0, 0, 50, 50), (50, 0, 100, 60), (0, 50, 40, 100), (40, 60, 100, 100)],
             42,
             {
-                (0, 1): 0,  # Primary assigned to largest
-                (0, 0): 2,  # Corrected: Random assignment (seed 42: shuffle [1, 2, 3] -> [2, 1, 3])
-                (1, 0): 1,
-                (1, 1): 3,
+                (50, 0, 100, 60): 0,  # Primary assigned to largest area placement
+                (0, 0, 50, 50): 2,    # Random assignment (seed 42: shuffle [1, 2, 3] -> [2, 1, 3])
+                (0, 50, 40, 100): 1,
+                (40, 60, 100, 100): 3,
             },
-            None, # No warning expected
         ),
-        # Case 2: More cells than items (warning expected)
+        # Case 2: More cells than items
         (
             3,
-            {
-                (0, 0): (0, 0, 50, 50),  # Area 2500
-                (0, 1): (50, 0, 100, 60), # Area 3000 (Largest)
-                (1, 0): (0, 50, 40, 100), # Area 2000
-                (1, 1): (40, 60, 100, 100),# Area 2400
-            },
+            [(0, 0, 50, 50), (50, 0, 100, 60), (0, 50, 40, 100), (40, 60, 100, 100)],
             42,
             {
-                (0, 1): 0,  # Primary assigned to largest
-                (0, 0): 2,  # Random assignment (seed 42: shuffle [1, 2] -> [2, 1])
-                (1, 0): 1,
-                # (1, 1) is left unassigned
+                (50, 0, 100, 60): 0,  # Primary assigned to largest
+                (0, 0, 50, 50): 2,    # Random assignment (seed 42: shuffle [1, 2] -> [2, 1])
+                (0, 50, 40, 100): 1,
+                # Placement (40, 60, 100, 100) is left unassigned
             },
-            "Mismatch: 3 remaining cells, but 2 remaining items. Assigning 2.",
         ),
-        # Case 3: More items than cells (warning expected)
+        # Case 3: More items than cells
         (
             5,
-            {
-                (0, 0): (0, 0, 100, 100), # Largest
-                (0, 1): (0, 0, 50, 50),
-            },
+            [(0, 0, 100, 100), (0, 0, 50, 50)], # List of placements
             123,
             {
-                (0, 0): 0, # Primary assigned to largest
-                (0, 1): 3, # Random assignment (seed 123: shuffle [1, 2, 3, 4] -> [3, 2, 1, 4])
+                (0, 0, 100, 100): 0, # Primary assigned to largest
+                (0, 0, 50, 50): 3,    # Random assignment (seed 123: shuffle [1, 2, 3, 4] -> [3, 2, 1, 4])
                 # Items 1, 2, 4 are unused
             },
-             "Mismatch: 1 remaining cells, but 4 remaining items. Assigning 1.",
         ),
         # Case 4: Only one cell visible
         (
             3,
-            {(1, 1): (0, 0, 100, 100)}, # Only one cell
+            [(0, 0, 100, 100)], # List with one placement
             42,
-            {(1, 1): 0}, # Primary assigned to the only cell
-             None, # No warning expected (0 remaining cells, 2 remaining items)
+            {(0, 0, 100, 100): 0}, # Primary assigned to the only placement
         ),
         # Case 5: Empty cell placements
         (
             2,
-            {},
+            [], # Empty list
             42,
             {},
-             None,
         ),
-        # Case 6: Equal cell sizes (primary goes to first encountered in max)
+        # Case 6: Equal cell sizes
         (
             4,
-            {
-                (0, 0): (0, 0, 50, 50),
-                (0, 1): (50, 0, 100, 50),
-                (1, 0): (0, 50, 50, 100),
-                (1, 1): (50, 50, 100, 100),
-            },
+            [(0, 0, 50, 50), (50, 0, 100, 50), (0, 50, 50, 100), (50, 50, 100, 100)],
             99,
             {
-                (0, 0): 0,  # Primary assigned to first largest encountered ((0,0) here)
-                (0, 1): 1,  # Corrected: Random assignment (seed 99: shuffle [1, 2, 3] -> [1, 3, 2])
-                (1, 0): 3,
-                (1, 1): 2,
+                (0, 0, 50, 50): 0,      # Primary assigned to first largest encountered ((0,0) here)
+                (50, 0, 100, 50): 1,    # Random assignment (seed 99: shuffle [1, 2, 3] -> [1, 3, 2])
+                (0, 50, 50, 100): 3,
+                (50, 50, 100, 100): 2,
             },
-            None,
         ),
     ],
 )
 def test_assign_items_to_grid_cells(
     num_items: int,
-    cell_placements: dict[tuple[int, int], tuple[int, int, int, int]],
+    cell_placements: list[tuple[int, int, int, int]],
     seed: int,
-    expected_assignment: dict[tuple[int, int], int],
-    expected_warning_msg: str | None,
+    expected_assignment: dict[tuple[int, int, int, int], int],
 ) -> None:
-    """Test assignment logic including primary placement, randomization, and mismatches."""
+    """Test assignment logic including primary placement and randomization."""
     py_random = random.Random(seed)
 
-    if expected_warning_msg:
-        with pytest.warns(UserWarning, match=expected_warning_msg):
-            assignment = assign_items_to_grid_cells(num_items, cell_placements, py_random)
-    else:
-        # If no warning is expected, just run the function.
-        # An unexpected warning will cause a failure or be reported by pytest.
-        assignment = assign_items_to_grid_cells(num_items, cell_placements, py_random)
+    # Directly call the function without checking for warnings
+    assignment = assign_items_to_grid_cells(num_items, cell_placements, py_random)
 
     assert assignment == expected_assignment
 
@@ -392,14 +362,14 @@ def items_list_geom(base_item_geom, small_item_geom) -> list[dict[str, Any]]:
 
 def test_process_all_geometry_identity(base_item_geom) -> None:
     """Test process_all for a single cell identity case."""
-    grid_coords_to_item_index = {(0, 0): 0}
-    cell_placements = {(0, 0): (0, 0, 100, 100)}  # Placement matches item size
+    # Setup: Map the placement directly to the item index
+    placement_to_item_index = {(0, 0, 100, 100): 0}
     final_items = [base_item_geom]
 
     processed = process_all_mosaic_geometries(
-        grid_coords_to_item_index=grid_coords_to_item_index,
+        placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        cell_placements=cell_placements,
+        # Removed cell_placements argument
         fill=0,
         fill_mask=0,
     )
@@ -417,14 +387,14 @@ def test_process_all_geometry_identity(base_item_geom) -> None:
 
 def test_process_all_geometry_crop(base_item_geom) -> None:
     """Test process_all for a single cell requiring cropping."""
-    grid_coords_to_item_index = {(0, 0): 0}
-    cell_placements = {(0, 0): (10, 20, 60, 80)}  # Placement 50x60
+    # Setup: Map the placement directly to the item index
+    placement_to_item_index = {(10, 20, 60, 80): 0} # Placement is 50x60
     final_items = [base_item_geom] # Item is 100x100
 
     processed = process_all_mosaic_geometries(
-        grid_coords_to_item_index=grid_coords_to_item_index,
+        placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        cell_placements=cell_placements,
+        # Removed cell_placements argument
         fill=0,
         fill_mask=0,
     )
@@ -438,16 +408,16 @@ def test_process_all_geometry_crop(base_item_geom) -> None:
 
 def test_process_all_geometry_pad(small_item_geom) -> None:
     """Test process_all for a single cell requiring padding."""
-    grid_coords_to_item_index = {(0, 0): 0}
-    cell_placements = {(0, 0): (0, 0, 80, 70)}  # Placement 80x70
+    # Setup: Map the placement directly to the item index
+    placement_to_item_index = {(0, 0, 80, 70): 0} # Placement 80x70
     final_items = [small_item_geom]  # Item is 50x50
     fill_value = 111
     mask_fill_value = 5
 
     processed = process_all_mosaic_geometries(
-        grid_coords_to_item_index=grid_coords_to_item_index,
+        placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        cell_placements=cell_placements,
+        # Removed cell_placements argument
         fill=fill_value,
         fill_mask=mask_fill_value,
     )
@@ -466,17 +436,17 @@ def test_process_all_geometry_pad(small_item_geom) -> None:
 
 def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
     """Test process_all processing two different items for two cells."""
-    grid_coords_to_item_index = {(0, 0): 0, (0, 1): 1} # Item 0 (100x100), Item 1 (50x50)
-    cell_placements = {
-        (0, 0): (0, 0, 50, 50),  # Crop base_item_geom to 50x50
-        (0, 1): (50, 0, 110, 60), # Pad small_item_geom to 60x60
+    # Setup: Map placements directly to item indices
+    placement_to_item_index = {
+        (0, 0, 50, 50): 0,    # Crop base_item_geom (idx 0) to 50x50
+        (50, 0, 110, 60): 1,  # Pad small_item_geom (idx 1) to 60x60
     }
     final_items = items_list_geom
 
     processed = process_all_mosaic_geometries(
-        grid_coords_to_item_index=grid_coords_to_item_index,
+        placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        cell_placements=cell_placements,
+        # Removed cell_placements argument
         fill=0,
         fill_mask=0,
     )
