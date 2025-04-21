@@ -29,15 +29,18 @@ This workflow outlines the data processing logic within the `Mosaic` transform, 
     *   Else (`len <= num_additional_needed`):
         *   Use all `valid_additional_raw_items`. Result: `selected_raw_additional_items`.
 
-4.  **Preprocess Selected Raw Additional Items (Combined):**
+4.  **Preprocess Selected Raw Additional Items (Iteratively):**
     *   Access `bbox_processor` and `keypoint_processor` from `params`.
-    *   Call a helper function (e.g., `fmixing.preprocess_selected_mosaic_items_combined(selected_raw_additional_items, bbox_processor, keypoint_processor)`).
-    *   This function will:
-        *   Gather all raw bboxes/labels/kps *only* from `selected_raw_additional_items`.
-        *   Stack them into combined arrays.
-        *   Call `bbox_processor.preprocess` and `keypoint_processor.preprocess` *once* on the combined *additional* data. The processors internally use a `LabelEncoder` with an `update` method. This `update` method extends the existing vocabulary (already fitted on the primary item by `Compose`) with any new labels found in the *selected additional items*. This ensures the final encoder state used by `Compose.postprocess` includes all labels present in this specific mosaic instance.
-        *   Split the resulting combined preprocessed arrays back into chunks corresponding to `selected_raw_additional_items`.
-        *   Return `preprocessed_selected_additional_items` (list of dicts), where each dict has the original image/mask from the corresponding `raw_item` and its chunk of *preprocessed* bboxes/keypoints.
+    *   Initialize an empty list: `preprocessed_selected_additional_items = []`.
+    *   Iterate through each `item` in `selected_raw_additional_items`:
+        *   If `bbox_processor` exists and `item` contains 'bboxes':
+            *   Call `bbox_processor.preprocess(item)`. This modifies `item['bboxes']` in-place (format conversion, label encoding/updating using `item['image']` shape).
+        *   If `keypoint_processor` exists and `item` contains 'keypoints':
+            *   Call `keypoint_processor.preprocess(item)`. This modifies `item['keypoints']` in-place (format conversion, label encoding/updating using `item['image']` shape).
+        *   Create a `processed_item` dictionary containing the original `item['image']`, `item.get('mask')`, and the *modified* `item.get('bboxes')` and `item.get('keypoints')` from the **same `item` dictionary**. Handle cases where bboxes/keypoints might be None after processing.
+        *   Append `processed_item` to `preprocessed_selected_additional_items`.
+    *   The `preprocessed_selected_additional_items` list now contains dicts, each with the original image/mask and *preprocessed* bboxes/keypoints (in 'albumentations' format with encoded labels). The shared `LabelEncoder` within the processors has been updated with labels from all processed additional items.
+
 5.  **Prepare Primary Data:**
     *   Extract the *already preprocessed* primary data from the input `data` dict (e.g., `primary = {'image': data['image'], 'mask': data.get('mask'), 'bboxes': data.get('bboxes'), ...}`).
 6.  **Determine Replication Count:**

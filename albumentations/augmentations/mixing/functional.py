@@ -7,7 +7,6 @@ such as copy-and-paste operations with masking.
 from __future__ import annotations
 
 import random
-from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, Literal, TypedDict, cast
 from warnings import warn
@@ -327,102 +326,91 @@ def assign_items_to_grid_cells(
     return placement_to_item_index
 
 
+def _preprocess_item_annotations(
+    item: dict[str, Any],
+    processor: BboxProcessor | KeypointsProcessor | None,
+    data_key: Literal["bboxes", "keypoints"],
+) -> np.ndarray | None:
+    """Helper to preprocess annotations (bboxes or keypoints) for a single item."""
+    original_data = item.get(data_key)
+
+    # Check if processor exists and the relevant data key is in the item
+    if processor and data_key in item:
+        # Ensure the data for the key is not None before proceeding
+        if item[data_key] is None:
+            return None
+
+        # Create a temporary minimal dict for the processor
+        temp_data = {
+            "image": item["image"],
+            data_key: item[data_key],
+        }
+
+        # Add declared label fields if they exist in the item
+        if processor.params.label_fields:
+            for field in processor.params.label_fields:
+                if field in item:
+                    temp_data[field] = item[field]
+
+        # Preprocess modifies temp_data in-place
+        processor.preprocess(temp_data)
+        processed_data = temp_data.get(data_key)
+
+        # Ensure result is numpy array or None
+        if processed_data is not None:
+            # Handle cases where processor might not return ndarray (though it should)
+            if not isinstance(processed_data, np.ndarray):
+                warn(
+                    f"{data_key.capitalize()} were not converted to np.ndarray during preprocessing: "
+                    f"{type(processed_data)}. Returning None.",
+                    UserWarning,
+                    stacklevel=4,
+                )
+                return None
+            # Return processed numpy array
+            return processed_data
+        # If processor returned None or key was deleted
+        return None
+
+    # Return original data (which could be None or ndarray) if no processor or data key wasn't in item
+    # Ensure it's ndarray if not None
+    if original_data is not None and not isinstance(original_data, np.ndarray):
+        # This case should ideally not happen if input follows standards, but safeguard
+        try:
+            return np.array(original_data)
+        except (ValueError, TypeError) as e:  # Catch more specific exceptions
+            warn(f"Could not convert original {data_key} to ndarray: {e}. Returning None.", UserWarning, stacklevel=4)
+            return None
+    return original_data
+
+
 def preprocess_selected_mosaic_items(
     selected_raw_items: list[dict[str, Any]],
-    bbox_processor: BboxProcessor,
-    keypoint_processor: KeypointsProcessor,
+    bbox_processor: BboxProcessor | None,  # Allow None
+    keypoint_processor: KeypointsProcessor | None,  # Allow None
 ) -> list[ProcessedMosaicItem]:
-    """Preprocesses bboxes/keypoints for selected raw additional items combined.
+    """Preprocesses bboxes/keypoints for selected raw additional items.
 
-    Gathers raw bboxes/kps/labels, preprocesses them together using the processors
+    Iterates through items, preprocesses annotations individually using processors
     (updating label encoders), and returns a list of dicts with original image/mask
-    and the corresponding chunk of preprocessed bboxes/keypoints.
+    and the corresponding preprocessed bboxes/keypoints.
     """
     if not selected_raw_items:
         return []
 
-    # Gather combined raw data and counts from selected items
-    all_raw_bboxes: list[np.ndarray] = []
-    all_raw_keypoints: list[np.ndarray] = []
-
-    bbox_labels_gathered: dict[str, list[Any]] = defaultdict(list)
-    kp_labels_gathered: dict[str, list[Any]] = defaultdict(list)
-    bbox_counts_per_item: list[int] = []
-    keypoint_counts_per_item: list[int] = []
-
-    bbox_label_fields = cast(
-        "list[str]",
-        bbox_processor.params.label_fields if bbox_processor and bbox_processor.params.label_fields else [],
-    )
-    kp_label_fields = cast(
-        "list[str]",
-        keypoint_processor.params.label_fields if keypoint_processor and keypoint_processor.params.label_fields else [],
-    )
+    result_data_items: list[ProcessedMosaicItem] = []
 
     for item in selected_raw_items:
-        num_bboxes = _gather_mosaic_item_data(
-            item,
-            "bboxes",
-            bbox_label_fields,
-            all_raw_bboxes,
-            bbox_labels_gathered,
-        )
-        bbox_counts_per_item.append(num_bboxes)
-        num_keypoints = _gather_mosaic_item_data(
-            item,
-            "keypoints",
-            kp_label_fields,
-            all_raw_keypoints,
-            kp_labels_gathered,
-        )
-        keypoint_counts_per_item.append(num_keypoints)
+        processed_bboxes = _preprocess_item_annotations(item, bbox_processor, "bboxes")
+        processed_keypoints = _preprocess_item_annotations(item, keypoint_processor, "keypoints")
 
-    # Preprocess combined data using the helper
-    combined_preprocessed_bboxes = _preprocess_combined_data(
-        all_raw_bboxes,
-        bbox_labels_gathered,
-        bbox_processor,
-        "bboxes",
-    )
-    combined_preprocessed_keypoints = _preprocess_combined_data(
-        all_raw_keypoints,
-        kp_labels_gathered,
-        keypoint_processor,
-        "keypoints",
-    )
-
-    # Split back into per-item dictionaries
-    result_data_items: list[ProcessedMosaicItem] = []
-    bbox_start_idx = 0
-    kp_start_idx = 0
-
-    for i, item in enumerate(selected_raw_items):
+        # Construct the final processed item dict
         processed_item_dict: ProcessedMosaicItem = {
-            "image": item["image"],  # Keep original image
-            "mask": item.get("mask"),  # Keep original mask
-            "bboxes": None,
-            "keypoints": None,
+            "image": item["image"],
+            "mask": item.get("mask"),
+            "bboxes": processed_bboxes,  # Already np.ndarray or None
+            "keypoints": processed_keypoints,  # Already np.ndarray or None
         }
-        num_bboxes = bbox_counts_per_item[i]
-        if num_bboxes > 0:
-            bbox_end_idx = bbox_start_idx + num_bboxes
-            processed_item_dict["bboxes"] = combined_preprocessed_bboxes[bbox_start_idx:bbox_end_idx]
-            bbox_start_idx = bbox_end_idx
-        else:
-            processed_item_dict["bboxes"] = np.empty(
-                (0, combined_preprocessed_bboxes.shape[1]),
-                dtype=combined_preprocessed_bboxes.dtype,
-            )
-        num_keypoints = keypoint_counts_per_item[i]
-        if num_keypoints > 0:
-            kp_end_idx = kp_start_idx + num_keypoints
-            processed_item_dict["keypoints"] = combined_preprocessed_keypoints[kp_start_idx:kp_end_idx]
-            kp_start_idx = kp_end_idx
-        else:
-            processed_item_dict["keypoints"] = np.empty(
-                (0, combined_preprocessed_keypoints.shape[1]),
-                dtype=combined_preprocessed_keypoints.dtype,
-            )
         result_data_items.append(processed_item_dict)
 
     return result_data_items

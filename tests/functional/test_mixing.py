@@ -6,6 +6,9 @@ from typing import Any
 
 import pytest
 
+from albumentations.core.bbox_utils import BboxParams, BboxProcessor
+from albumentations.core.keypoints_utils import KeypointParams, KeypointsProcessor
+
 from albumentations.augmentations.mixing.functional import (
     assign_items_to_grid_cells,
     calculate_cell_placements,
@@ -14,6 +17,7 @@ from albumentations.augmentations.mixing.functional import (
     process_cell_geometry,
     process_all_mosaic_geometries,
     assemble_mosaic_from_processed_cells,
+    preprocess_selected_mosaic_items,
 )
 
 
@@ -548,3 +552,222 @@ def test_assemble_multiple_non_overlapping(processed_cell_data_1, processed_cell
     # Ensure total non-zero area matches sum of cell areas
     expected_mask_pixels = np.count_nonzero(processed_cell_data_1["mask"]) + np.count_nonzero(processed_cell_data_2["mask"])
     assert np.count_nonzero(canvas_mask) == expected_mask_pixels
+
+
+
+def test_preprocess_selected_mosaic_items_basic():
+    # Setup processors
+    bbox_processor = BboxProcessor(BboxParams(format='pascal_voc', label_fields=['class_labels']))
+    keypoint_processor = KeypointsProcessor(KeypointParams(format='xy', label_fields=['kp_labels']))
+
+    # Setup input data items with different shapes and unique labels
+    item1 = {
+        "image": np.zeros((50, 60, 3), dtype=np.uint8),
+        "mask": np.zeros((50, 60), dtype=np.uint8),
+        "bboxes": np.array([[10, 10, 20, 20]], dtype=np.float32),
+        "class_labels": ["cat"],
+        "keypoints": np.array([[15, 15]], dtype=np.float32),
+        "kp_labels": ["eye"],
+    }
+    item2 = {
+        "image": np.zeros((80, 70, 3), dtype=np.uint8),
+        # no mask
+        "bboxes": np.array([[30, 30, 40, 40]], dtype=np.float32),
+        "class_labels": ["dog"],
+        "keypoints": np.array([[35, 35]], dtype=np.float32),
+        "kp_labels": ["nose"],
+    }
+    selected_raw_items = [item1, item2]
+
+    # --- Call the function ---
+    result = preprocess_selected_mosaic_items(selected_raw_items, bbox_processor, keypoint_processor)
+
+    # --- Assertions ---
+    assert isinstance(result, list)
+    assert len(result) == 2
+
+    # Check item 1 structure and data
+    res1 = result[0]
+    assert isinstance(res1, dict)
+    assert sorted(list(res1.keys())) == sorted(["image", "mask", "bboxes", "keypoints"]) # Check keys regardless of order
+    np.testing.assert_array_equal(res1["image"], item1["image"])
+    np.testing.assert_array_equal(res1["mask"], item1["mask"])
+    assert res1["bboxes"] is not None
+    assert isinstance(res1["bboxes"], np.ndarray)
+    # Expect format change (pascal_voc -> albumentations) + label encoding
+    assert res1["bboxes"].shape == (1, 5) # [x_min, y_min, x_max, y_max, label_id]
+    assert res1["keypoints"] is not None
+    assert isinstance(res1["keypoints"], np.ndarray)
+    # Expect format change (xy -> xy + angle + scale) + label encoding + kp_labels
+    assert res1["keypoints"].shape == (1, 6) # [x, y, angle, scale, label_id, kp_label_id]
+
+    # Check item 2 structure and data
+    res2 = result[1]
+    assert isinstance(res2, dict)
+    assert sorted(list(res2.keys())) == sorted(["image", "mask", "bboxes", "keypoints"])
+    np.testing.assert_array_equal(res2["image"], item2["image"])
+    assert res2["mask"] is None # Original item had no mask
+    assert res2["bboxes"] is not None
+    assert isinstance(res2["bboxes"], np.ndarray)
+    assert res2["bboxes"].shape == (1, 5)
+    assert res2["keypoints"] is not None
+    assert isinstance(res2["keypoints"], np.ndarray)
+    # Expect format change (xy -> xy + angle + scale) + label encoding + kp_labels
+    assert res2["keypoints"].shape == (1, 6) # [x, y, angle, scale, label_id, kp_label_id]
+
+    # Check LabelEncoder state
+    # BBox labels: cat (0), dog (1)
+    bbox_encoder = bbox_processor.label_manager.get_encoder("bboxes", "class_labels")
+    assert bbox_encoder is not None
+    assert len(bbox_encoder.classes_) == 2
+    assert bbox_encoder.transform(["cat", "dog"]).tolist() == [0, 1]
+    assert res1["bboxes"][0, 4] == 0 # cat
+    assert res2["bboxes"][0, 4] == 1 # dog
+
+    # Keypoint labels: eye (0), nose (1)
+    kp_encoder = keypoint_processor.label_manager.get_encoder("keypoints", "kp_labels")
+    assert kp_encoder is not None
+    assert len(kp_encoder.classes_) == 2
+    assert kp_encoder.transform(["eye", "nose"]).tolist() == [0, 1]
+    # Check base label ID (column 4) - Seems to default to 0
+    assert res1["keypoints"][0, 4] == 0
+    assert res2["keypoints"][0, 4] == 0
+    # Check kp_labels encoded value (column 5)
+    assert res1["keypoints"][0, 5] == kp_encoder.classes_["eye"] # Should be 0
+    assert res2["keypoints"][0, 5] == kp_encoder.classes_["nose"] # Should be 1
+
+def test_preprocess_selected_mosaic_items_missing_data():
+    # Setup processors
+    bbox_processor = BboxProcessor(BboxParams(format='pascal_voc', label_fields=['class_labels']))
+    keypoint_processor = KeypointsProcessor(KeypointParams(format='xy', label_fields=['kp_labels']))
+
+    # Setup input data items
+    item_bbox_only = {
+        "image": np.zeros((50, 50, 3), dtype=np.uint8),
+        "bboxes": np.array([[10, 10, 20, 20]], dtype=np.float32),
+        "class_labels": ["apple"], # Label MUST be present if declared in BboxParams
+    }
+    item_kp_only = {
+        "image": np.zeros((60, 60, 3), dtype=np.uint8),
+        "keypoints": np.array([[15, 15]], dtype=np.float32),
+        "kp_labels": ["fruit_stem"], # Label MUST be present if declared in KeypointParams
+    }
+    item_img_only = {
+        "image": np.zeros((90, 90, 3), dtype=np.uint8),
+    }
+    # Removed item_bbox_no_label and item_kp_no_label as they violate the contract
+
+    selected_raw_items = [item_bbox_only, item_kp_only, item_img_only]
+
+    # --- Call the function ---
+    result = preprocess_selected_mosaic_items(selected_raw_items, bbox_processor, keypoint_processor)
+
+    # --- Assertions ---
+    assert len(result) == 3
+
+    # Check item_bbox_only (index 0)
+    res0 = result[0]
+    assert res0["bboxes"] is not None and res0["bboxes"].shape == (1, 5) # Has bbox + class_label
+    assert res0["keypoints"] is None
+    assert res0["bboxes"][0, 4] == 0 # 'apple' encoded as 0
+
+    # Check item_kp_only (index 1)
+    res1 = result[1]
+    assert res1["bboxes"] is None
+    assert res1["keypoints"] is not None and res1["keypoints"].shape == (1, 6) # Has kp + label_id + kp_label
+    assert res1["keypoints"][0, 4] == 0 # 'fruit_stem' encoded as 0 for main label_id
+
+    # Check item_img_only (index 2)
+    res2 = result[2]
+    assert res2["bboxes"] is None
+    assert res2["keypoints"] is None
+
+    # Check label encoders
+    bbox_encoder = bbox_processor.label_manager.get_encoder("bboxes", "class_labels")
+    assert bbox_encoder is not None
+    assert len(bbox_encoder.classes_) == 1 # Only saw 'apple'
+    assert "apple" in bbox_encoder.classes_
+
+    kp_encoder = keypoint_processor.label_manager.get_encoder("keypoints", "kp_labels")
+    assert kp_encoder is not None
+    assert len(kp_encoder.classes_) == 1 # Only saw 'fruit_stem'
+    assert "fruit_stem" in kp_encoder.classes_
+
+def test_preprocess_selected_mosaic_items_shared_labels():
+    bbox_processor = BboxProcessor(BboxParams(format='pascal_voc', label_fields=['class_labels']))
+    keypoint_processor = KeypointsProcessor(KeypointParams(format='xy')) # No kp labels needed
+
+    item1 = {"image": np.zeros((10, 10, 3)), "bboxes": np.array([[1,1,2,2]]), "class_labels": ["cat"]}
+    item2 = {"image": np.zeros((10, 10, 3)), "bboxes": np.array([[3,3,4,4]]), "class_labels": ["dog"]}
+    item3 = {"image": np.zeros((10, 10, 3)), "bboxes": np.array([[5,5,6,6]]), "class_labels": ["cat"]}
+
+    selected_raw_items = [item1, item2, item3]
+    result = preprocess_selected_mosaic_items(selected_raw_items, bbox_processor, keypoint_processor)
+
+    assert len(result) == 3
+    # Check labels learned: cat (0), dog (1)
+    label_encoder = bbox_processor.label_manager.get_encoder("bboxes", "class_labels")
+    assert label_encoder is not None
+    assert len(label_encoder.classes_) == 2
+    np.testing.assert_array_equal(sorted(label_encoder.classes_.keys()), ["cat", "dog"])
+    # Check assigned labels in output
+    assert result[0]["bboxes"][0, 4] == label_encoder.classes_["cat"]
+    assert result[1]["bboxes"][0, 4] == label_encoder.classes_["dog"]
+    assert result[2]["bboxes"][0, 4] == label_encoder.classes_["cat"]
+
+def test_preprocess_selected_mosaic_items_no_processors():
+    item = {
+        "image": np.zeros((50, 60, 3), dtype=np.uint8),
+        "bboxes": np.array([[10, 10, 20, 20]], dtype=np.float32), # pascal_voc
+        "class_labels": ["cat"],
+        "keypoints": np.array([[15, 15]], dtype=np.float32), # xy
+        "kp_labels": ["eye"],
+    }
+    selected_raw_items = [item]
+
+    # --- Test with None processors ---
+    result = preprocess_selected_mosaic_items(selected_raw_items, None, None)
+
+    assert len(result) == 1
+    res = result[0]
+    # Bboxes/Keypoints should be unchanged (original format, no labels added)
+    assert res["bboxes"] is not None
+    np.testing.assert_array_equal(res["bboxes"], item["bboxes"])
+    assert res["bboxes"].shape == (1, 4)
+
+    assert res["keypoints"] is not None
+    np.testing.assert_array_equal(res["keypoints"], item["keypoints"])
+    assert res["keypoints"].shape == (1, 2)
+
+    # --- Test with only bbox processor ---
+    bbox_processor = BboxProcessor(BboxParams(format='pascal_voc', label_fields=['class_labels']))
+    # Need copies because processors modify the temp dicts which might affect subsequent calls
+    # if we reused the original selected_raw_items list directly.
+    # However, preprocess_selected_mosaic_items makes internal copies, so this is safe.
+    result_bbox_only = preprocess_selected_mosaic_items(selected_raw_items, bbox_processor, None)
+    assert len(result_bbox_only) == 1
+    res_bbox = result_bbox_only[0]
+    assert res_bbox["bboxes"] is not None
+    assert res_bbox["bboxes"].shape == (1, 5) # Processed
+    assert res_bbox["keypoints"] is not None
+    np.testing.assert_array_equal(res_bbox["keypoints"], item["keypoints"]) # Unchanged
+
+    # --- Test with only keypoint processor ---
+    keypoint_processor = KeypointsProcessor(KeypointParams(format='xy', label_fields=['kp_labels']))
+    # Need a fresh item dict because the previous call might have altered labels if passed directly
+    item_copy = {
+        "image": np.zeros((50, 60, 3), dtype=np.uint8),
+        "bboxes": np.array([[10, 10, 20, 20]], dtype=np.float32),
+        "class_labels": ["cat"],
+        "keypoints": np.array([[15, 15]], dtype=np.float32),
+        "kp_labels": ["eye"],
+    }
+    selected_raw_items_copy = [item_copy]
+
+    result_kp_only = preprocess_selected_mosaic_items(selected_raw_items_copy, None, keypoint_processor)
+    assert len(result_kp_only) == 1
+    res_kp = result_kp_only[0]
+    assert res_kp["bboxes"] is not None
+    np.testing.assert_array_equal(res_kp["bboxes"], item["bboxes"]) # Unchanged
+    assert res_kp["keypoints"] is not None
+    assert res_kp["keypoints"].shape == (1, 6) # Processed: x,y,a,s,id,kp_id

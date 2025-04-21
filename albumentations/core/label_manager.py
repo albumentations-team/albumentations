@@ -320,3 +320,12 @@ class LabelManager:
     def handle_empty_data(self) -> list[Any]:
         """Handle empty data case."""
         return []
+
+    def get_encoder(self, data_name: str, label_field: str) -> LabelEncoder | None:
+        """Retrieves the fitted LabelEncoder for a specific data and label field."""
+        if data_name in self.metadata and label_field in self.metadata[data_name]:
+            encoder = self.metadata[data_name][label_field].encoder
+            # Ensure encoder is LabelEncoder or None, handle potential type issues
+            if isinstance(encoder, LabelEncoder):
+                return encoder
+        return None
