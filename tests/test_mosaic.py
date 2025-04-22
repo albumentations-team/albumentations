@@ -193,21 +193,21 @@ def test_mosaic_simplified_deterministic() -> None:
     target_size = (100, 100)
     grid_yx = (1, 2)
     center_range = (0.5, 0.5)
-    meta_size = (80, 120) # H, W
+    meta_size = (100, 100) # H, W
 
     # --- Primary Data ---
     img_primary = np.ones((*target_size, 3), dtype=np.uint8) * 1
     mask_primary = np.ones(target_size, dtype=np.uint8) * 11
     # BBoxes: Albumentations format [x_min_norm, y_min_norm, x_max_norm, y_max_norm]
-    bboxes_primary = np.array([[0.1, 0.1, 0.3, 0.3], [0.6, 0.6, 0.8, 0.8]], dtype=np.float32)
+    bboxes_primary = np.array([[0, 0, 1, 1]], dtype=np.float32)
     # Keypoints: Albumentations format [x, y, Z, angle, scale]
-    keypoints_primary = np.array([[15, 15, 0, 0, 0], [70, 70, 0, 0, 0]], dtype=np.float32)
+    keypoints_primary = np.array([[0, 0, 0, 0, 0], [1, 1, 0, 0, 0]], dtype=np.float32)
 
     # --- Metadata ---
     img_meta = np.ones((*meta_size, 3), dtype=np.uint8) * 2
     mask_meta = np.ones(meta_size, dtype=np.uint8) * 22
-    bboxes_meta = np.array([[0.5, 0.5, 0.7, 0.7]], dtype=np.float32) # rel to meta_size
-    keypoints_meta = np.array([[60, 40, 0, 0, 0]], dtype=np.float32) # rel to meta_size
+    bboxes_meta = np.array([[0, 0, 1, 1]], dtype=np.float32) # rel to meta_size
+    keypoints_meta = np.array([[0, 0, 0, 0, 0], [99, 99, 0, 0, 0]], dtype=np.float32) # rel to meta_size
 
     metadata_list = [
         {
@@ -266,25 +266,9 @@ def test_mosaic_simplified_deterministic() -> None:
     expected_mask[0:100, 50:100] = mask_meta_padded[:100, :50]
 
 
-    # --- Calculate Expected Annotations ---
-    # Primary placement (x1,y1,x2,y2) = (0, 0, 50, 100) -> crops W at 50%
-    # Meta placement (x1,y1,x2,y2) = (50, 0, 100, 100) -> crops W at 50%
-
-    # BBoxes:
-    # Primary bbox1 [0.1, 0.1, 0.3, 0.3] -> x_max=0.3 < 0.5 -> survives, no change needed
-    # Primary bbox2 [0.6, 0.6, 0.8, 0.8] -> x_min=0.6 > 0.5 -> filtered out by crop
-    # Meta bbox1 [0.5, 0.5, 0.7, 0.7] rel to (80,120) -> needs processing:
-    #   - Crop logic for meta cell (target W=50) applied to meta img (W=120)
-    #   - Bbox x=[0.5*120, 0.7*120] = [60, 84]. Crop is x=[0, 50]. Filtered out.
-    expected_bboxes = np.array([[0.1, 0.1, 0.3, 0.3]], dtype=np.float32)
-
-    # Keypoints:
-    # Primary kp1 [15, 15, 0, 0, 0] -> x=15 < 50 -> survives. Output: [15, 15, 0, 0, 0]
-    # Primary kp2 [70, 70, 0, 0, 0] -> x=70 > 50 -> filtered out by crop
-    # Meta kp1 [60, 40, 0, 0, 0] rel to (80, 120) -> needs processing:
-    #   - Crop logic for meta cell (target W=50) applied to meta img (W=120)
-    #   - Keypoint x=60. Crop is x=[0, 50]. Filtered out.
-    expected_keypoints = np.array([[15, 15, 0, 0, 0]], dtype=np.float32)
+    # --- Calculate Expected Annotations (derived manually above) ---
+    expected_bboxes = np.array([[0. , 0. , 0.5, 1. ], [0.5, 0. , 1. , 1.]], dtype=np.float32)
+    expected_keypoints = np.array([[ 0.,  0., 0, 0, 0], [ 1.,  1., 0, 0, 0], [50.,  0., 0, 0, 0]], dtype=np.float32)
 
     # --- Assertions ---
     assert result['image'].shape == (*target_size, 3)

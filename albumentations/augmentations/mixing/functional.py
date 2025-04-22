@@ -15,7 +15,8 @@ import cv2
 import numpy as np
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.crops.transforms import Crop
+from albumentations.augmentations.crops.transforms import RandomCrop
+from albumentations.augmentations.geometric.resize import LongestMaxSize, SmallestMaxSize
 from albumentations.augmentations.geometric.transforms import PadIfNeeded
 from albumentations.core.bbox_utils import BboxProcessor
 from albumentations.core.composition import Compose
@@ -416,14 +417,42 @@ def preprocess_selected_mosaic_items(
     return result_data_items
 
 
+def get_opposite_position(
+    position: Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
+) -> Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]:
+    """Returns the opposite position string for padding/cropping adjustments.
+
+    Args:
+        position (Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]):
+            One of "top_left", "top_right", "center", "bottom_left", "bottom_right".
+
+    Returns:
+        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]:
+        The opposing position string ("center" maps to "center").
+
+    """
+    opposite_map: dict[
+        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
+        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
+    ] = {
+        "top_left": "bottom_right",
+        "top_right": "bottom_left",
+        "center": "center",
+        "bottom_left": "top_right",
+        "bottom_right": "top_left",
+    }
+    return opposite_map.get(position, "center")
+
+
 def process_cell_geometry(
     item: ProcessedMosaicItem,
-    target_h: int,
-    target_w: int,
+    target_shape: tuple[int, int],
     fill: float | tuple[float, ...],
     fill_mask: float | tuple[float, ...],
-    pad_position: Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"] = "top_left",
-    border_mode: int = cv2.BORDER_CONSTANT,
+    fit_mode: Literal["cover", "contain"],
+    interpolation: int,
+    mask_interpolation: int,
+    cell_position: Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
 ) -> ProcessedMosaicItem:
     """Applies geometric transformations (padding and/or cropping) to a single mosaic item.
 
@@ -432,12 +461,14 @@ def process_cell_geometry(
 
     Args:
         item: (ProcessedMosaicItem): The preprocessed mosaic item dictionary.
-        target_h: (int): Target height of the cell.
-        target_w: (int): Target width of the cell.
+        target_shape: (tuple[int, int]): Target shape of the cell.
         fill: (float | tuple[float, ...]): Fill value for image padding.
         fill_mask: (float | tuple[float, ...]): Fill value for mask padding.
-        pad_position: (Literal[...]): Position for padding if item is smaller than target. Default: "top_left".
-        border_mode: (int): OpenCV border mode for padding.
+        fit_mode: (Literal["cover", "contain"]): Fit mode for the mosaic.
+        interpolation: (int): Interpolation method for image.
+        mask_interpolation: (int): Interpolation method for mask.
+        cell_position: (Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]): Position
+            of the cell.
 
     Returns: (ProcessedMosaicItem): Dictionary containing the geometrically processed image,
         mask, bboxes, and keypoints, fitting the target dimensions.
@@ -450,27 +481,48 @@ def process_cell_geometry(
     if item.get("keypoints") is not None:
         compose_kwargs["keypoint_params"] = {"format": "albumentations"}
 
-    geom_pipeline = Compose(
-        [
-            PadIfNeeded(
-                min_height=target_h,
-                min_width=target_w,
-                position=pad_position,
-                border_mode=border_mode,
-                fill=fill,
-                fill_mask=fill_mask,
-                p=1.0,
-            ),
-            Crop(
-                x_min=0,
-                y_min=0,
-                x_max=target_w,
-                y_max=target_h,
-                p=1.0,
-            ),
-        ],
-        **compose_kwargs,
-    )
+    target_h, target_w = target_shape
+
+    if fit_mode == "cover":
+        geom_pipeline = Compose(
+            [
+                SmallestMaxSize(
+                    max_size_hw=target_shape,
+                    interpolation=interpolation,
+                    mask_interpolation=mask_interpolation,
+                    p=1.0,
+                ),
+                RandomCrop(
+                    height=target_h,
+                    width=target_w,
+                    p=1.0,
+                ),
+            ],
+            **compose_kwargs,
+        )
+    elif fit_mode == "contain":
+        pad_position = get_opposite_position(cell_position)
+        geom_pipeline = Compose(
+            [
+                LongestMaxSize(
+                    max_size_hw=target_shape,
+                    interpolation=interpolation,
+                    mask_interpolation=mask_interpolation,
+                    p=1.0,
+                ),
+                PadIfNeeded(
+                    min_height=target_h,
+                    min_width=target_w,
+                    position=pad_position,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    fill=fill,
+                    fill_mask=fill_mask,
+                    p=1.0,
+                ),
+            ],
+        )
+    else:
+        raise ValueError(f"Invalid fit_mode: {fit_mode}. Must be 'cover' or 'contain'.")
 
     # Prepare input data for the pipeline
     geom_input = {"image": item["image"]}
@@ -559,6 +611,25 @@ def process_all_mosaic_geometries(
     final_items_for_grid: list[ProcessedMosaicItem],
     fill: float | tuple[float, ...],
     fill_mask: float | tuple[float, ...],
+    fit_mode: Literal["cover", "contain"],
+    interpolation: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_NEAREST_EXACT,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+        cv2.INTER_LINEAR_EXACT,
+    ],
+    mask_interpolation: Literal[
+        cv2.INTER_NEAREST,
+        cv2.INTER_NEAREST_EXACT,
+        cv2.INTER_LINEAR,
+        cv2.INTER_CUBIC,
+        cv2.INTER_AREA,
+        cv2.INTER_LANCZOS4,
+        cv2.INTER_LINEAR_EXACT,
+    ],
 ) -> dict[tuple[int, int, int, int], ProcessedMosaicItem]:
     """Processes the geometry (cropping/padding) for all assigned mosaic cells.
 
@@ -572,6 +643,9 @@ def process_all_mosaic_geometries(
         final_items_for_grid (list[ProcessedMosaicItem]): List of all preprocessed items available.
         fill (float | tuple[float, ...]): Fill value for image padding.
         fill_mask (float | tuple[float, ...]): Fill value for mask padding.
+        fit_mode (Literal["cover", "contain"]): Fit mode for the mosaic.
+        interpolation (int): Interpolation method for image.
+        mask_interpolation (int): Interpolation method for mask.
 
     Returns:
         dict[tuple[int, int, int, int], ProcessedMosaicItem]: Dictionary mapping final placement
@@ -587,16 +661,80 @@ def process_all_mosaic_geometries(
         target_h = tgt_y2 - tgt_y1
         target_w = tgt_x2 - tgt_x1
 
+        cell_position = get_cell_relative_position(placement_coords, (target_h, target_w))
+
         # Apply geometric processing (crop/pad)
         processed_cells_geom[placement_coords] = process_cell_geometry(
             item=item,
-            target_h=target_h,
-            target_w=target_w,
+            target_shape=(target_h, target_w),
             fill=fill,
             fill_mask=fill_mask,
+            fit_mode=fit_mode,
+            interpolation=interpolation,
+            mask_interpolation=mask_interpolation,
+            cell_position=cell_position,
         )
 
     return processed_cells_geom
+
+
+def get_cell_relative_position(
+    placement_coords: tuple[int, int, int, int],
+    target_shape: tuple[int, int],
+) -> Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]:
+    """Determines the position of a cell relative to the center of the target canvas.
+
+    Compares the cell center to the canvas center and returns its quadrant
+    or "center" if it lies on or very close to a central axis.
+
+    Args:
+        placement_coords (tuple[int, int, int, int]): The (x_min, y_min, x_max, y_max) coordinates
+            of the cell.
+        target_shape (tuple[int, int]): The (height, width) of the overall target canvas.
+
+    Returns:
+        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]:
+            The position of the cell relative to the center of the target canvas.
+
+    """
+    target_h, target_w = target_shape
+    x1, y1, x2, y2 = placement_coords
+
+    # Use floating point for potentially more accurate center calculation
+    canvas_center_x = target_w / 2.0
+    canvas_center_y = target_h / 2.0
+
+    cell_center_x = (x1 + x2) / 2.0
+    cell_center_y = (y1 + y2) / 2.0
+
+    # Determine vertical position (using a small tolerance might be robust, but direct comparison first)
+    if cell_center_y < canvas_center_y:
+        v_pos = "top"
+    elif cell_center_y > canvas_center_y:
+        v_pos = "bottom"
+    else:  # Exactly on the horizontal center line
+        v_pos = "center"
+
+    # Determine horizontal position
+    if cell_center_x < canvas_center_x:
+        h_pos = "left"
+    elif cell_center_x > canvas_center_x:
+        h_pos = "right"
+    else:  # Exactly on the vertical center line
+        h_pos = "center"
+
+    # Combine positions
+    if v_pos == "top" and h_pos == "left":
+        return "top_left"
+    if v_pos == "top" and h_pos == "right":
+        return "top_right"
+    if v_pos == "bottom" and h_pos == "left":
+        return "bottom_left"
+    if v_pos == "bottom" and h_pos == "right":
+        return "bottom_right"
+
+    # Default to "center" if perfectly centered or aligned with one central axis
+    return "center"
 
 
 def shift_all_coordinates(

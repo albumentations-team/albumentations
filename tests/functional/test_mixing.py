@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import random
 import numpy as np
-from typing import Any
+from typing import Any, Literal
 
 import pytest
-
+import cv2
 from albumentations.core.bbox_utils import BboxParams, BboxProcessor
 from albumentations.core.keypoints_utils import KeypointParams, KeypointsProcessor
 
@@ -18,6 +18,7 @@ from albumentations.augmentations.mixing.functional import (
     process_all_mosaic_geometries,
     assemble_mosaic_from_processed_cells,
     preprocess_selected_mosaic_items,
+    get_cell_relative_position,
 )
 
 
@@ -308,19 +309,24 @@ def test_process_cell_geometry_identity(base_item_geom) -> None:
     item = base_item_geom
     target_h, target_w = 100, 100
 
-    processed = process_cell_geometry(item, target_h, target_w, fill=0, fill_mask=0)
+    processed = process_cell_geometry(item, (target_h, target_w), fill=0, fill_mask=0, fit_mode="contain",
+                                      interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
+                                      cell_position="center")
 
     assert processed["image"].shape == (target_h, target_w, 3)
     assert processed["mask"].shape == (target_h, target_w)
     np.testing.assert_array_equal(processed["image"], item["image"])
     np.testing.assert_array_equal(processed["mask"], item["mask"])
 
+
 def test_process_cell_geometry_crop(base_item_geom) -> None:
     """Test cropping case: target size is smaller than item size."""
     item = base_item_geom
     target_h, target_w = 60, 50
 
-    processed = process_cell_geometry(item, target_h, target_w, fill=0, fill_mask=0)
+    processed = process_cell_geometry(item, (target_h, target_w), fill=0, fill_mask=0, fit_mode="contain",
+                                      interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
+                                      cell_position="center")
 
     assert processed["image"].shape == (target_h, target_w, 3)
     assert processed["mask"].shape == (target_h, target_w)
@@ -338,7 +344,9 @@ def test_process_cell_geometry_pad(small_item_geom) -> None:
     fill_value = 111
     mask_fill_value = 5
 
-    processed = process_cell_geometry(item, target_h, target_w, fill=fill_value, fill_mask=mask_fill_value)
+    processed = process_cell_geometry(item, (target_h, target_w), fill=fill_value, fill_mask=mask_fill_value,
+                                      fit_mode="contain", interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
+                                      cell_position="center")
 
     assert processed["image"].shape == (target_h, target_w, 3)
     assert processed["mask"].shape == (target_h, target_w)
@@ -376,6 +384,9 @@ def test_process_all_geometry_identity(base_item_geom) -> None:
         # Removed cell_placements argument
         fill=0,
         fill_mask=0,
+        fit_mode="contain",
+        interpolation=cv2.INTER_NEAREST,
+        mask_interpolation=cv2.INTER_NEAREST,
     )
 
     assert len(processed) == 1
@@ -398,9 +409,11 @@ def test_process_all_geometry_crop(base_item_geom) -> None:
     processed = process_all_mosaic_geometries(
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        # Removed cell_placements argument
         fill=0,
         fill_mask=0,
+        fit_mode="contain",
+        interpolation=cv2.INTER_NEAREST,
+        mask_interpolation=cv2.INTER_NEAREST,
     )
 
     assert len(processed) == 1
@@ -424,6 +437,9 @@ def test_process_all_geometry_pad(small_item_geom) -> None:
         # Removed cell_placements argument
         fill=fill_value,
         fill_mask=mask_fill_value,
+        fit_mode="contain",
+        interpolation=cv2.INTER_NEAREST,
+        mask_interpolation=cv2.INTER_NEAREST,
     )
 
     assert len(processed) == 1
@@ -453,6 +469,9 @@ def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
         # Removed cell_placements argument
         fill=0,
         fill_mask=0,
+        fit_mode="contain",
+        interpolation=cv2.INTER_NEAREST,
+        mask_interpolation=cv2.INTER_NEAREST,
     )
 
     assert len(processed) == 2
@@ -771,3 +790,83 @@ def test_preprocess_selected_mosaic_items_no_processors():
     np.testing.assert_array_equal(res_kp["bboxes"], item["bboxes"]) # Unchanged
     assert res_kp["keypoints"] is not None
     assert res_kp["keypoints"].shape == (1, 6) # Processed: x,y,a,s,id,kp_id
+
+
+@pytest.mark.parametrize(
+    ("placement_coords", "target_shape", "expected_position"),
+    [
+        # Target canvas 100x100, center at (50, 50)
+        ((0, 0, 40, 40), (100, 100), "top_left"),  # Cell center (20, 20)
+        ((60, 0, 100, 40), (100, 100), "top_right"),  # Cell center (80, 20)
+        ((0, 60, 40, 100), (100, 100), "bottom_left"),  # Cell center (20, 80)
+        ((60, 60, 100, 100), (100, 100), "bottom_right"),  # Cell center (80, 80)
+        # Centered cases
+        ((25, 25, 75, 75), (100, 100), "center"),  # Cell center (50, 50)
+        # Edge cases - touching center lines
+        ((0, 0, 50, 50), (100, 100), "top_left"),  # Cell center (25, 25) -> top_left
+        ((50, 0, 100, 50), (100, 100), "top_right"),  # Cell center (75, 25) -> top_right
+        ((0, 50, 50, 100), (100, 100), "bottom_left"),  # Cell center (25, 75) -> bottom_left
+        ((50, 50, 100, 100), (100, 100), "bottom_right"),  # Cell center (75, 75) -> bottom_right
+        # Cells exactly on center lines -> Expected: "center"
+        ((25, 0, 75, 100), (100, 100), "center"),  # Cell center (50, 50)
+        ((0, 25, 100, 75), (100, 100), "center"),  # Cell center (50, 50)
+        # Cells crossing center lines but centered -> Expected: "center"
+        ((40, 40, 60, 60), (100, 100), "center"), # Cell center (50, 50)
+        # Cells whose center is exactly on a center line -> Expected: "center"
+        ((40, 10, 60, 40), (100, 100), "center"),     # Cell center (50, 25)
+        ((10, 40, 40, 60), (100, 100), "center"),    # Cell center (25, 50)
+        ((60, 40, 90, 60), (100, 100), "center"),   # Cell center (75, 50)
+        ((40, 60, 60, 90), (100, 100), "center"),  # Cell center (50, 75)
+
+        # Odd dimensions - Target canvas 101x101, center at (50.5, 50.5)
+        ((0, 0, 40, 40), (101, 101), "top_left"),      # Cell center (20, 20) < (50.5, 50.5)
+        ((60, 0, 101, 40), (101, 101), "top_right"),    # Cell center (80.5, 20)
+        ((0, 60, 40, 101), (101, 101), "bottom_left"),  # Cell center (20, 80.5)
+        ((60, 60, 101, 101), (101, 101), "bottom_right"),# Cell center (80.5, 80.5)
+        ((25, 25, 76, 76), (101, 101), "center"), # Cell center (50.5, 50.5) - exactly centered
+
+        # Cases exactly on the center line with odd dimensions
+        ((0, 0, 50, 50), (101, 101), "top_left"), # Cell center (25, 25) < (50.5, 50.5)
+        ((51, 0, 101, 50), (101, 101), "top_right"), # Cell center (76, 25)
+        ((0, 51, 50, 101), (101, 101), "bottom_left"), # Cell center (25, 76)
+        ((51, 51, 101, 101), (101, 101), "bottom_right"), # Cell center (76, 76)
+    ],
+    ids=[
+        "top_left_100",
+        "top_right_100",
+        "bottom_left_100",
+        "bottom_right_100",
+        "center_100",
+        "edge_tl_100",
+        "edge_tr_100",
+        "edge_bl_100",
+        "edge_br_100",
+        "on_hline_100",
+        "on_vline_100",
+        "cross_center_exact_100",
+        "on_vline_top_100", # Renamed ID
+        "on_hline_left_100", # Renamed ID
+        "on_hline_right_100", # Renamed ID
+        "on_vline_bottom_100", # Renamed ID
+        "top_left_101",
+        "top_right_101",
+        "bottom_left_101",
+        "bottom_right_101",
+        "center_101",
+        "edge_tl_101",
+        "edge_tr_101",
+        "edge_bl_101",
+        "edge_br_101",
+    ]
+)
+def test_get_cell_relative_position(
+    placement_coords: tuple[int, int, int, int],
+    target_shape: tuple[int, int],
+    expected_position: Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
+):
+    # The current implementation classifies cells whose center falls *exactly* on a dividing line
+    # as "center". This test verifies that behavior directly against the expected value.
+    actual_position = get_cell_relative_position(placement_coords, target_shape)
+
+    assert actual_position == expected_position, \
+           f"Placement: {placement_coords}, Target: {target_shape}, Expected: {expected_position}, Got: {actual_position}"

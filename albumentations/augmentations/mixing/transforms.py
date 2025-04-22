@@ -351,6 +351,7 @@ class Mosaic(DualTransform):
         ]
         fill: tuple[float, ...] | float
         fill_mask: tuple[float, ...] | float
+        fit_mode: Literal["cover", "contain"]
 
     def __init__(
         self,
@@ -358,6 +359,7 @@ class Mosaic(DualTransform):
         target_size: tuple[int, int] = (512, 512),
         metadata_key: str = "mosaic_metadata",
         center_range: tuple[float, float] = (0.3, 0.7),
+        fit_mode: Literal["cover", "contain"] = "cover",
         interpolation: Literal[
             cv2.INTER_NEAREST,
             cv2.INTER_NEAREST_EXACT,
@@ -390,6 +392,7 @@ class Mosaic(DualTransform):
         self.mask_interpolation = mask_interpolation
         self.fill = fill
         self.fill_mask = fill_mask
+        self.fit_mode = fit_mode
 
     @property
     def targets_as_params(self) -> list[str]:
@@ -482,6 +485,9 @@ class Mosaic(DualTransform):
             final_items_for_grid=final_items_for_grid,
             fill=self.fill,
             fill_mask=self.fill_mask if self.fill_mask is not None else self.fill,
+            fit_mode=self.fit_mode,
+            interpolation=self.interpolation,
+            mask_interpolation=self.mask_interpolation,
         )
 
         if "bboxes" in data or "keypoints" in data:
