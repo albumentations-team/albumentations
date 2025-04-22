@@ -607,6 +607,7 @@ def assemble_mosaic_from_processed_cells(
 
 
 def process_all_mosaic_geometries(
+    canvas_shape: tuple[int, int],
     placement_to_item_index: dict[tuple[int, int, int, int], int],
     final_items_for_grid: list[ProcessedMosaicItem],
     fill: float | tuple[float, ...],
@@ -638,6 +639,7 @@ def process_all_mosaic_geometries(
     The bbox/keypoint coordinates in the returned dict are *not* shifted yet.
 
     Args:
+        canvas_shape (tuple[int, int]): The shape of the canvas.
         placement_to_item_index (dict[tuple[int, int, int, int], int]): Mapping from placement
             coordinates (x1, y1, x2, y2) to assigned item index.
         final_items_for_grid (list[ProcessedMosaicItem]): List of all preprocessed items available.
@@ -661,7 +663,7 @@ def process_all_mosaic_geometries(
         target_h = tgt_y2 - tgt_y1
         target_w = tgt_x2 - tgt_x1
 
-        cell_position = get_cell_relative_position(placement_coords, (target_h, target_w))
+        cell_position = get_cell_relative_position(placement_coords, canvas_shape)
 
         # Apply geometric processing (crop/pad)
         processed_cells_geom[placement_coords] = process_cell_geometry(

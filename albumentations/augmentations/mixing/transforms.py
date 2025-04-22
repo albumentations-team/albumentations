@@ -481,6 +481,7 @@ class Mosaic(DualTransform):
         # Step 10a: Process Geometry for all cells
         # Note: process_all_mosaic_geometries now expects placement_to_item_index
         processed_cells = fmixing.process_all_mosaic_geometries(
+            canvas_shape=self.target_size,
             placement_to_item_index=placement_to_item_index,
             final_items_for_grid=final_items_for_grid,
             fill=self.fill,
