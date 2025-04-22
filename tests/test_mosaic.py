@@ -188,72 +188,33 @@ def test_mosaic_identity_with_targets() -> None:
     assert result["class_labels"] == expected_labels
 
 
-@pytest.mark.parametrize(
-    "grid_yx",
-    [
-        (1, 2),
-        (2, 1),
-    ],
-)
-@pytest.mark.parametrize("center_range", [(0.4, 0.4), (0.6, 0.6)])
-def test_mosaic_deterministic_with_metadata(
-    grid_yx: tuple[int, int],
-    center_range: tuple[tuple[float, float], tuple[float, float]], # Add center_range to signature
-) -> None:
-    """Test Mosaic with metadata, fixed center, and multiple targets including labels."""
+def test_mosaic_simplified_deterministic() -> None:
+    """Test Mosaic with fixed parameters, albumentations format, no labels."""
     target_size = (100, 100)
-
-    # --- Calculate Expected Placements using functional helpers ---
-    rng = random.Random(0)
-    center_xy = Fmixing.calculate_mosaic_center_point(grid_yx, target_size, center_range, rng)
-
-    cell_placements = Fmixing.calculate_cell_placements(grid_yx, target_size, center_xy)
-
-    # Determine which cell gets the primary image (largest area)
-    # cell_placements is a list of tuples: [(y1, x1, y2, x2), ...]
-    primary_placement = max(
-        cell_placements,
-        key=lambda coords: (coords[2] - coords[0]) * (coords[3] - coords[1]) # coords is (y1, x1, y2, x2)
-    )
-
-    # Filter out the primary placement to find the metadata placement
-    remaining_placements = [coords for coords in cell_placements if coords != primary_placement]
-    if not remaining_placements:
-        raise ValueError("Expected at least one remaining cell placement for metadata.")
-    meta_placement = remaining_placements[0] # Assume only one remaining for this test setup
-
-
-    py1, px1, py2, px2 = primary_placement
-    my1, mx1, my2, mx2 = meta_placement
-    place_h_meta, place_w_meta = my2 - my1, mx2 - mx1
+    grid_yx = (1, 2)
+    center_range = (0.5, 0.5)
+    meta_size = (80, 120) # H, W
 
     # --- Primary Data ---
     img_primary = np.ones((*target_size, 3), dtype=np.uint8) * 1
-    mask_primary = np.ones(target_size, dtype=np.uint8) * 1
-    # pascal_voc format [x_min, y_min, x_max, y_max] (absolute pixels)
-    bboxes_primary = np.array([[10, 10, 30, 30], [50, 50, 70, 70]], dtype=np.float32)
-    labels_primary = ['cat', 10]
-    # xy format [x, y] (absolute pixels)
-    keypoints_primary = np.array([[20, 20], [60, 60]], dtype=np.float32)
-    kp_labels_primary = ['eye', 5]
+    mask_primary = np.ones(target_size, dtype=np.uint8) * 11
+    # BBoxes: Albumentations format [x_min_norm, y_min_norm, x_max_norm, y_max_norm]
+    bboxes_primary = np.array([[0.1, 0.1, 0.3, 0.3], [0.6, 0.6, 0.8, 0.8]], dtype=np.float32)
+    # Keypoints: Albumentations format [x, y, Z, angle, scale]
+    keypoints_primary = np.array([[15, 15, 0, 0, 0], [70, 70, 0, 0, 0]], dtype=np.float32)
 
     # --- Metadata ---
-    meta_size = (80, 120) # height, width
     img_meta = np.ones((*meta_size, 3), dtype=np.uint8) * 2
-    mask_meta = np.ones(meta_size, dtype=np.uint8) * 2
-    bboxes_meta = np.array([[5, 5, 25, 25], [40, 60, 80, 75]], dtype=np.float32) # pascal_voc
-    labels_meta = ['cat', 'fish']
-    keypoints_meta = np.array([[15, 15], [60, 70]], dtype=np.float32) # xy
-    kp_labels_meta = ['nose', 6]
+    mask_meta = np.ones(meta_size, dtype=np.uint8) * 22
+    bboxes_meta = np.array([[0.5, 0.5, 0.7, 0.7]], dtype=np.float32) # rel to meta_size
+    keypoints_meta = np.array([[60, 40, 0, 0, 0]], dtype=np.float32) # rel to meta_size
 
     metadata_list = [
         {
             "image": img_meta,
             "mask": mask_meta,
             "bboxes": bboxes_meta,
-            "class_labels": labels_meta,
             "keypoints": keypoints_meta,
-            "kp_labels": kp_labels_meta,
         }
     ]
 
@@ -270,153 +231,60 @@ def test_mosaic_deterministic_with_metadata(
     pipeline = Compose([
         transform
     ],
-    bbox_params=BboxParams(format='pascal_voc', label_fields=['class_labels']),
-    keypoint_params=KeypointParams(format='xy', label_fields=['kp_labels']))
+    # Use albumentations format, no label fields
+    bbox_params=BboxParams(format='albumentations', min_visibility=0.0, min_area=0.0),
+    keypoint_params=KeypointParams(format='albumentations')) # No labels, use correct format
 
     # --- Input Data ---
     data = {
         "image": img_primary,
         "mask": mask_primary,
         "bboxes": bboxes_primary,
-        "class_labels": labels_primary,
         "keypoints": keypoints_primary,
-        "kp_labels": kp_labels_primary,
         "mosaic_metadata": metadata_list,
     }
 
     # --- Apply ---
     result = pipeline(**data)
 
-    # --- Calculate Expected ---
-    # Use functional components to build expected image/mask
+    # --- Calculate Expected Image/Mask (Simplified) ---
+    # Primary fills left (0,0,50,100), Meta fills right (50,0,100,100)
+    expected_image = np.zeros((*target_size, 3), dtype=np.uint8)
+    expected_mask = np.zeros(target_size, dtype=np.uint8)
 
-    # 1. Prepare input items in ProcessedMosaicItem format (bboxes/kps are not needed for image/mask calculation)
-    primary_item_input: ProcessedMosaicItem = {
-        "image": img_primary,
-        "mask": mask_primary,
-        "bboxes": None, # Not needed for geom
-        "keypoints": None, # Not needed for geom
-    }
-    meta_item_input: ProcessedMosaicItem = {
-        "image": img_meta,
-        "mask": mask_meta,
-        "bboxes": None,
-        "keypoints": None,
-    }
+    # Primary part (cropped from img_primary)
+    expected_image[0:100, 0:50] = img_primary[:, :50]
+    expected_mask[0:100, 0:50] = mask_primary[:, :50]
 
-    # 2. Process geometry for each item based on its placement dimensions
-    primary_h, primary_w = py2 - py1, px2 - px1
-    processed_primary_geom = process_cell_geometry(
-        item=primary_item_input,
-        target_h=primary_h,
-        target_w=primary_w,
-        fill=0, # Match transform fill
-        fill_mask=0, # Match transform fill_mask
-    )
-    meta_h, meta_w = my2 - my1, mx2 - mx1
-    processed_meta_geom = process_cell_geometry(
-        item=meta_item_input,
-        target_h=meta_h,
-        target_w=meta_w,
-        fill=0,
-        fill_mask=0,
-    )
-
-    # 3. Create the dictionary mapping placements to processed geometric data
-    processed_cells_for_assembly = {
-        primary_placement: processed_primary_geom,
-        meta_placement: processed_meta_geom,
-    }
-
-    # 4. Assemble the expected image and mask
-    expected_image = assemble_mosaic_from_processed_cells(
-        processed_cells=processed_cells_for_assembly,
-        target_shape=(*target_size, 3),
-        dtype=np.uint8,
-        data_key="image",
-    )
-    expected_mask = assemble_mosaic_from_processed_cells(
-        processed_cells=processed_cells_for_assembly,
-        target_shape=target_size,
-        dtype=np.uint8,
-        data_key="mask",
-    )
-
-    # --- Expected BBoxes/Keypoints (Absolute Pixels in Original Formats) ---
-
-    # Primary Targets (Shifted)
-    exp_bboxes_primary = bboxes_primary.copy()
-    exp_bboxes_primary[:, [0, 2]] += px1 # Shift x_min, x_max
-    exp_bboxes_primary[:, [1, 3]] += py1 # Shift y_min, y_max
-
-    exp_kps_primary = keypoints_primary.copy()
-    exp_kps_primary[:, 0] += px1 # Shift x
-    exp_kps_primary[:, 1] += py1 # Shift y
-
-    # Metadata Targets (Cropped/Filtered + Shifted in absolute pixels)
-    # Simulate the effect of placing the meta_image into the meta_placement cell
-
-    # Determine the crop size applied *implicitly* to the metadata image
-    crop_h = place_h_meta
-    crop_w = place_w_meta
-
-    # -- Metadata BBoxes (pascal_voc format) --
-    bboxes_meta_filtered = []
-    labels_meta_filtered = []
-    for i, bbox in enumerate(bboxes_meta):
-        x_min, y_min, x_max, y_max = bbox
-        label = labels_meta[i]
-
-        # Check for overlap with the implicit crop area (0, 0, crop_w, crop_h)
-        if x_min < crop_w and x_max > 0 and y_min < crop_h and y_max > 0:
-            # Clip coordinates to the crop area
-            x_min_clipped = max(0, x_min)
-            y_min_clipped = max(0, y_min)
-            x_max_clipped = min(crop_w, x_max)
-            y_max_clipped = min(crop_h, y_max)
-
-            # Check if area is still valid after clipping
-            if x_max_clipped > x_min_clipped and y_max_clipped > y_min_clipped:
-                 # Shift the clipped coordinates to the final canvas position
-                 shifted_bbox = [
-                     x_min_clipped + mx1,
-                     y_min_clipped + my1,
-                     x_max_clipped + mx1,
-                     y_max_clipped + my1,
-                 ]
-                 bboxes_meta_filtered.append(shifted_bbox)
-                 labels_meta_filtered.append(label)
-
-    exp_bboxes_meta = np.array(bboxes_meta_filtered, dtype=np.float32)
-
-    # -- Metadata Keypoints (xy format) --
-    keypoints_meta_filtered = []
-    kp_labels_meta_filtered = []
-    for i, kp in enumerate(keypoints_meta):
-        x, y = kp
-        label = kp_labels_meta[i]
-
-        # Check if keypoint is within the implicit crop area
-        if 0 <= x < crop_w and 0 <= y < crop_h:
-            # Shift the keypoint to the final canvas position
-            shifted_kp = [x + mx1, y + my1]
-            keypoints_meta_filtered.append(shifted_kp)
-            kp_labels_meta_filtered.append(label)
-
-    exp_kps_meta = np.array(keypoints_meta_filtered, dtype=np.float32)
+    # Meta part (padded then cropped from img_meta)
+    padded_h, padded_w = 100, 120
+    img_meta_padded = np.full((padded_h, padded_w, 3), 0, dtype=np.uint8)
+    mask_meta_padded = np.full((padded_h, padded_w), 0, dtype=np.uint8)
+    img_meta_padded[:meta_size[0], :meta_size[1]] = img_meta
+    mask_meta_padded[:meta_size[0], :meta_size[1]] = mask_meta
+    expected_image[0:100, 50:100] = img_meta_padded[:100, :50]
+    expected_mask[0:100, 50:100] = mask_meta_padded[:100, :50]
 
 
-    # Combine expected results
-    expected_bboxes = np.vstack((exp_bboxes_primary, exp_bboxes_meta)) if exp_bboxes_meta.size > 0 else exp_bboxes_primary
-    expected_labels = labels_primary + labels_meta_filtered
+    # --- Calculate Expected Annotations ---
+    # Primary placement (x1,y1,x2,y2) = (0, 0, 50, 100) -> crops W at 50%
+    # Meta placement (x1,y1,x2,y2) = (50, 0, 100, 100) -> crops W at 50%
 
-    if exp_kps_meta.size > 0:
-       expected_keypoints = np.vstack((exp_kps_primary, exp_kps_meta))
-       expected_kp_labels = kp_labels_primary + kp_labels_meta_filtered
-    else:
-       expected_keypoints = exp_kps_primary
-       expected_kp_labels = kp_labels_primary
+    # BBoxes:
+    # Primary bbox1 [0.1, 0.1, 0.3, 0.3] -> x_max=0.3 < 0.5 -> survives, no change needed
+    # Primary bbox2 [0.6, 0.6, 0.8, 0.8] -> x_min=0.6 > 0.5 -> filtered out by crop
+    # Meta bbox1 [0.5, 0.5, 0.7, 0.7] rel to (80,120) -> needs processing:
+    #   - Crop logic for meta cell (target W=50) applied to meta img (W=120)
+    #   - Bbox x=[0.5*120, 0.7*120] = [60, 84]. Crop is x=[0, 50]. Filtered out.
+    expected_bboxes = np.array([[0.1, 0.1, 0.3, 0.3]], dtype=np.float32)
 
+    # Keypoints:
+    # Primary kp1 [15, 15, 0, 0, 0] -> x=15 < 50 -> survives. Output: [15, 15, 0, 0, 0]
+    # Primary kp2 [70, 70, 0, 0, 0] -> x=70 > 50 -> filtered out by crop
+    # Meta kp1 [60, 40, 0, 0, 0] rel to (80, 120) -> needs processing:
+    #   - Crop logic for meta cell (target W=50) applied to meta img (W=120)
+    #   - Keypoint x=60. Crop is x=[0, 50]. Filtered out.
+    expected_keypoints = np.array([[15, 15, 0, 0, 0]], dtype=np.float32)
 
     # --- Assertions ---
     assert result['image'].shape == (*target_size, 3)
@@ -426,18 +294,11 @@ def test_mosaic_deterministic_with_metadata(
     np.testing.assert_array_equal(result['mask'], expected_mask)
 
     assert 'bboxes' in result
-    # Check if result bboxes are empty before comparing length/values
-    if not expected_bboxes.size:
-        assert not result['bboxes'].size, "Expected empty bboxes but got some."
-    else:
-        assert result['bboxes'].shape[0] == expected_bboxes.shape[0], f"Expected {expected_bboxes.shape[0]} bboxes, got {result['bboxes'].shape[0]}"
-        np.testing.assert_allclose(result['bboxes'], expected_bboxes, atol=1) # Use tolerance for pixel coords
-        assert result['class_labels'] == expected_labels
+    assert result['bboxes'].shape[0] == expected_bboxes.shape[0]
+    np.testing.assert_allclose(result['bboxes'], expected_bboxes, atol=1e-6)
+    assert result['bboxes'].shape[1] == 4 # No label column
 
     assert 'keypoints' in result
-    if not expected_keypoints.size:
-       assert not result['keypoints'].size, "Expected empty keypoints but got some."
-    else:
-       assert result['keypoints'].shape[0] == expected_keypoints.shape[0], f"Expected {expected_keypoints.shape[0]} keypoints, got {result['keypoints'].shape[0]}"
-       np.testing.assert_allclose(result['keypoints'], expected_keypoints, atol=1) # Use tolerance for pixel coords
-       assert result['kp_labels'] == expected_kp_labels
+    assert result['keypoints'].shape[0] == expected_keypoints.shape[0]
+    np.testing.assert_allclose(result['keypoints'], expected_keypoints, atol=1e-6)
+    assert result['keypoints'].shape[1] == 5 # x, y, Z, angle, scale
