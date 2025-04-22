@@ -151,7 +151,7 @@ def calculate_cell_placements(
     target_h, target_w = target_size
     center_x, center_y = center_xy
 
-    # 1. Generate grid line coordinates using arange for the large grid
+    # 1. Generate grid line coordinates for the large grid
     y_coords_large = np.arange(rows + 1) * target_h
     x_coords_large = np.arange(cols + 1) * target_w
 
@@ -161,35 +161,30 @@ def calculate_cell_placements(
     crop_x_max = crop_x_min + target_w
     crop_y_max = crop_y_min + target_h
 
+    def clip_coords(coords, min_val, max_val):
+        # Clip coordinates and ensure all values are within bounds
+        clipped_coords = np.clip(coords, min_val, max_val)
+        unique_clipped_coords = np.unique(clipped_coords) - min_val
+        return unique_clipped_coords
+
     # 3. Clip grid lines to the crop window
-    y_coords_clipped = np.clip(y_coords_large, crop_y_min, crop_y_max)
-    x_coords_clipped = np.clip(x_coords_large, crop_x_min, crop_x_max)
+    y_coords_clipped = clip_coords(y_coords_large, crop_y_min, crop_y_max)
+    x_coords_clipped = clip_coords(x_coords_large, crop_x_min, crop_x_max)
 
-    # 4. Get unique sorted coordinates
-    y_coords_unique = np.unique(y_coords_clipped) - crop_y_min
-    x_coords_unique = np.unique(x_coords_clipped) - crop_x_min
+    # 4. Form all cell coordinates efficiently
+    num_x_intervals = len(x_coords_clipped) - 1
+    num_y_intervals = len(y_coords_clipped) - 1
+    result = []
 
-    # 5. Form all cell coordinates using numpy operations
-    x_mins = x_coords_unique[:-1]
-    x_maxs = x_coords_unique[1:]
-    y_mins = y_coords_unique[:-1]
-    y_maxs = y_coords_unique[1:]
+    for y_idx in range(num_y_intervals):
+        y_min = y_coords_clipped[y_idx]
+        y_max = y_coords_clipped[y_idx + 1]
+        for x_idx in range(num_x_intervals):
+            x_min = x_coords_clipped[x_idx]
+            x_max = x_coords_clipped[x_idx + 1]
+            result.append((int(x_min), int(y_min), int(x_max), int(y_max)))
 
-    num_x_intervals = len(x_mins)
-    num_y_intervals = len(y_mins)
-
-    # Create all combinations of intervals (Cartesian product)
-    all_x_mins = np.tile(x_mins, num_y_intervals)
-    all_y_mins = np.repeat(y_mins, num_x_intervals)
-    all_x_maxs = np.tile(x_maxs, num_y_intervals)
-    all_y_maxs = np.repeat(y_maxs, num_x_intervals)
-
-    # Stack into (N, 4) array of [x_min, y_min, x_max, y_max] mapped to target origin
-    np_result = np.stack([all_x_mins, all_y_mins, all_x_maxs, all_y_maxs], axis=-1)
-
-    # Convert final numpy array to list of tuples of ints
-    # Note: Assumes np_result contains valid, non-zero area coordinates within target bounds
-    return cast("list[tuple[int, int, int, int]]", [tuple(map(int, row)) for row in np_result])
+    return cast("list[tuple[int, int, int, int]]", result)
 
 
 def _gather_mosaic_item_data(
