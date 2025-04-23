@@ -21,6 +21,10 @@ from albumentations.augmentations.geometric.transforms import PadIfNeeded
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.composition import Compose
 from albumentations.core.keypoints_utils import KeypointsProcessor
+from albumentations.core.type_definitions import (
+    NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS,
+    NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS,
+)
 
 
 # Type definition for a processed mosaic item
@@ -772,6 +776,8 @@ def shift_all_coordinates(
             shifted_bboxes_denormalized = fgeometric.shift_bboxes(bbox_denoramlized, bbox_shift_vector)
             shifted_bboxes = normalize_bboxes(shifted_bboxes_denormalized, {"height": canvas_h, "width": canvas_w})
             final_cell_data["bboxes"] = shifted_bboxes
+        else:
+            final_cell_data["bboxes"] = np.empty((0, NUM_BBOXES_COLUMNS_IN_ALBUMENTATIONS))
 
         if keypoints_geom is not None and keypoints_geom.size > 0:
             keypoints_geom_arr = np.asarray(keypoints_geom)
@@ -781,6 +787,8 @@ def shift_all_coordinates(
             shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom_arr, kp_shift_vector)
 
             final_cell_data["keypoints"] = shifted_keypoints
+        else:
+            final_cell_data["keypoints"] = np.empty((0, NUM_KEYPOINTS_COLUMNS_IN_ALBUMENTATIONS))
 
         final_processed_cells[placement_coords] = cast("ProcessedMosaicItem", final_cell_data)
 

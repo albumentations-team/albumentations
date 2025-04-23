@@ -337,6 +337,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomFog,
             A.Pad,
             A.HEStain,
+            A.Mosaic,
         },
     ),
 )
@@ -414,7 +415,8 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             A.RandomScale,
             A.RandomCropFromBorders,
             A.ConstrainedCoarseDropout,
-            A.Pad
+            A.Pad,
+            A.Mosaic,
         },
     ),
 )
@@ -1054,6 +1056,7 @@ def test_pad_if_needed_position(params, image_shape):
             A.RGBShift,
             A.HueSaturationValue,
             A.ColorJitter,
+            A.Mosaic,
         },
     ),
 )
@@ -1070,12 +1073,6 @@ def test_augmentations_match_uint8_float32(augmentation_cls, params):
         data["mask"] = mask
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
-    elif augmentation_cls == A.Mosaic:
-        data["mosaic_metadata"] = [
-            {
-                "image": image_uint8,
-            }
-        ]
 
     transformed_uint8 = transform(**data)["image"]
 

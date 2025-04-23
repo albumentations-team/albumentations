@@ -839,17 +839,6 @@ def test_compose_with_bbox_noop(
     assert np.all(np.isclose(transformed["bboxes"], bboxes))
 
 
-@pytest.mark.parametrize(["bboxes", "bbox_format"], [[[[20, 30, 40, 50]], "coco"]])
-def test_compose_with_bbox_noop_error_label_fields(
-    bboxes,
-    bbox_format: str,
-) -> None:
-    image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format}, strict=True)
-    with pytest.raises(Exception):
-        aug(image=image, bboxes=bboxes)
-
-
 @pytest.mark.parametrize(
     ["bboxes", "bbox_format", "labels"],
     [

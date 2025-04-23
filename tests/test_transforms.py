@@ -1700,9 +1700,9 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     data = {
         "image": image,
-        "bboxes": [],
+        "bboxes": np.array([], dtype=np.float32).reshape(0, 4),
         "labels": [],
-        "keypoints": [],
+        "keypoints": np.array([], dtype=np.float32).reshape(0, 2),
     }
 
     if augmentation_cls == A.OverlayElements:
@@ -1723,8 +1723,8 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
 
     data = aug(**data)
 
-    np.testing.assert_array_equal(data["bboxes"], [])
-    np.testing.assert_array_equal(data["keypoints"], [])
+    np.testing.assert_array_equal(data["bboxes"], np.array([], dtype=np.float32).reshape(0, 4))
+    np.testing.assert_array_equal(data["keypoints"], np.array([], dtype=np.float32).reshape(0, 2))
 
 
 @pytest.mark.parametrize(

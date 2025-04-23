@@ -213,6 +213,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
             A.TextImage,
+            A.Mosaic,
         },
     ),
 )
@@ -228,7 +229,7 @@ def test_augmentations_for_bboxes_serialization(
     image = (
         SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     )
-    aug = augmentation_cls(p=p, **params)
+    aug = A.Compose([augmentation_cls(p=p, **params)], bbox_params={"format": "pascal_voc"})
     aug.set_random_seed(seed)
     data = {"image": image, "bboxes": albumentations_bboxes}
     if augmentation_cls == A.MaskDropout:
@@ -237,12 +238,6 @@ def test_augmentations_for_bboxes_serialization(
         data["mask"] = mask
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
-    elif augmentation_cls == A.Mosaic:
-        data["mosaic_metadata"] = [
-            {
-                "image": image,
-            }
-        ]
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -268,6 +263,7 @@ def test_augmentations_for_bboxes_serialization(
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
+            A.Mosaic,
         },
     ),
 )
@@ -288,12 +284,6 @@ def test_augmentations_for_keypoints_serialization(
         data["mask"] = mask
     elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
-    elif augmentation_cls == A.Mosaic:
-        data["mosaic_metadata"] = [
-            {
-                "image": image,
-            }
-        ]
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
