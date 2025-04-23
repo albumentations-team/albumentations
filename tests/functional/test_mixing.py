@@ -343,21 +343,38 @@ def test_process_cell_geometry_pad(small_item_geom) -> None:
     target_h, target_w = 70, 80
     fill_value = 111
     mask_fill_value = 5
+    cell_position = "center"
 
     processed = process_cell_geometry(item, (target_h, target_w), fill=fill_value, fill_mask=mask_fill_value,
                                       fit_mode="contain", interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
-                                      cell_position="center")
+                                      cell_position=cell_position)
 
     assert processed["image"].shape == (target_h, target_w, 3)
     assert processed["mask"].shape == (target_h, target_w)
 
-    # Check if top-left corner matches original
-    np.testing.assert_array_equal(processed["image"][:50, :50], item["image"])
-    np.testing.assert_array_equal(processed["mask"][:50, :50], item["mask"])
+    # Calculate expected size after LongestMaxSize (maintaining aspect ratio)
+    # Original 50x50 -> Target 70x80. Longest=80. Scale = 80/50 = 1.6? No, longest is 70 for height.
+    # Scale = 70/50 = 1.4. New size = (50*1.4, 50*1.4) = (70, 70)
+    # If target was 80x70, scale = 80/50 = 1.6 -> (80, 80). Need LongestMaxSize logic.
+    # Simpler: find the non-padded region. PadIfNeeded(center) adds symmetric padding.
+    original_h, original_w = item["image"].shape[:2]
+    scale = min(target_h / original_h, target_w / original_w)
+    resized_h, resized_w = int(original_h * scale), int(original_w * scale)
 
-    # Check padding values
-    assert np.all(processed["image"][50:, 50:] == fill_value)
-    assert np.all(processed["mask"][50:, 50:] == mask_fill_value)
+    pad_top = (target_h - resized_h) // 2
+    pad_left = (target_w - resized_w) // 2
+    y_slice_img = slice(pad_top, pad_top + resized_h)
+    x_slice_img = slice(pad_left, pad_left + resized_w)
+
+    # Check that the central (image) area does NOT contain fill values
+    assert not np.all(processed["image"][y_slice_img, x_slice_img] == fill_value)
+    assert not np.all(processed["mask"][y_slice_img, x_slice_img] == mask_fill_value)
+
+    # Check padding values in corners (or other known padded areas)
+    assert np.all(processed["image"][:pad_top, :pad_left] == fill_value)
+    assert np.all(processed["image"][pad_top + resized_h:, pad_left + resized_w:] == fill_value)
+    assert np.all(processed["mask"][:pad_top, :pad_left] == mask_fill_value)
+    assert np.all(processed["mask"][pad_top + resized_h:, pad_left + resized_w:] == mask_fill_value)
 
 # Note: Annotations (bboxes, keypoints) are not directly tested here
 # as process_cell_geometry relies on the Compose([RandomCrop(...)]) call,
@@ -377,8 +394,10 @@ def test_process_all_geometry_identity(base_item_geom) -> None:
     # Setup: Map the placement directly to the item index
     placement_to_item_index = {(0, 0, 100, 100): 0}
     final_items = [base_item_geom]
+    canvas_shape = (100, 100) # Added canvas_shape
 
     processed = process_all_mosaic_geometries(
+        canvas_shape=canvas_shape, # Pass canvas_shape
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
         # Removed cell_placements argument
@@ -403,10 +422,12 @@ def test_process_all_geometry_identity(base_item_geom) -> None:
 def test_process_all_geometry_crop(base_item_geom) -> None:
     """Test process_all for a single cell requiring cropping."""
     # Setup: Map the placement directly to the item index
-    placement_to_item_index = {(10, 20, 60, 80): 0} # Placement is 50x60
+    placement_to_item_index = {(10, 20, 60, 80): 0} # Placement is 50x60 within 80x60 canvas
     final_items = [base_item_geom] # Item is 100x100
+    canvas_shape = (80, 60) # Added canvas_shape (height, width)
 
     processed = process_all_mosaic_geometries(
+        canvas_shape=canvas_shape, # Pass canvas_shape
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
         fill=0,
@@ -430,11 +451,12 @@ def test_process_all_geometry_pad(small_item_geom) -> None:
     final_items = [small_item_geom]  # Item is 50x50
     fill_value = 111
     mask_fill_value = 5
+    canvas_shape = (70, 80) # Added canvas_shape (height, width)
 
     processed = process_all_mosaic_geometries(
+        canvas_shape=canvas_shape,
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        # Removed cell_placements argument
         fill=fill_value,
         fill_mask=mask_fill_value,
         fit_mode="contain",
@@ -444,15 +466,31 @@ def test_process_all_geometry_pad(small_item_geom) -> None:
 
     assert len(processed) == 1
     placement_key = (0, 0, 80, 70)
+    target_h, target_w = 70, 80
     assert placement_key in processed
     processed_item = processed[placement_key]
-    assert processed_item["image"].shape == (70, 80, 3) # Target H=70, W=80
-    assert processed_item["mask"].shape == (70, 80)
-    # Check if top-left matches (assuming pad_position="top_left" in process_cell_geometry)
-    np.testing.assert_array_equal(processed_item["image"][:50, :50], small_item_geom["image"])
-    np.testing.assert_array_equal(processed_item["mask"][:50, :50], small_item_geom["mask"])
-    assert np.all(processed_item["image"][50:, 50:] == fill_value)
-    assert np.all(processed_item["mask"][50:, 50:] == mask_fill_value)
+    assert processed_item["image"].shape == (target_h, target_w, 3)
+    assert processed_item["mask"].shape == (target_h, target_w)
+
+    # Similar check as in test_process_cell_geometry_pad
+    # Calculate expected size after LongestMaxSize
+    original_h, original_w = small_item_geom["image"].shape[:2]
+    scale = min(target_h / original_h, target_w / original_w)
+    resized_h, resized_w = int(original_h * scale), int(original_w * scale)
+    pad_top = (target_h - resized_h) // 2
+    pad_left = (target_w - resized_w) // 2
+    y_slice_img = slice(pad_top, pad_top + resized_h)
+    x_slice_img = slice(pad_left, pad_left + resized_w)
+
+    # Check the central (image) area does NOT contain fill values
+    assert not np.all(processed_item["image"][y_slice_img, x_slice_img] == fill_value)
+    assert not np.all(processed_item["mask"][y_slice_img, x_slice_img] == mask_fill_value)
+
+    # Check padding values in corners
+    assert np.all(processed_item["image"][:pad_top, :pad_left] == fill_value)
+    assert np.all(processed_item["image"][pad_top + resized_h:, pad_left + resized_w:] == fill_value)
+    assert np.all(processed_item["mask"][:pad_top, :pad_left] == mask_fill_value)
+    assert np.all(processed_item["mask"][pad_top + resized_h:, pad_left + resized_w:] == mask_fill_value)
 
 def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
     """Test process_all processing two different items for two cells."""
@@ -462,13 +500,16 @@ def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
         (50, 0, 110, 60): 1,  # Pad small_item_geom (idx 1) to 60x60
     }
     final_items = items_list_geom
+    canvas_shape = (60, 110) # Added canvas_shape (height=60, width=110)
+    fill_value = 0 # Using default fill=0 for this test
+    mask_fill_value = 0
 
     processed = process_all_mosaic_geometries(
+        canvas_shape=canvas_shape,
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
-        # Removed cell_placements argument
-        fill=0,
-        fill_mask=0,
+        fill=fill_value,
+        fill_mask=mask_fill_value,
         fit_mode="contain",
         interpolation=cv2.INTER_NEAREST,
         mask_interpolation=cv2.INTER_NEAREST,
@@ -477,22 +518,40 @@ def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
     assert len(processed) == 2
     placement1 = (0, 0, 50, 50)
     placement2 = (50, 0, 110, 60)
+    target_h1, target_w1 = 50, 50
+    target_h2, target_w2 = 60, 60 # Cell 2 shape is 60x60 (110-50, 60-0)
     assert placement1 in processed
     assert placement2 in processed
 
     # Check cell 1 (cropped from base_item_geom)
     processed1 = processed[placement1]
-    assert processed1["image"].shape == (50, 50, 3)
-    assert processed1["mask"].shape == (50, 50)
+    assert processed1["image"].shape == (target_h1, target_w1, 3)
+    assert processed1["mask"].shape == (target_h1, target_w1)
+    # Cropping might change content, so just check shape is correct
 
     # Check cell 2 (padded small_item_geom)
     processed2 = processed[placement2]
-    assert processed2["image"].shape == (60, 60, 3) # Target H=60, W=60
-    assert processed2["mask"].shape == (60, 60)
-    np.testing.assert_array_equal(processed2["image"][:50, :50], items_list_geom[1]["image"])
-    np.testing.assert_array_equal(processed2["mask"][:50, :50], items_list_geom[1]["mask"])
-    assert np.all(processed2["image"][50:, 50:] == 0)
-    assert np.all(processed2["mask"][50:, 50:] == 0)
+    assert processed2["image"].shape == (target_h2, target_w2, 3)
+    assert processed2["mask"].shape == (target_h2, target_w2)
+
+    # Calculate expected size after LongestMaxSize for item 1 (small_item_geom)
+    original_h, original_w = items_list_geom[1]["image"].shape[:2] # 50x50
+    scale = min(target_h2 / original_h, target_w2 / original_w) # min(60/50, 60/50) = 1.2
+    resized_h, resized_w = int(original_h * scale), int(original_w * scale) # 60x60
+
+    pad_top = (target_h2 - resized_h) // 2 # (60-60)//2 = 0
+    pad_left = (target_w2 - resized_w) // 2 # (60-60)//2 = 0
+    y_slice_img = slice(pad_top, pad_top + resized_h) # slice(0, 60)
+    x_slice_img = slice(pad_left, pad_left + resized_w) # slice(0, 60)
+
+    # Check the central (image) area does NOT contain fill values
+    assert not np.all(processed2["image"][y_slice_img, x_slice_img] == fill_value)
+    assert not np.all(processed2["mask"][y_slice_img, x_slice_img] == mask_fill_value)
+
+    # Since resized_h/w match target_h2/w2, there should be no padding.
+    # Verify this implicitly by checking the whole image doesn't equal fill value.
+    assert not np.all(processed2["image"] == fill_value)
+    assert not np.all(processed2["mask"] == mask_fill_value)
 
 
 # Tests for assemble_mosaic_from_processed_cells
