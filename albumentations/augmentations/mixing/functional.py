@@ -336,10 +336,18 @@ def _preprocess_item_annotations(
     original_data = item.get(data_key)
 
     # Check if processor exists and the relevant data key is in the item
-    if processor and data_key in item:
-        # Ensure the data for the key is not None before proceeding
-        if item[data_key] is None:
-            return None
+    if processor and data_key in item and item.get(data_key) is not None:
+        # === Add validation for required label fields ===
+        required_labels = processor.params.label_fields
+        if required_labels:
+            missing_labels = [field for field in required_labels if field not in item]
+            if missing_labels:
+                raise ValueError(
+                    f"Item contains '{data_key}' but is missing required label fields: {missing_labels}. "
+                    f"Ensure all label fields declared in {type(processor.params).__name__} "
+                    f"({required_labels}) are present in the item dictionary when '{data_key}' is present.",
+                )
+        # === End validation ===
 
         # Create a temporary minimal dict for the processor
         temp_data = {
@@ -347,41 +355,19 @@ def _preprocess_item_annotations(
             data_key: item[data_key],
         }
 
-        # Add declared label fields if they exist in the item
-        if processor.params.label_fields:
-            for field in processor.params.label_fields:
+        # Add declared label fields if they exist in the item (already validated above)
+        if required_labels:
+            for field in required_labels:
+                # Check again just in case validation logic changes, avoids KeyError
                 if field in item:
                     temp_data[field] = item[field]
 
         # Preprocess modifies temp_data in-place
         processor.preprocess(temp_data)
-        processed_data = temp_data.get(data_key)
+        # Return the potentially modified data from the temp dict
+        return temp_data.get(data_key)
 
-        # Ensure result is numpy array or None
-        if processed_data is not None:
-            # Handle cases where processor might not return ndarray (though it should)
-            if not isinstance(processed_data, np.ndarray):
-                warn(
-                    f"{data_key.capitalize()} were not converted to np.ndarray during preprocessing: "
-                    f"{type(processed_data)}. Returning None.",
-                    UserWarning,
-                    stacklevel=4,
-                )
-                return None
-            # Return processed numpy array
-            return processed_data
-        # If processor returned None or key was deleted
-        return None
-
-    # Return original data (which could be None or ndarray) if no processor or data key wasn't in item
-    # Ensure it's ndarray if not None
-    if original_data is not None and not isinstance(original_data, np.ndarray):
-        # This case should ideally not happen if input follows standards, but safeguard
-        try:
-            return np.array(original_data)
-        except (ValueError, TypeError) as e:  # Catch more specific exceptions
-            warn(f"Could not convert original {data_key} to ndarray: {e}. Returning None.", UserWarning, stacklevel=4)
-            return None
+    # Return original data if no processor or data key wasn't in item
     return original_data
 
 
@@ -789,8 +775,11 @@ def shift_all_coordinates(
 
         if keypoints_geom is not None and keypoints_geom.size > 0:
             keypoints_geom_arr = np.asarray(keypoints_geom)
+
             kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+
             shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom_arr, kp_shift_vector)
+
             final_cell_data["keypoints"] = shifted_keypoints
 
         final_processed_cells[placement_coords] = cast("ProcessedMosaicItem", final_cell_data)

@@ -446,19 +446,14 @@ class Mosaic(DualTransform):
                 bbox_processor,
                 keypoint_processor,
             )
+
         else:
             preprocessed_selected_additional_items = cast(
                 "list[fmixing.ProcessedMosaicItem]",
                 selected_raw_additional_items,
             )
 
-        # Step 5: Prepare Primary Data
-        primary: fmixing.ProcessedMosaicItem = {
-            "image": data["image"],
-            "mask": data.get("mask"),
-            "bboxes": data.get("bboxes"),
-            "keypoints": data.get("keypoints"),
-        }
+        primary = self.get_primary_data(data)
 
         # Step 6: Determine Replication Count
         num_replications = max(0, num_additional_needed - len(preprocessed_selected_additional_items))
@@ -505,6 +500,33 @@ class Mosaic(DualTransform):
             result["target_mask_shape"] = self._get_target_shape(data["mask"].shape)
 
         return result
+
+    @staticmethod
+    def get_primary_data(data: dict[str, Any]) -> fmixing.ProcessedMosaicItem:
+        """Get a copy of the primary data (data passed in `data` parameter) to avoid modifying the original data.
+
+        Args:
+            data (dict[str, Any]): Dictionary containing the primary data.
+
+        Returns:
+            fmixing.ProcessedMosaicItem: A copy of the primary data.
+
+        """
+        mask = data.get("mask")
+        if mask is not None:
+            mask = mask.copy()
+        bboxes = data.get("bboxes")
+        if bboxes is not None:
+            bboxes = bboxes.copy()
+        keypoints = data.get("keypoints")
+        if keypoints is not None:
+            keypoints = keypoints.copy()
+        return {
+            "image": data["image"],
+            "mask": mask,
+            "bboxes": bboxes,
+            "keypoints": keypoints,
+        }
 
     def _get_target_shape(self, np_shape: tuple[int, ...]) -> list[int]:
         target_shape = list(np_shape)
