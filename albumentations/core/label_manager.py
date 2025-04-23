@@ -36,6 +36,14 @@ def custom_sort(item: Any) -> tuple[int, Real | str]:
     return (0, item) if isinstance(item, Real) else (1, str(item))
 
 
+def _categorize_labels(labels: Sequence[Any]) -> tuple[list[Real], list[str]]:
+    """Categorize labels into numeric and string lists."""
+    numeric_labels, string_labels = [], []
+    for label in labels:
+        (numeric_labels if isinstance(label, Real) else string_labels).append(label)
+    return numeric_labels, string_labels
+
+
 class LabelEncoder:
     """Encodes labels into integer indices.
 
@@ -168,23 +176,21 @@ class LabelEncoder:
 
         # Find labels not already in the encoder efficiently using sets
         current_labels_set = set(self.classes_.keys())
-        new_unique_labels = {label for label in input_labels if label not in current_labels_set}
+        new_unique_labels = set(input_labels) - current_labels_set
 
         if not new_unique_labels:
             # No new labels to add
             return self
 
-        # Sort new labels for deterministic encoding order, handling mixed types
-        # Use custom_sort defined earlier in the module
-        sorted_new_labels = sorted(new_unique_labels, key=custom_sort)
+        # Separate and sort new labels for deterministic encoding order
+        numeric_labels, string_labels = _categorize_labels(new_unique_labels)
+        sorted_new_labels = sorted(numeric_labels) + sorted(string_labels, key=str)
 
         for label in sorted_new_labels:
-            # Double-check in case the input `y` contained duplicates of the same new label
-            if label not in self.classes_:
-                new_id = self.num_classes
-                self.classes_[label] = new_id
-                self.inverse_classes_[new_id] = label
-                self.num_classes += 1
+            new_id = self.num_classes
+            self.classes_[label] = new_id
+            self.inverse_classes_[new_id] = label
+            self.num_classes += 1
         return self
 
 
