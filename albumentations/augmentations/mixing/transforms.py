@@ -494,7 +494,7 @@ class Mosaic(DualTransform):
         if "bboxes" in data or "keypoints" in data:
             # Step 10b: Shift Coordinates for all processed cells
             # Note: shift_all_coordinates expects dict keyed by placement_tuple
-            processed_cells = fmixing.shift_all_coordinates(processed_cells)
+            processed_cells = fmixing.shift_all_coordinates(processed_cells, canvas_shape=self.target_size)
 
         result = {
             "processed_cells": processed_cells,

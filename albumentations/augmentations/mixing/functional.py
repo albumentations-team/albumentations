@@ -18,7 +18,7 @@ import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.crops.transforms import RandomCrop
 from albumentations.augmentations.geometric.resize import LongestMaxSize, SmallestMaxSize
 from albumentations.augmentations.geometric.transforms import PadIfNeeded
-from albumentations.core.bbox_utils import BboxProcessor
+from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.composition import Compose
 from albumentations.core.keypoints_utils import KeypointsProcessor
 
@@ -741,6 +741,7 @@ def get_cell_relative_position(
 
 def shift_all_coordinates(
     processed_cells_geom: dict[tuple[int, int, int, int], ProcessedMosaicItem],
+    canvas_shape: tuple[int, int],
 ) -> dict[tuple[int, int, int, int], ProcessedMosaicItem]:  # Return type matches input, but values are updated
     """Shifts coordinates for all geometrically processed cells.
 
@@ -751,6 +752,7 @@ def shift_all_coordinates(
     Args:
         processed_cells_geom (dict[tuple[int, int, int, int], ProcessedMosaicItem]):
              Output from process_all_mosaic_geometries (keyed by placement coords).
+        canvas_shape (tuple[int, int]): The shape of the canvas.
 
     Returns:
         dict[tuple[int, int, int, int], ProcessedMosaicItem]: Final dictionary mapping
@@ -758,9 +760,13 @@ def shift_all_coordinates(
 
     """
     final_processed_cells: dict[tuple[int, int, int, int], ProcessedMosaicItem] = {}
+    canvas_h, canvas_w = canvas_shape
 
     for placement_coords, cell_data_geom in processed_cells_geom.items():
         tgt_x1, tgt_y1 = placement_coords[:2]
+
+        cell_width = placement_coords[2] - placement_coords[0]
+        cell_height = placement_coords[3] - placement_coords[1]
 
         # Extract geometrically processed bboxes/keypoints
         bboxes_geom = cell_data_geom.get("bboxes")
@@ -774,8 +780,11 @@ def shift_all_coordinates(
         # Perform shifting if data exists
         if bboxes_geom is not None and bboxes_geom.size > 0:
             bboxes_geom_arr = np.asarray(bboxes_geom)
-            bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.int32)
-            shifted_bboxes = fgeometric.shift_bboxes(bboxes_geom_arr, bbox_shift_vector)
+            bbox_denoramlized = denormalize_bboxes(bboxes_geom_arr, {"height": cell_height, "width": cell_width})
+            bbox_shift_vector = np.array([tgt_x1, tgt_y1, tgt_x1, tgt_y1], dtype=np.float32)
+
+            shifted_bboxes_denormalized = fgeometric.shift_bboxes(bbox_denoramlized, bbox_shift_vector)
+            shifted_bboxes = normalize_bboxes(shifted_bboxes_denormalized, {"height": canvas_h, "width": canvas_w})
             final_cell_data["bboxes"] = shifted_bboxes
 
         if keypoints_geom is not None and keypoints_geom.size > 0:
