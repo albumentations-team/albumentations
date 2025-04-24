@@ -285,11 +285,12 @@ def _preprocess_item_annotations(
     # Check if processor exists and the relevant data key is in the item
     if processor and data_key in item and item.get(data_key) is not None:
         # === Add validation for required label fields ===
-        required_labels = cast("list[str]", processor.params.label_fields)
-        missing_labels = [field for field in required_labels if field not in item]
-        if missing_labels and required_labels:
+        required_labels = processor.params.label_fields
+
+        if required_labels and [field for field in required_labels if field not in item]:
             raise ValueError(
-                f"Item contains '{data_key}' but is missing required label fields: {missing_labels}. "
+                f"Item contains '{data_key}' but is missing required label "
+                "fields: {[field for field in required_labels if field not in item]}. "
                 f"Ensure all label fields declared in {type(processor.params).__name__} "
                 f"({required_labels}) are present in the item dictionary when '{data_key}' is present.",
             )
