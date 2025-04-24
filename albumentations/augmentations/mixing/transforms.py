@@ -1,7 +1,9 @@
-"""Transforms for mixing and overlaying images.
+"""Transforms that combine multiple images and their associated annotations.
 
-This module provides transform classes for image mixing operations, including
-overlay elements like stickers, logos, or other images onto the input image.
+This module contains transformations that take multiple input sources (e.g., a primary image
+and additional images provided via metadata) and combine them into a single output.
+Examples include overlaying elements (`OverlayElements`) or creating complex compositions
+like `Mosaic`.
 """
 
 from __future__ import annotations
