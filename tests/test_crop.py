@@ -244,3 +244,49 @@ def test_base_crop_and_pad_fill():
 
     assert np.all(out1["image"] == expected_img * 201)
     assert np.all(out1["mask"] == expected_msk * 0)  # 0 is the default for fill_mask
+
+
+@pytest.mark.parametrize(
+    ["image_shape", "crop_coords", "pad_position"],
+    [
+        # Case 1: Inside crop, no padding needed
+        ((100, 100, 3), (10, 20, 60, 80), "center"),
+        # Case 2: Width > image_width, requires padding (center)
+        ((100, 100, 3), (10, 20, 120, 80), "center"),
+        # Case 3: Crop extends beyond image height, but crop_height <= image_height, no padding needed
+        ((100, 100, 3), (10, 20, 60, 120), "center"),
+        # Case 4: Width > image_width and Height > image_height, requires padding (center)
+        ((100, 100, 3), (10, 20, 120, 130), "center"),
+        # Case 7: Crop partially outside (large x, y), no padding needed, clips crop region
+        ((100, 100, 3), (90, 90, 120, 120), "center"),
+        # Case 9: Width > image_width, requires padding (top_left)
+        ((100, 100, 3), (10, 20, 120, 80), "top_left"),
+        # Case 10: Width > image_width and Height > image_height, requires padding (top_left)
+        ((100, 100, 3), (10, 20, 120, 130), "top_left"),
+    ],
+)
+def test_crop_pad_if_needed(image_shape, crop_coords, pad_position):
+    """Tests Crop transform with pad_if_needed=True ensures output has requested crop shape."""
+    image = np.ones(image_shape, dtype=np.uint8) * 255
+    x_min, y_min, x_max, y_max = crop_coords
+
+    expected_h = y_max - y_min
+    expected_w = x_max - x_min
+    expected_shape = (expected_h, expected_w, image_shape[2])
+
+    transform = A.Crop(
+        x_min=x_min,
+        y_min=y_min,
+        x_max=x_max,
+        y_max=y_max,
+        pad_if_needed=True,
+        pad_position=pad_position,
+        border_mode=cv2.BORDER_CONSTANT,
+        fill=0,  # Fill value doesn't affect shape test
+        p=1.0,
+    )
+
+    result = transform(image=image)
+    transformed_image = result["image"]
+
+    assert transformed_image.shape == expected_shape

@@ -58,7 +58,9 @@ def test_calculate_mosaic_center_point(
 ) -> None:
     """Test the calculation of the mosaic center point under various conditions."""
     py_random = random.Random(seed)
-    center_xy = calculate_mosaic_center_point(grid_yx, target_size, center_range, py_random)
+    center_xy = calculate_mosaic_center_point(grid_yx=grid_yx, cell_shape=target_size,
+                                              target_size=target_size,
+                                              center_range=center_range, py_random=py_random)
     assert center_xy == expected_center
 
 
@@ -97,7 +99,9 @@ def test_calculate_cell_placements(
     expected_placements: dict[tuple[int, int], tuple[int, int, int, int]],
 ) -> None:
     """Test the calculation of cell placements on the target canvas."""
-    placements = calculate_cell_placements(grid_yx, target_size, center_xy)
+    placements = calculate_cell_placements(grid_yx=grid_yx, cell_shape=target_size,
+                                           target_size=target_size,
+                                            center_xy=center_xy)
     assert placements == expected_placements, f"Placements {placements} do not match expected {expected_placements}"
 
 
@@ -309,7 +313,9 @@ def test_process_cell_geometry_identity(base_item_geom) -> None:
     item = base_item_geom
     target_h, target_w = 100, 100
 
-    processed = process_cell_geometry(item, (target_h, target_w), fill=0, fill_mask=0, fit_mode="contain",
+    processed = process_cell_geometry(item=item, cell_shape=(target_h, target_w),
+                                      target_shape=(target_h, target_w),
+                                      fill=0, fill_mask=0, fit_mode="contain",
                                       interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
                                       cell_position="center")
 
@@ -324,7 +330,9 @@ def test_process_cell_geometry_crop(base_item_geom) -> None:
     item = base_item_geom
     target_h, target_w = 60, 50
 
-    processed = process_cell_geometry(item, (target_h, target_w), fill=0, fill_mask=0, fit_mode="contain",
+    processed = process_cell_geometry(item=item, cell_shape=(target_h, target_w),
+                                      target_shape=(target_h, target_w),
+                                      fill=0, fill_mask=0, fit_mode="contain",
                                       interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
                                       cell_position="center")
 
@@ -345,7 +353,9 @@ def test_process_cell_geometry_pad(small_item_geom) -> None:
     mask_fill_value = 5
     cell_position = "center"
 
-    processed = process_cell_geometry(item, (target_h, target_w), fill=fill_value, fill_mask=mask_fill_value,
+    processed = process_cell_geometry(item=item, cell_shape=(target_h, target_w),
+                                      target_shape=(target_h, target_w),
+                                      fill=fill_value, fill_mask=mask_fill_value,
                                       fit_mode="contain", interpolation=cv2.INTER_NEAREST, mask_interpolation=cv2.INTER_NEAREST,
                                       cell_position=cell_position)
 
@@ -397,7 +407,8 @@ def test_process_all_geometry_identity(base_item_geom) -> None:
     canvas_shape = (100, 100) # Added canvas_shape
 
     processed = process_all_mosaic_geometries(
-        canvas_shape=canvas_shape, # Pass canvas_shape
+        canvas_shape=canvas_shape,
+        cell_shape=canvas_shape,
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
         # Removed cell_placements argument
@@ -427,7 +438,8 @@ def test_process_all_geometry_crop(base_item_geom) -> None:
     canvas_shape = (80, 60) # Added canvas_shape (height, width)
 
     processed = process_all_mosaic_geometries(
-        canvas_shape=canvas_shape, # Pass canvas_shape
+        canvas_shape=canvas_shape,
+        cell_shape=canvas_shape,
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
         fill=0,
@@ -455,6 +467,7 @@ def test_process_all_geometry_pad(small_item_geom) -> None:
 
     processed = process_all_mosaic_geometries(
         canvas_shape=canvas_shape,
+        cell_shape=canvas_shape,
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
         fill=fill_value,
@@ -506,6 +519,7 @@ def test_process_all_geometry_multiple_cells(items_list_geom) -> None:
 
     processed = process_all_mosaic_geometries(
         canvas_shape=canvas_shape,
+        cell_shape=canvas_shape,
         placement_to_item_index=placement_to_item_index,
         final_items_for_grid=final_items,
         fill=fill_value,

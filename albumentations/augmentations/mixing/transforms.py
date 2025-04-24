@@ -12,7 +12,8 @@ from typing import Annotated, Any, Literal, cast
 
 import cv2
 import numpy as np
-from pydantic import AfterValidator
+from pydantic import AfterValidator, model_validator
+from typing_extensions import Self
 
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.bbox_utils import BboxProcessor, check_bboxes, denormalize_bboxes, filter_bboxes
@@ -253,11 +254,12 @@ class Mosaic(DualTransform):
             Determines the maximum number of images involved (grid_yx[0] * grid_yx[1]).
             Default: (2, 2).
         target_size (tuple[int, int]): The desired output (height, width) for the final mosaic image.
-            Checked during initialization to be >= (1, 1).
+            after cropping the mosaic grid.
+        cell_shape (tuple[int, int]): cell shape of each cell in the mosaic grid.
         metadata_key (str): Key in the input dictionary specifying the list of additional data dictionaries
             for the mosaic. Each dictionary in the list should represent one potential additional item.
             Expected keys: 'image' (required, np.ndarray), and optionally 'mask' (np.ndarray),
-            'bboxes' (list/np.ndarray), 'keypoints' (list/np.ndarray), and any relevant label fields
+            'bboxes' (np.ndarray), 'keypoints' (np.ndarray), and any relevant label fields
             (e.g., 'class_labels') corresponding to those specified in `Compose`'s `bbox_params` or
             `keypoint_params`. Default: "mosaic_metadata".
         center_range (tuple[float, float]): Range [0.0-1.0] to sample the center point of the mosaic view
@@ -325,6 +327,10 @@ class Mosaic(DualTransform):
             tuple[int, int],
             AfterValidator(check_range_bounds(1, None)),
         ]
+        cell_shape: Annotated[
+            tuple[int, int],
+            AfterValidator(check_range_bounds(1, None)),
+        ]
         metadata_key: str
         center_range: Annotated[
             tuple[float, float],
@@ -353,11 +359,20 @@ class Mosaic(DualTransform):
         fill_mask: tuple[float, ...] | float
         fit_mode: Literal["cover", "contain"]
 
+        @model_validator(mode="after")
+        def _check_cell_shape(self) -> Self:
+            if (
+                self.cell_shape[0] * self.grid_yx[0] < self.target_size[0]
+                or self.cell_shape[1] * self.grid_yx[1] < self.target_size[1]
+            ):
+                raise ValueError("Target size should be smaller than cell cell_size * grid_yx")
+            return self
+
     def __init__(
         self,
         grid_yx: tuple[int, int] = (2, 2),
         target_size: tuple[int, int] = (512, 512),
-        metadata_key: str = "mosaic_metadata",
+        cell_shape: tuple[int, int] = (512, 512),
         center_range: tuple[float, float] = (0.3, 0.7),
         fit_mode: Literal["cover", "contain"] = "cover",
         interpolation: Literal[
@@ -380,6 +395,7 @@ class Mosaic(DualTransform):
         ] = cv2.INTER_NEAREST,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
+        metadata_key: str = "mosaic_metadata",
         p: float = 0.5,
     ) -> None:
         super().__init__(p=p)
@@ -393,6 +409,7 @@ class Mosaic(DualTransform):
         self.fill = fill
         self.fill_mask = fill_mask
         self.fit_mode = fit_mode
+        self.cell_shape = cell_shape
 
     @property
     def targets_as_params(self) -> list[str]:
@@ -409,6 +426,7 @@ class Mosaic(DualTransform):
         # Step 1: Calculate Geometry & Cell Placements
         center_xy = fmixing.calculate_mosaic_center_point(
             grid_yx=self.grid_yx,
+            cell_shape=self.cell_shape,
             target_size=self.target_size,
             center_range=self.center_range,
             py_random=self.py_random,
@@ -416,10 +434,10 @@ class Mosaic(DualTransform):
 
         cell_placements = fmixing.calculate_cell_placements(
             grid_yx=self.grid_yx,
+            cell_shape=self.cell_shape,
             target_size=self.target_size,
             center_xy=center_xy,
         )
-
         # Step 2: Validate Raw Additional Metadata
         valid_additional_raw_items = fmixing.filter_valid_metadata(
             data.get(self.metadata_key),
@@ -477,6 +495,7 @@ class Mosaic(DualTransform):
         # Note: process_all_mosaic_geometries now expects placement_to_item_index
         processed_cells = fmixing.process_all_mosaic_geometries(
             canvas_shape=self.target_size,
+            cell_shape=self.cell_shape,
             placement_to_item_index=placement_to_item_index,
             final_items_for_grid=final_items_for_grid,
             fill=self.fill,

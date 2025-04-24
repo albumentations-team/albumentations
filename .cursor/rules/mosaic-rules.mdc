@@ -58,16 +58,23 @@ This workflow outlines the data processing logic within the `Mosaic` transform, 
     *   Create `processed_mosaic_pieces = {}`.
     *   Iterate through the `assigned_items` (mapping `grid_pos` to the assigned `item` dict):
         *   Get the final placement coordinates `placement_coords = cell_placements[grid_pos]` -> `(tgt_x1, tgt_y1, tgt_x2, tgt_y2)`.
-        *   Calculate target dimensions: `target_h = tgt_y2 - tgt_y1`, `target_w = tgt_x2 - tgt_x1`.
+        *   Calculate target dimensions for this specific cell piece: `target_h = tgt_y2 - tgt_y1`, `target_w = tgt_x2 - tgt_x1`.
         *   Get the assigned `item = final_items_for_grid[item_idx]` (containing preprocessed bboxes/kps and original image/mask).
+        *   Determine the cell's relative position (`cell_position`: top_left, center, etc.) on the final canvas using `get_cell_relative_position`.
         *   **A. Geometric Processing (Image, Mask, BBoxes, Keypoints):**
-            *   Create a temporary `Compose` pipeline: `geom_pipeline = Compose([RandomCrop(height=target_h, width=target_w, pad_if_needed=True)], p=1.0)`.
-            *   Prepare the input for the pipeline: `geom_input = {'image': item['image']}`. Add `mask`, `bboxes`, `keypoints` from the `item` if they exist (handle missing mask with placeholder if needed).
-            *   Apply the `geom_pipeline`: `processed_item_geom = geom_pipeline(**geom_input)`. This performs Random Crop (with padding if needed) on image/mask and adjusts bbox/keypoint coordinates accordingly.
+            *   Create a temporary `Compose` pipeline based on `fit_mode`:
+                *   If `fit_mode == "cover"`: `Compose([SmallestMaxSize(max_size_hw=cell_shape), Crop(...)], ...)`
+                *   If `fit_mode == "contain"`: `Compose([LongestMaxSize(max_size_hw=cell_shape), Crop(..., pad_if_needed=True)], ...)`
+            *   The `Crop` coordinates are determined by `get_opposite_crop_coords(cell_size=cell_shape, crop_size=(target_h, target_w), cell_position=cell_position)`.
+            *   Prepare the input for the pipeline: `geom_input = {'image': item['image'], ...}` including mask, bboxes, keypoints if present.
+            *   Apply the `geom_pipeline`: `processed_item_geom = geom_pipeline(**geom_input)`. This performs resizing (if needed) and cropping (with potential padding in "contain" mode) on image/mask, adjusting bbox/keypoint coordinates relative to the *output* of this step (which has dimensions `target_h`, `target_w`).
         *   **B. Coordinate Shifting (BBoxes/Keypoints):**
-            *   Extract the geometrically transformed `bboxes_geom = processed_item_geom.get('bboxes')` and `keypoints_geom = processed_item_geom.get('keypoints')`.
-            *   If `bboxes_geom` exists: Apply geometric shift based on the top-left corner of `placement_coords` (`tgt_x1`, `tgt_y1`). Result: `shifted_bboxes`.
-            *   If `keypoints_geom` exists: Apply geometric shift based on `tgt_x1`, `tgt_y1`. Result: `shifted_keypoints`.
+            *   Extract the geometrically transformed annotations (`bboxes_geom`, `keypoints_geom`) from `processed_item_geom`.
+            *   Denormalize `bboxes_geom` using the cell piece dimensions (`target_h`, `target_w`).
+            *   Apply geometric shift based on the top-left corner of `placement_coords` (`tgt_x1`, `tgt_y1`).
+            *   Normalize the shifted bboxes using the final `target_size` of the mosaic canvas.
+            *   Apply geometric shift to `keypoints_geom` (which are typically absolute pixel coords) based on `tgt_x1`, `tgt_y1`.
+            *   Result: `shifted_bboxes`, `shifted_keypoints`.
         *   **Store Results:** Store the geometrically processed `image`/`mask` from `processed_item_geom` and the final `shifted_bboxes`/`shifted_keypoints` in a temporary dict.
         *   Use the `placement_coords` tuple `(tgt_x1, tgt_y1, tgt_x2, tgt_y2)` as the key and the temporary dict as the value in `processed_mosaic_pieces`.
 11. **Return Parameters:** Return `processed_mosaic_pieces` (dict mapping placement coords `(x1,y1,x2,y2)` to processed cell data `dict`).

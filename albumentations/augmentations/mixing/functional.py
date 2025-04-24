@@ -15,9 +15,8 @@ import cv2
 import numpy as np
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations.crops.transforms import RandomCrop
+from albumentations.augmentations.crops.transforms import Crop
 from albumentations.augmentations.geometric.resize import LongestMaxSize, SmallestMaxSize
-from albumentations.augmentations.geometric.transforms import PadIfNeeded
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.composition import Compose
 from albumentations.core.keypoints_utils import KeypointsProcessor
@@ -77,6 +76,7 @@ def copy_and_paste_blend(
 
 def calculate_mosaic_center_point(
     grid_yx: tuple[int, int],
+    cell_shape: tuple[int, int],
     target_size: tuple[int, int],
     center_range: tuple[float, float],
     py_random: random.Random,
@@ -89,6 +89,7 @@ def calculate_mosaic_center_point(
 
     Args:
         grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
+        cell_shape (tuple[int, int]): Shape of each cell in the mosaic grid.
         target_size (tuple[int, int]): The final output (height, width).
         center_range (tuple[float, float]): Range [0.0-1.0] for sampling center proportionally
                                             within the valid zone.
@@ -100,9 +101,11 @@ def calculate_mosaic_center_point(
 
     """
     rows, cols = grid_yx
+    cell_h, cell_w = cell_shape
     target_h, target_w = target_size
-    large_grid_h = rows * target_h
-    large_grid_w = cols * target_w
+
+    large_grid_h = rows * cell_h
+    large_grid_w = cols * cell_w
 
     # Define valid center range bounds (inclusive)
     # The center must be far enough from edges so the crop window fits
@@ -134,6 +137,7 @@ def calculate_mosaic_center_point(
 
 def calculate_cell_placements(
     grid_yx: tuple[int, int],
+    cell_shape: tuple[int, int],
     target_size: tuple[int, int],
     center_xy: tuple[int, int],
 ) -> list[tuple[int, int, int, int]]:
@@ -141,6 +145,7 @@ def calculate_cell_placements(
 
     Args:
         grid_yx (tuple[int, int]): The (rows, cols) of the mosaic grid.
+        cell_shape (tuple[int, int]): Shape of each cell in the mosaic grid.
         target_size (tuple[int, int]): The final output (height, width).
         center_xy (tuple[int, int]): The calculated (x, y) center of the final crop window,
                                         relative to the top-left of the conceptual large grid.
@@ -152,12 +157,13 @@ def calculate_cell_placements(
 
     """
     rows, cols = grid_yx
+    cell_h, cell_w = cell_shape
     target_h, target_w = target_size
     center_x, center_y = center_xy
 
     # 1. Generate grid line coordinates using arange for the large grid
-    y_coords_large = np.arange(rows + 1) * target_h
-    x_coords_large = np.arange(cols + 1) * target_w
+    y_coords_large = np.arange(rows + 1) * cell_h
+    x_coords_large = np.arange(cols + 1) * cell_w
 
     # 2. Calculate Crop Window boundaries
     crop_x_min = center_x - target_w // 2
@@ -194,62 +200,6 @@ def calculate_cell_placements(
     # Convert final numpy array to list of tuples of ints
     # Note: Assumes np_result contains valid, non-zero area coordinates within target bounds
     return cast("list[tuple[int, int, int, int]]", [tuple(map(int, row)) for row in np_result])
-
-
-def _gather_mosaic_item_data(
-    item: dict[str, Any],
-    data_key: Literal["bboxes", "keypoints"],
-    label_fields: list[str],
-    all_raw_list: list[np.ndarray],
-    labels_gathered_dict: dict[str, list[Any]],
-) -> int:
-    """Gathers raw data (bboxes/keypoints) and associated labels for a single item.
-
-    Returns:
-        int: The number of items (bboxes or keypoints) found for this item.
-
-    """
-    item_data = item.get(data_key)  # Assume np.ndarray or None
-    count = 0
-    if item_data is not None and item_data.size > 0:
-        count = len(item_data)
-        all_raw_list.append(item_data)
-        # Gather corresponding labels
-        for field in label_fields:
-            labels = item.get(field)
-            if labels is not None and len(labels) == count:
-                labels_gathered_dict[field].extend(labels)
-            else:
-                # Pad with None if mismatch or missing - processor must handle Nones if required
-                labels_gathered_dict[field].extend([None] * count)
-    return count
-
-
-def _preprocess_combined_data(
-    all_raw_items: list[np.ndarray],
-    labels_gathered: dict[str, list[Any]],
-    processor: BboxProcessor | KeypointsProcessor,
-    data_key: Literal["bboxes", "keypoints"],
-) -> np.ndarray:
-    """Helper to preprocess combined lists of bboxes or keypoints using a processor."""
-    combined_raw_np = np.vstack(all_raw_items)
-
-    # Prepare input for the processor
-    input_combined: dict[str, Any] = {data_key: combined_raw_np}
-    total_items = len(combined_raw_np)
-    for field, labels in labels_gathered.items():
-        if len(labels) == total_items:
-            input_combined[field] = labels
-        else:
-            warn(
-                f"Length mismatch for combined {data_key} label field '{field}'. "
-                f"Expected {total_items}, got {len(labels)}. Skipping field.",
-                UserWarning,
-                stacklevel=3,
-            )
-
-    processor.preprocess(input_combined)
-    return np.array(input_combined[data_key])
 
 
 def filter_valid_metadata(
@@ -407,34 +357,68 @@ def preprocess_selected_mosaic_items(
     return result_data_items
 
 
-def get_opposite_position(
-    position: Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
-) -> Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]:
-    """Returns the opposite position string for padding/cropping adjustments.
+def get_opposite_crop_coords(
+    cell_size: tuple[int, int],
+    crop_size: tuple[int, int],
+    cell_position: Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
+) -> tuple[int, int, int, int]:
+    """Calculates crop coordinates positioned opposite to the specified cell_position.
+
+    Given a cell of `cell_size`, this function determines the top-left (x_min, y_min)
+    and bottom-right (x_max, y_max) coordinates for a crop of `crop_size`, such
+    that the crop is located in the corner or center opposite to `cell_position`.
+
+    For example, if `cell_position` is "top_left", the crop coordinates will
+    correspond to the bottom-right region of the cell.
 
     Args:
-        position (Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]):
-            One of "top_left", "top_right", "center", "bottom_left", "bottom_right".
+        cell_size: The (height, width) of the cell from which to crop.
+        crop_size: The (height, width) of the desired crop.
+        cell_position: The reference position within the cell. The crop will be
+            taken from the opposite position.
 
     Returns:
-        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"]:
-        The opposing position string ("center" maps to "center").
+        tuple[int, int, int, int]: (x_min, y_min, x_max, y_max) representing the crop coordinates.
+
+    Raises:
+        ValueError: If crop_size is larger than cell_size in either dimension.
 
     """
-    opposite_map: dict[
-        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
-        Literal["top_left", "top_right", "center", "bottom_left", "bottom_right"],
-    ] = {
-        "top_left": "bottom_right",
-        "top_right": "bottom_left",
-        "center": "center",
-        "bottom_left": "top_right",
-        "bottom_right": "top_left",
-    }
-    return opposite_map.get(position, "center")
+    cell_h, cell_w = cell_size
+    crop_h, crop_w = crop_size
+
+    if crop_h > cell_h or crop_w > cell_w:
+        raise ValueError(f"Crop size {crop_size} cannot be larger than cell size {cell_size}")
+
+    # Determine top-left corner (x_min, y_min) based on the OPPOSITE position
+    if cell_position == "top_left":  # Crop from bottom_right
+        x_min = cell_w - crop_w
+        y_min = cell_h - crop_h
+    elif cell_position == "top_right":  # Crop from bottom_left
+        x_min = 0
+        y_min = cell_h - crop_h
+    elif cell_position == "bottom_left":  # Crop from top_right
+        x_min = cell_w - crop_w
+        y_min = 0
+    elif cell_position == "bottom_right":  # Crop from top_left
+        x_min = 0
+        y_min = 0
+    elif cell_position == "center":  # Crop from center
+        x_min = (cell_w - crop_w) // 2
+        y_min = (cell_h - crop_h) // 2
+    else:
+        # Should be unreachable due to Literal type hint, but good practice
+        raise ValueError(f"Invalid cell_position: {cell_position}")
+
+    # Calculate bottom-right corner
+    x_max = x_min + crop_w
+    y_max = y_min + crop_h
+
+    return x_min, y_min, x_max, y_max
 
 
 def process_cell_geometry(
+    cell_shape: tuple[int, int],
     item: ProcessedMosaicItem,
     target_shape: tuple[int, int],
     fill: float | tuple[float, ...],
@@ -450,6 +434,7 @@ def process_cell_geometry(
     matches the target cell dimensions exactly, handling both padding and cropping cases.
 
     Args:
+        cell_shape: (tuple[int, int]): Shape of the cell.
         item: (ProcessedMosaicItem): The preprocessed mosaic item dictionary.
         target_shape: (tuple[int, int]): Target shape of the cell.
         fill: (float | tuple[float, ...]): Fill value for image padding.
@@ -471,45 +456,47 @@ def process_cell_geometry(
     if item.get("keypoints") is not None:
         compose_kwargs["keypoint_params"] = {"format": "albumentations"}
 
-    target_h, target_w = target_shape
+    crop_coords = get_opposite_crop_coords(cell_shape, target_shape, cell_position)
 
     if fit_mode == "cover":
         geom_pipeline = Compose(
             [
                 SmallestMaxSize(
-                    max_size_hw=target_shape,
+                    max_size_hw=cell_shape,
                     interpolation=interpolation,
                     mask_interpolation=mask_interpolation,
                     p=1.0,
                 ),
-                RandomCrop(
-                    height=target_h,
-                    width=target_w,
-                    p=1.0,
+                Crop(
+                    x_min=crop_coords[0],
+                    y_min=crop_coords[1],
+                    x_max=crop_coords[2],
+                    y_max=crop_coords[3],
                 ),
             ],
             **compose_kwargs,
         )
     elif fit_mode == "contain":
-        pad_position = get_opposite_position(cell_position)
         geom_pipeline = Compose(
             [
                 LongestMaxSize(
-                    max_size_hw=target_shape,
+                    max_size_hw=cell_shape,
                     interpolation=interpolation,
                     mask_interpolation=mask_interpolation,
                     p=1.0,
                 ),
-                PadIfNeeded(
-                    min_height=target_h,
-                    min_width=target_w,
-                    position=pad_position,
-                    border_mode=cv2.BORDER_CONSTANT,
+                Crop(
+                    x_min=crop_coords[0],
+                    y_min=crop_coords[1],
+                    x_max=crop_coords[2],
+                    y_max=crop_coords[3],
+                    pad_if_needed=True,
                     fill=fill,
                     fill_mask=fill_mask,
                     p=1.0,
                 ),
             ],
+            **compose_kwargs,
         )
     else:
         raise ValueError(f"Invalid fit_mode: {fit_mode}. Must be 'cover' or 'contain'.")
@@ -563,7 +550,7 @@ def shift_cell_coordinates(
     keypoints_geom = processed_item_geom.get("keypoints")
     if keypoints_geom is not None and np.asarray(keypoints_geom).size > 0:
         keypoints_geom_arr = np.asarray(keypoints_geom)  # Ensure it's an array
-        kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+        kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=keypoints_geom_arr.dtype)
         shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom_arr, kp_shift_vector)
 
     return {
@@ -598,6 +585,7 @@ def assemble_mosaic_from_processed_cells(
 
 def process_all_mosaic_geometries(
     canvas_shape: tuple[int, int],
+    cell_shape: tuple[int, int],
     placement_to_item_index: dict[tuple[int, int, int, int], int],
     final_items_for_grid: list[ProcessedMosaicItem],
     fill: float | tuple[float, ...],
@@ -630,6 +618,7 @@ def process_all_mosaic_geometries(
 
     Args:
         canvas_shape (tuple[int, int]): The shape of the canvas.
+        cell_shape (tuple[int, int]): Shape of each cell in the mosaic grid.
         placement_to_item_index (dict[tuple[int, int, int, int], int]): Mapping from placement
             coordinates (x1, y1, x2, y2) to assigned item index.
         final_items_for_grid (list[ProcessedMosaicItem]): List of all preprocessed items available.
@@ -657,6 +646,7 @@ def process_all_mosaic_geometries(
 
         # Apply geometric processing (crop/pad)
         processed_cells_geom[placement_coords] = process_cell_geometry(
+            cell_shape=cell_shape,
             item=item,
             target_shape=(target_h, target_w),
             fill=fill,
@@ -782,7 +772,8 @@ def shift_all_coordinates(
         if keypoints_geom is not None and keypoints_geom.size > 0:
             keypoints_geom_arr = np.asarray(keypoints_geom)
 
-            kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=np.int32)
+            # Ensure shift vector matches keypoint dtype (usually float)
+            kp_shift_vector = np.array([tgt_x1, tgt_y1, 0], dtype=keypoints_geom_arr.dtype)
 
             shifted_keypoints = fgeometric.shift_keypoints(keypoints_geom_arr, kp_shift_vector)
 

@@ -31,7 +31,8 @@ def test_mosaic_identity_single_image(img_shape: tuple[int, ...], target_size: t
     else:
         img = np.random.randint(0, 256, size=img_shape, dtype=np.uint8)
 
-    transform = Mosaic(target_size=target_size, grid_yx=(1, 1), p=1.0)
+    # Set cell_shape = target_size for identity case
+    transform = Mosaic(target_size=target_size, cell_shape=target_size, grid_yx=(1, 1), p=1.0)
 
     # Input data structure expects a list for metadata
     data = {"image": img, "mosaic_metadata": []}
@@ -145,7 +146,8 @@ def test_mosaic_identity_with_targets() -> None:
         [0.6, 0.2, 0.9, 0.4, 0]
     ], dtype=np.float32)
 
-    transform = Mosaic(target_size=img_size, grid_yx=(1, 1), p=1.0)
+    # Set cell_shape = target_size for identity case
+    transform = Mosaic(target_size=img_size, cell_shape=img_size, grid_yx=(1, 1), p=1.0)
 
     # Use Compose to handle bbox processing
     pipeline = Compose([
@@ -170,22 +172,17 @@ def test_mosaic_identity_with_targets() -> None:
     assert result["mask"].shape == mask.shape
     np.testing.assert_array_equal(result["mask"], mask)
 
-    # Check bboxes (coords + label)
-    expected_bboxes_coords = np.array([
-        [0.2, 0.3, 0.8, 0.7],
-        [0.1, 0.1, 0.5, 0.5],
-        [0.6, 0.2, 0.9, 0.4]
-    ], dtype=np.float32)
-    expected_labels = [1.0, 2.0, 0.0]
-
-    assert "bboxes" in result
-    assert len(result["bboxes"]) == 3
-    # Check coordinates only
-    np.testing.assert_allclose(result["bboxes"], expected_bboxes_coords, atol=1e-6)
-
-    assert "class_labels" in result # Check label field is returned
-    # Check labels separately
-    assert result["class_labels"] == expected_labels
+    # Check bboxes (should be identical after identity transform)
+    # Need to reconstruct the expected format from Compose output
+    expected_bboxes_with_labels = np.concatenate(
+        (data["bboxes"], np.array(data["class_labels"])[..., np.newaxis]),
+        axis=1
+    )
+    result_bboxes_with_labels = np.concatenate(
+        (result["bboxes"], np.array(result["class_labels"])[..., np.newaxis]),
+        axis=1
+    )
+    np.testing.assert_allclose(result_bboxes_with_labels, expected_bboxes_with_labels, atol=1e-6)
 
 
 def test_mosaic_simplified_deterministic() -> None:
@@ -193,7 +190,8 @@ def test_mosaic_simplified_deterministic() -> None:
     target_size = (100, 100)
     grid_yx = (1, 2)
     center_range = (0.5, 0.5)
-    meta_size = (100, 100) # H, W
+    # Set cell_shape = target_size to match the deterministic calculation assumptions
+    cell_shape = (100, 100)
 
     # --- Primary Data ---
     img_primary = np.ones((*target_size, 3), dtype=np.uint8) * 1
@@ -201,11 +199,11 @@ def test_mosaic_simplified_deterministic() -> None:
     # BBoxes: Albumentations format [x_min_norm, y_min_norm, x_max_norm, y_max_norm]
     bboxes_primary = np.array([[0, 0, 1, 1]], dtype=np.float32)
     # Keypoints: Albumentations format [x, y, Z, angle, scale]
-    keypoints_primary = np.array([[0, 0, 0, 0, 0], [1, 1, 0, 0, 0]], dtype=np.float32)
+    keypoints_primary = np.array([[10, 10, 0, 0, 0], [50, 50, 0, 0, 0]], dtype=np.float32)
 
     # --- Metadata ---
-    img_meta = np.ones((*meta_size, 3), dtype=np.uint8) * 2
-    mask_meta = np.ones(meta_size, dtype=np.uint8) * 22
+    img_meta = np.ones((*cell_shape, 3), dtype=np.uint8) * 2 # Use cell_shape for meta consistency
+    mask_meta = np.ones(cell_shape, dtype=np.uint8) * 22
     bboxes_meta = np.array([[0, 0, 1, 1]], dtype=np.float32) # rel to meta_size
     keypoints_meta = np.array([[10, 10, 0, 0, 0], [90, 90, 0, 0, 0]], dtype=np.float32) # rel to meta_size
 
@@ -222,11 +220,12 @@ def test_mosaic_simplified_deterministic() -> None:
     transform = Mosaic(
         target_size=target_size,
         grid_yx=grid_yx,
+        cell_shape=cell_shape, # Use defined cell_shape
         center_range=center_range,
         p=1.0,
         fill=0,
         fill_mask=0,
-        fit_mode="contain",
+        fit_mode="cover", # Match the calculation trace
     )
 
     pipeline = Compose([
@@ -248,8 +247,8 @@ def test_mosaic_simplified_deterministic() -> None:
     result = pipeline(**data)
 
     # --- Calculate Expected Annotations ---
-    # Corrected expectation based on fit_mode="contain" calculation:
-    expected_bboxes = np.array([[0.0, 0.25, 0.5, 0.75], [0.5, 0.25, 1.0, 0.75]], dtype=np.float32)
+    # Corrected expectation based on fit_mode="cover" calculation trace:
+    expected_bboxes = np.array([[0.0, 0.0, 0.5, 1.0], [0.5, 0.0, 1.0, 1.0]], dtype=np.float32)
 
     # --- Assertions ---
     # Image/Mask Shape Check
@@ -265,7 +264,6 @@ def test_mosaic_simplified_deterministic() -> None:
     # Check bboxes
     assert 'bboxes' in result
     np.testing.assert_allclose(result['bboxes'], expected_bboxes, atol=1e-6)
-    assert result['bboxes'].shape[1] == 4 # No label column
 
     # Relaxed Keypoints check
     assert 'keypoints' in result

@@ -812,35 +812,57 @@ class Crop(BaseCropAndPad):
         image_shape = params["shape"][:2]
         image_height, image_width = image_shape
 
-        crop_height = self.y_max - self.y_min
-        crop_width = self.x_max - self.x_min
-
         if not self.pad_if_needed:
-            # If no padding, clip coordinates to image boundaries
-            x_min = np.clip(self.x_min, 0, image_width)
-            y_min = np.clip(self.y_min, 0, image_height)
-            x_max = np.clip(self.x_max, x_min, image_width)
-            y_max = np.clip(self.y_max, y_min, image_height)
-            return {"crop_coords": (x_min, y_min, x_max, y_max)}
+            return {"crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max), "pad_params": None}
 
-        # Calculate padding if needed
-        pad_params = self._get_pad_params(
-            image_shape=image_shape,
-            target_shape=(max(crop_height, image_height), max(crop_width, image_width)),
-        )
+        # --- pad_if_needed is True ---
 
-        if pad_params is not None:
-            # Adjust crop coordinates based on padding
-            x_min = self.x_min + pad_params["pad_left"]
-            y_min = self.y_min + pad_params["pad_top"]
-            x_max = self.x_max + pad_params["pad_left"]
-            y_max = self.y_max + pad_params["pad_top"]
-            crop_coords = (x_min, y_min, x_max, y_max)
-        else:
-            crop_coords = (self.x_min, self.y_min, self.x_max, self.y_max)
+        # Calculate minimum padding needed for coordinates
+        # x_min/y_min are >= 0 due to InitSchema validation
+        pad_top_min = 0
+        pad_bottom_min = max(0, self.y_max - image_height)
+        pad_left_min = 0
+        pad_right_min = max(0, self.x_max - image_width)
 
+        pad_params = None
+        if pad_top_min > 0 or pad_bottom_min > 0 or pad_left_min > 0 or pad_right_min > 0:
+            # Calculate total padding delta needed based *only* on coordinate requirements
+            delta_h = pad_top_min + pad_bottom_min
+            delta_w = pad_left_min + pad_right_min
+
+            # Distribute centrally first
+            pad_top_dist = delta_h // 2
+            pad_bottom_dist = delta_h - pad_top_dist
+            pad_left_dist = delta_w // 2
+            pad_right_dist = delta_w - pad_left_dist
+
+            # Adjust distribution based on pad_position
+            pad_top_adj, pad_bottom_adj, pad_left_adj, pad_right_adj = fgeometric.adjust_padding_by_position(
+                h_top=pad_top_dist,
+                h_bottom=pad_bottom_dist,
+                w_left=pad_left_dist,
+                w_right=pad_right_dist,
+                position=self.pad_position,
+                py_random=self.py_random,
+            )
+
+            # Ensure the final padding meets the minimum requirements for each side
+            final_pad_top = max(pad_top_adj, pad_top_min)
+            final_pad_bottom = max(pad_bottom_adj, pad_bottom_min)
+            final_pad_left = max(pad_left_adj, pad_left_min)
+            final_pad_right = max(pad_right_adj, pad_right_min)
+
+            pad_params = {
+                "pad_top": final_pad_top,
+                "pad_bottom": final_pad_bottom,
+                "pad_left": final_pad_left,
+                "pad_right": final_pad_right,
+            }
+
+        # Return the original crop coordinates; padding ensures they are valid
+        # on the padded image.
         return {
-            "crop_coords": crop_coords,
+            "crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max),
             "pad_params": pad_params,
         }
 
