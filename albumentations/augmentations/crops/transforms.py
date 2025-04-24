@@ -797,16 +797,53 @@ class Crop(BaseCropAndPad):
         self.x_max = x_max
         self.y_max = y_max
 
-    def get_params_dependent_on_data(
-        self,
-        params: dict[str, Any],
-        data: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Get the parameters dependent on the data.
+    # New helper function for computing minimum padding
+    def _compute_min_padding(self, image_height: int, image_width: int) -> tuple[int, int, int, int]:
+        pad_top = 0
+        pad_bottom = max(0, self.y_max - image_height)
+        pad_left = 0
+        pad_right = max(0, self.x_max - image_width)
+        return pad_top, pad_bottom, pad_left, pad_right
+
+    # New helper function for distributing and adjusting padding
+    def _compute_adjusted_padding(self, pad_top: int, pad_bottom: int, pad_left: int, pad_right: int) -> dict[str, int]:
+        delta_h = pad_top + pad_bottom
+        delta_w = pad_left + pad_right
+        pad_top_dist = delta_h // 2
+        pad_bottom_dist = delta_h - pad_top_dist
+        pad_left_dist = delta_w // 2
+        pad_right_dist = delta_w - pad_left_dist
+
+        (pad_top_adj, pad_bottom_adj, pad_left_adj, pad_right_adj) = fgeometric.adjust_padding_by_position(
+            h_top=pad_top_dist,
+            h_bottom=pad_bottom_dist,
+            w_left=pad_left_dist,
+            w_right=pad_right_dist,
+            position=self.pad_position,
+            py_random=self.py_random,
+        )
+
+        final_top = max(pad_top_adj, pad_top)
+        final_bottom = max(pad_bottom_adj, pad_bottom)
+        final_left = max(pad_left_adj, pad_left)
+        final_right = max(pad_right_adj, pad_right)
+
+        return {
+            "pad_top": final_top,
+            "pad_bottom": final_bottom,
+            "pad_left": final_left,
+            "pad_right": final_right,
+        }
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Get parameters for crop.
 
         Args:
-            params (dict[str, Any]): The parameters of the transform.
-            data (dict[str, Any]): The data of the transform.
+            params (dict): Dictionary with parameters for crop.
+            data (dict): Dictionary with data.
+
+        Returns:
+            dict: Dictionary with parameters for crop.
 
         """
         image_shape = params["shape"][:2]
@@ -815,56 +852,13 @@ class Crop(BaseCropAndPad):
         if not self.pad_if_needed:
             return {"crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max), "pad_params": None}
 
-        # --- pad_if_needed is True ---
-
-        # Calculate minimum padding needed for coordinates
-        # x_min/y_min are >= 0 due to InitSchema validation
-        pad_top_min = 0
-        pad_bottom_min = max(0, self.y_max - image_height)
-        pad_left_min = 0
-        pad_right_min = max(0, self.x_max - image_width)
-
+        pad_top, pad_bottom, pad_left, pad_right = self._compute_min_padding(image_height, image_width)
         pad_params = None
-        if pad_top_min > 0 or pad_bottom_min > 0 or pad_left_min > 0 or pad_right_min > 0:
-            # Calculate total padding delta needed based *only* on coordinate requirements
-            delta_h = pad_top_min + pad_bottom_min
-            delta_w = pad_left_min + pad_right_min
 
-            # Distribute centrally first
-            pad_top_dist = delta_h // 2
-            pad_bottom_dist = delta_h - pad_top_dist
-            pad_left_dist = delta_w // 2
-            pad_right_dist = delta_w - pad_left_dist
+        if any([pad_top, pad_bottom, pad_left, pad_right]):
+            pad_params = self._compute_adjusted_padding(pad_top, pad_bottom, pad_left, pad_right)
 
-            # Adjust distribution based on pad_position
-            pad_top_adj, pad_bottom_adj, pad_left_adj, pad_right_adj = fgeometric.adjust_padding_by_position(
-                h_top=pad_top_dist,
-                h_bottom=pad_bottom_dist,
-                w_left=pad_left_dist,
-                w_right=pad_right_dist,
-                position=self.pad_position,
-                py_random=self.py_random,
-            )
-
-            # Ensure the final padding meets the minimum requirements for each side
-            final_pad_top = max(pad_top_adj, pad_top_min)
-            final_pad_bottom = max(pad_bottom_adj, pad_bottom_min)
-            final_pad_left = max(pad_left_adj, pad_left_min)
-            final_pad_right = max(pad_right_adj, pad_right_min)
-
-            pad_params = {
-                "pad_top": final_pad_top,
-                "pad_bottom": final_pad_bottom,
-                "pad_left": final_pad_left,
-                "pad_right": final_pad_right,
-            }
-
-        # Return the original crop coordinates; padding ensures they are valid
-        # on the padded image.
-        return {
-            "crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max),
-            "pad_params": pad_params,
-        }
+        return {"crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max), "pad_params": pad_params}
 
 
 class CropNonEmptyMaskIfExists(BaseCrop):
