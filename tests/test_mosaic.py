@@ -4,16 +4,8 @@ import pytest
 
 from albumentations.augmentations.mixing.transforms import Mosaic
 from albumentations.core.composition import Compose
-from albumentations.core.bbox_utils import BboxParams, check_bboxes, filter_bboxes as filter_bboxes_helper
-from albumentations.core.keypoints_utils import KeypointParams, check_keypoints
-from albumentations.augmentations.mixing import functional as Fmixing
-from albumentations.augmentations.mixing.functional import (
-    calculate_mosaic_center_point,
-    calculate_cell_placements,
-    process_cell_geometry,
-    assemble_mosaic_from_processed_cells,
-    ProcessedMosaicItem,
-)
+from albumentations.core.bbox_utils import BboxParams
+from albumentations.core.keypoints_utils import KeypointParams
 
 
 @pytest.mark.parametrize(
@@ -26,10 +18,7 @@ from albumentations.augmentations.mixing.functional import (
 )
 def test_mosaic_identity_single_image(img_shape: tuple[int, ...], target_size: tuple[int, int]) -> None:
     """Check Mosaic returns the original image when metadata is empty and target_size matches."""
-    if len(img_shape) == 2:
-        img = np.random.randint(0, 256, size=img_shape, dtype=np.uint8)
-    else:
-        img = np.random.randint(0, 256, size=img_shape, dtype=np.uint8)
+    img = np.random.randint(0, 256, size=img_shape, dtype=np.uint8)
 
     # Set cell_shape = target_size for identity case
     transform = Mosaic(target_size=target_size, cell_shape=target_size, grid_yx=(1, 1), p=1.0)

@@ -264,8 +264,9 @@ def assign_items_to_grid_cells(
         key=lambda coords: (coords[2] - coords[0]) * (coords[3] - coords[1]),
     )
 
-    placement_to_item_index: dict[tuple[int, int, int, int], int] = {}
-    placement_to_item_index[primary_placement] = 0  # Assign primary item (index 0)
+    placement_to_item_index: dict[tuple[int, int, int, int], int] = {
+        primary_placement: 0,
+    }
 
     # Use list comprehension for potentially better performance
     remaining_placements = [coords for coords in cell_placements if coords != primary_placement]

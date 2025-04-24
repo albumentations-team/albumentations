@@ -421,8 +421,7 @@ class Mosaic(DualTransform):
         """
         return [self.metadata_key]
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        """Orchestrates the steps to calculate mosaic parameters by calling helper methods."""
+    def _calculate_geometry(self, data: dict[str, Any]) -> list[tuple[int, int, int, int]]:
         # Step 1: Calculate Geometry & Cell Placements
         center_xy = fmixing.calculate_mosaic_center_point(
             grid_yx=self.grid_yx,
@@ -432,12 +431,17 @@ class Mosaic(DualTransform):
             py_random=self.py_random,
         )
 
-        cell_placements = fmixing.calculate_cell_placements(
+        return fmixing.calculate_cell_placements(
             grid_yx=self.grid_yx,
             cell_shape=self.cell_shape,
             target_size=self.target_size,
             center_xy=center_xy,
         )
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Orchestrates the steps to calculate mosaic parameters by calling helper methods."""
+        cell_placements = self._calculate_geometry(data)
+
         # Step 2: Validate Raw Additional Metadata
         valid_additional_raw_items = fmixing.filter_valid_metadata(
             data.get(self.metadata_key),

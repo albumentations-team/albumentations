@@ -217,8 +217,8 @@ def test_label_manager_process_field_updates_encoder(
     np.testing.assert_array_equal(sorted(decoded_combined, key=str), sorted(expected_final_labels, key=str))
 
     # Check type preservation
-    assert isinstance(restored_initial, type(initial_data) if not isinstance(initial_data, np.ndarray) else list)
-    assert isinstance(restored_update, type(update_data) if not isinstance(update_data, np.ndarray) else list)
+    assert isinstance(restored_initial, list if isinstance(initial_data, np.ndarray) else type(initial_data))
+    assert isinstance(restored_update, list if isinstance(update_data, np.ndarray) else type(update_data))
 
 
 def test_label_manager_process_field_numeric_no_update():
