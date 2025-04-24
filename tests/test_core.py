@@ -4,7 +4,6 @@ import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call, patch
 import warnings
-from pydantic import BaseModel, Field, ValidationError
 import torch
 import cv2
 import numpy as np
@@ -25,7 +24,7 @@ from albumentations.core.composition import (
     Sequential,
     SomeOf,
 )
-from albumentations.core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, NoOp
+from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp
 from albumentations.core.utils import to_tuple, get_shape
 from tests.conftest import (
     IMAGES,
@@ -700,6 +699,7 @@ def test_single_transform_compose(
             A.OverlayElements,
             A.TextImage,
             A.RandomCropNearBBox,
+            A.Mosaic,
         },
     ),
 )
@@ -752,7 +752,7 @@ def test_contiguous_output_dual(augmentation_cls, params):
     ),
 )
 def test_contiguous_output_imageonly(augmentation_cls, params):
-    set_seed(42)
+    set_seed(137)
     image = np.zeros([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
     # check preconditions
@@ -1022,7 +1022,8 @@ def test_compose_additional_targets_in_available_keys() -> None:
             A.OverlayElements,
             A.TextImage,
             A.RandomCropNearBBox,
-            A.Pad
+            A.Pad,
+            A.Mosaic,
         },
     ),
 )
@@ -1154,6 +1155,18 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             "mask": mask,
             "overlay_metadata": [],
         }
+    elif augmentation_cls == A.Mosaic:
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
+        data = {
+            "image": image,
+            "mask": mask,
+            "mosaic_metadata": [
+                {
+                    "image": image,
+                    "mask": mask,
+                }
+            ]
+        }
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:
@@ -1203,6 +1216,7 @@ def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
             A.MaskDropout,
             A.RandomCropNearBBox,
             A.PadIfNeeded,
+            A.Mosaic,
         },
     ),
 )
@@ -1270,7 +1284,8 @@ def test_masks_as_target(augmentation_cls, params, masks):
             A.RandomSizedBBoxSafeCrop,
             A.RandomRotate90,
             A.TimeReverse,
-            A.TimeMasking
+            A.TimeMasking,
+            A.Mosaic,
         },
     ),
 )
@@ -1843,7 +1858,8 @@ def test_transform_strict_with_valid_params():
             A.RandomGridShuffle,
             A.OpticalDistortion,
             A.Morphological,
-            A.AtLeastOneBBoxRandomCrop
+            A.AtLeastOneBBoxRandomCrop,
+            A.Mosaic,
         },
     ),
 )
@@ -1926,3 +1942,52 @@ def test_affine_invalid_parameters(params, strict, expected_outcome, expected_er
 
             assert len(error_params) == len(expected_error_params), \
                 f"Expected validation errors for {expected_error_params}, got errors for {error_params}"
+
+@pytest.mark.parametrize(
+    ["bbox_format", "bboxes"],
+    [
+        ("coco", [[15, 12, 30, 40], [50, 50, 15, 40]]),
+        ("pascal_voc", [[15, 12, 45, 52], [50, 50, 65, 90]]),
+        ("albumentations", [[0.15, 0.12, 0.45, 0.52], [0.5, 0.5, 0.65, 0.9]]),
+        ("yolo", [[(15 + 30 / 2) / 100, (12 + 40 / 2) / 100, 30 / 100, 40 / 100],
+                  [(50 + 15 / 2) / 100, (50 + 40 / 2) / 100, 15 / 100, 40 / 100]]),
+    ],
+)
+def test_bbox_hflip_hflip_no_labels(bbox_format: str, bboxes: list[list[float]]):
+    """Check applying HorizontalFlip twice returns the original bboxes without labels."""
+    image = np.ones((100, 100, 3))
+    original_bboxes = np.array(bboxes, dtype=np.float32)
+
+    aug = A.Compose(
+        [A.HorizontalFlip(p=1.0), A.HorizontalFlip(p=1.0)],
+        bbox_params=A.BboxParams(format=bbox_format), # No label_fields specified
+        strict=True,
+    )
+    transformed = aug(image=image, bboxes=original_bboxes)
+
+    assert np.allclose(transformed["bboxes"], original_bboxes, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    ["kp_format", "keypoints"],
+    [
+        ("xy", [[15, 12], [50, 50]]),  # Standard (x, y)
+        ("yx", [[12, 15], [50, 50]]),  # Reversed (y, x)
+        ("xya", [[15, 12, 90], [50, 50, 45]]),  # With angle
+        ("xys", [[15, 12, 1.5], [50, 50, 0.8]]),  # With scale
+        ("xyz", [[15, 12, 5], [50, 50, 10]]), # With z-coordinate
+    ],
+)
+def test_keypoint_hflip_hflip_no_labels(kp_format: str, keypoints: list[list[float]]):
+    """Check applying HorizontalFlip twice returns the original keypoints without labels."""
+    image = np.ones((100, 100, 3))
+    original_keypoints = np.array(keypoints, dtype=np.float32)
+
+    aug = A.Compose(
+        [A.HorizontalFlip(p=1.0), A.HorizontalFlip(p=1.0)],
+        keypoint_params=A.KeypointParams(format=kp_format), # No label_fields specified
+        strict=True,
+    )
+    transformed = aug(image=image, keypoints=original_keypoints)
+
+    assert np.allclose(transformed["keypoints"], original_keypoints, atol=1e-6)

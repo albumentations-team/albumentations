@@ -39,6 +39,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.Lambda,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
+    A.Mosaic,  # Takes read_fn as argument, but object of type function are not JSON/YAML serializable
 }
 
 
@@ -212,6 +213,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropNonEmptyMaskIfExists,
             A.OverlayElements,
             A.TextImage,
+            A.Mosaic,
         },
     ),
 )
@@ -227,7 +229,7 @@ def test_augmentations_for_bboxes_serialization(
     image = (
         SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     )
-    aug = augmentation_cls(p=p, **params)
+    aug = A.Compose([augmentation_cls(p=p, **params)], bbox_params={"format": "pascal_voc"})
     aug.set_random_seed(seed)
     data = {"image": image, "bboxes": albumentations_bboxes}
     if augmentation_cls == A.MaskDropout:
@@ -261,6 +263,7 @@ def test_augmentations_for_bboxes_serialization(
             A.BBoxSafeRandomCrop,
             A.OverlayElements,
             A.TextImage,
+            A.Mosaic,
         },
     ),
 )
@@ -279,7 +282,7 @@ def test_augmentations_for_keypoints_serialization(
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
-    if augmentation_cls == A.RandomCropNearBBox:
+    elif augmentation_cls == A.RandomCropNearBBox:
         data["cropping_bbox"] = [12, 77, 177, 231]
 
     serialized_aug = A.to_dict(aug)

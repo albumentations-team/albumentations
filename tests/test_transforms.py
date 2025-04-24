@@ -75,19 +75,22 @@ def test_binary_mask_interpolation(augmentation_cls, params, image):
 
     aug = augmentation_cls(p=1, **params)
     mask = cv2.randu(np.zeros((100, 100), dtype=np.uint8), 0, 2)
+    data = {
+        "image": image,
+        "mask": mask,
+    }
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "mask": mask,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-            "mask": mask,
-        }
-    data = aug(**data)
-    np.testing.assert_array_equal(np.unique(data["mask"]), np.array([0, 1]))
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+                "mask": mask,
+            }
+        ]
+
+    result = aug(**data)
+    np.testing.assert_array_equal(np.unique(result["mask"]), np.array([0, 1]))
 
 
 @pytest.mark.parametrize(
@@ -124,6 +127,7 @@ def test_binary_mask_interpolation(augmentation_cls, params, image):
             A.VerticalFlip,
             A.HorizontalFlip,
             A.Transpose,
+            A.Mosaic,
         },
     ),
 )
@@ -162,6 +166,7 @@ def __test_multiprocessing_support_proc(args):
             A.OverlayElements,
             A.TextImage,
             A.MaskDropout,
+            A.Mosaic,
         },
     ),
 )
@@ -1091,6 +1096,12 @@ def test_change_image(augmentation_cls, params, image):
     elif augmentation_cls == A.ConstrainedCoarseDropout:
         data["mask"] = np.zeros_like(image)[:, :, 0]
         data["mask"][:20, :20] = 1
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     transformed = aug(**data)
 
@@ -1141,6 +1152,7 @@ def test_change_image(augmentation_cls, params, image):
             A.RandomRotate90,
             A.FrequencyMasking,
             A.TimeMasking,
+            A.Mosaic,
         },
     ),
 )
@@ -1256,7 +1268,8 @@ def test_pad_if_needed_functionality(params, expected):
             A.HistogramMatching,
             A.OverlayElements,
             A.MaskDropout,
-            A.TextImage
+            A.TextImage,
+            A.Mosaic,
         },
     ),
 )
@@ -1594,6 +1607,12 @@ def test_return_nonzero(augmentation_cls, params):
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     result = aug(**data)
 
@@ -1681,9 +1700,9 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     data = {
         "image": image,
-        "bboxes": [],
+        "bboxes": np.array([], dtype=np.float32).reshape(0, 4),
         "labels": [],
-        "keypoints": [],
+        "keypoints": np.array([], dtype=np.float32).reshape(0, 2),
     }
 
     if augmentation_cls == A.OverlayElements:
@@ -1691,16 +1710,21 @@ def test_empty_bboxes_keypoints(augmentation_cls, params):
             "image": image,
             "overlay_metadata": [],
         }
-
-    if augmentation_cls == A.MaskDropout:
+    elif augmentation_cls == A.MaskDropout:
         mask = np.zeros_like(image)[:, :, 0]
         mask[:20, :20] = 1
         data["mask"] = mask
+    elif augmentation_cls == A.Mosaic:
+        data["mosaic_metadata"] = [
+            {
+                "image": image,
+            }
+        ]
 
     data = aug(**data)
 
-    np.testing.assert_array_equal(data["bboxes"], [])
-    np.testing.assert_array_equal(data["keypoints"], [])
+    np.testing.assert_array_equal(data["bboxes"], np.array([], dtype=np.float32).reshape(0, 4))
+    np.testing.assert_array_equal(data["keypoints"], np.array([], dtype=np.float32).reshape(0, 2))
 
 
 @pytest.mark.parametrize(
@@ -1767,7 +1791,8 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.ElasticTransform,
             A.GridDistortion,
             A.OpticalDistortion,
-            A.ThinPlateSpline
+            A.ThinPlateSpline,
+            A.Mosaic,
         },
     ),
 )

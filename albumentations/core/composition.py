@@ -406,9 +406,9 @@ class Compose(BaseCompose, HubMixin):
             2. Validates that no transforms have invalid arguments
             3. Raises ValueError if any validation fails
             If False, these validations are skipped. Default is False.
-        mask_interpolation (int, optional): Interpolation method for mask transforms. When defined,
+        mask_interpolation (int | None): Interpolation method for mask transforms. When defined,
             it overrides the interpolation method specified in individual transforms. Default is None.
-        seed (int, optional): Controls reproducibility of random augmentations. Compose uses
+        seed (int | None): Controls reproducibility of random augmentations. Compose uses
             its own internal random state, completely independent from global random seeds.
 
             When seed is set (int):
