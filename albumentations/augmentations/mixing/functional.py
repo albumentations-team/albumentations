@@ -285,15 +285,14 @@ def _preprocess_item_annotations(
     # Check if processor exists and the relevant data key is in the item
     if processor and data_key in item and item.get(data_key) is not None:
         # === Add validation for required label fields ===
-        required_labels = processor.params.label_fields
-        if required_labels:
-            missing_labels = [field for field in required_labels if field not in item]
-            if missing_labels:
-                raise ValueError(
-                    f"Item contains '{data_key}' but is missing required label fields: {missing_labels}. "
-                    f"Ensure all label fields declared in {type(processor.params).__name__} "
-                    f"({required_labels}) are present in the item dictionary when '{data_key}' is present.",
-                )
+        required_labels = cast("list[str]", processor.params.label_fields)
+        missing_labels = [field for field in required_labels if field not in item]
+        if missing_labels and required_labels:
+            raise ValueError(
+                f"Item contains '{data_key}' but is missing required label fields: {missing_labels}. "
+                f"Ensure all label fields declared in {type(processor.params).__name__} "
+                f"({required_labels}) are present in the item dictionary when '{data_key}' is present.",
+            )
         # === End validation ===
 
         # Create a temporary minimal dict for the processor
@@ -678,14 +677,13 @@ def get_cell_relative_position(
     target_h, target_w = target_shape
     x1, y1, x2, y2 = placement_coords
 
-    # Use floating point for potentially more accurate center calculation
     canvas_center_x = target_w / 2.0
     canvas_center_y = target_h / 2.0
 
     cell_center_x = (x1 + x2) / 2.0
     cell_center_y = (y1 + y2) / 2.0
 
-    # Determine vertical position (using a small tolerance might be robust, but direct comparison first)
+    # Determine vertical position
     if cell_center_y < canvas_center_y:
         v_pos = "top"
     elif cell_center_y > canvas_center_y:
@@ -701,18 +699,20 @@ def get_cell_relative_position(
     else:  # Exactly on the vertical center line
         h_pos = "center"
 
-    # Combine positions
-    if v_pos == "top" and h_pos == "left":
-        return "top_left"
-    if v_pos == "top" and h_pos == "right":
-        return "top_right"
-    if v_pos == "bottom" and h_pos == "left":
-        return "bottom_left"
-    if v_pos == "bottom" and h_pos == "right":
-        return "bottom_right"
+    # Map positions to the final string
+    position_map = {
+        ("top", "left"): "top_left",
+        ("top", "right"): "top_right",
+        ("bottom", "left"): "bottom_left",
+        ("bottom", "right"): "bottom_right",
+    }
 
-    # Default to "center" if perfectly centered or aligned with one central axis
-    return "center"
+    # Default to "center" if the combination is not in the map
+    # (which happens if either v_pos or h_pos is "center")
+    return cast(
+        "Literal['top_left', 'top_right', 'center', 'bottom_left', 'bottom_right']",
+        position_map.get((v_pos, h_pos), "center"),
+    )
 
 
 def shift_all_coordinates(
