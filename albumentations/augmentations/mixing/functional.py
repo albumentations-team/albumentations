@@ -171,40 +171,32 @@ def calculate_cell_placements(
     crop_x_max = crop_x_min + target_w
     crop_y_max = crop_y_min + target_h
 
-    # 3. Clip grid lines to the crop window
-    y_coords_clipped = np.clip(y_coords_large, crop_y_min, crop_y_max)
-    x_coords_clipped = np.clip(x_coords_large, crop_x_min, crop_x_max)
+    def _clip_coords(coords: np.ndarray, min_val: int, max_val: int) -> np.ndarray:
+        clipped_coords = np.clip(coords, min_val, max_val)
+        return np.unique(clipped_coords) - min_val
 
-    # 4. Get unique sorted coordinates
-    y_coords_unique = np.unique(y_coords_clipped) - crop_y_min
-    x_coords_unique = np.unique(x_coords_clipped) - crop_x_min
+    y_coords_clipped = _clip_coords(y_coords_large, crop_y_min, crop_y_max)
+    x_coords_clipped = _clip_coords(x_coords_large, crop_x_min, crop_x_max)
 
-    # 5. Form all cell coordinates using numpy operations
-    x_mins = x_coords_unique[:-1]
-    x_maxs = x_coords_unique[1:]
-    y_mins = y_coords_unique[:-1]
-    y_maxs = y_coords_unique[1:]
+    # 4. Form all cell coordinates efficiently
+    num_x_intervals = len(x_coords_clipped) - 1
+    num_y_intervals = len(y_coords_clipped) - 1
+    result = []
 
-    num_x_intervals = len(x_mins)
-    num_y_intervals = len(y_mins)
+    for y_idx in range(num_y_intervals):
+        y_min = y_coords_clipped[y_idx]
+        y_max = y_coords_clipped[y_idx + 1]
+        for x_idx in range(num_x_intervals):
+            x_min = x_coords_clipped[x_idx]
+            x_max = x_coords_clipped[x_idx + 1]
+            result.append((int(x_min), int(y_min), int(x_max), int(y_max)))
 
-    # Create all combinations of intervals (Cartesian product)
-    all_x_mins = np.tile(x_mins, num_y_intervals)
-    all_y_mins = np.repeat(y_mins, num_x_intervals)
-    all_x_maxs = np.tile(x_maxs, num_y_intervals)
-    all_y_maxs = np.repeat(y_maxs, num_x_intervals)
-
-    # Stack into (N, 4) array of [x_min, y_min, x_max, y_max] mapped to target origin
-    np_result = np.stack([all_x_mins, all_y_mins, all_x_maxs, all_y_maxs], axis=-1)
-
-    # Convert final numpy array to list of tuples of ints
-    # Note: Assumes np_result contains valid, non-zero area coordinates within target bounds
-    return cast("list[tuple[int, int, int, int]]", [tuple(map(int, row)) for row in np_result])
+    return result
 
 
 def filter_valid_metadata(
     metadata_input: Sequence[dict[str, Any]] | None,
-    metadata_key_name: str,  # Need the key name for warnings
+    metadata_key_name: str,
 ) -> list[dict[str, Any]]:
     """Filters a list of metadata dicts, keeping only valid ones.
 
