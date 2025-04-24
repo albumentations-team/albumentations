@@ -534,6 +534,9 @@ def shift_cell_coordinates(
     """
     tgt_x1, tgt_y1, _, _ = placement_coords
 
+    shifted_bboxes = None
+    shifted_keypoints = None
+
     bboxes_geom = processed_item_geom.get("bboxes")
     if bboxes_geom is not None and np.asarray(bboxes_geom).size > 0:
         bboxes_geom_arr = np.asarray(bboxes_geom)  # Ensure it's an array

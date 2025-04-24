@@ -438,70 +438,58 @@ class Mosaic(DualTransform):
             center_xy=center_xy,
         )
 
+    def _select_additional_items(self, data: dict[str, Any], num_additional_needed: int) -> list[dict[str, Any]]:
+        valid_items = fmixing.filter_valid_metadata(data.get(self.metadata_key), self.metadata_key)
+        if len(valid_items) > num_additional_needed:
+            return self.py_random.sample(valid_items, num_additional_needed)
+        return valid_items
+
+    def _preprocess_additional_items(
+        self,
+        additional_items: list[dict[str, Any]],
+        data: dict[str, Any],
+    ) -> list[fmixing.ProcessedMosaicItem]:
+        if "bboxes" in data or "keypoints" in data:
+            bbox_processor = cast("BboxProcessor", self.get_processor("bboxes"))
+            keypoint_processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
+            return fmixing.preprocess_selected_mosaic_items(additional_items, bbox_processor, keypoint_processor)
+        return cast("list[fmixing.ProcessedMosaicItem]", list(additional_items))
+
+    def _prepare_final_items(
+        self,
+        primary: fmixing.ProcessedMosaicItem,
+        additional_items: list[fmixing.ProcessedMosaicItem],
+        num_needed: int,
+    ) -> list[fmixing.ProcessedMosaicItem]:
+        num_replications = max(0, num_needed - len(additional_items))
+        replicated = [deepcopy(primary) for _ in range(num_replications)]
+        return [primary, *additional_items, *replicated]
+
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         """Orchestrates the steps to calculate mosaic parameters by calling helper methods."""
         cell_placements = self._calculate_geometry(data)
 
-        # Step 2: Validate Raw Additional Metadata
-        valid_additional_raw_items = fmixing.filter_valid_metadata(
-            data.get(self.metadata_key),
-            self.metadata_key,
-        )
-
-        # Step 3: Select Subset of Raw Additional Metadata
-        # Determine number of additional items needed based on calculated cell placements
         num_cells = len(cell_placements)
         num_additional_needed = max(0, num_cells - 1)
 
-        if len(valid_additional_raw_items) > num_additional_needed:
-            selected_raw_additional_items = self.py_random.sample(valid_additional_raw_items, num_additional_needed)
-        else:
-            selected_raw_additional_items = valid_additional_raw_items
+        additional_items = self._select_additional_items(data, num_additional_needed)
 
-        if "bboxes" in data or "keypoints" in data:
-            # Step 4: Preprocess Selected Raw Additional Items (Combined)
-            bbox_processor = cast("BboxProcessor", self.get_processor("bboxes"))
-            keypoint_processor = cast("KeypointsProcessor", self.get_processor("keypoints"))
-
-            preprocessed_selected_additional_items = fmixing.preprocess_selected_mosaic_items(
-                selected_raw_additional_items,
-                bbox_processor,
-                keypoint_processor,
-            )
-
-        else:
-            preprocessed_selected_additional_items = cast(
-                "list[fmixing.ProcessedMosaicItem]",
-                selected_raw_additional_items,
-            )
+        preprocessed_additional = self._preprocess_additional_items(additional_items, data)
 
         primary = self.get_primary_data(data)
+        final_items = self._prepare_final_items(primary, preprocessed_additional, num_additional_needed)
 
-        # Step 6: Determine Replication Count
-        num_replications = max(0, num_additional_needed - len(preprocessed_selected_additional_items))
-
-        # Step 7: Replicate Primary Data
-        replicated_primary_items = [deepcopy(primary) for _ in range(num_replications)]
-
-        # Step 8: Combine Final Items
-        final_items_for_grid = [*[primary], *preprocessed_selected_additional_items, *replicated_primary_items]
-
-        # Step 9: Assign Items based on placements list
-        # Note: assign_items_to_grid_cells now expects a list of placements
-        #       and returns a dict mapping placement_tuple -> item_index
         placement_to_item_index = fmixing.assign_items_to_grid_cells(
-            num_items=len(final_items_for_grid),
-            cell_placements=cell_placements,  # Pass the list directly
+            num_items=len(final_items),
+            cell_placements=cell_placements,
             py_random=self.py_random,
         )
 
-        # Step 10a: Process Geometry for all cells
-        # Note: process_all_mosaic_geometries now expects placement_to_item_index
         processed_cells = fmixing.process_all_mosaic_geometries(
             canvas_shape=self.target_size,
             cell_shape=self.cell_shape,
             placement_to_item_index=placement_to_item_index,
-            final_items_for_grid=final_items_for_grid,
+            final_items_for_grid=final_items,
             fill=self.fill,
             fill_mask=self.fill_mask if self.fill_mask is not None else self.fill,
             fit_mode=self.fit_mode,
@@ -510,18 +498,11 @@ class Mosaic(DualTransform):
         )
 
         if "bboxes" in data or "keypoints" in data:
-            # Step 10b: Shift Coordinates for all processed cells
-            # Note: shift_all_coordinates expects dict keyed by placement_tuple
             processed_cells = fmixing.shift_all_coordinates(processed_cells, canvas_shape=self.target_size)
 
-        result = {
-            "processed_cells": processed_cells,
-            "target_shape": self._get_target_shape(data["image"].shape),
-        }
-
+        result = {"processed_cells": processed_cells, "target_shape": self._get_target_shape(data["image"].shape)}
         if "mask" in data:
             result["target_mask_shape"] = self._get_target_shape(data["mask"].shape)
-
         return result
 
     @staticmethod
