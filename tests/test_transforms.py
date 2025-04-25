@@ -20,6 +20,8 @@ from tests.conftest import (
     RECTANGULAR_UINT8_IMAGE,
 )
 
+from .aug_definitions import transforms2metadata_key
+
 from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transforms
 
 
@@ -230,23 +232,11 @@ def test_force_apply():
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
         except_augmentations={
             A.TextImage,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -1038,21 +1028,6 @@ def test_random_crop_from_borders(
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
-        custom_arguments={
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-            },
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-            },
-        },
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
@@ -1102,6 +1077,9 @@ def test_change_image(augmentation_cls, params, image):
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [np.random.randint(0, 255, image.shape, dtype=image.dtype)]
+
 
     transformed = aug(**data)
 
@@ -1251,21 +1229,12 @@ def test_pad_if_needed_functionality(params, expected):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_2d_transforms(
-        custom_arguments={
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
+    get_dual_transforms(
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.RandomCropNearBBox,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
-            A.FDA,
-            A.HistogramMatching,
             A.OverlayElements,
             A.MaskDropout,
             A.TextImage,
@@ -1557,21 +1526,6 @@ def test_random_sun_flare_invalid_input(params):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
-        custom_arguments={
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-            },
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_UINT8_IMAGE + 1],
-                "read_fn": lambda x: x,
-            },
-        },
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
@@ -1613,6 +1567,8 @@ def test_return_nonzero(augmentation_cls, params):
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
 
     result = aug(**data)
 

@@ -674,7 +674,7 @@ class Compose(BaseCompose, HubMixin):
             processor.preprocess(data)
 
     def _preprocess_arrays(self, data: dict[str, Any]) -> None:
-        """Convert lists to numpy arrays for images and masks."""
+        """Convert lists to numpy arrays for images and masks, and ensure contiguity."""
         self._preprocess_images(data)
         self._preprocess_masks(data)
 
