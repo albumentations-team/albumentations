@@ -3,6 +3,13 @@ import numpy as np
 
 import albumentations as A
 
+
+transforms2metadata_key = {
+    A.FDA: "fda_metadata",
+    A.HistogramMatching: "hm_metadata",
+    A.PixelDistributionAdaptation: "pda_metadata",
+}
+
 AUGMENTATION_CLS_PARAMS = [
     [
         A.ImageCompression,

@@ -1,18 +1,21 @@
 """Domain adaptation transforms for image augmentation.
 
-This module provides transformations for adapting images between different domains
-by matching their statistical properties. Includes methods for histogram matching,
-Fourier domain adaptation, and pixel distribution adaptation.
+This module provides transformations designed to bridge the domain gap between
+datasets by adapting the style of an input image to match that of reference images
+from a target domain. Adaptations are based on matching statistical properties
+like histograms, frequency spectra, or overall pixel distributions.
 """
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from typing import Annotated, Any, Callable, Literal, cast
 
 import cv2
 import numpy as np
-from pydantic import AfterValidator, field_validator
+from pydantic import AfterValidator, field_validator, model_validator
+from typing_extensions import Self
 
 from albumentations.augmentations.mixing.domain_adaptation_functional import (
     adapt_pixel_distribution,
@@ -32,33 +35,153 @@ __all__ = [
 MAX_BETA_LIMIT = 0.5
 
 
-class HistogramMatching(ImageOnlyTransform):
-    """Adjust the pixel values of an input image to match the histogram of a reference image.
+# Base class for Domain Adaptation Init Schema
+class BaseDomainAdaptationInitSchema(BaseTransformInitSchema):
+    reference_images: Sequence[Any] | None = None
+    read_fn: Callable[[Any], np.ndarray] | None = None
+    metadata_key: str
 
-    This transform applies histogram matching, a technique that modifies the distribution of pixel
-    intensities in the input image to closely resemble that of a reference image. This process is
-    performed independently for each channel in multi-channel images, provided both the input and
-    reference images have the same number of channels.
+    @model_validator(mode="after")
+    def _check_deprecated_args(self) -> Self:
+        if self.reference_images is not None:
+            warnings.warn(
+                "'reference_images' and 'read_fn' arguments are deprecated. "
+                "Please pass pre-loaded reference images "
+                f"using the '{self.metadata_key}' key in the input data dictionary.",
+                DeprecationWarning,
+                stacklevel=3,  # Adjust stacklevel as needed
+            )
 
-    Histogram matching is particularly useful for:
-    - Normalizing images from different sources or captured under varying conditions.
-    - Preparing images for feature matching or other computer vision tasks where consistent
-      tone and contrast are important.
-    - Simulating different lighting or camera conditions in a controlled manner.
+            if self.read_fn is None:
+                msg = "read_fn cannot be None when using the deprecated 'reference_images' argument."
+                raise ValueError(msg)
+
+        return self
+
+
+# Base class for Domain Adaptation Transforms
+class BaseDomainAdaptation(ImageOnlyTransform):
+    # Pydantic schema for initialization arguments
+    InitSchema: type[BaseDomainAdaptationInitSchema]
+
+    def __init__(
+        self,
+        reference_images: Sequence[Any] | None,
+        read_fn: Callable[[Any], np.ndarray] | None,
+        metadata_key: str,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p)
+        self.reference_images = reference_images
+        self.read_fn = read_fn
+        self.metadata_key = metadata_key
+
+    @property
+    def targets_as_params(self) -> list[str]:
+        return [self.metadata_key]
+
+    def _get_reference_image(self, data: dict[str, Any]) -> np.ndarray:
+        """Retrieves the reference image from metadata or deprecated arguments."""
+        reference_image = None
+        metadata_images = data.get(self.metadata_key)
+
+        if metadata_images:
+            if not isinstance(metadata_images, Sequence) or not metadata_images:
+                raise ValueError(
+                    f"Metadata key '{self.metadata_key}' should contain a non-empty sequence of numpy arrays.",
+                )
+            if not isinstance(metadata_images[0], np.ndarray):
+                raise ValueError(
+                    f"Images in metadata key '{self.metadata_key}' should be numpy arrays.",
+                )
+            reference_image = self.py_random.choice(metadata_images)
+
+            if self.reference_images is not None:
+                warnings.warn(
+                    f"Both 'reference_images' (deprecated constructor argument) and metadata via "
+                    f"'{self.metadata_key}' were provided. Prioritizing metadata.",
+                    UserWarning,
+                    stacklevel=3,  # Adjust stacklevel as needed
+                )
+
+        elif self.reference_images is not None:
+            # Deprecation warning is handled by the InitSchema validator
+            if self.read_fn is None:
+                # This case should ideally be caught by InitSchema, but safety check
+                msg = "read_fn cannot be None when using the deprecated 'reference_images' argument."
+                raise ValueError(msg)
+            ref_source = self.py_random.choice(self.reference_images)
+            reference_image = self.read_fn(ref_source)
+        else:
+            raise ValueError(
+                f"{self.__class__.__name__} requires reference images. Provide them via the `metadata_key` "
+                f"'{self.metadata_key}' in the input data, or use the deprecated 'reference_images' argument.",
+            )
+
+        if reference_image is None:
+            # Should not happen if logic above is correct, but safety check
+            msg = "Could not obtain a reference image."
+            raise RuntimeError(msg)
+
+        return reference_image
+
+    def to_dict_private(self) -> dict[str, Any]:
+        """Convert the transform to a dictionary for serialization.
+
+        Raises:
+            NotImplementedError: Domain adaptation transforms cannot be reliably serialized
+                                 when using metadata key or deprecated arguments.
+
+        """
+        if self.reference_images is not None:
+            msg = (
+                f"{self.__class__.__name__} cannot be reliably serialized when using the deprecated 'reference_images'."
+            )
+            raise NotImplementedError(msg)
+
+        msg = (
+            f"{self.__class__.__name__} cannot be reliably serialized due to its dependency "
+            "on external data via metadata."
+        )
+        raise NotImplementedError(msg)
+
+
+class HistogramMatching(BaseDomainAdaptation):
+    """Adjust the pixel value distribution of an input image to match a reference image.
+
+    This transform modifies the pixel intensities of the input image so that its histogram
+    matches the histogram of a provided reference image. This process is applied independently
+    to each channel of the image if it is multi-channel.
+
+    Why use Histogram Matching?
+
+    **Domain Adaptation:** Helps bridge the gap between images from different sources
+    (e.g., different cameras, lighting conditions, synthetic vs. real data) by aligning
+    their overall intensity and contrast characteristics.
+
+    *Use Case Example:* Imagine you have labeled training images from one source (e.g., daytime photos,
+    medical scans from Hospital A) but expect your model to work on images from a different
+    source at test time (e.g., nighttime photos, scans from Hospital B). You might only have
+    unlabeled images from the target (test) domain. HistogramMatching can be used to make your
+    labeled training images resemble the *style* (intensity and contrast distribution) of the
+    unlabeled target images. By training on these adapted images, your model may generalize
+    better to the target domain without needing labels for it.
+
+    How it works:
+    The core idea is to map the pixel values of the input image such that its cumulative
+    distribution function (CDF) matches the CDF of the reference image. This effectively
+    reshapes the input image's histogram to resemble the reference's histogram.
 
     Args:
-        reference_images (Sequence[Any]): A sequence of reference image sources. These can be
-            file paths, URLs, or any objects that can be converted to images by the `read_fn`.
+        metadata_key (str): Key in the input `data` dictionary to retrieve the reference image(s).
+            The value should be a sequence (e.g., list) of numpy arrays (pre-loaded images).
+            Default: "hm_metadata".
         blend_ratio (tuple[float, float]): Range for the blending factor between the original
-            and the matched image. Must be two floats between 0 and 1, where:
-            - 0 means no blending (original image is returned)
-            - 1 means full histogram matching
-            A random value within this range is chosen for each application.
-            Default: (0.5, 1.0)
-        read_fn (Callable[[Any], np.ndarray]): A function that takes an element from
-            `reference_images` and returns a numpy array representing the image.
-            Default: read_rgb_image (reads image file from disk)
-        p (float): Probability of applying the transform. Default: 0.5
+            and the histogram-matched image. A value of 0 means the original image is returned,
+            1 means the fully matched image is returned. A random value within this range [min, max]
+            is sampled for each application. This allows for varying degrees of adaptation.
+            Default: (0.5, 1.0).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -67,53 +190,63 @@ class HistogramMatching(ImageOnlyTransform):
         uint8, float32
 
     Note:
-        - This transform cannot be directly serialized due to its dependency on external image data.
-        - The effectiveness of the matching depends on the similarity between the input and reference images.
-        - For best results, choose reference images that represent the desired tone and contrast.
+        - Requires at least one reference image to be provided via the `metadata_key` argument.
+        - The `reference_images` and `read_fn` constructor arguments are deprecated.
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
         >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> transform = A.HistogramMatching(
-        ...     reference_images=[reference_image],
-        ...     blend_ratio=(0.5, 1.0),
-        ...     read_fn=lambda x: x,
-        ...     p=1
-        ... )
-        >>> result = transform(image=image)
+        >>> # Initialize transform using default metadata_key="hm_metadata"
+        >>> transform = A.HistogramMatching(blend_ratio=(0.5, 1.0), p=1)
+        >>> # Pass the reference image via the default metadata key
+        >>> result = transform(image=image, hm_metadata=[reference_image])
         >>> matched_image = result["image"]
 
     References:
         Histogram Matching in scikit-image:
-          https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
+            https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
 
     """
 
-    class InitSchema(BaseTransformInitSchema):
-        reference_images: Sequence[Any]
+    class InitSchema(BaseDomainAdaptationInitSchema):
         blend_ratio: Annotated[
             tuple[float, float],
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(0, 1)),
         ]
-        read_fn: Callable[[Any], np.ndarray]
 
     def __init__(
         self,
-        reference_images: Sequence[Any],
+        reference_images: Sequence[Any] | None = None,
         blend_ratio: tuple[float, float] = (0.5, 1.0),
-        read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
+        read_fn: Callable[[Any], np.ndarray] | None = read_rgb_image,
+        metadata_key: str = "hm_metadata",
         p: float = 0.5,
     ):
-        super().__init__(p=p)
-        self.reference_images = reference_images
-        self.read_fn = read_fn
+        super().__init__(reference_images=reference_images, read_fn=read_fn, metadata_key=metadata_key, p=p)
         self.blend_ratio = blend_ratio
 
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Generate parameters for the transform based on input data.
+
+        Args:
+            params (dict[str, Any]): Parameters from the previous transform in the pipeline
+            data (dict[str, Any]): Input data dictionary containing the image and metadata
+
+        Returns:
+            dict[str, Any]: Dictionary containing the reference image and blend ratio
+
+        """
+        reference_image = self._get_reference_image(data)
+        return {
+            "reference_image": reference_image,
+            "blend_ratio": self.py_random.uniform(*self.blend_ratio),
+        }
+
     def apply(
-        self: np.ndarray,
+        self,
         img: np.ndarray,
         reference_image: np.ndarray,
         blend_ratio: float,
@@ -122,7 +255,6 @@ class HistogramMatching(ImageOnlyTransform):
         """Apply histogram matching to the input image.
 
         Args:
-            self (np.ndarray): The transform object
             img (np.ndarray): Input image to be transformed
             reference_image (np.ndarray): Reference image for histogram matching
             blend_ratio (float): Blending factor between the original and matched image
@@ -134,61 +266,53 @@ class HistogramMatching(ImageOnlyTransform):
         """
         return apply_histogram(img, reference_image, blend_ratio)
 
-    def get_params(self) -> dict[str, np.ndarray]:
-        """Get parameters for the transform.
 
-        Returns:
-            dict[str, np.ndarray]: Dictionary containing the reference image and blend ratio
+class FDA(BaseDomainAdaptation):
+    """Fourier Domain Adaptation (FDA).
 
-        """
-        return {
-            "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
-            "blend_ratio": self.py_random.uniform(*self.blend_ratio),
-        }
+    Adapts the style of the input image to match the style of a reference image
+    by manipulating their frequency components in the Fourier domain. This is
+    particularly useful for unsupervised domain adaptation (UDA).
 
-    def to_dict_private(self) -> dict[str, Any]:
-        """Convert the transform to a dictionary for serialization.
+    Why use FDA?
 
-        Raises:
-            NotImplementedError: HistogramMatching cannot be serialized
+    **Domain Adaptation:** FDA helps bridge the domain gap between source and target
+    datasets (e.g., synthetic vs. real, day vs. night) by aligning their low-frequency
+    Fourier spectrum components. This can improve model performance on the target domain
+    without requiring target labels.
 
-        """
-        msg = "HistogramMatching can not be serialized."
-        raise NotImplementedError(msg)
+    *Use Case Example:* Imagine you have labeled training data acquired under certain conditions
+    (e.g., images from Hospital A using a specific scanner) but need your model to perform well
+    on data from a different distribution (e.g., unlabeled images from Hospital B with a different scanner).
+    FDA can adapt the labeled source images to match the *style* (frequency characteristics)
+    of the unlabeled target images, potentially improving the model's generalization to the
+    target domain at test time.
 
-
-class FDA(ImageOnlyTransform):
-    """Fourier Domain Adaptation (FDA) for simple "style transfer" in the context of unsupervised domain adaptation
-    (UDA). FDA manipulates the frequency components of images to reduce the domain gap between source
-    and target datasets, effectively adapting images from one domain to closely resemble those from another without
-    altering their semantic content.
-
-    This transform is particularly beneficial in scenarios where the training (source) and testing (target) images
-    come from different distributions, such as synthetic versus real images, or day versus night scenes.
-    Unlike traditional domain adaptation methods that may require complex adversarial training, FDA achieves domain
-    alignment by swapping low-frequency components of the Fourier transform between the source and target images.
-    This technique has shown to improve the performance of models on the target domain, particularly for tasks
-    like semantic segmentation, without additional training for domain invariance.
-
-    The 'beta_limit' parameter controls the extent of frequency component swapping, with lower values preserving more
-    of the original image's characteristics and higher values leading to more pronounced adaptation effects.
-    It is recommended to use beta values less than 0.3 to avoid introducing artifacts.
+    How it works:
+    FDA operates in the frequency domain. It replaces the low-frequency components
+    of the source image's Fourier transform with the low-frequency components from the
+    reference (target domain) image's Fourier transform. The `beta_limit` parameter
+    controls the size of the frequency window being swapped.
 
     Args:
-        reference_images (Sequence[Any]): Sequence of objects to be converted into images by `read_fn`. This typically
-            involves paths to images that serve as target domain examples for adaptation.
-        beta_limit (tuple[float, float] | float): Coefficient beta from the paper, controlling the swapping extent of
-            frequency components. If one value is provided beta will be sampled from uniform
-            distribution [0, beta_limit]. Values should be less than 0.5.
-        read_fn (Callable): User-defined function for reading images. It takes an element from `reference_images` and
-            returns a numpy array of image pixels. By default, it is expected to take a path to an image and return a
-            numpy array.
+        metadata_key (str): Key in the input `data` dictionary to retrieve the reference image(s).
+            The value should be a sequence (e.g., list) of numpy arrays (pre-loaded images).
+            Default: "fda_metadata".
+        beta_limit (tuple[float, float] | float): Controls the extent of the low-frequency
+            spectrum swap. A larger beta means more components are swapped. Corresponds to the L
+            parameter in the original paper. Should be in the range [0, 0.5]. Sampling is uniform
+            within the provided range [min, max]. Default: (0, 0.1).
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
         uint8, float32
+
+    Note:
+        - Requires at least one reference image to be provided via the `metadata_key` argument.
+        - The `reference_images` and `read_fn` constructor arguments are deprecated.
 
     References:
         - FDA: https://github.com/YanchaoYang/FDA
@@ -198,38 +322,20 @@ class FDA(ImageOnlyTransform):
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> target_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> aug = A.Compose([A.FDA([target_image], p=1, read_fn=lambda x: x)])
-        >>> result = aug(image=image)
-
-    Note:
-        FDA is a powerful tool for domain adaptation, particularly in unsupervised settings where annotated target
-        domain samples are unavailable. It enables significant improvements in model generalization by aligning
-        the low-level statistics of source and target images through a simple yet effective Fourier-based method.
+        >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> # Initialize transform using default metadata_key="fda_metadata"
+        >>> aug = A.Compose([A.FDA(p=1)])
+        >>> # Pass the reference image via the default metadata key
+        >>> result = aug(image=image, fda_metadata=[reference_image])
 
     """
 
-    class InitSchema(BaseTransformInitSchema):
-        reference_images: Sequence[Any]
-        read_fn: Callable[[Any], np.ndarray]
+    class InitSchema(BaseDomainAdaptationInitSchema):
         beta_limit: ZeroOneRangeType
 
         @field_validator("beta_limit")
         @classmethod
-        def check_ranges(cls, value: tuple[float, float]) -> tuple[float, float]:
-            """Validate that beta_limit is within the acceptable range.
-
-            Args:
-                cls (type): The class object
-                value (tuple[float, float]): The beta limit range to validate
-
-            Returns:
-                tuple[float, float]: The validated beta limit range
-
-            Raises:
-                ValueError: If values are outside the allowed range
-
-            """
+        def _check_ranges(cls, value: tuple[float, float]) -> tuple[float, float]:
             bounds = 0, MAX_BETA_LIMIT
             if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
                 raise ValueError(f"Values should be in the range {bounds} got {value} ")
@@ -237,15 +343,24 @@ class FDA(ImageOnlyTransform):
 
     def __init__(
         self,
-        reference_images: Sequence[Any],
+        reference_images: Sequence[Any] | None = None,
         beta_limit: tuple[float, float] | float = (0, 0.1),
-        read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
+        read_fn: Callable[[Any], np.ndarray] | None = read_rgb_image,
+        metadata_key: str = "fda_metadata",
         p: float = 0.5,
     ):
-        super().__init__(p=p)
-        self.reference_images = reference_images
-        self.read_fn = read_fn
+        super().__init__(reference_images=reference_images, read_fn=read_fn, metadata_key=metadata_key, p=p)
         self.beta_limit = cast("tuple[float, float]", beta_limit)
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Generate parameters for the transform based on input data."""
+        target_image = self._get_reference_image(data)
+        height, width = params["shape"][:2]
+
+        # Resize the target image to match the input image dimensions
+        target_image_resized = cv2.resize(target_image, dsize=(width, height))
+
+        return {"target_image": target_image_resized, "beta": self.py_random.uniform(*self.beta_limit)}
 
     def apply(
         self,
@@ -268,66 +383,47 @@ class FDA(ImageOnlyTransform):
         """
         return fourier_domain_adaptation(img, target_image, beta)
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
-        """Generate parameters for the transform based on input data.
 
-        Args:
-            params (dict[str, Any]): Dictionary of existing parameters
-            data (dict[str, Any]): Dictionary containing input data
+class PixelDistributionAdaptation(BaseDomainAdaptation):
+    """Adapts the pixel value distribution of an input image to match a reference image
+    using statistical transformations (PCA, StandardScaler, or MinMaxScaler).
 
-        Returns:
-            dict[str, np.ndarray]: Dictionary containing the resized target image and beta value
+    This transform aims to harmonize images from different domains by aligning their pixel-level
+    statistical properties.
 
-        """
-        height, width = params["shape"][:2]
-        target_img = self.read_fn(self.py_random.choice(self.reference_images))
-        target_img = cv2.resize(target_img, dsize=(width, height))
+    Why use Pixel Distribution Adaptation?
+    **Domain Adaptation:** Useful for aligning images across domains with differing pixel statistics
+    (e.g., caused by different sensors, lighting, or post-processing).
 
-        return {"target_image": target_img, "beta": self.py_random.uniform(*self.beta_limit)}
+    *Use Case Example:* Consider having labeled data from Scanner A and needing the model to perform
+    well on unlabeled data from Scanner B, where images might have different overall brightness,
+    contrast, or color biases. This transform can adapt the labeled images from Scanner A to
+    mimic the pixel distribution *style* of the images from Scanner B, potentially improving
+    generalization without needing labels for Scanner B data.
 
-    def to_dict_private(self) -> dict[str, Any]:
-        """Convert the transform to a dictionary for serialization.
-
-        Raises:
-            NotImplementedError: FDA cannot be serialized
-
-        """
-        msg = "FDA can not be serialized."
-        raise NotImplementedError(msg)
-
-
-class PixelDistributionAdaptation(ImageOnlyTransform):
-    """Performs pixel-level domain adaptation by aligning the pixel value distribution of an input image
-    with that of a reference image. This process involves fitting a simple statistical transformation
-    (such as PCA, StandardScaler, or MinMaxScaler) to both the original and the reference images,
-    transforming the original image with the transformation trained on it, and then applying the inverse
-    transformation using the transform fitted on the reference image. The result is an adapted image
-    that retains the original content while mimicking the pixel value distribution of the reference domain.
-
-    The process can be visualized as two main steps:
-    1. Adjusting the original image to a standard distribution space using a selected transform.
-    2. Moving the adjusted image into the distribution space of the reference image by applying the inverse
-       of the transform fitted on the reference image.
-
-    This technique is especially useful in scenarios where images from different domains (e.g., synthetic
-    vs. real images, day vs. night scenes) need to be harmonized for better consistency or performance in
-    image processing tasks.
+    How it works:
+    1. A chosen statistical transform (`transform_type`) is fitted to both the input (source) image
+       and the reference (target) image separately.
+    2. The input image is transformed using the transform fitted on it (moving it to a standardized space).
+    3. The inverse transform *fitted on the reference image* is applied to the result from step 2
+       (moving the standardized input into the reference image's statistical space).
+    4. The result is optionally blended with the original input image using `blend_ratio`.
 
     Args:
-        reference_images (Sequence[Any]): A sequence of objects (typically image paths) that will be
-            converted into images by `read_fn`. These images serve as references for the domain adaptation.
+        metadata_key (str): Key in the input `data` dictionary to retrieve the reference image(s).
+            The value should be a sequence (e.g., list) of numpy arrays (pre-loaded images).
+            Default: "pda_metadata".
         blend_ratio (tuple[float, float]): Specifies the minimum and maximum blend ratio for mixing
-            the adapted image with the original. This enhances the diversity of the output images.
-            Values should be in the range [0, 1]. Default: (0.25, 1.0)
-        read_fn (Callable): A user-defined function for reading and converting the objects in
-            `reference_images` into numpy arrays. By default, it assumes these objects are image paths.
+            the adapted image with the original. A value of 0 means the original image is returned,
+            1 means the fully adapted image is returned. A random value within this range [min, max]
+            is sampled for each application. Default: (0.25, 1.0).
         transform_type (Literal["pca", "standard", "minmax"]): Specifies the type of statistical
-            transformation to apply.
-            - "pca": Principal Component Analysis
-            - "standard": StandardScaler (zero mean and unit variance)
-            - "minmax": MinMaxScaler (scales to a fixed range, usually [0, 1])
-            Default: "pca"
-        p (float): The probability of applying the transform to any given image. Default: 0.5
+            transformation to apply:
+            - "pca": Principal Component Analysis.
+            - "standard": StandardScaler (zero mean, unit variance).
+            - "minmax": MinMaxScaler (scales to [0, 1] range).
+            Default: "pca".
+        p (float): The probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -335,29 +431,23 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Number of channels:
-        Any
-
     Note:
-        - The effectiveness of the adaptation depends on the similarity between the input and reference domains.
-        - PCA transformation may alter color relationships more significantly than other methods.
-        - StandardScaler and MinMaxScaler preserve color relationships better but may provide less dramatic adaptations.
-        - The blend_ratio parameter allows for a smooth transition between the original and fully adapted image.
-        - This transform cannot be directly serialized due to its dependency on external image data.
+        - Requires at least one reference image to be provided via the `metadata_key` argument.
+        - The `reference_images` and `read_fn` constructor arguments are deprecated.
 
     Example:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
         >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> # Initialize transform using default metadata_key="pda_metadata"
         >>> transform = A.PixelDistributionAdaptation(
-        ...     reference_images=[reference_image],
         ...     blend_ratio=(0.5, 1.0),
         ...     transform_type="standard",
-        ...     read_fn=lambda x: x,
         ...     p=1.0
         ... )
-        >>> result = transform(image=image)
+        >>> # Pass the reference image via the default metadata key
+        >>> result = transform(image=image, pda_metadata=[reference_image])
         >>> adapted_image = result["image"]
 
     References:
@@ -365,29 +455,34 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     """
 
-    class InitSchema(BaseTransformInitSchema):
-        reference_images: Sequence[Any]
+    class InitSchema(BaseDomainAdaptationInitSchema):
         blend_ratio: Annotated[
             tuple[float, float],
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(0, 1)),
         ]
-        read_fn: Callable[[Any], np.ndarray]
         transform_type: Literal["pca", "standard", "minmax"]
 
     def __init__(
         self,
-        reference_images: Sequence[Any],
+        reference_images: Sequence[Any] | None = None,
         blend_ratio: tuple[float, float] = (0.25, 1.0),
-        read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
+        read_fn: Callable[[Any], np.ndarray] | None = read_rgb_image,
         transform_type: Literal["pca", "standard", "minmax"] = "pca",
+        metadata_key: str = "pda_metadata",
         p: float = 0.5,
     ):
-        super().__init__(p=p)
-        self.reference_images = reference_images
-        self.read_fn = read_fn
+        super().__init__(reference_images=reference_images, read_fn=read_fn, metadata_key=metadata_key, p=p)
         self.blend_ratio = blend_ratio
         self.transform_type = transform_type
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Get parameters for the transform."""
+        reference_image = self._get_reference_image(data)
+        return {
+            "reference_image": reference_image,
+            "blend_ratio": self.py_random.uniform(*self.blend_ratio),
+        }
 
     def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params: Any) -> np.ndarray:
         """Apply pixel distribution adaptation to the input image.
@@ -408,25 +503,3 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             weight=blend_ratio,
             transform_type=self.transform_type,
         )
-
-    def get_params(self) -> dict[str, Any]:
-        """Get parameters for the transform.
-
-        Returns:
-            dict[str, Any]: Dictionary containing the reference image and blend ratio
-
-        """
-        return {
-            "reference_image": self.read_fn(self.py_random.choice(self.reference_images)),
-            "blend_ratio": self.py_random.uniform(*self.blend_ratio),
-        }
-
-    def to_dict_private(self) -> dict[str, Any]:
-        """Convert the transform to a dictionary for serialization.
-
-        Raises:
-            NotImplementedError: PixelDistributionAdaptation cannot be serialized
-
-        """
-        msg = "PixelDistributionAdaptation can not be serialized."
-        raise NotImplementedError(msg)

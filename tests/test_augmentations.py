@@ -5,6 +5,8 @@ import numpy as np
 import pytest
 from albucore import to_float
 
+from .aug_definitions import transforms2metadata_key
+
 import albumentations as A
 from tests.conftest import (
     IMAGES,
@@ -21,21 +23,6 @@ from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transf
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
         except_augmentations={
             A.FromFloat,
             A.Normalize,
@@ -46,16 +33,21 @@ from .utils import get_2d_transforms, get_dual_transforms, get_image_only_transf
 def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
+
+    data = {
+        "image": image,
+        "mask": mask,
+    }
     if augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
-        data = aug(
-            image=image,
-            mask=mask,
-            textimage_metadata={"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)},
-        )
+        data = aug(**data, textimage_metadata={"text": "May the transformations be ever in your favor!", "bbox": (0.1, 0.1, 0.9, 0.2)})
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
+        data = aug(**data)
     else:
         aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
-        data = aug(image=image, mask=mask)
+        data = aug(**data)
 
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
@@ -65,21 +57,6 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
         except_augmentations={
             A.FromFloat,
         },
@@ -88,19 +65,30 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
 def test_image_only_augmentations(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image[:, :, 0].copy().astype(np.uint8)
+
+
+    data = {
+        "image": image,
+        "mask": mask,
+    }
     if augmentation_cls == A.TextImage:
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"), strict=True)
-        data = aug(image=image, mask=mask, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
+        data = aug(**data, textimage_metadata={"text": "Hello, world!", "bbox": (0.1, 0.1, 0.9, 0.2)})
     elif augmentation_cls == A.Mosaic:
-        data = aug(image=image, mask=mask, mosaic_metadata=[
+        data["mosaic_metadata"] = [
             {
                 "image": SQUARE_FLOAT_IMAGE,
                 "mask": mask
             }
-        ])
+        ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
+        aug = A.Compose([augmentation_cls(p=1, **params)], strict=True)
+        data = aug(**data)
     else:
         aug = augmentation_cls(p=1, **params)
-        data = aug(image=image, mask=mask)
+        data = aug(**data)
+
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
@@ -175,21 +163,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -221,6 +194,9 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                 "mask": mask
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
+
     aug(**data)
 
     np.testing.assert_array_equal(image, image_copy)
@@ -230,21 +206,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
@@ -279,6 +240,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
 
     aug(**data)
 
@@ -289,19 +252,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 1], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
         },
         except_augmentations={
             A.ChannelDropout,
@@ -367,6 +317,9 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                 "mask": mask
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
+
     result = aug(**data)
 
     np.testing.assert_array_equal(image.shape, result["image"].shape)
@@ -376,26 +329,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_2d_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [SQUARE_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
-        },
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
@@ -457,6 +390,12 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
                 }
             ]
         }
+    elif augmentation_cls in transforms2metadata_key:
+        data = {
+            "image": image_3ch,
+            "mask": mask_3ch,
+            transforms2metadata_key[augmentation_cls]: [image_3ch]
+        }
     else:
         data = {
             "image": image_3ch,
@@ -503,19 +442,6 @@ def test_mask_fill_value(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
@@ -575,6 +501,8 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
 
     data = aug(**data)
     assert data["image"].dtype == np.uint8
@@ -585,19 +513,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [SQUARE_MULTI_FLOAT_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
@@ -654,6 +569,8 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
 
     data = aug(**data)
 
@@ -665,11 +582,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
@@ -694,8 +606,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.ToRGB,
             A.ToSepia,
             A.FancyPCA,
-            A.FDA,
-            A.HistogramMatching,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -733,6 +643,8 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
 
     data = aug(**data)
 
@@ -744,11 +656,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.uniform(size=(100, 100, 5)).astype(np.float32)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
             A.ToGray: {
                 "method": "pca",
                 "num_output_channels": 5,
@@ -775,8 +682,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.ToRGB,
             A.ToSepia,
             A.Equalize,
-            A.FDA,
-            A.HistogramMatching,
             A.Spatter,
             A.ChromaticAberration,
             A.PlanckianJitter,
@@ -812,6 +717,8 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
                 "image": image,
             }
         ]
+    elif augmentation_cls in transforms2metadata_key:
+        data[transforms2metadata_key[augmentation_cls]] = [image]
 
     data = aug(**data)
 

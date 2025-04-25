@@ -67,19 +67,6 @@ str2target = {
     ["augmentation_cls", "params"],
     get_image_only_transforms(
         custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-                "transform_type": "standard",
-            },
             A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf"),
         },
     ),
