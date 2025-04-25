@@ -1078,7 +1078,7 @@ def test_change_image(augmentation_cls, params, image):
             }
         ]
     elif augmentation_cls in transforms2metadata_key:
-        data[transforms2metadata_key[augmentation_cls]] = [image + 1]
+        data[transforms2metadata_key[augmentation_cls]] = [image.max() - image]
 
 
     transformed = aug(**data)

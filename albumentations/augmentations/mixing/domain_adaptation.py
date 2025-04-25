@@ -83,9 +83,8 @@ class BaseDomainAdaptation(ImageOnlyTransform):
     def _get_reference_image(self, data: dict[str, Any]) -> np.ndarray:
         """Retrieves the reference image from metadata or deprecated arguments."""
         reference_image = None
-        metadata_images = data.get(self.metadata_key)
 
-        if metadata_images:
+        if metadata_images := data.get(self.metadata_key):
             if not isinstance(metadata_images, Sequence) or not metadata_images:
                 raise ValueError(
                     f"Metadata key '{self.metadata_key}' should contain a non-empty sequence of numpy arrays.",

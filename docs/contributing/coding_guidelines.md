@@ -206,7 +206,7 @@ When a transform requires complex or variable auxiliary data beyond simple confi
 Instead, follow this preferred pattern:
 
 1. **Pass the auxiliary data** within the main `data` dictionary provided to the transform's `__call__` method, using a descriptive key (e.g., `mosaic_metadata`, `target_image`).
-2. **Declare this key** in the transform's `targets_as_params` class attribute. This informs the `Compose` pipeline that the data associated with this key should be available within the `get_params_dependent_on_data` method.
+2. **Declare this key** in the transform's `targets_as_params` class attribute. This attribute signals to the `Compose` pipeline that the associated auxiliary data should be extracted from the main data dictionary and forwarded to the transform. In other words, targets_as_params enables the dynamic inclusion of per-sample metadata into the `get_params_dependent_on_data` method, ensuring the transform has access to this additional context during processing.
 3. **Access the data** inside `get_params_dependent_on_data` using `data.get("your_metadata_key")`.
 
 This approach keeps the transform's initialization focused on static configuration and allows the dynamic, per-sample auxiliary data to flow through the standard pipeline mechanism.
