@@ -304,7 +304,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
             https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
 
     """
-    src_img = img.copy().astype(np.float32)
+    src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
 
     if src_img.ndim == MONO_CHANNEL_DIMENSIONS:
