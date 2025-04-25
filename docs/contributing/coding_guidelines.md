@@ -197,7 +197,63 @@ def apply(self, img: np.ndarray, **params) -> np.ndarray:
       if img.shape[-1] != 3:
           raise ValueError("Transform requires RGB image")
       return rgb_to_hsv(img)  # RGB-specific processing
+  ```
 
+### Handling Auxiliary Data via Metadata
+
+When a transform requires complex or variable auxiliary data beyond simple configuration parameters (e.g., additional images and labels for `Mosaic`, extra images for domain adaptation transforms like `FDA` or `HistogramMatching`), **do not pass this data directly through the `__init__` constructor**.
+
+Instead, follow this preferred pattern:
+
+1. **Pass the auxiliary data** within the main `data` dictionary provided to the transform's `__call__` method, using a descriptive key (e.g., `mosaic_metadata`, `target_image`).
+2. **Declare this key** in the transform's `targets_as_params` class attribute. This informs the `Compose` pipeline that the data associated with this key should be available within the `get_params_dependent_on_data` method.
+3. **Access the data** inside `get_params_dependent_on_data` using `data.get("your_metadata_key")`.
+
+This approach keeps the transform's initialization focused on static configuration and allows the dynamic, per-sample auxiliary data to flow through the standard pipeline mechanism.
+
+**Example (`Mosaic` transform):**
+
+```python
+# Correct - Data passed via `data` dict, key declared in `targets_as_params`
+class Mosaic(DualTransform):
+    def __init__(self, target_size: tuple[int, int] = (512, 512), p=0.5, metadata_key="mosaic_metadata"):
+        super().__init__(p=p)
+        self.target_size = target_size
+        # NO auxiliary data like list of images/bboxes in __init__
+        self.metadata_key = metadata_key
+
+    @property
+    def targets_as_params(self) -> list[str]:
+        """Get list of targets that should be passed as parameters to transforms."""
+        return [self.metadata_key]
+
+    def get_params_dependent_on_data(self, params: dict, data: dict) -> dict:
+        # Access auxiliary data here
+        additional_items = data.get(self.metadata_key, [])
+        # ... process additional_items ...
+        return { ... } # Return calculated parameters
+
+# Usage
+transform = A.Mosaic(target_size=(640, 640))
+result = transform(image=img1, mask=mask1, bboxes=bboxes1,
+                   mosaic_metadata=[
+                       {'image': img2, 'bboxes': bboxes2},
+                       {'image': img3, 'bboxes': bboxes3},
+                       # ... more items
+                   ])
+
+
+# Incorrect - Avoid passing variable data structures via __init__
+class BadMosaic(DualTransform):
+    def __init__(self, additional_items: list[dict], target_size: tuple[int, int] = (512, 512), p=0.5):
+         super().__init__(p=p)
+         self.additional_items = additional_items # Discouraged!
+         self.target_size = target_size
+
+    # ... might not even need get_params_dependent_on_data if data is in self ...
+```
+
+Passing data via `__init__` couples the transform instance to specific data, making it less reusable and potentially breaking serialization or pipeline composition.
 
 ## Random Number Generation
 
