@@ -174,6 +174,75 @@ def test_mosaic_identity_with_targets() -> None:
     np.testing.assert_allclose(result_bboxes_with_labels, expected_bboxes_with_labels, atol=1e-6)
 
 
+def test_mosaic_primary_mask_metadata_no_mask() -> None:
+    """Test Mosaic behavior when primary has mask but metadata item doesn't.
+
+    Expects the area corresponding to the metadata item without a mask to be
+    filled with the fill_mask value in the output mask.
+    """
+    # Set a fixed seed for reproducibility of item selection and placement
+    target_size = (100, 100)
+    cell_shape = (100, 100)
+    primary_image = np.zeros((*target_size, 3), dtype=np.uint8)
+    primary_mask = np.ones(target_size, dtype=np.uint8) * 55  # Non-zero primary mask value
+
+    # Metadata item with compatible image but NO mask
+    metadata_item_no_mask = {"image": np.ones((80, 80, 3), dtype=np.uint8) * 10}
+    # Metadata item with compatible image AND mask
+    metadata_item_with_mask = {
+        "image": np.ones((70, 70, 3), dtype=np.uint8) * 20,
+        "mask": np.ones((70, 70), dtype=np.uint8) * 77, # Distinct mask value
+    }
+
+    metadata = [metadata_item_no_mask, metadata_item_with_mask, metadata_item_with_mask]
+    fill_mask_value = 100 # Distinct fill value
+
+    # Use a 2x2 grid to ensure all items (primary + 3 metadata) are potentially used
+    transform = Compose([
+        Mosaic(
+            grid_yx=(2, 2),
+            center_range=(0.5, 0.5),
+            cell_shape=cell_shape,
+            target_size=target_size,
+            fit_mode="cover",
+            fill_mask=fill_mask_value,
+            metadata_key="mosaic_input",
+            p=1.0,
+            )
+        ], seed=137, strict=True)
+
+    data = {
+        "image": primary_image,
+        "mask": primary_mask,
+        "mosaic_input": metadata,
+    }
+
+    result = transform(**data)
+    output_mask = result["mask"]
+
+    # Basic shape check
+    assert output_mask.shape == target_size
+    assert output_mask.dtype == np.uint8
+
+    # Check that all expected values are present in the mask
+    unique_values = np.unique(output_mask)
+
+    # Value from primary mask should be present (potentially cropped/transformed)
+    # We check if *any* pixel has this value, as exact placement isn't tested here.
+    assert 55 in unique_values
+
+    # Value from metadata item *with* mask should be present
+    assert 77 in unique_values
+
+    # The fill_mask_value *must* be present, corresponding to the item without a mask
+    assert fill_mask_value in unique_values
+
+    # Optionally, check that the fill_value for the image (default 0) is NOT in the mask
+    # unless the fill_mask_value itself was 0.
+    if fill_mask_value != 0:
+        assert 0 not in unique_values # Assuming default image fill value 0 wasn't used for mask
+
+
 def test_mosaic_simplified_deterministic() -> None:
     """Test Mosaic with fixed parameters, albumentations format, no labels."""
     target_size = (100, 100)
