@@ -173,6 +173,8 @@ def calculate_cell_placements(
 
     def _clip_coords(coords: np.ndarray, min_val: int, max_val: int) -> np.ndarray:
         clipped_coords = np.clip(coords, min_val, max_val)
+        # Subtract min_val to convert absolute clipped coordinates
+        # into coordinates relative to the crop window's origin (min_val becomes 0).
         return np.unique(clipped_coords) - min_val
 
     y_coords_clipped = _clip_coords(y_coords_large, crop_y_min, crop_y_max)
@@ -627,56 +629,47 @@ def assemble_mosaic_from_processed_cells(
     target_shape: tuple[int, ...],  # Use full canvas shape (H, W) or (H, W, C)
     dtype: np.dtype,
     data_key: Literal["image", "mask"],
-    fill: float | tuple[float, ...] | None,  # Add fill_mask parameter
+    fill: float | tuple[float, ...] | None,  # Value for image fill or mask fill
 ) -> np.ndarray:
     """Assembles the final mosaic image or mask from processed cell data onto a canvas.
 
-    Handles potentially multi-channel masks and fills missing segments appropriately.
+    Initializes the canvas with the fill value and overwrites with processed segments.
+    Handles potentially multi-channel masks.
     Addresses potential broadcasting errors if mask segments have unexpected dimensions.
     Assumes input data is valid and correctly sized.
 
     Args:
-        processed_cells (dict[tuple[int, int, int, int], dict[str, Any]]): Dictionary
-            mapping placement coords to processed cell data.
-        target_shape (tuple[int, ...]): The target shape of the output
-            canvas (e.g., (H, W) or (H, W, C)).
+        processed_cells (dict[tuple[int, int, int, int], dict[str, Any]]): Dictionary mapping
+            placement coords to processed cell data.
+        target_shape (tuple[int, ...]): The target shape of the output canvas (e.g., (H, W) or (H, W, C)).
         dtype (np.dtype): NumPy dtype for the canvas.
         data_key (Literal["image", "mask"]): Specifies whether to assemble 'image' or 'mask'.
-        fill (float | tuple[float, ...] | None): Value to use when a mask segment is missing.
+        fill (float | tuple[float, ...] | None): Value used to initialize the canvas (image fill or mask fill).
+              Should be a float/int or a tuple matching the number of channels.
+              If None, defaults to 0.
 
     Returns:
         np.ndarray: The assembled mosaic canvas.
 
     """
-    canvas = np.zeros(target_shape, dtype=dtype)
-    canvas_ndim = canvas.ndim
-    canvas_channels = target_shape[-1] if canvas_ndim == 3 else None
+    # Use 0 as default fill if None is provided
+    actual_fill = fill if fill is not None else 0
 
-    # Iterate and paste
+    # Convert fill to numpy array to handle broadcasting in np.full
+    fill_value = np.array(actual_fill, dtype=dtype)
+    # Initialize canvas with the fill value.
+    # If fill_value shape is incompatible with target_shape, np.full will raise ValueError.
+    canvas = np.full(target_shape, fill_value=fill_value, dtype=dtype)
+
+    # Iterate and paste segments onto the pre-filled canvas
     for placement_coords, cell_data in processed_cells.items():
         segment = cell_data.get(data_key)
-        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
-        height = tgt_y2 - tgt_y1
-        width = tgt_x2 - tgt_x1
 
-        if segment is None:
-            if data_key == "mask" and fill is not None:
-                # Create a fill segment if mask is missing
-                # Determine the shape for the slice based on canvas dims
-                slice_shape: tuple[int, ...] = (height, width)
-                if canvas_ndim == 3 and canvas_channels is not None:
-                    slice_shape = (height, width, canvas_channels)
+        # If segment exists, paste it over the filled background
+        if segment is not None:
+            tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
 
-                fill_value = np.array(fill, dtype=dtype)
-                # Create the fill segment, np.full handles broadcasting fill_value
-                # If fill_value is incompatible with slice_shape, np.full will raise ValueError
-                fill_segment = np.full(slice_shape, fill_value=fill_value, dtype=dtype)
-                canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = fill_segment
-
-            # If segment is None and it's an image or fill_mask is None, it remains zero
-            continue
-
-        canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = segment
+            canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = segment
 
     return canvas
 

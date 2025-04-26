@@ -725,7 +725,6 @@ def test_assemble_multiple_non_overlapping(processed_cell_data_1, processed_cell
     np.testing.assert_array_equal(canvas_img[60:120, 50:110], processed_cell_data_2["image"])
     # Check empty areas are zero (or fill_value if non-zero)
     assert np.all(canvas_img[50:60, :] == fill_value)
-    assert np.all(canvas_img[:, 50:50] == fill_value) # This slice is empty, always true
     assert np.all(canvas_img[0:60, 110:] == fill_value)
     assert np.all(canvas_img[110:, 0:50] == fill_value)
     # Ensure total non-zero area matches sum of cell areas (only if fill_value is 0)
@@ -741,7 +740,8 @@ def test_assemble_multiple_non_overlapping(processed_cell_data_1, processed_cell
     np.testing.assert_array_equal(canvas_mask[0:50, 0:50], processed_cell_data_1["mask"])
     np.testing.assert_array_equal(canvas_mask[60:120, 50:110], processed_cell_data_2["mask"])
     assert np.all(canvas_mask[50:60, :] == fill_value)
-    assert np.all(canvas_mask[:, 50:50] == fill_value) # Empty slice
+    assert np.all(canvas_mask[0:60, 110:] == fill_value)
+    assert np.all(canvas_mask[110:, 0:50] == fill_value)
     # Ensure total non-zero area matches sum of cell areas (only if fill_value is 0)
     if fill_value == 0:
         expected_mask_pixels = np.count_nonzero(processed_cell_data_1["mask"]) + np.count_nonzero(processed_cell_data_2["mask"])
