@@ -441,7 +441,7 @@ class Mosaic(DualTransform):
         )
 
     def _select_additional_items(self, data: dict[str, Any], num_additional_needed: int) -> list[dict[str, Any]]:
-        valid_items = fmixing.filter_valid_metadata(data.get(self.metadata_key), self.metadata_key)
+        valid_items = fmixing.filter_valid_metadata(data.get(self.metadata_key), self.metadata_key, data)
         if len(valid_items) > num_additional_needed:
             return self.py_random.sample(valid_items, num_additional_needed)
         return valid_items
@@ -564,6 +564,7 @@ class Mosaic(DualTransform):
             target_shape=target_shape,
             dtype=img.dtype,
             data_key="image",
+            fill=self.fill,
         )
 
     def apply_to_mask(
@@ -590,6 +591,7 @@ class Mosaic(DualTransform):
             target_shape=target_mask_shape,
             dtype=mask.dtype,
             data_key="mask",
+            fill=self.fill_mask,
         )
 
     def apply_to_bboxes(

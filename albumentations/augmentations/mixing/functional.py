@@ -194,14 +194,52 @@ def calculate_cell_placements(
     return result
 
 
+def _check_data_compatibility(
+    primary_data: np.ndarray | None,
+    item_data: np.ndarray | None,
+    data_key: Literal["image", "mask"],
+) -> tuple[bool, str | None]:  # Returns (is_compatible, error_message)
+    """Checks if the dimensions and channels of item_data match primary_data."""
+    # 1. Check if item has the required data (image is always required)
+    if item_data is None:
+        if data_key == "image":
+            return False, "Item is missing required key 'image'"
+        # Mask is optional, missing is compatible
+        return True, None
+
+    # 2. If item data exists, check against primary data (if primary data exists)
+    if primary_data is None:  # No primary data to compare against
+        return True, None
+
+    # Both primary and item data exist, compare them
+    primary_ndim = primary_data.ndim
+    item_ndim = item_data.ndim
+
+    if primary_ndim != item_ndim:
+        return False, (
+            f"Item '{data_key}' has {item_ndim} dimensions, but primary has {primary_ndim}. "
+            f"Primary shape: {primary_data.shape}, Item shape: {item_data.shape}"
+        )
+
+    if primary_ndim == 3:
+        primary_channels = primary_data.shape[-1]
+        item_channels = item_data.shape[-1]
+        if primary_channels != item_channels:
+            return False, (
+                f"Item '{data_key}' has {item_channels} channels, but primary has {primary_channels}. "
+                f"Primary shape: {primary_data.shape}, Item shape: {item_data.shape}"
+            )
+
+    # Dimensions match (either both 2D or both 3D with same channels)
+    return True, None
+
+
 def filter_valid_metadata(
     metadata_input: Sequence[dict[str, Any]] | None,
     metadata_key_name: str,
+    data: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Filters a list of metadata dicts, keeping only valid ones.
-
-    Valid items must be dictionaries and contain the 'image' key.
-    """
+    """Filters a list of metadata dicts, keeping only valid ones based on data compatibility."""
     if not isinstance(metadata_input, Sequence):
         warn(
             f"Metadata under key '{metadata_key_name}' is not a Sequence (e.g., list or tuple). "
@@ -212,16 +250,43 @@ def filter_valid_metadata(
         return []
 
     valid_items = []
+    primary_image = data.get("image")
+    primary_mask = data.get("mask")
+
     for i, item in enumerate(metadata_input):
-        if isinstance(item, dict) and "image" in item:
-            valid_items.append(item)
-        else:
+        if not isinstance(item, dict):
             warn(
-                f"Item at index {i} in '{metadata_key_name}' is invalid "
-                f"(not a dict or lacks 'image' key) and will be skipped.",
+                f"Item at index {i} in '{metadata_key_name}' is not a dict and will be skipped.",
                 UserWarning,
                 stacklevel=4,
             )
+            continue
+
+        item_is_valid = True  # Assume valid initially
+        for target_key, primary_target_data in [
+            ("image", primary_image),
+            ("mask", primary_mask),
+        ]:
+            item_target_data = item.get(target_key)
+
+            is_compatible, error_msg = _check_data_compatibility(
+                primary_target_data,
+                item_target_data,
+                cast("Literal['image', 'mask']", target_key),
+            )
+
+            if not is_compatible:
+                msg = (
+                    f"Item at index {i} in '{metadata_key_name}' skipped due "
+                    f"to incompatibility in '{target_key}': {error_msg}"
+                )
+                warn(msg, UserWarning, stacklevel=4)
+                item_is_valid = False
+                break  # Stop checking other targets for this item
+
+        if item_is_valid:
+            valid_items.append(item)
+
     return valid_items
 
 
@@ -559,22 +624,59 @@ def shift_cell_coordinates(
 
 def assemble_mosaic_from_processed_cells(
     processed_cells: dict[tuple[int, int, int, int], dict[str, Any]],
-    target_shape: tuple[int, int],
+    target_shape: tuple[int, ...],  # Use full canvas shape (H, W) or (H, W, C)
     dtype: np.dtype,
     data_key: Literal["image", "mask"],
+    fill: float | tuple[float, ...] | None,  # Add fill_mask parameter
 ) -> np.ndarray:
-    """Assembles the final mosaic image or mask from processed cell data onto a zero canvas.
+    """Assembles the final mosaic image or mask from processed cell data onto a canvas.
+
+    Handles potentially multi-channel masks and fills missing segments appropriately.
+    Addresses potential broadcasting errors if mask segments have unexpected dimensions.
     Assumes input data is valid and correctly sized.
+
+    Args:
+        processed_cells (dict[tuple[int, int, int, int], dict[str, Any]]): Dictionary
+            mapping placement coords to processed cell data.
+        target_shape (tuple[int, ...]): The target shape of the output
+            canvas (e.g., (H, W) or (H, W, C)).
+        dtype (np.dtype): NumPy dtype for the canvas.
+        data_key (Literal["image", "mask"]): Specifies whether to assemble 'image' or 'mask'.
+        fill (float | tuple[float, ...] | None): Value to use when a mask segment is missing.
+
+    Returns:
+        np.ndarray: The assembled mosaic canvas.
+
     """
     canvas = np.zeros(target_shape, dtype=dtype)
+    canvas_ndim = canvas.ndim
+    canvas_channels = target_shape[-1] if canvas_ndim == 3 else None
 
     # Iterate and paste
     for placement_coords, cell_data in processed_cells.items():
         segment = cell_data.get(data_key)
-        if segment is not None:  # Minimal check to avoid error on .get() returning None
-            tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
-            # Use direct colon notation for slicing
-            canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = segment
+        tgt_x1, tgt_y1, tgt_x2, tgt_y2 = placement_coords
+        height = tgt_y2 - tgt_y1
+        width = tgt_x2 - tgt_x1
+
+        if segment is None:
+            if data_key == "mask" and fill is not None:
+                # Create a fill segment if mask is missing
+                # Determine the shape for the slice based on canvas dims
+                slice_shape: tuple[int, ...] = (height, width)
+                if canvas_ndim == 3 and canvas_channels is not None:
+                    slice_shape = (height, width, canvas_channels)
+
+                fill_value = np.array(fill, dtype=dtype)
+                # Create the fill segment, np.full handles broadcasting fill_value
+                # If fill_value is incompatible with slice_shape, np.full will raise ValueError
+                fill_segment = np.full(slice_shape, fill_value=fill_value, dtype=dtype)
+                canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = fill_segment
+
+            # If segment is None and it's an image or fill_mask is None, it remains zero
+            continue
+
+        canvas[tgt_y1:tgt_y2, tgt_x1:tgt_x2] = segment
 
     return canvas
 

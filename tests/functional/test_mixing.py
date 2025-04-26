@@ -158,46 +158,142 @@ def invalid_item_not_dict() -> str:
 def test_filter_valid_metadata_all_valid(valid_item_1, valid_item_2) -> None:
     """Test with a list of only valid metadata items."""
     metadata_input = [valid_item_1, valid_item_2]
-    result = filter_valid_metadata(metadata_input, "test_key")
+    # Use empty primary data so no compatibility checks are enforced for this basic test
+    primary_data = {}
+    result = filter_valid_metadata(metadata_input, "test_key", primary_data)
     assert result == metadata_input
 
 
 def test_filter_valid_metadata_mixed(valid_item_1, invalid_item_no_image, valid_item_2, invalid_item_not_dict) -> None:
     """Test with a mix of valid and invalid items, checking warnings."""
     metadata_input = [valid_item_1, invalid_item_no_image, valid_item_2, invalid_item_not_dict]
+    # Expected output should include both valid items if primary data is empty
     expected_output = [valid_item_1, valid_item_2]
+    # Use empty primary data so no compatibility checks are enforced beyond basic structure
+    primary_data = {}
 
     with pytest.warns(UserWarning) as record:
-        result = filter_valid_metadata(metadata_input, "test_key")
+        result = filter_valid_metadata(metadata_input, "test_key", primary_data)
 
     assert result == expected_output
-    assert len(record) == 2 # One warning for each invalid item
-    assert "Item at index 1 in 'test_key' is invalid" in str(record[0].message)
-    assert "Item at index 3 in 'test_key' is invalid" in str(record[1].message)
+    # Check the warning messages based on the refactored logic
+    assert len(record) == 2 # Expecting two warnings
+    # Warning 1: invalid_item_no_image (missing required key 'image')
+    assert "skipped due to incompatibility in 'image': Item is missing required key 'image'" in str(record[0].message)
+    assert "index 1" in str(record[0].message)
+    # Warning 2: invalid_item_not_dict (not a dict)
+    assert "Item at index 3 in 'test_key' is not a dict and will be skipped." in str(record[1].message)
 
 def test_filter_valid_metadata_empty_list() -> None:
     """Test with an empty list."""
-    result = filter_valid_metadata([], "test_key")
+    result = filter_valid_metadata([], "test_key", data={})
     assert result == []
 
 def test_filter_valid_metadata_none_input() -> None:
     """Test with None as input, checking warning."""
     with pytest.warns(UserWarning, match="Metadata under key 'test_key' is not a Sequence"):
-        result = filter_valid_metadata(None, "test_key")
+        result = filter_valid_metadata(None, "test_key", data={})
     assert result == []
 
 def test_filter_valid_metadata_dict_input(valid_item_1) -> None:
     """Test with a dictionary as input instead of a sequence, checking warning."""
     with pytest.warns(UserWarning, match="Metadata under key 'test_key' is not a Sequence"):
-        result = filter_valid_metadata(valid_item_1, "test_key")
+        result = filter_valid_metadata(valid_item_1, "test_key", data={})
     assert result == []
 
 def test_filter_valid_metadata_tuple_input(valid_item_1, valid_item_2) -> None:
     """Test with a tuple of valid items."""
     metadata_input = (valid_item_1, valid_item_2)
     expected_output = [valid_item_1, valid_item_2]
-    result = filter_valid_metadata(metadata_input, "test_key")
+    # Use empty primary data so no compatibility checks are enforced
+    primary_data = {}
+    result = filter_valid_metadata(metadata_input, "test_key", primary_data)
     assert result == expected_output
+
+
+# === New tests for data compatibility checks ===
+
+@pytest.fixture
+def primary_data_rgb_mask_grayscale() -> dict[str, Any]:
+    return {"image": np.zeros((100, 100, 3), dtype=np.uint8), "mask": np.zeros((100, 100), dtype=np.uint8)}
+
+@pytest.fixture
+def primary_data_rgb_mask_single_channel() -> dict[str, Any]:
+    return {"image": np.zeros((100, 100, 3), dtype=np.uint8), "mask": np.zeros((100, 100, 1), dtype=np.uint8)}
+
+@pytest.fixture
+def item_rgb_mask_grayscale() -> dict[str, Any]:
+    return {"image": np.ones((50, 50, 3), dtype=np.uint8), "mask": np.ones((50, 50), dtype=np.uint8)}
+
+@pytest.fixture
+def item_gray_mask_grayscale() -> dict[str, Any]:
+    return {"image": np.ones((50, 50), dtype=np.uint8), "mask": np.ones((50, 50), dtype=np.uint8)}
+
+@pytest.fixture
+def item_rgb_mask_single_channel() -> dict[str, Any]:
+    return {"image": np.ones((50, 50, 3), dtype=np.uint8), "mask": np.ones((50, 50, 1), dtype=np.uint8)}
+
+@pytest.fixture
+def item_rgb_mask_multi_channel() -> dict[str, Any]:
+    return {"image": np.ones((50, 50, 3), dtype=np.uint8), "mask": np.ones((50, 50, 2), dtype=np.uint8)}
+
+@pytest.fixture
+def item_rgb_no_mask() -> dict[str, Any]:
+    return {"image": np.ones((50, 50, 3), dtype=np.uint8)}
+
+
+def test_filter_valid_metadata_image_incompatible_channels(primary_data_rgb_mask_grayscale, item_gray_mask_grayscale):
+    """Test image incompatibility: primary RGB, item Grayscale."""
+    metadata = [item_gray_mask_grayscale]
+    with pytest.warns(UserWarning, match="incompatibility in 'image'.*Item 'image' has 2 dimensions, but primary has 3"):
+        result = filter_valid_metadata(metadata, "test", primary_data_rgb_mask_grayscale)
+    assert result == []
+
+def test_filter_valid_metadata_image_compatible_channels(primary_data_rgb_mask_grayscale, item_rgb_mask_grayscale):
+    """Test image compatibility: both RGB."""
+    metadata = [item_rgb_mask_grayscale]
+    # No warning expected
+    result = filter_valid_metadata(metadata, "test", primary_data_rgb_mask_grayscale)
+    assert result == [item_rgb_mask_grayscale]
+
+
+def test_filter_valid_metadata_mask_incompatible_dims(primary_data_rgb_mask_grayscale, item_rgb_mask_single_channel):
+    """Test mask incompatibility: primary 2D, item 3D."""
+    metadata = [item_rgb_mask_single_channel]
+    with pytest.warns(UserWarning, match="incompatibility in 'mask'.*Item 'mask' has 3 dimensions, but primary has 2"):
+        result = filter_valid_metadata(metadata, "test", primary_data_rgb_mask_grayscale)
+    assert result == []
+
+def test_filter_valid_metadata_mask_incompatible_channels(primary_data_rgb_mask_single_channel, item_rgb_mask_multi_channel):
+    """Test mask incompatibility: both 3D, different channels."""
+    metadata = [item_rgb_mask_multi_channel]
+    with pytest.warns(UserWarning, match="incompatibility in 'mask'.*Item 'mask' has 2 channels, but primary has 1"):
+        result = filter_valid_metadata(metadata, "test", primary_data_rgb_mask_single_channel)
+    assert result == []
+
+def test_filter_valid_metadata_mask_compatible_dims_channels(primary_data_rgb_mask_single_channel, item_rgb_mask_single_channel):
+    """Test mask compatibility: both 3D, same channels."""
+    metadata = [item_rgb_mask_single_channel]
+    # No warning expected
+    result = filter_valid_metadata(metadata, "test", primary_data_rgb_mask_single_channel)
+    assert result == [item_rgb_mask_single_channel]
+
+def test_filter_valid_metadata_mask_compatible_primary_has_item_missing(primary_data_rgb_mask_grayscale, item_rgb_no_mask):
+     """Test mask compatibility: primary has mask, item does not (valid)."""
+     metadata = [item_rgb_no_mask]
+     # No warning expected
+     result = filter_valid_metadata(metadata, "test", primary_data_rgb_mask_grayscale)
+     assert result == [item_rgb_no_mask]
+
+def test_filter_valid_metadata_mask_compatible_primary_missing_item_has(item_rgb_mask_grayscale):
+    """Test mask compatibility: primary has no mask, item does (valid)."""
+    primary_data = {"image": np.zeros((10,10,3))} # No mask in primary
+    metadata = [item_rgb_mask_grayscale]
+    # No warning expected
+    result = filter_valid_metadata(metadata, "test", primary_data)
+    assert result == [item_rgb_mask_grayscale]
+
+# === End new tests ===
 
 
 # Tests for assign_items_to_grid_cells
@@ -587,20 +683,22 @@ def processed_cell_data_2() -> dict[str, Any]:
 def test_assemble_single_cell(processed_cell_data_1) -> None:
     """Test assembling a mosaic from a single processed cell (identity case)."""
     processed_cells = {(0, 0, 50, 50): processed_cell_data_1}
-    target_shape = (50, 50, 3) # RGB image
+    target_shape_img = (50, 50, 3) # RGB image
+    target_shape_mask = (50, 50) # 2D Mask
     dtype = np.uint8
+    fill_value = 0 # Define fill value
 
     # Test for image
-    canvas_img = assemble_mosaic_from_processed_cells(processed_cells, target_shape, dtype, "image")
-    assert canvas_img.shape == target_shape
+    canvas_img = assemble_mosaic_from_processed_cells(processed_cells, target_shape_img, dtype, "image", fill=fill_value)
+    assert canvas_img.shape == target_shape_img
     assert canvas_img.dtype == dtype
     np.testing.assert_array_equal(canvas_img, processed_cell_data_1["image"])
 
     # Test for mask
     canvas_mask = assemble_mosaic_from_processed_cells(
-        processed_cells, target_shape[:2], dtype, "mask"
+        processed_cells, target_shape_mask, dtype, "mask", fill=fill_value
     )
-    assert canvas_mask.shape == target_shape[:2]
+    assert canvas_mask.shape == target_shape_mask
     assert canvas_mask.dtype == dtype
     np.testing.assert_array_equal(canvas_mask, processed_cell_data_1["mask"])
     # Ensure canvas is exactly the cell data (no extra non-zero pixels)
@@ -613,37 +711,41 @@ def test_assemble_multiple_non_overlapping(processed_cell_data_1, processed_cell
         (0, 0, 50, 50): processed_cell_data_1,    # Top-left 50x50
         (50, 60, 110, 120): processed_cell_data_2, # Bottom-right 60x60
     }
-    target_shape = (120, 120, 3) # Target canvas size
+    target_shape_img = (120, 120, 3) # Target canvas size
+    target_shape_mask = (120, 120)
     dtype = np.uint8
+    fill_value = 0 # Define fill value
 
     # Test for image
-    canvas_img = assemble_mosaic_from_processed_cells(processed_cells, target_shape, dtype, "image")
-    assert canvas_img.shape == target_shape
+    canvas_img = assemble_mosaic_from_processed_cells(processed_cells, target_shape_img, dtype, "image", fill=fill_value)
+    assert canvas_img.shape == target_shape_img
     # Check content of cell 1
     np.testing.assert_array_equal(canvas_img[0:50, 0:50], processed_cell_data_1["image"])
     # Check content of cell 2
     np.testing.assert_array_equal(canvas_img[60:120, 50:110], processed_cell_data_2["image"])
-    # Check empty areas are zero
-    assert np.all(canvas_img[50:60, :] == 0)
-    assert np.all(canvas_img[:, 50:50] == 0)
-    assert np.all(canvas_img[0:60, 110:] == 0)
-    assert np.all(canvas_img[110:, 0:50] == 0)
-    # Ensure total non-zero area matches sum of cell areas
-    expected_img_pixels = np.count_nonzero(processed_cell_data_1["image"]) + np.count_nonzero(processed_cell_data_2["image"])
-    assert np.count_nonzero(canvas_img) == expected_img_pixels
+    # Check empty areas are zero (or fill_value if non-zero)
+    assert np.all(canvas_img[50:60, :] == fill_value)
+    assert np.all(canvas_img[:, 50:50] == fill_value) # This slice is empty, always true
+    assert np.all(canvas_img[0:60, 110:] == fill_value)
+    assert np.all(canvas_img[110:, 0:50] == fill_value)
+    # Ensure total non-zero area matches sum of cell areas (only if fill_value is 0)
+    if fill_value == 0:
+        expected_img_pixels = np.count_nonzero(processed_cell_data_1["image"]) + np.count_nonzero(processed_cell_data_2["image"])
+        assert np.count_nonzero(canvas_img) == expected_img_pixels
 
     # Test for mask
     canvas_mask = assemble_mosaic_from_processed_cells(
-        processed_cells, target_shape[:2], dtype, "mask"
+        processed_cells, target_shape_mask, dtype, "mask", fill=fill_value
     )
-    assert canvas_mask.shape == target_shape[:2]
+    assert canvas_mask.shape == target_shape_mask
     np.testing.assert_array_equal(canvas_mask[0:50, 0:50], processed_cell_data_1["mask"])
     np.testing.assert_array_equal(canvas_mask[60:120, 50:110], processed_cell_data_2["mask"])
-    assert np.all(canvas_mask[50:60, :] == 0)
-    assert np.all(canvas_mask[:, 50:50] == 0)
-    # Ensure total non-zero area matches sum of cell areas
-    expected_mask_pixels = np.count_nonzero(processed_cell_data_1["mask"]) + np.count_nonzero(processed_cell_data_2["mask"])
-    assert np.count_nonzero(canvas_mask) == expected_mask_pixels
+    assert np.all(canvas_mask[50:60, :] == fill_value)
+    assert np.all(canvas_mask[:, 50:50] == fill_value) # Empty slice
+    # Ensure total non-zero area matches sum of cell areas (only if fill_value is 0)
+    if fill_value == 0:
+        expected_mask_pixels = np.count_nonzero(processed_cell_data_1["mask"]) + np.count_nonzero(processed_cell_data_2["mask"])
+        assert np.count_nonzero(canvas_mask) == expected_mask_pixels
 
 
 
