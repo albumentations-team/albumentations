@@ -855,6 +855,7 @@ def add_fog(
 
     This function adds fog to an image by drawing fog particles on the image.
     The fog particles are drawn using the OpenCV function cv2.circle.
+    Image has Gaussian blur applied as last step.
 
     Args:
         img (np.ndarray): The image to add fog to.
