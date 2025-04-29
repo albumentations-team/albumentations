@@ -986,7 +986,8 @@ class RandomFog(ImageOnlyTransform):
 
     This transform creates a fog effect by generating semi-transparent overlays
     that mimic the visual characteristics of fog. The fog intensity and distribution
-    can be controlled to create various fog-like conditions.
+    can be controlled to create various fog-like conditions. An image size dependent
+    Gaussian blur is applied to the resulting image
 
     Args:
         fog_coef_range (tuple[float, float]): Range for fog intensity coefficient. Should be in [0, 1] range.
@@ -1006,6 +1007,7 @@ class RandomFog(ImageOnlyTransform):
         - The fog effect is created by overlaying semi-transparent circles on the image.
         - Higher fog coefficient values result in denser fog effects.
         - The fog is typically denser in the center of the image and gradually decreases towards the edges.
+        - Image is blurred to decrease the sharpness
         - This transform is useful for:
           * Simulating various weather conditions in outdoor scenes
           * Data augmentation for improving model robustness to foggy conditions
@@ -1017,9 +1019,10 @@ class RandomFog(ImageOnlyTransform):
         2. A circle with random radius is drawn at this position.
         3. The circle's alpha (transparency) is determined by the alpha_coef.
         4. These circles are overlaid on the original image to create the fog effect.
+        5. A Gaussian blur dependent on the shorter dimension is applied
 
         The final pixel value is calculated as:
-        output = (1 - alpha) * original_pixel + alpha * fog_color
+        output = blur((1 - alpha) * original_pixel + alpha * fog_color)
 
         where alpha is influenced by the fog_coef and alpha_coef parameters.
 
