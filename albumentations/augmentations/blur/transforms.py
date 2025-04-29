@@ -129,7 +129,7 @@ class Blur(ImageOnlyTransform):
             np.ndarray: Blurred image.
 
         """
-        return fblur.blur(img, kernel)
+        return fblur.box_blur(img, kernel)
 
     def get_params(self) -> dict[str, Any]:
         """Get parameters for the transform.

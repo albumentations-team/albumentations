@@ -42,6 +42,11 @@ repos:
       entry: python tools/check_docstrings.py
       language: python
       types: [python]
+    - id: check-naming-conflicts
+      name: Check for naming conflicts between modules and functions/classes
+      entry: python -m tools.check_naming_conflicts
+      language: python
+      pass_filenames: false
   - repo: local
     hooks:
       - id: check-albucore-version
@@ -50,14 +55,11 @@ repos:
         language: system
         files: setup.py
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
     rev: v0.11.7
     hooks:
-      # Run the linter.
       - id: ruff
         exclude: '__pycache__/'
         args: [ --fix ]
-      # Run the formatter.
       - id: ruff-format
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0

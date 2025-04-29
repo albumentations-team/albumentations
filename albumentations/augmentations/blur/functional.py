@@ -23,11 +23,11 @@ from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
 from albumentations.core.type_definitions import EIGHT
 
-__all__ = ["blur", "central_zoom", "defocus", "glass_blur", "median_blur", "zoom_blur"]
+__all__ = ["box_blur", "central_zoom", "defocus", "glass_blur", "median_blur", "zoom_blur"]
 
 
 @preserve_channel_dim
-def blur(img: np.ndarray, ksize: int) -> np.ndarray:
+def box_blur(img: np.ndarray, ksize: int) -> np.ndarray:
     """Blur an image.
 
     This function applies a blur to an image.
