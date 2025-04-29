@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import re
 import sys
-from pathlib import Path
 
-def check_docstrings_for_dashes(file_path):
+def check_docstrings_for_dashes(file_path: str) -> bool:
     pattern = re.compile(r'["\']{3}[\s\S]+?["\']{3}')  # Regex to match docstrings
     dash_pattern = re.compile(r'---{2,}')  # Regex to match sequences of ---
 

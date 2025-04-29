@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import re
 import sys
 
-def check_albucore_version(filename):
+def check_albucore_version(filename: str) -> int:
     with open(filename, 'r') as file:
         content = file.read()
 
