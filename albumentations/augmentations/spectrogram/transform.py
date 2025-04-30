@@ -12,7 +12,7 @@ from warnings import warn
 from pydantic import Field
 
 from albumentations.augmentations.dropout.xy_masking import XYMasking
-from albumentations.augmentations.geometric.transforms import HorizontalFlip
+from albumentations.augmentations.geometric.flip import HorizontalFlip
 from albumentations.core.transforms_interface import BaseTransformInitSchema
 from albumentations.core.type_definitions import ALL_TARGETS
 

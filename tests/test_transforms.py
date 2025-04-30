@@ -9,7 +9,7 @@ import pytest
 from albucore import to_float, clip, MAX_VALUES_BY_DTYPE
 
 import albumentations as A
-import albumentations.augmentations.functional as fmain
+import albumentations.augmentations.pixel.functional as fpixel
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.transforms_interface import BasicTransform
 from tests.conftest import (
@@ -276,8 +276,8 @@ def test_image_invert():
         # test for np.uint8 dtype
         image1 = cv2.randu(np.zeros((100, 100, 3), dtype=np.uint8), 0, 255)
         image2 = to_float(image1)
-        r_int = fmain.invert(fmain.invert(image1))
-        r_float = fmain.invert(fmain.invert(image2))
+        r_int = fpixel.invert(fpixel.invert(image1))
+        r_float = fpixel.invert(fpixel.invert(image2))
         r_to_float = to_float(r_int)
         assert np.allclose(r_float, r_to_float, atol=0.01)
 
@@ -348,20 +348,20 @@ def test_equalize():
 
     img = cv2.randu(np.zeros((256, 256, 3), dtype=np.uint8), 0, 255)
     a = aug(image=img)["image"]
-    b = fmain.equalize(img)
+    b = fpixel.equalize(img)
     assert np.all(a == b)
 
     mask = cv2.randu(np.zeros((256, 256), dtype=np.uint8), 0, 2)
     aug = A.Equalize(mask=mask, p=1)
     a = aug(image=img)["image"]
-    b = fmain.equalize(img, mask=mask)
+    b = fpixel.equalize(img, mask=mask)
     assert np.all(a == b)
 
     def mask_func(image, test):
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
-    assert np.all(aug(image=img, test=mask)["image"] == fmain.equalize(img, mask=mask))
+    assert np.all(aug(image=img, test=mask)["image"] == fpixel.equalize(img, mask=mask))
 
 
 def test_crop_non_empty_mask():

@@ -1,9 +1,8 @@
-"""Module containing image transformation classes for augmentation.
+"""Pixel-level transformations for image augmentation.
 
-This module provides a wide range of image transformation classes for data augmentation.
-These transformations can modify properties such as color, brightness, contrast,
-noise levels, and more. Each transformation class inherits from a base transform
-interface and implements specific augmentation logic.
+This module contains transforms that modify pixel values without changing the geometry of the image.
+Includes transforms for adjusting color, brightness, contrast, adding noise, simulating weather effects,
+and other pixel-level manipulations.
 """
 
 from __future__ import annotations
@@ -12,7 +11,6 @@ import math
 import numbers
 import warnings
 from collections.abc import Sequence
-from types import LambdaType
 from typing import Annotated, Any, Callable, Union, cast
 
 import albucore
@@ -22,16 +20,12 @@ from albucore import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     batch_transform,
-    clip,
-    from_float,
-    get_max_value,
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
     multiply,
     normalize,
     normalize_per_image,
-    to_float,
 )
 from pydantic import (
     AfterValidator,
@@ -46,14 +40,10 @@ from scipy import special
 from typing_extensions import Literal, Self
 
 import albumentations.augmentations.geometric.functional as fgeometric
-from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.blur import functional as fblur
 from albumentations.augmentations.blur.transforms import BlurInitSchema
+from albumentations.augmentations.pixel import functional as fpixel
 from albumentations.augmentations.utils import check_range, non_rgb_error
-from albumentations.core.bbox_utils import (
-    denormalize_bboxes,
-    normalize_bboxes,
-)
 from albumentations.core.pydantic import (
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
@@ -65,18 +55,15 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
-    DualTransform,
     ImageOnlyTransform,
-    NoOp,
 )
 from albumentations.core.type_definitions import (
-    ALL_TARGETS,
     MAX_RAIN_ANGLE,
     NUM_RGB_CHANNELS,
     PAIR,
     SEVEN,
 )
-from albumentations.core.utils import format_args, to_tuple
+from albumentations.core.utils import to_tuple
 
 __all__ = [
     "CLAHE",
@@ -89,7 +76,6 @@ __all__ = [
     "Emboss",
     "Equalize",
     "FancyPCA",
-    "FromFloat",
     "GaussNoise",
     "HEStain",
     "HueSaturationValue",
@@ -97,8 +83,6 @@ __all__ = [
     "Illumination",
     "ImageCompression",
     "InvertImg",
-    "Lambda",
-    "Morphological",
     "MultiplicativeNoise",
     "Normalize",
     "PlanckianJitter",
@@ -122,7 +106,6 @@ __all__ = [
     "Solarize",
     "Spatter",
     "Superpixels",
-    "ToFloat",
     "ToGray",
     "ToRGB",
     "ToSepia",
@@ -177,7 +160,7 @@ class Normalize(ImageOnlyTransform):
         - This transform is often used as a final step in image preprocessing pipelines to
           prepare images for neural network input.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -351,7 +334,7 @@ class ImageCompression(ImageOnlyTransform):
           * Testing how models perform on images of varying quality
           * Simulating images transmitted over low-bandwidth connections
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -403,7 +386,7 @@ class ImageCompression(ImageOnlyTransform):
             np.ndarray: The compressed image.
 
         """
-        return fmain.image_compression(img, quality, image_type)
+        return fpixel.image_compression(img, quality, image_type)
 
     def get_params(self) -> dict[str, int | str]:
         """Generate random parameters for the transform.
@@ -545,9 +528,9 @@ class RandomSnow(ImageOnlyTransform):
         non_rgb_error(img)
 
         if self.method == "bleach":
-            return fmain.add_snow_bleach(img, snow_point, self.brightness_coeff)
+            return fpixel.add_snow_bleach(img, snow_point, self.brightness_coeff)
         if self.method == "texture":
-            return fmain.add_snow_texture(
+            return fpixel.add_snow_texture(
                 img,
                 snow_point,
                 self.brightness_coeff,
@@ -583,7 +566,7 @@ class RandomSnow(ImageOnlyTransform):
         }
 
         if self.method == "texture":
-            snow_texture, sparkle_mask = fmain.generate_snow_textures(
+            snow_texture, sparkle_mask = fpixel.generate_snow_textures(
                 img_shape=image_shape,
                 random_generator=self.random_generator,
             )
@@ -727,7 +710,7 @@ class RandomGravel(ImageOnlyTransform):
             np.ndarray: The image with the applied gravel effect.
 
         """
-        return fmain.add_gravel(img, gravels_infos)
+        return fpixel.add_gravel(img, gravels_infos)
 
     def get_params_dependent_on_data(
         self,
@@ -919,7 +902,7 @@ class RandomRain(ImageOnlyTransform):
         """
         non_rgb_error(img)
 
-        return fmain.add_rain(
+        return fpixel.add_rain(
             img,
             slant,
             drop_length,
@@ -1087,7 +1070,7 @@ class RandomFog(ImageOnlyTransform):
 
         """
         non_rgb_error(img)
-        return fmain.add_fog(
+        return fpixel.add_fog(
             img,
             intensity,
             self.alpha_coef,
@@ -1163,7 +1146,7 @@ class RandomFog(ImageOnlyTransform):
 
             iteration += 1
 
-        radiuses = fmain.get_fog_particle_radiuses(
+        radiuses = fpixel.get_fog_particle_radiuses(
             image_shape,
             len(particle_positions),
             intensity,
@@ -1372,7 +1355,7 @@ class RandomSunFlare(ImageOnlyTransform):
         """
         non_rgb_error(img)
         if self.method == "overlay":
-            return fmain.add_sun_flare_overlay(
+            return fpixel.add_sun_flare_overlay(
                 img,
                 flare_center,
                 self.src_radius,
@@ -1380,7 +1363,7 @@ class RandomSunFlare(ImageOnlyTransform):
                 circles,
             )
         if self.method == "physics_based":
-            return fmain.add_sun_flare_physics_based(
+            return fpixel.add_sun_flare_physics_based(
                 img,
                 flare_center,
                 self.src_radius,
@@ -1591,7 +1574,7 @@ class RandomShadow(ImageOnlyTransform):
             np.ndarray: The image with the applied shadow effect.
 
         """
-        return fmain.add_shadow(img, vertices_list, intensities)
+        return fpixel.add_shadow(img, vertices_list, intensities)
 
     def get_params_dependent_on_data(
         self,
@@ -1747,7 +1730,7 @@ class RandomToneCurve(ImageOnlyTransform):
             np.ndarray: The image with the applied tone curve.
 
         """
-        return fmain.move_tone_curve(img, low_y, high_y)
+        return fpixel.move_tone_curve(img, low_y, high_y)
 
     def get_params_dependent_on_data(
         self,
@@ -1837,7 +1820,7 @@ class HueSaturationValue(ImageOnlyTransform):
         - This transform is particularly useful for color augmentation and simulating
           different lighting conditions.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -1896,7 +1879,7 @@ class HueSaturationValue(ImageOnlyTransform):
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "HueSaturationValue transformation expects 1-channel or 3-channel images."
             raise TypeError(msg)
-        return fmain.shift_hsv(img, hue_shift, sat_shift, val_shift)
+        return fpixel.shift_hsv(img, hue_shift, sat_shift, val_shift)
 
     def get_params(self) -> dict[str, float]:
         """Generate parameters dependent on the input data.
@@ -2012,7 +1995,7 @@ class Solarize(ImageOnlyTransform):
             np.ndarray: The image with the applied solarize effect.
 
         """
-        return fmain.solarize(img, threshold)
+        return fpixel.solarize(img, threshold)
 
     def get_params(self) -> dict[str, float]:
         """Generate parameters dependent on the input data.
@@ -2136,7 +2119,7 @@ class Posterize(ImageOnlyTransform):
             np.ndarray: The image with the applied posterize effect.
 
         """
-        return fmain.posterize(img, num_bits)
+        return fpixel.posterize(img, num_bits)
 
     def get_params(self) -> dict[str, Any]:
         """Generate parameters dependent on the input data.
@@ -2205,7 +2188,7 @@ class Equalize(ImageOnlyTransform):
         The function should return a numpy array of the same height and width as the input image,
         where non-zero pixels indicate areas to be equalized.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -2269,7 +2252,7 @@ class Equalize(ImageOnlyTransform):
         """
         if not is_rgb_image(img) and not is_grayscale_image(img):
             raise ValueError("Equalize transform is only supported for RGB and grayscale images.")
-        return fmain.equalize(
+        return fpixel.equalize(
             img,
             mode=self.mode,
             by_channels=self.by_channels,
@@ -2520,7 +2503,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
         # Clip values to safe ranges if needed
         if self.ensure_safe_range:
-            alpha, beta = fmain.get_safe_brightness_contrast_params(
+            alpha, beta = fpixel.get_safe_brightness_contrast_params(
                 alpha,
                 beta,
                 max_value,
@@ -2621,7 +2604,7 @@ class GaussNoise(ImageOnlyTransform):
             np.ndarray: The image with the applied Gaussian noise.
 
         """
-        return fmain.add_noise(img, noise_map)
+        return fpixel.add_noise(img, noise_map)
 
     def get_params_dependent_on_data(
         self,
@@ -2646,7 +2629,7 @@ class GaussNoise(ImageOnlyTransform):
 
         mean = self.py_random.uniform(*self.mean_range)
 
-        noise_map = fmain.generate_noise(
+        noise_map = fpixel.generate_noise(
             noise_type="gaussian",
             spatial_mode="per_pixel" if self.per_channel else "shared",
             shape=image.shape,
@@ -2694,7 +2677,7 @@ class ISONoise(ImageOnlyTransform):
         - This transform can be useful for data augmentation in low-light scenarios or when
           training models to be robust against noisy inputs.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -2751,7 +2734,7 @@ class ISONoise(ImageOnlyTransform):
 
         """
         non_rgb_error(img)
-        return fmain.iso_noise(
+        return fpixel.iso_noise(
             img,
             color_shift,
             intensity,
@@ -2823,7 +2806,7 @@ class CLAHE(ImageOnlyTransform):
     Number of channels:
         1, 3
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -2867,7 +2850,7 @@ class CLAHE(ImageOnlyTransform):
             msg = "CLAHE transformation expects 1-channel or 3-channel images."
             raise TypeError(msg)
 
-        return fmain.clahe(img, clip_limit, self.tile_grid_size)
+        return fpixel.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self) -> dict[str, float]:
         """Generate parameters dependent on the input data.
@@ -2895,6 +2878,29 @@ class ChannelShuffle(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Create a sample image with distinct RGB channels
+        >>> image = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> # Red channel (first channel)
+        >>> image[:, :, 0] = np.linspace(0, 255, 100, dtype=np.uint8).reshape(1, 100)
+        >>> # Green channel (second channel)
+        >>> image[:, :, 1] = np.linspace(0, 255, 100, dtype=np.uint8).reshape(100, 1)
+        >>> # Blue channel (third channel) - constant value
+        >>> image[:, :, 2] = 128
+        >>>
+        >>> # Apply channel shuffle transform
+        >>> transform = A.ChannelShuffle(p=1.0)
+        >>> result = transform(image=image)
+        >>> shuffled_image = result['image']
+        >>>
+        >>> # The channels have been randomly rearranged
+        >>> # For example, the original order [R, G, B] might become [G, B, R] or [B, R, G]
+        >>> # This results in a color shift while preserving all the original image data
+        >>> # Note: For images with more than 3 channels, all channels are shuffled similarly
+
     """
 
     def apply(
@@ -2916,7 +2922,7 @@ class ChannelShuffle(ImageOnlyTransform):
         """
         if channels_shuffled is None:
             return img
-        return fmain.channel_shuffle(img, channels_shuffled)
+        return fpixel.channel_shuffle(img, channels_shuffled)
 
     def apply_to_images(self, images: np.ndarray, channels_shuffled: list[int] | None, **params: Any) -> np.ndarray:
         """Apply the ChannelShuffle transform to the input images.
@@ -2932,7 +2938,7 @@ class ChannelShuffle(ImageOnlyTransform):
         """
         if channels_shuffled is None:
             return images
-        return fmain.volume_channel_shuffle(images, channels_shuffled)
+        return fpixel.volume_channel_shuffle(images, channels_shuffled)
 
     def apply_to_volumes(self, volumes: np.ndarray, channels_shuffled: list[int] | None, **params: Any) -> np.ndarray:
         """Apply the ChannelShuffle transform to the input volumes.
@@ -2948,7 +2954,7 @@ class ChannelShuffle(ImageOnlyTransform):
         """
         if channels_shuffled is None:
             return volumes
-        return fmain.volumes_channel_shuffle(volumes, channels_shuffled)
+        return fpixel.volumes_channel_shuffle(volumes, channels_shuffled)
 
     def apply_to_volume(self, volume: np.ndarray, channels_shuffled: list[int] | None, **params: Any) -> np.ndarray:
         """Apply the ChannelShuffle transform to the input volume.
@@ -3004,6 +3010,27 @@ class InvertImg(ImageOnlyTransform):
     Number of channels:
         Any
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create a sample image with different elements
+        >>> image = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> cv2.circle(image, (30, 30), 20, (255, 255, 255), -1)  # White circle
+        >>> cv2.rectangle(image, (60, 60), (90, 90), (128, 128, 128), -1)  # Gray rectangle
+        >>>
+        >>> # Apply InvertImg transform
+        >>> transform = A.InvertImg(p=1.0)
+        >>> result = transform(image=image)
+        >>> inverted_image = result['image']
+        >>>
+        >>> # Result:
+        >>> # - Black background becomes white (0 → 255)
+        >>> # - White circle becomes black (255 → 0)
+        >>> # - Gray rectangle is inverted (128 → 127)
+        >>> # The same approach works for float32 images (0-1 range) and grayscale images
+
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -3017,7 +3044,7 @@ class InvertImg(ImageOnlyTransform):
             np.ndarray: The image with the applied InvertImg transform.
 
         """
-        return fmain.invert(img)
+        return fpixel.invert(img)
 
     def apply_to_images(self, images: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply the InvertImg transform to the input images.
@@ -3157,7 +3184,7 @@ class RandomGamma(ImageOnlyTransform):
             np.ndarray: The image with the applied RandomGamma transform.
 
         """
-        return fmain.gamma_transform(img, gamma=gamma)
+        return fpixel.gamma_transform(img, gamma=gamma)
 
     def apply_to_volume(self, volume: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
         """Apply the RandomGamma transform to the input volume.
@@ -3263,6 +3290,88 @@ class ToGray(ImageOnlyTransform):
     Returns:
         np.ndarray: Grayscale image with the specified number of channels.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create a sample color image with distinct RGB values
+        >>> image = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> # Red square in top-left
+        >>> image[10:40, 10:40, 0] = 200
+        >>> # Green square in top-right
+        >>> image[10:40, 60:90, 1] = 200
+        >>> # Blue square in bottom-left
+        >>> image[60:90, 10:40, 2] = 200
+        >>> # Yellow square in bottom-right (Red + Green)
+        >>> image[60:90, 60:90, 0] = 200
+        >>> image[60:90, 60:90, 1] = 200
+        >>>
+        >>> # Example 1: Default conversion (weighted average, 3 channels)
+        >>> transform = A.ToGray(p=1.0)
+        >>> result = transform(image=image)
+        >>> gray_image = result['image']
+        >>> # Output has 3 duplicate channels with values based on RGB perception weights
+        >>> # R=0.299, G=0.587, B=0.114
+        >>> assert gray_image.shape == (100, 100, 3)
+        >>> assert np.allclose(gray_image[:, :, 0], gray_image[:, :, 1])
+        >>> assert np.allclose(gray_image[:, :, 1], gray_image[:, :, 2])
+        >>>
+        >>> # Example 2: Single-channel output
+        >>> transform = A.ToGray(num_output_channels=1, p=1.0)
+        >>> result = transform(image=image)
+        >>> gray_image = result['image']
+        >>> assert gray_image.shape == (100, 100, 1)
+        >>>
+        >>> # Example 3: Using different conversion methods
+        >>> # "desaturation" method (min+max)/2
+        >>> transform_desaturate = A.ToGray(
+        ...     method="desaturation",
+        ...     p=1.0
+        ... )
+        >>> result = transform_desaturate(image=image)
+        >>> gray_desaturate = result['image']
+        >>>
+        >>> # "from_lab" method (using L channel from LAB colorspace)
+        >>> transform_lab = A.ToGray(
+        ...     method="from_lab",
+        ...     p=1.0
+        >>> )
+        >>> result = transform_lab(image=image)
+        >>> gray_lab = result['image']
+        >>>
+        >>> # "average" method (simple average of channels)
+        >>> transform_avg = A.ToGray(
+        ...     method="average",
+        ...     p=1.0
+        >>> )
+        >>> result = transform_avg(image=image)
+        >>> gray_avg = result['image']
+        >>>
+        >>> # "max" method (takes max value across channels)
+        >>> transform_max = A.ToGray(
+        ...     method="max",
+        ...     p=1.0
+        >>> )
+        >>> result = transform_max(image=image)
+        >>> gray_max = result['image']
+        >>>
+        >>> # Example 4: Using grayscale in an augmentation pipeline
+        >>> pipeline = A.Compose([
+        ...     A.ToGray(p=0.5),           # 50% chance of grayscale conversion
+        ...     A.RandomBrightnessContrast(p=1.0)  # Always apply brightness/contrast
+        ... ])
+        >>> result = pipeline(image=image)
+        >>> augmented_image = result['image']  # May be grayscale or color
+        >>>
+        >>> # Example 5: Converting float32 image
+        >>> float_image = image.astype(np.float32) / 255.0  # Range [0, 1]
+        >>> transform = A.ToGray(p=1.0)
+        >>> result = transform(image=float_image)
+        >>> gray_float_image = result['image']
+        >>> assert gray_float_image.dtype == np.float32
+        >>> assert gray_float_image.max() <= 1.0
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -3323,7 +3432,7 @@ class ToGray(ImageOnlyTransform):
             msg = "ToGray transformation expects 3-channel images."
             raise TypeError(msg)
 
-        return fmain.to_gray(img, self.num_output_channels, self.method)
+        return fpixel.to_gray(img, self.num_output_channels, self.method)
 
 
 class ToRGB(ImageOnlyTransform):
@@ -3392,7 +3501,7 @@ class ToRGB(ImageOnlyTransform):
             msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
             raise TypeError(msg)
 
-        return fmain.grayscale_to_multichannel(
+        return fpixel.grayscale_to_multichannel(
             img,
             num_output_channels=self.num_output_channels,
         )
@@ -3493,197 +3602,7 @@ class ToSepia(ImageOnlyTransform):
         if not is_rgb_image(img):
             msg = "ToSepia transformation expects 1 or 3-channel images."
             raise TypeError(msg)
-        return fmain.linear_transformation_rgb(img, self.sepia_transformation_matrix)
-
-
-class ToFloat(ImageOnlyTransform):
-    """Convert the input image to a floating-point representation.
-
-    This transform divides pixel values by `max_value` to get a float32 output array
-    where all values lie in the range [0, 1.0]. It's useful for normalizing image data
-    before feeding it into neural networks or other algorithms that expect float input.
-
-    Args:
-        max_value (float | None): The maximum possible input value. If None, the transform
-            will try to infer the maximum value by inspecting the data type of the input image:
-            - uint8: 255
-            - uint16: 65535
-            - uint32: 4294967295
-            - float32: 1.0
-            Default: None.
-        p (float): Probability of applying the transform. Default: 1.0.
-
-    Targets:
-        image, volume
-
-    Image types:
-        uint8, uint16, uint32, float32
-
-    Returns:
-        np.ndarray: Image in floating point representation, with values in range [0, 1.0].
-
-    Note:
-        - If the input image is already float32 with values in [0, 1], it will be returned unchanged.
-        - For integer types (uint8, uint16, uint32), the function will scale the values to [0, 1] range.
-        - The output will always be float32, regardless of the input type.
-        - This transform is often used as a preprocessing step before applying other transformations
-          or feeding the image into a neural network.
-
-    Raises:
-        TypeError: If the input image data type is not supported.
-
-    Examples:
-        >>> import numpy as np
-        >>> import albumentations as A
-        >>>
-        # Convert uint8 image to float
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.ToFloat(max_value=None)
-        >>> float_image = transform(image=image)['image']
-        >>> assert float_image.dtype == np.float32
-        >>> assert 0 <= float_image.min() <= float_image.max() <= 1.0
-        >>>
-        # Convert uint16 image to float with custom max_value
-        >>> image = np.random.randint(0, 4096, (100, 100, 3), dtype=np.uint16)
-        >>> transform = A.ToFloat(max_value=4095)
-        >>> float_image = transform(image=image)['image']
-        >>> assert float_image.dtype == np.float32
-        >>> assert 0 <= float_image.min() <= float_image.max() <= 1.0
-
-    See Also:
-        FromFloat: The inverse operation, converting from float back to the original data type.
-
-    """
-
-    class InitSchema(BaseTransformInitSchema):
-        max_value: float | None
-
-    def __init__(
-        self,
-        max_value: float | None = None,
-        p: float = 1.0,
-    ):
-        super().__init__(p=p)
-        self.max_value = max_value
-
-    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the ToFloat transform to the input image.
-
-        Args:
-            img (np.ndarray): The input image to apply the ToFloat transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        Returns:
-            np.ndarray: The image with the applied ToFloat transform.
-
-        """
-        return to_float(img, self.max_value)
-
-
-class FromFloat(ImageOnlyTransform):
-    """Convert an image from floating point representation to the specified data type.
-
-    This transform is designed to convert images from a normalized floating-point representation
-    (typically with values in the range [0, 1]) to other data types, scaling the values appropriately.
-
-    Args:
-        dtype (str): The desired output data type. Supported types include 'uint8', 'uint16',
-                     'uint32'. Default: 'uint8'.
-        max_value (float | None): The maximum value for the output dtype. If None, the transform
-                                  will attempt to infer the maximum value based on the dtype.
-                                  Default: None.
-        p (float): Probability of applying the transform. Default: 1.0.
-
-    Targets:
-        image, volume
-
-    Image types:
-        float32, float64
-
-    Note:
-        - This is the inverse transform for ToFloat.
-        - Input images are expected to be in floating point format with values in the range [0, 1].
-        - For integer output types (uint8, uint16, uint32), the function will scale the values
-          to the appropriate range (e.g., 0-255 for uint8).
-        - For float output types (float32, float64), the values will remain in the [0, 1] range.
-        - The transform uses the `from_float` function internally, which ensures output values
-          are within the valid range for the specified dtype.
-
-    Example:
-        >>> import numpy as np
-        >>> import albumentations as A
-        >>> transform = A.FromFloat(dtype='uint8', max_value=None, p=1.0)
-        >>> image = np.random.rand(100, 100, 3).astype(np.float32)  # Float image in [0, 1] range
-        >>> result = transform(image=image)
-        >>> uint8_image = result['image']
-        >>> assert uint8_image.dtype == np.uint8
-        >>> assert uint8_image.min() >= 0 and uint8_image.max() <= 255
-
-    """
-
-    class InitSchema(BaseTransformInitSchema):
-        dtype: Literal["uint8", "uint16", "uint32"]
-        max_value: float | None
-
-        @model_validator(mode="after")
-        def _update_max_value(self) -> Self:
-            if self.max_value is None:
-                self.max_value = get_max_value(np.dtype(self.dtype))
-
-            return self
-
-    def __init__(
-        self,
-        dtype: Literal["uint8", "uint16", "uint32"] = "uint8",
-        max_value: float | None = None,
-        p: float = 1.0,
-    ):
-        super().__init__(p=p)
-        self.dtype_value = np.dtype(dtype)
-        self.max_value = max_value
-
-    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input image.
-
-        Args:
-            img (np.ndarray): The input image to apply the FromFloat transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        Returns:
-            np.ndarray: The image with the applied FromFloat transform.
-
-        """
-        return from_float(img, self.dtype_value, self.max_value)
-
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input images.
-
-        Args:
-            images (np.ndarray): The input images to apply the FromFloat transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        """
-        return clip(np.rint(images * self.max_value), self.dtype_value, inplace=True)
-
-    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input volume.
-
-        Args:
-            volume (np.ndarray): The input volume to apply the FromFloat transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        """
-        return self.apply_to_images(volume, **params)
-
-    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the FromFloat transform to the input volumes.
-
-        Args:
-            volumes (np.ndarray): The input volumes to apply the FromFloat transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        """
-        return self.apply_to_images(volumes, **params)
+        return fpixel.linear_transformation_rgb(img, self.sepia_transformation_matrix)
 
 
 class InterpolationPydantic(BaseModel):
@@ -3749,7 +3668,7 @@ class Downscale(ImageOnlyTransform):
         - This transform can be useful for data augmentation, especially when training models
           that need to be robust to variations in image quality or resolution.
 
-    Example:
+    Examples:
         >>> import albumentations as A
         >>> import cv2
         >>> transform = A.Downscale(
@@ -3814,7 +3733,7 @@ class Downscale(ImageOnlyTransform):
             np.ndarray: The image with the applied Downscale transform.
 
         """
-        return fmain.downscale(
+        return fpixel.downscale(
             img,
             scale=scale,
             down_interpolation=self.interpolation_pair["downscale"],
@@ -3830,172 +3749,6 @@ class Downscale(ImageOnlyTransform):
 
         """
         return {"scale": self.py_random.uniform(*self.scale_range)}
-
-
-class Lambda(NoOp):
-    """A flexible transformation class for using user-defined transformation functions per targets.
-    Function signature must include **kwargs to accept optional arguments like interpolation method, image size, etc:
-
-    Args:
-        image (Callable[..., Any] | None): Image transformation function.
-        mask (Callable[..., Any] | None): Mask transformation function.
-        keypoints (Callable[..., Any] | None): Keypoints transformation function.
-        bboxes (Callable[..., Any] | None): BBoxes transformation function.
-        p (float): probability of applying the transform. Default: 1.0.
-
-    Targets:
-        image, mask, bboxes, keypoints, volume, mask3d
-
-    Image types:
-        uint8, float32
-
-    Number of channels:
-        Any
-
-    """
-
-    def __init__(
-        self,
-        image: Callable[..., Any] | None = None,
-        mask: Callable[..., Any] | None = None,
-        keypoints: Callable[..., Any] | None = None,
-        bboxes: Callable[..., Any] | None = None,
-        name: str | None = None,
-        p: float = 1.0,
-    ):
-        super().__init__(p=p)
-
-        self.name = name
-        self.custom_apply_fns = dict.fromkeys(("image", "mask", "keypoints", "bboxes"), fmain.noop)
-        for target_name, custom_apply_fn in {
-            "image": image,
-            "mask": mask,
-            "keypoints": keypoints,
-            "bboxes": bboxes,
-        }.items():
-            if custom_apply_fn is not None:
-                if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
-                    warnings.warn(
-                        "Using lambda is incompatible with multiprocessing. "
-                        "Consider using regular functions or partial().",
-                        stacklevel=2,
-                    )
-
-                self.custom_apply_fns[target_name] = custom_apply_fn
-
-    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input image.
-
-        Args:
-            img (np.ndarray): The input image to apply the Lambda transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        Returns:
-            np.ndarray: The image with the applied Lambda transform.
-
-        """
-        fn = self.custom_apply_fns["image"]
-        return fn(img, **params)
-
-    def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input mask.
-
-        Args:
-            mask (np.ndarray): The input mask to apply the Lambda transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        Returns:
-            np.ndarray: The mask with the applied Lambda transform.
-
-        """
-        fn = self.custom_apply_fns["mask"]
-        return fn(mask, **params)
-
-    def apply_to_bboxes(self, bboxes: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input bounding boxes.
-
-        Args:
-            bboxes (np.ndarray): The input bounding boxes to apply the Lambda transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        Returns:
-            np.ndarray: The bounding boxes with the applied Lambda transform.
-
-        """
-        is_ndarray = True
-
-        if not isinstance(bboxes, np.ndarray):
-            is_ndarray = False
-            bboxes = np.array(bboxes, dtype=np.float32)
-
-        fn = self.custom_apply_fns["bboxes"]
-        result = fn(bboxes, **params)
-
-        if not is_ndarray:
-            return result.tolist()
-
-        return result
-
-    def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
-        """Apply the Lambda transform to the input keypoints.
-
-        Args:
-            keypoints (np.ndarray): The input keypoints to apply the Lambda transform to.
-            **params (Any): Additional parameters (not used in this transform).
-
-        Returns:
-            np.ndarray: The keypoints with the applied Lambda transform.
-
-        """
-        is_ndarray = True
-        if not isinstance(keypoints, np.ndarray):
-            is_ndarray = False
-            keypoints = np.array(keypoints, dtype=np.float32)
-
-        fn = self.custom_apply_fns["keypoints"]
-        result = fn(keypoints, **params)
-
-        if not is_ndarray:
-            return result.tolist()
-
-        return result
-
-    @classmethod
-    def is_serializable(cls) -> bool:
-        """Check if the Lambda transform is serializable.
-
-        Returns:
-            bool: True if the transform is serializable, False otherwise.
-
-        """
-        return False
-
-    def to_dict_private(self) -> dict[str, Any]:
-        """Convert the Lambda transform to a dictionary.
-
-        Returns:
-            dict[str, Any]: The dictionary representation of the transform.
-
-        """
-        if self.name is None:
-            msg = (
-                "To make a Lambda transform serializable you should provide the `name` argument, "
-                "e.g. `Lambda(name='my_transform', image=<some func>, ...)`."
-            )
-            raise ValueError(msg)
-        return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
-
-    def __repr__(self) -> str:
-        """Return the string representation of the Lambda transform.
-
-        Returns:
-            str: The string representation of the Lambda transform.
-
-        """
-        state = {"name": self.name}
-        state.update(self.custom_apply_fns.items())  # type: ignore[arg-type]
-        state.update(self.get_base_init_args())
-        return f"{self.__class__.__name__}({format_args(state)})"
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
@@ -4038,7 +3791,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         - This transform can be used to simulate various lighting conditions or to create noise that
           scales with image intensity.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -4164,7 +3917,7 @@ class FancyPCA(ImageOnlyTransform):
         - This implementation is based on the paper by Krizhevsky et al. and is similar to the one used
           in the original AlexNet paper.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -4206,7 +3959,7 @@ class FancyPCA(ImageOnlyTransform):
             np.ndarray: The image with the applied FancyPCA transform.
 
         """
-        return fmain.fancy_pca(img, alpha_vector)
+        return fpixel.fancy_pca(img, alpha_vector)
 
     def get_params_dependent_on_data(
         self,
@@ -4291,7 +4044,7 @@ class ColorJitter(ImageOnlyTransform):
         - The ranges for brightness, contrast, and saturation are applied as multiplicative factors.
         - The range for hue is applied as an additive factor.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -4357,10 +4110,10 @@ class ColorJitter(ImageOnlyTransform):
         self.hue = cast("tuple[float, float]", hue)
 
         self.transforms = [
-            fmain.adjust_brightness_torchvision,
-            fmain.adjust_contrast_torchvision,
-            fmain.adjust_saturation_torchvision,
-            fmain.adjust_hue_torchvision,
+            fpixel.adjust_brightness_torchvision,
+            fpixel.adjust_contrast_torchvision,
+            fpixel.adjust_saturation_torchvision,
+            fpixel.adjust_hue_torchvision,
         ]
 
     def get_params(self) -> dict[str, Any]:
@@ -4609,8 +4362,8 @@ class Sharpen(ImageOnlyTransform):
 
         """
         if self.method == "kernel":
-            return fmain.convolve(img, sharpening_matrix)
-        return fmain.sharpen_gaussian(img, alpha, self.kernel_size, self.sigma)
+            return fpixel.convolve(img, sharpening_matrix)
+        return fpixel.sharpen_gaussian(img, alpha, self.kernel_size, self.sigma)
 
 
 class Emboss(ImageOnlyTransform):
@@ -4651,7 +4404,7 @@ class Emboss(ImageOnlyTransform):
         - This transform can be useful for creating artistic effects or for data augmentation
           in tasks where edge information is important.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -4724,7 +4477,7 @@ class Emboss(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.convolve(img, emboss_matrix)
+        return fpixel.convolve(img, emboss_matrix)
 
 
 class Superpixels(ImageOnlyTransform):
@@ -4886,7 +4639,7 @@ class Superpixels(ImageOnlyTransform):
             np.ndarray: The image with the applied Superpixels transform.
 
         """
-        return fmain.superpixels(
+        return fpixel.superpixels(
             img,
             n_segments,
             replace_samples,
@@ -5035,7 +4788,7 @@ class RingingOvershoot(ImageOnlyTransform):
             **params (Any): Additional parameters (not used in this transform).
 
         """
-        return fmain.convolve(img, kernel)
+        return fpixel.convolve(img, kernel)
 
 
 class UnsharpMask(ImageOnlyTransform):
@@ -5172,7 +4925,7 @@ class UnsharpMask(ImageOnlyTransform):
             np.ndarray: The image with the applied UnsharpMask transform.
 
         """
-        return fmain.unsharp_mask(
+        return fpixel.unsharp_mask(
             img,
             ksize,
             sigma=sigma,
@@ -5225,6 +4978,73 @@ class Spatter(ImageOnlyTransform):
 
     References:
         Benchmarking Neural Network Robustness to Common Corruptions and Perturbations: https://arxiv.org/abs/1903.12261
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create a sample image
+        >>> image = np.ones((300, 300, 3), dtype=np.uint8) * 200  # Light gray background
+        >>> # Add some gradient to make effects more visible
+        >>> for i in range(300):
+        ...     image[i, :, :] = np.clip(image[i, :, :] - i // 3, 0, 255)
+        >>>
+        >>> # Example 1: Rain effect with default parameters
+        >>> rain_transform = A.Spatter(
+        ...     mode="rain",
+        ...     p=1.0
+        ... )
+        >>> rain_result = rain_transform(image=image)
+        >>> rain_image = rain_result['image']  # Image with rain drops
+        >>>
+        >>> # Example 2: Heavy rain with custom parameters
+        >>> heavy_rain = A.Spatter(
+        ...     mode="rain",
+        ...     mean=(0.7, 0.7),             # Higher mean = more coverage
+        ...     std=(0.2, 0.2),              # Lower std = more uniform effect
+        ...     cutout_threshold=(0.65, 0.65),  # Lower threshold = more drops
+        ...     intensity=(0.8, 0.8),        # Higher intensity = more visible effect
+        ...     color=(200, 200, 255),       # Blueish rain drops
+        ...     p=1.0
+        ... )
+        >>> heavy_rain_result = heavy_rain(image=image)
+        >>> heavy_rain_image = heavy_rain_result['image']
+        >>>
+        >>> # Example 3: Mud effect
+        >>> mud_transform = A.Spatter(
+        ...     mode="mud",
+        ...     mean=(0.6, 0.6),
+        ...     std=(0.3, 0.3),
+        ...     cutout_threshold=(0.62, 0.62),
+        ...     intensity=(0.7, 0.7),
+        ...     p=1.0
+        ... )
+        >>> mud_result = mud_transform(image=image)
+        >>> mud_image = mud_result['image']  # Image with mud splatters
+        >>>
+        >>> # Example 4: Custom colored mud
+        >>> red_mud = A.Spatter(
+        ...     mode="mud",
+        ...     mean=(0.55, 0.55),
+        ...     std=(0.25, 0.25),
+        ...     cutout_threshold=(0.7, 0.7),
+        ...     intensity=(0.6, 0.6),
+        ...     color=(120, 40, 40),  # Reddish-brown mud
+        ...     p=1.0
+        ... )
+        >>> red_mud_result = red_mud(image=image)
+        >>> red_mud_image = red_mud_result['image']
+        >>>
+        >>> # Example 5: Random effect (50% chance of applying)
+        >>> random_spatter = A.Compose([
+        ...     A.Spatter(
+        ...         mode="rain" if np.random.random() < 0.5 else "mud",
+        ...         p=0.5
+        ...     )
+        ... ])
+        >>> random_result = random_spatter(image=image)
+        >>> result_image = random_result['image']  # May or may not have spatter effect
 
     """
 
@@ -5289,9 +5109,9 @@ class Spatter(ImageOnlyTransform):
         non_rgb_error(img)
 
         if params["mode"] == "rain":
-            return fmain.spatter_rain(img, params["drops"])
+            return fpixel.spatter_rain(img, params["drops"])
 
-        return fmain.spatter_mud(img, params["non_mud"], params["mud"])
+        return fpixel.spatter_mud(img, params["non_mud"], params["mud"])
 
     def get_params_dependent_on_data(
         self,
@@ -5336,12 +5156,12 @@ class Spatter(ImageOnlyTransform):
         if mode == "rain":
             return {
                 "mode": "rain",
-                **fmain.get_rain_params(liquid_layer=liquid_layer, color=color, intensity=intensity),
+                **fpixel.get_rain_params(liquid_layer=liquid_layer, color=color, intensity=intensity),
             }
 
         return {
             "mode": "mud",
-            **fmain.get_mud_params(
+            **fpixel.get_mud_params(
                 liquid_layer=liquid_layer,
                 color=color,
                 cutout_threshold=cutout_threshold,
@@ -5404,7 +5224,7 @@ class ChromaticAberration(ImageOnlyTransform):
         - Higher absolute values for distortion limits will result in more pronounced chromatic aberration.
         - The 'green_purple' mode tends to produce more noticeable effects than 'red_blue'.
 
-    Example:
+    Examples:
         >>> import albumentations as A
         >>> import cv2
         >>> transform = A.ChromaticAberration(
@@ -5488,7 +5308,7 @@ class ChromaticAberration(ImageOnlyTransform):
 
         """
         non_rgb_error(img)
-        return fmain.chromatic_aberration(
+        return fpixel.chromatic_aberration(
             img,
             primary_distortion_red,
             secondary_distortion_red,
@@ -5565,137 +5385,13 @@ class ChromaticAberration(ImageOnlyTransform):
         return b
 
 
-class Morphological(DualTransform):
-    """Apply a morphological operation (dilation or erosion) to an image,
-    with particular value for enhancing document scans.
-
-    Morphological operations modify the structure of the image.
-    Dilation expands the white (foreground) regions in a binary or grayscale image, while erosion shrinks them.
-    These operations are beneficial in document processing, for example:
-    - Dilation helps in closing up gaps within text or making thin lines thicker,
-        enhancing legibility for OCR (Optical Character Recognition).
-    - Erosion can remove small white noise and detach connected objects,
-        making the structure of larger objects more pronounced.
-
-    Args:
-        scale (int or tuple/list of int): Specifies the size of the structuring element (kernel) used for the operation.
-            - If an integer is provided, a square kernel of that size will be used.
-            - If a tuple or list is provided, it should contain two integers representing the minimum
-                and maximum sizes for the dilation kernel.
-        operation (Literal["erosion", "dilation"]): The morphological operation to apply.
-            Default is 'dilation'.
-        p (float, optional): The probability of applying this transformation. Default is 0.5.
-
-    Targets:
-        image, mask, keypoints, bboxes, volume, mask3d
-
-    Image types:
-        uint8, float32
-
-    References:
-        Nougat: https://github.com/facebookresearch/nougat
-
-    Example:
-        >>> import albumentations as A
-        >>> transform = A.Compose([
-        >>>     A.Morphological(scale=(2, 3), operation='dilation', p=0.5)
-        >>> ])
-        >>> image = transform(image=image)["image"]
-
-    """
-
-    _targets = ALL_TARGETS
-
-    class InitSchema(BaseTransformInitSchema):
-        scale: OnePlusIntRangeType
-        operation: Literal["erosion", "dilation"]
-
-    def __init__(
-        self,
-        scale: tuple[int, int] | int = (2, 3),
-        operation: Literal["erosion", "dilation"] = "dilation",
-        p: float = 0.5,
-    ):
-        super().__init__(p=p)
-        self.scale = cast("tuple[int, int]", scale)
-        self.operation = operation
-
-    def apply(
-        self,
-        img: np.ndarray,
-        kernel: tuple[int, int],
-        **params: Any,
-    ) -> np.ndarray:
-        """Apply the Morphological transform to the input image.
-
-        Args:
-            img (np.ndarray): The input image to apply the Morphological transform to.
-            kernel (tuple[int, int]): The structuring element (kernel) used for the operation.
-            **params (Any): Additional parameters for the transform.
-
-        """
-        return fmain.morphology(img, kernel, self.operation)
-
-    def apply_to_bboxes(
-        self,
-        bboxes: np.ndarray,
-        kernel: tuple[int, int],
-        **params: Any,
-    ) -> np.ndarray:
-        """Apply the Morphological transform to the input bounding boxes.
-
-        Args:
-            bboxes (np.ndarray): The input bounding boxes to apply the Morphological transform to.
-            kernel (tuple[int, int]): The structuring element (kernel) used for the operation.
-            **params (Any): Additional parameters for the transform.
-
-        """
-        image_shape = params["shape"]
-
-        denormalized_boxes = denormalize_bboxes(bboxes, image_shape)
-
-        result = fmain.bboxes_morphology(
-            denormalized_boxes,
-            kernel,
-            self.operation,
-            image_shape,
-        )
-
-        return normalize_bboxes(result, image_shape)
-
-    def apply_to_keypoints(
-        self,
-        keypoints: np.ndarray,
-        **params: Any,
-    ) -> np.ndarray:
-        """Apply the Morphological transform to the input keypoints.
-
-        Args:
-            keypoints (np.ndarray): The input keypoints to apply the Morphological transform to.
-            **params (Any): Additional parameters for the transform.
-
-        """
-        return keypoints
-
-    def get_params(self) -> dict[str, float]:
-        """Generate parameters for the Morphological transform.
-
-        Returns:
-            dict[str, float]: The parameters of the transform.
-
-        """
-        return {
-            "kernel": cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.scale),
-        }
-
-
 PLANKIAN_JITTER_CONST = {
     "MAX_TEMP": max(
-        *fmain.PLANCKIAN_COEFFS["blackbody"].keys(),
-        *fmain.PLANCKIAN_COEFFS["cied"].keys(),
+        *fpixel.PLANCKIAN_COEFFS["blackbody"].keys(),
+        *fpixel.PLANCKIAN_COEFFS["cied"].keys(),
     ),
-    "MIN_BLACKBODY_TEMP": min(fmain.PLANCKIAN_COEFFS["blackbody"].keys()),
-    "MIN_CIED_TEMP": min(fmain.PLANCKIAN_COEFFS["cied"].keys()),
+    "MIN_BLACKBODY_TEMP": min(fpixel.PLANCKIAN_COEFFS["blackbody"].keys()),
+    "MIN_CIED_TEMP": min(fpixel.PLANCKIAN_COEFFS["cied"].keys()),
     "WHITE_TEMP": 6_000,
     "SAMPLING_TEMP_PROB": 0.4,
 }
@@ -5769,7 +5465,7 @@ class PlanckianJitter(ImageOnlyTransform):
         - Unlike ColorJitter, this transform ensures that color changes are physically plausible and correlated
           across channels, maintaining the natural appearance of the scene under different lighting conditions.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
@@ -5854,7 +5550,7 @@ class PlanckianJitter(ImageOnlyTransform):
 
         """
         non_rgb_error(img)
-        return fmain.planckian_jitter(img, temperature, mode=self.mode)
+        return fpixel.planckian_jitter(img, temperature, mode=self.mode)
 
     def get_params(self) -> dict[str, Any]:
         """Generate parameters for the PlanckianJitter transform.
@@ -5950,7 +5646,7 @@ class ShotNoise(ImageOnlyTransform):
         - Memory efficient with in-place operations
         - Thread-safe with independent random seeds
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> # Generate synthetic image
@@ -5998,7 +5694,7 @@ class ShotNoise(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.shot_noise(img, scale, np.random.default_rng(random_seed))
+        return fpixel.shot_noise(img, scale, np.random.default_rng(random_seed))
 
     def get_params(self) -> dict[str, Any]:
         """Generate parameters for the ShotNoise transform.
@@ -6148,6 +5844,21 @@ class AdditiveNoise(ImageOnlyTransform):
                     Smaller scale for subtler noise
                     Range for sampling output scale, in [0, 1]
 
+    Examples:
+        >>> # Constant RGB shift with different ranges per channel:
+        >>> transform = AdditiveNoise(
+        ...     noise_type="uniform",
+        ...     spatial_mode="constant",
+        ...     noise_params={"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}
+        ... )
+
+        Gaussian noise shared across channels:
+        >>> transform = AdditiveNoise(
+        ...     noise_type="gaussian",
+        ...     spatial_mode="shared",
+        ...     noise_params={"mean_range": (0.0, 0.0), "std_range": (0.05, 0.15)}
+        ... )
+
     Note:
         Performance considerations:
             - "constant" mode is fastest as it generates only C values (C = number of channels)
@@ -6164,21 +5875,6 @@ class AdditiveNoise(ImageOnlyTransform):
             - All noise is generated in normalized range and scaled by image max value
             - For uint8 images, final noise range is [-255, 255]
             - For float images, final noise range is [-1, 1]
-
-    Examples:
-        Constant RGB shift with different ranges per channel:
-        >>> transform = AdditiveNoise(
-        ...     noise_type="uniform",
-        ...     spatial_mode="constant",
-        ...     noise_params={"ranges": [(-0.2, 0.2), (-0.1, 0.1), (-0.1, 0.1)]}
-        ... )
-
-        Gaussian noise shared across channels:
-        >>> transform = AdditiveNoise(
-        ...     noise_type="gaussian",
-        ...     spatial_mode="shared",
-        ...     noise_params={"mean_range": (0.0, 0.0), "std_range": (0.05, 0.15)}
-        ... )
 
     """
 
@@ -6254,7 +5950,7 @@ class AdditiveNoise(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.add_noise(img, noise_map)
+        return fpixel.add_noise(img, noise_map)
 
     def get_params_dependent_on_data(
         self,
@@ -6272,7 +5968,7 @@ class AdditiveNoise(ImageOnlyTransform):
 
         max_value = MAX_VALUES_BY_DTYPE[image.dtype]
 
-        noise_map = fmain.generate_noise(
+        noise_map = fpixel.generate_noise(
             noise_type=self.noise_type,
             spatial_mode=self.spatial_mode,
             shape=image.shape,
@@ -6562,7 +6258,7 @@ class SaltAndPepper(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.apply_salt_and_pepper(img, salt_mask, pepper_mask)
+        return fpixel.apply_salt_and_pepper(img, salt_mask, pepper_mask)
 
 
 class PlasmaBrightnessContrast(ImageOnlyTransform):
@@ -6720,7 +6416,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
         contrast = self.py_random.uniform(*self.contrast_range)
 
         # Generate plasma pattern
-        plasma = fmain.generate_plasma_pattern(
+        plasma = fpixel.generate_plasma_pattern(
             target_shape=shape[:2],
             roughness=self.roughness,
             random_generator=self.random_generator,
@@ -6750,7 +6446,7 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.apply_plasma_brightness_contrast(
+        return fpixel.apply_plasma_brightness_contrast(
             img,
             brightness_factor,
             contrast_factor,
@@ -6922,7 +6618,7 @@ class PlasmaShadow(ImageOnlyTransform):
         intensity = self.py_random.uniform(*self.shadow_intensity_range)
 
         # Generate plasma pattern
-        plasma = fmain.generate_plasma_pattern(
+        plasma = fpixel.generate_plasma_pattern(
             target_shape=shape[:2],
             roughness=self.roughness,
             random_generator=self.random_generator,
@@ -6949,7 +6645,7 @@ class PlasmaShadow(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.apply_plasma_shadow(img, intensity, plasma_pattern)
+        return fpixel.apply_plasma_shadow(img, intensity, plasma_pattern)
 
     @batch_transform("spatial", keep_depth_dim=False, has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
@@ -7204,19 +6900,19 @@ class Illumination(ImageOnlyTransform):
 
         """
         if self.mode == "linear":
-            return fmain.apply_linear_illumination(
+            return fpixel.apply_linear_illumination(
                 img,
                 intensity=params["intensity"],
                 angle=params["angle"],
             )
         if self.mode == "corner":
-            return fmain.apply_corner_illumination(
+            return fpixel.apply_corner_illumination(
                 img,
                 intensity=params["intensity"],
                 corner=params["corner"],
             )
 
-        return fmain.apply_gaussian_illumination(
+        return fpixel.apply_gaussian_illumination(
             img,
             intensity=params["intensity"],
             center=params["center"],
@@ -7302,7 +6998,7 @@ class AutoContrast(ImageOnlyTransform):
             **params (Any): Additional parameters for the transform.
 
         """
-        return fmain.auto_contrast(img, self.cutoff, self.ignore, self.method)
+        return fpixel.auto_contrast(img, self.cutoff, self.ignore, self.method)
 
     @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
@@ -7398,6 +7094,67 @@ class HEStain(ImageOnlyTransform):
         - M. Macenko et al., "A method for normalizing histology slides for: 2009 IEEE International Symposium on
             quantitative analysis," 2009 IEEE International Symposium on Biomedical Imaging, 2009.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create a sample H&E stained histopathology image
+        >>> # For real use cases, load an actual H&E stained image
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Simulate tissue regions with different staining patterns
+        >>> image[50:150, 50:150] = np.array([120, 140, 180], dtype=np.uint8)  # Hematoxylin-rich region
+        >>> image[150:250, 150:250] = np.array([140, 160, 120], dtype=np.uint8)  # Eosin-rich region
+        >>>
+        >>> # Example 1: Using a specific preset stain matrix
+        >>> transform = A.HEStain(
+        ...     method="preset",
+        ...     preset="standard",
+        ...     intensity_scale_range=(0.8, 1.2),
+        ...     intensity_shift_range=(-0.1, 0.1),
+        ...     augment_background=False,
+        ...     p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        >>>
+        >>> # Example 2: Using random preset selection
+        >>> transform = A.HEStain(
+        ...     method="random_preset",
+        ...     intensity_scale_range=(0.7, 1.3),
+        ...     intensity_shift_range=(-0.15, 0.15),
+        ...     p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        >>>
+        >>> # Example 3: Using Vahadane method (requires H&E stained input)
+        >>> transform = A.HEStain(
+        ...     method="vahadane",
+        ...     intensity_scale_range=(0.7, 1.3),
+        ...     p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        >>>
+        >>> # Example 4: Using Macenko method (requires H&E stained input)
+        >>> transform = A.HEStain(
+        ...     method="macenko",
+        ...     intensity_scale_range=(0.7, 1.3),
+        ...     intensity_shift_range=(-0.2, 0.2),
+        ...     p=1.0
+        ... )
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+        >>>
+        >>> # Example 5: Combining with other transforms in a pipeline
+        >>> transform = A.Compose([
+        ...     A.HEStain(method="preset", preset="high_contrast", p=1.0),
+        ...     A.RandomBrightnessContrast(p=0.5),
+        ... ])
+        >>> result = transform(image=image)
+        >>> transformed_image = result['image']
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -7464,7 +7221,7 @@ class HEStain(ImageOnlyTransform):
 
         # Initialize stain extractor here if needed
         if method in ["vahadane", "macenko"]:
-            self.stain_extractor = fmain.get_normalizer(
+            self.stain_extractor = fpixel.get_normalizer(
                 cast("Literal['vahadane', 'macenko']", method),
             )
 
@@ -7482,10 +7239,10 @@ class HEStain(ImageOnlyTransform):
     def _get_stain_matrix(self, img: np.ndarray) -> np.ndarray:
         """Get stain matrix based on selected method."""
         if self.method == "preset" and self.preset is not None:
-            return fmain.STAIN_MATRICES[self.preset]
+            return fpixel.STAIN_MATRICES[self.preset]
         if self.method == "random_preset":
             random_preset = self.py_random.choice(self.preset_names)
-            return fmain.STAIN_MATRICES[random_preset]
+            return fpixel.STAIN_MATRICES[random_preset]
         # vahadane or macenko
         self.stain_extractor.fit(img)
         return self.stain_extractor.stain_matrix_target
@@ -7509,7 +7266,7 @@ class HEStain(ImageOnlyTransform):
 
         """
         non_rgb_error(img)
-        return fmain.apply_he_stain_augmentation(
+        return fpixel.apply_he_stain_augmentation(
             img=img,
             stain_matrix=stain_matrix,
             scale_factors=scale_factors,

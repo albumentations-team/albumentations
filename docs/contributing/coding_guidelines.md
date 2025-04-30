@@ -447,6 +447,131 @@ This small difference is crucial for pixel-perfect accuracy. Always use the appr
       """
   ```
 
+### Examples in Docstrings
+
+Every transform class that is a descendant of `ImageOnlyTransform`, `DualTransform`, or `Transform3D` **must** include a comprehensive Examples section in its docstring. The examples should follow these guidelines:
+
+1. **Section Naming**: The section should be titled "Examples" (not "Example").
+
+2. **Jupyter Notebook Format**: Examples should mimic Jupyter notebook format, using `>>>` for code lines and no prefix for output lines.
+
+3. **Comprehensiveness**: Examples should be fully reproducible, including:
+   - Initialization of sample data
+   - Creation of transform(s)
+   - Application of transform(s)
+   - Retrieving results from the transform
+
+4. **Target-Specific Requirements**:
+   - For `ImageOnlyTransform`: Pass and demonstrate transformation of image data. Including how to get all transformed targets.
+   - For `DualTransform`: Pass and demonstrate transformation of image, mask, bboxes, keypoints, bbox_labels, class_labels (where supported). Including how to get all transformed targets including bbox_labels and keypoints_labels
+   - For `Transform3D`: Pass and demonstrate transformation of volume and mask3d data. Including how to get all transformed targets.
+    Including keypoint_labels
+
+5. **For Base Classes**: Examples for base classes should show:
+   - How to initialize a custom transform that inherits from the base class
+   - How to use the custom transform as part of a Compose pipeline
+
+6. **Parameter Examples**: When a parameter accepts both a single value and a tuple of values (to be sampled from), always use a tuple in the example.
+
+Here's an example for a `DualTransform`:
+
+```python
+"""
+Examples:
+    >>> import numpy as np
+    >>> import albumentations as A
+    >>> # Prepare sample data
+    >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+    >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+    >>> bbox_labels = [1, 2]
+    >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+    >>> keypoint_labels = [0, 1]
+    >>>
+    >>> # Define transform with parameters as tuples when possible
+    >>> transform = A.Compose([
+    ...     A.HorizontalFlip(p=1.0),
+    ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+    ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+    >>>
+    >>> # Apply the transform
+    >>> transformed = transform(
+    ...     image=image,
+    ...     mask=mask,
+    ...     bboxes=bboxes,
+    ...     bbox_labels=bbox_labels,
+    ...     keypoints=keypoints,
+    ...     keypoint_labels=keypoint_labels
+    ... )
+    >>>
+    >>> # Get the transformed data
+    >>> transformed_image = transformed['image']  # Horizontally flipped image
+    >>> transformed_mask = transformed['mask']    # Horizontally flipped mask
+    >>> transformed_bboxes = transformed['bboxes']  # Horizontally flipped bounding boxes
+    >>> transformed_keypoints = transformed['keypoints']  # Horizontally flipped keypoints
+"""
+```
+
+Examples for a base class showing custom implementation:
+
+```python
+"""
+Examples:
+    # Example of a custom distortion subclass
+    >>> import numpy as np
+    >>> import albumentations as A
+    >>>
+    >>> class CustomDistortion(A.BaseDistortion):
+    ...     def __init__(self, *args, **kwargs):
+    ...         super().__init__(*args, **kwargs)
+    ...         # Add custom parameters here
+    ...
+    ...     def get_params_dependent_on_data(self, params, data):
+    ...         height, width = params["shape"][:2]
+    ...         # Generate distortion maps
+    ...         map_x = np.zeros((height, width), dtype=np.float32)
+    ...         map_y = np.zeros((height, width), dtype=np.float32)
+    ...         # Apply your custom distortion logic here
+    ...         # ...
+    ...         return {"map_x": map_x, "map_y": map_y}
+    >>>
+    >>> # Prepare sample data
+    >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+    >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+    >>> bbox_labels = [1, 2]
+    >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+    >>> keypoint_labels = [0, 1]
+    >>>
+    >>> # Apply the custom distortion
+    >>> transform = A.Compose([
+    ...     CustomDistortion(
+    ...         interpolation=A.cv2.INTER_LINEAR,
+    ...         mask_interpolation=A.cv2.INTER_NEAREST,
+    ...         keypoint_remapping_method="mask",
+    ...         p=1.0
+    ...     )
+    ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+    ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+    >>>
+    >>> # Apply the transform
+    >>> transformed = transform(
+    ...     image=image,
+    ...     mask=mask,
+    ...     bboxes=bboxes,
+    ...     bbox_labels=bbox_labels,
+    ...     keypoints=keypoints,
+    ...     keypoint_labels=keypoint_labels
+    ... )
+    >>>
+    >>> # Get results
+    >>> transformed_image = transformed['image']
+    >>> transformed_mask = transformed['mask']
+    >>> transformed_bboxes = transformed['bboxes']
+    >>> transformed_keypoints = transformed['keypoints']
+"""
+```
+
 ### Comments
 
 - Add comments for complex logic

@@ -58,7 +58,88 @@ class CropSizeError(Exception):
 
 
 class BaseCrop(DualTransform):
-    """Base class for transforms that only perform cropping."""
+    """Base class for transforms that only perform cropping.
+
+    This abstract class provides the foundation for all cropping transformations.
+    It handles cropping of different data types including images, masks, bounding boxes,
+    keypoints, and volumes while keeping their spatial relationships intact.
+
+    Child classes must implement the `get_params_dependent_on_data` method to determine
+    crop coordinates based on transform-specific logic. This method should return a dictionary
+    containing at least a 'crop_coords' key with a tuple value (x_min, y_min, x_max, y_max).
+
+    Args:
+        p (float): Probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This class is not meant to be used directly. Instead, use or create derived
+        transforms that implement the specific cropping behavior required.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> from albumentations.augmentations.crops.transforms import BaseCrop
+        >>>
+        >>> # Example of a custom crop transform that inherits from BaseCrop
+        >>> class CustomCenterCrop(BaseCrop):
+        ...     '''A simple custom center crop with configurable size'''
+        ...     def __init__(self, crop_height, crop_width, p=1.0):
+        ...         super().__init__(p=p)
+        ...         self.crop_height = crop_height
+        ...         self.crop_width = crop_width
+        ...
+        ...     def get_params_dependent_on_data(self, params, data):
+        ...         '''Calculate crop coordinates based on center of image'''
+        ...         image_height, image_width = params["shape"][:2]
+        ...
+        ...         # Calculate center crop coordinates
+        ...         x_min = max(0, (image_width - self.crop_width) // 2)
+        ...         y_min = max(0, (image_height - self.crop_height) // 2)
+        ...         x_max = min(image_width, x_min + self.crop_width)
+        ...         y_max = min(image_height, y_min + self.crop_height)
+        ...
+        ...         return {"crop_coords": (x_min, y_min, x_max, y_max)}
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Use the custom transform in a pipeline
+        >>> transform = A.Compose(
+        ...     [CustomCenterCrop(crop_height=80, crop_width=80)],
+        ...     bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...     keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels'])
+        ... )
+        >>>
+        >>> # Apply the transform to data
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = result['image']  # Will be 80x80
+        >>> transformed_mask = result['mask']    # Will be 80x80
+        >>> transformed_bboxes = result['bboxes']  # Bounding boxes adjusted to the cropped area
+        >>> transformed_bbox_labels = result['bbox_labels']  # Labels for bboxes that remain after cropping
+        >>> transformed_keypoints = result['keypoints']  # Keypoints adjusted to the cropped area
+        >>> transformed_keypoint_labels = result['keypoint_labels']  # Labels for keypoints that remain after cropping
+
+    """
 
     _targets = ALL_TARGETS
 
@@ -172,7 +253,136 @@ class BaseCrop(DualTransform):
 
 
 class BaseCropAndPad(BaseCrop):
-    """Base class for transforms that need both cropping and padding."""
+    """Base class for transforms that need both cropping and padding.
+
+    This abstract class extends BaseCrop by adding padding capabilities. It's the foundation
+    for transforms that may need to both crop parts of the input and add padding, such as when
+    converting inputs to a specific target size. The class handles the complexities of applying
+    these operations to different data types (images, masks, bounding boxes, keypoints) while
+    maintaining their spatial relationships.
+
+    Child classes must implement the `get_params_dependent_on_data` method to determine
+    crop coordinates and padding parameters based on transform-specific logic.
+
+    Args:
+        pad_if_needed (bool): Whether to pad the input if the crop size exceeds input dimensions.
+        border_mode (int): OpenCV border mode used for padding.
+        fill (tuple[float, ...] | float): Value to fill the padded area if border_mode is BORDER_CONSTANT.
+            For multi-channel images, this can be a tuple with a value for each channel.
+        fill_mask (tuple[float, ...] | float): Value to fill the padded area in masks.
+        pad_position (Literal["center", "top_left", "top_right", "bottom_left", "bottom_right", "random"]):
+            Position of padding when pad_if_needed is True.
+        p (float): Probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This class is not meant to be used directly. Instead, use or create derived
+        transforms that implement the specific cropping and padding behavior required.
+
+    Examples:
+        >>> import numpy as np
+        >>> import cv2
+        >>> import albumentations as A
+        >>> from albumentations.augmentations.crops.transforms import BaseCropAndPad
+        >>>
+        >>> # Example of a custom transform that inherits from BaseCropAndPad
+        >>> # This transform crops to a fixed size, padding if needed to maintain dimensions
+        >>> class CustomFixedSizeCrop(BaseCropAndPad):
+        ...     '''A custom fixed-size crop that pads if needed to maintain output size'''
+        ...     def __init__(
+        ...         self,
+        ...         height=224,
+        ...         width=224,
+        ...         offset_x=0,  # Offset for crop position
+        ...         offset_y=0,  # Offset for crop position
+        ...         pad_if_needed=True,
+        ...         border_mode=cv2.BORDER_CONSTANT,
+        ...         fill=0,
+        ...         fill_mask=0,
+        ...         pad_position="center",
+        ...         p=1.0,
+        ...     ):
+        ...         super().__init__(
+        ...             pad_if_needed=pad_if_needed,
+        ...             border_mode=border_mode,
+        ...             fill=fill,
+        ...             fill_mask=fill_mask,
+        ...             pad_position=pad_position,
+        ...             p=p,
+        ...         )
+        ...         self.height = height
+        ...         self.width = width
+        ...         self.offset_x = offset_x
+        ...         self.offset_y = offset_y
+        ...
+        ...     def get_params_dependent_on_data(self, params, data):
+        ...         '''Calculate crop coordinates and padding if needed'''
+        ...         image_shape = params["shape"][:2]
+        ...         image_height, image_width = image_shape
+        ...
+        ...         # Calculate crop coordinates with offsets
+        ...         x_min = self.offset_x
+        ...         y_min = self.offset_y
+        ...         x_max = min(x_min + self.width, image_width)
+        ...         y_max = min(y_min + self.height, image_height)
+        ...
+        ...         # Get padding params if needed
+        ...         pad_params = self._get_pad_params(
+        ...             image_shape,
+        ...             (self.height, self.width)
+        ...         ) if self.pad_if_needed else None
+        ...
+        ...         return {
+        ...             "crop_coords": (x_min, y_min, x_max, y_max),
+        ...             "pad_params": pad_params,
+        ...         }
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Use the custom transform in a pipeline
+        >>> # This will create a 224x224 crop with padding as needed
+        >>> transform = A.Compose(
+        ...     [CustomFixedSizeCrop(
+        ...         height=224,
+        ...         width=224,
+        ...         offset_x=20,
+        ...         offset_y=10,
+        ...         fill=127,  # Gray color for padding
+        ...         fill_mask=0
+        ...     )],
+        ...     bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...     keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform to data
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = result['image']  # Will be 224x224 with padding
+        >>> transformed_mask = result['mask']    # Will be 224x224 with padding
+        >>> transformed_bboxes = result['bboxes']  # Bounding boxes adjusted to the cropped and padded area
+        >>> transformed_bbox_labels = result['bbox_labels']  # Bounding box labels after crop
+        >>> transformed_keypoints = result['keypoints']  # Keypoints adjusted to the cropped and padded area
+        >>> transformed_keypoint_labels = result['keypoint_labels']  # Keypoint labels after crop
+
+    """
 
     class InitSchema(BaseTransformInitSchema):
         pad_if_needed: bool
@@ -485,6 +695,72 @@ class RandomCrop(BaseCropAndPad):
         If pad_if_needed is True and crop size exceeds image dimensions, the image will be padded
         before applying the random crop.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Example 1: Basic random crop
+        >>> transform = A.Compose([
+        ...     A.RandomCrop(height=64, width=64),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']  # Will be 64x64
+        >>> transformed_mask = transformed['mask']    # Will be 64x64
+        >>> transformed_bboxes = transformed['bboxes']  # Bounding boxes adjusted to the cropped area
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for boxes that remain after cropping
+        >>> transformed_keypoints = transformed['keypoints']  # Keypoints adjusted to the cropped area
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for keypoints that remain
+        >>>
+        >>> # Example 2: Random crop with padding when needed
+        >>> # This is useful when you want to crop to a size larger than some images
+        >>> transform_padded = A.Compose([
+        ...     A.RandomCrop(
+        ...         height=120,  # Larger than original image height
+        ...         width=120,   # Larger than original image width
+        ...         pad_if_needed=True,
+        ...         border_mode=cv2.BORDER_CONSTANT,
+        ...         fill=0,      # Black padding for image
+        ...         fill_mask=0  # Zero padding for mask
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the padded transform
+        >>> padded_transformed = transform_padded(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # The result will be 120x120 with padding
+        >>> padded_image = padded_transformed['image']
+        >>> padded_mask = padded_transformed['mask']
+        >>> padded_bboxes = padded_transformed['bboxes']  # Coordinates adjusted to the new dimensions
+
     """
 
     class InitSchema(BaseCropAndPad.InitSchema):
@@ -613,6 +889,72 @@ class CenterCrop(BaseCropAndPad):
         - If pad_if_needed is True and crop size exceeds image dimensions, the image will be padded.
         - For bounding boxes and keypoints, coordinates are adjusted appropriately for both padding and cropping.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Example 1: Basic center crop without padding
+        >>> transform = A.Compose([
+        ...     A.CenterCrop(height=64, width=64),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']  # Will be 64x64
+        >>> transformed_mask = transformed['mask']    # Will be 64x64
+        >>> transformed_bboxes = transformed['bboxes']  # Bounding boxes adjusted to the cropped area
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for boxes that remain after cropping
+        >>> transformed_keypoints = transformed['keypoints']  # Keypoints adjusted to the cropped area
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for keypoints that remain
+        >>>
+        >>> # Example 2: Center crop with padding when needed
+        >>> transform_padded = A.Compose([
+        ...     A.CenterCrop(
+        ...         height=120,  # Larger than original image height
+        ...         width=120,   # Larger than original image width
+        ...         pad_if_needed=True,
+        ...         border_mode=cv2.BORDER_CONSTANT,
+        ...         fill=0,      # Black padding for image
+        ...         fill_mask=0  # Zero padding for mask
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the padded transform
+        >>> padded_transformed = transform_padded(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # The result will be 120x120 with padding
+        >>> padded_image = padded_transformed['image']
+        >>> padded_mask = padded_transformed['mask']
+        >>> padded_bboxes = padded_transformed['bboxes']  # Coordinates adjusted to the new dimensions
+        >>> padded_keypoints = padded_transformed['keypoints']  # Coordinates adjusted to the new dimensions
+
     """
 
     class InitSchema(BaseCropAndPad.InitSchema):
@@ -735,6 +1077,85 @@ class Crop(BaseCropAndPad):
         - If pad_if_needed is False and crop region extends beyond image boundaries, it will be clipped.
         - If pad_if_needed is True, image will be padded to accommodate the full crop region.
         - For bounding boxes and keypoints, coordinates are adjusted appropriately for both padding and cropping.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Example 1: Basic crop with fixed coordinates
+        >>> transform = A.Compose([
+        ...     A.Crop(x_min=20, y_min=20, x_max=80, y_max=80),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']  # Will be 60x60 - cropped from (20,20) to (80,80)
+        >>> transformed_mask = transformed['mask']    # Will be 60x60
+        >>> transformed_bboxes = transformed['bboxes']  # Bounding boxes adjusted to the cropped area
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for boxes that remain after cropping
+        >>>
+        >>> # Example 2: Crop with padding when the crop region extends beyond image dimensions
+        >>> transform_padded = A.Compose([
+        ...     A.Crop(
+        ...         x_min=50, y_min=50, x_max=150, y_max=150,  # Extends beyond the 100x100 image
+        ...         pad_if_needed=True,
+        ...         border_mode=cv2.BORDER_CONSTANT,
+        ...         fill=0,      # Black padding for image
+        ...         fill_mask=0  # Zero padding for mask
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the padded transform
+        >>> padded_transformed = transform_padded(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # The result will be 100x100 (50:150, 50:150) with padding on right and bottom
+        >>> padded_image = padded_transformed['image']  # 100x100 with 50 pixels of original + 50 pixels of padding
+        >>> padded_mask = padded_transformed['mask']
+        >>> padded_bboxes = padded_transformed['bboxes']  # Coordinates adjusted to the cropped and padded area
+        >>>
+        >>> # Example 3: Crop with reflection padding and custom position
+        >>> transform_reflect = A.Compose([
+        ...     A.Crop(
+        ...         x_min=-20, y_min=-20, x_max=80, y_max=80,  # Negative coordinates (outside image)
+        ...         pad_if_needed=True,
+        ...         border_mode=cv2.BORDER_REFLECT_101,  # Reflect image for padding
+        ...         pad_position="top_left"  # Apply padding at top-left
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']))
+        >>>
+        >>> # The resulting crop will use reflection padding for the negative coordinates
+        >>> reflect_result = transform_reflect(
+        ...     image=image,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels
+        ... )
 
     """
 
@@ -906,6 +1327,69 @@ class CropNonEmptyMaskIfExists(BaseCrop):
         >>> transformed_mask = transformed['mask']
         # The resulting crop will likely include part of the non-zero region in the mask
 
+    Raises:
+        ValueError: If the specified crop size is larger than the input image dimensions.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> # Create a mask with non-empty region in the center
+        >>> mask = np.zeros((100, 100), dtype=np.uint8)
+        >>> mask[25:75, 25:75] = 1  # Create a non-empty region in the mask
+        >>>
+        >>> # Create bounding boxes and keypoints in the mask region
+        >>> bboxes = np.array([
+        ...     [20, 20, 60, 60],     # Box overlapping with non-empty region
+        ...     [30, 30, 70, 70],     # Box mostly inside non-empty region
+        ... ], dtype=np.float32)
+        >>> bbox_labels = ['cat', 'dog']
+        >>>
+        >>> # Add some keypoints inside mask region
+        >>> keypoints = np.array([
+        ...     [40, 40],             # Inside non-empty region
+        ...     [60, 60],             # At edge of non-empty region
+        ...     [90, 90]              # Outside non-empty region
+        ... ], dtype=np.float32)
+        >>> keypoint_labels = ['eye', 'nose', 'ear']
+        >>>
+        >>> # Define transform that will crop around the non-empty mask region
+        >>> transform = A.Compose([
+        ...     A.CropNonEmptyMaskIfExists(
+        ...         height=50,
+        ...         width=50,
+        ...         ignore_values=None,
+        ...         ignore_channels=None,
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(
+        ...     format='pascal_voc',
+        ...     label_fields=['bbox_labels']
+        ... ), keypoint_params=A.KeypointParams(
+        ...     format='xy',
+        ...     label_fields=['keypoint_labels']
+        ... ))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']  # 50x50 image centered on mask region
+        >>> transformed_mask = transformed['mask']    # 50x50 mask showing part of non-empty region
+        >>> transformed_bboxes = transformed['bboxes']  # Bounding boxes adjusted to new coordinates
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels preserved for visible boxes
+        >>> transformed_keypoints = transformed['keypoints']  # Keypoints adjusted to new coordinates
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for visible keypoints
+
     """
 
     class InitSchema(BaseCrop.InitSchema):
@@ -999,7 +1483,107 @@ class BaseRandomSizedCropInitSchema(BaseTransformInitSchema):
 
 
 class _BaseRandomSizedCrop(DualTransform):
-    # Base class for RandomSizedCrop and RandomResizedCrop
+    """Base class for transforms that crop an image randomly and resize it to a specific size.
+
+    This abstract class provides the foundation for RandomSizedCrop and RandomResizedCrop transforms.
+    It handles cropping and resizing for different data types (image, mask, bboxes, keypoints) while
+    maintaining their spatial relationships.
+
+    Child classes must implement the `get_params_dependent_on_data` method to determine how the
+    crop coordinates are selected according to transform-specific parameters and logic.
+
+    Args:
+        size (tuple[int, int]): Target size (height, width) after cropping and resizing.
+        interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm
+            for image resizing. Default: cv2.INTER_LINEAR.
+        mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation
+            algorithm for mask resizing. Default: cv2.INTER_NEAREST.
+        p (float): Probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This class is not meant to be used directly. Instead, use derived transforms
+        like RandomSizedCrop or RandomResizedCrop that implement specific crop selection
+        strategies.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Example of a custom transform that inherits from _BaseRandomSizedCrop
+        >>> class CustomRandomCrop(_BaseRandomSizedCrop):
+        ...     def __init__(
+        ...         self,
+        ...         size=(224, 224),
+        ...         custom_parameter=0.5,
+        ...         interpolation=cv2.INTER_LINEAR,
+        ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         p=1.0
+        ...     ):
+        ...         super().__init__(
+        ...             size=size,
+        ...             interpolation=interpolation,
+        ...             mask_interpolation=mask_interpolation,
+        ...             p=p,
+        ...         )
+        ...         self.custom_parameter = custom_parameter
+        ...
+        ...     def get_params_dependent_on_data(self, params, data):
+        ...         # Custom logic to select crop coordinates
+        ...         image_height, image_width = params["shape"][:2]
+        ...
+        ...         # Simple example: calculate crop size based on custom_parameter
+        ...         crop_height = int(image_height * self.custom_parameter)
+        ...         crop_width = int(image_width * self.custom_parameter)
+        ...
+        ...         # Random position
+        ...         y1 = self.py_random.randint(0, image_height - crop_height + 1)
+        ...         x1 = self.py_random.randint(0, image_width - crop_width + 1)
+        ...         y2 = y1 + crop_height
+        ...         x2 = x1 + crop_width
+        ...
+        ...         return {"crop_coords": (x1, y1, x2, y2)}
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Create a pipeline with our custom transform
+        >>> transform = A.Compose(
+        ...     [CustomRandomCrop(size=(64, 64), custom_parameter=0.6)],
+        ...     bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...     keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels'])
+        ... )
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']  # Will be 64x64
+        >>> transformed_mask = transformed['mask']    # Will be 64x64
+        >>> transformed_bboxes = transformed['bboxes']  # Bounding boxes adjusted to new dimensions
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for bboxes that remain after cropping
+        >>> transformed_keypoints = transformed['keypoints']  # Keypoints adjusted to new dimensions
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for keypoints that remain
+
+    """
 
     class InitSchema(BaseRandomSizedCropInitSchema):
         interpolation: Literal[
@@ -1168,22 +1752,49 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         4. The image is cropped to the size (h, w).
         5. The crop is then resized to the specified 'size'.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.RandomSizedCrop(
-        ...     min_max_height=(50, 80),
-        ...     size=(64, 64),
-        ...     w2h_ratio=1.0,
-        ...     interpolation=cv2.INTER_LINEAR,
-        ...     p=1.0
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Define transform with parameters as tuples
+        >>> transform = A.Compose([
+        ...     A.RandomSizedCrop(
+        ...         min_max_height=(50, 80),
+        ...         size=(64, 64),
+        ...         w2h_ratio=1.0,
+        ...         interpolation=cv2.INTER_LINEAR,
+        ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
         ... )
-        >>> result = transform(image=image)
-        >>> transformed_image = result['image']
-        # transformed_image will be a 64x64 image, resulting from a crop with height
-        # between 50 and 80 pixels, and the same aspect ratio as specified by w2h_ratio,
-        # taken from a random location in the original image and then resized.
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']       # Shape: (64, 64, 3)
+        >>> transformed_mask = transformed['mask']         # Shape: (64, 64)
+        >>> transformed_bboxes = transformed['bboxes']     # Bounding boxes adjusted to new crop and size
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for the preserved bboxes
+        >>> transformed_keypoints = transformed['keypoints']      # Keypoints adjusted to new crop and size
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for the preserved keypoints
 
     """
 
@@ -1322,16 +1933,49 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         5. If no valid crop is found after 10 attempts, a centered crop is taken.
         6. The crop is then resized to the specified size.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.RandomResizedCrop(size=80, scale=(0.5, 1.0), ratio=(0.75, 1.33), p=1.0)
-        >>> result = transform(image=image)
-        >>> transformed_image = result['image']
-        # transformed_image will be a 80x80 crop from a random location in the original image,
-        # with the crop's size between 50% and 100% of the original image size,
-        # and the crop's aspect ratio between 3:4 and 4:3.
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Define transform with parameters as tuples
+        >>> transform = A.Compose([
+        ...     A.RandomResizedCrop(
+        ...         size=(64, 64),
+        ...         scale=(0.5, 0.9),  # Crop size will be 50-90% of original image
+        ...         ratio=(0.75, 1.33),  # Aspect ratio will vary from 3:4 to 4:3
+        ...         interpolation=cv2.INTER_LINEAR,
+        ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']       # Shape: (64, 64, 3)
+        >>> transformed_mask = transformed['mask']         # Shape: (64, 64)
+        >>> transformed_bboxes = transformed['bboxes']     # Bounding boxes adjusted to new crop and size
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for the preserved bboxes
+        >>> transformed_keypoints = transformed['keypoints']      # Keypoints adjusted to new crop and size
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for the preserved keypoints
 
     """
 
@@ -1580,22 +2224,62 @@ class BBoxSafeRandomCrop(BaseCrop):
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
+
     Image types:
         uint8, float32
 
     Raises:
         CropSizeError: If requested crop size exceeds image dimensions
 
-    Example:
+    Examples:
+        >>> import numpy as np
         >>> import albumentations as A
-        >>> transform = A.BBoxSafeRandomCrop(erosion_rate=0.2)
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Define transform with erosion_rate parameter
+        >>> transform = A.Compose([
+        ...     A.BBoxSafeRandomCrop(erosion_rate=0.2),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
         >>> result = transform(
         ...     image=image,
-        ...     bboxes=[[0.1, 0.2, 0.5, 0.7, 'cat'], [0.3, 0.4, 0.6, 0.8, 'dog']],
-        ...     bbox_format='yolo'  # or 'coco', 'pascal_voc'
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
         ... )
-        >>> transformed_image = result['image']
-        >>> transformed_bboxes = result['bboxes']
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = result['image']  # Cropped image containing all bboxes
+        >>> transformed_mask = result['mask']    # Cropped mask
+        >>> transformed_bboxes = result['bboxes']  # All bounding boxes preserved with adjusted coordinates
+        >>> transformed_bbox_labels = result['bbox_labels']  # Original labels preserved
+        >>> transformed_keypoints = result['keypoints']  # Keypoints with adjusted coordinates
+        >>> transformed_keypoint_labels = result['keypoint_labels']  # Original keypoint labels preserved
+        >>>
+        >>> # Example with a different erosion_rate
+        >>> transform_more_flexible = A.Compose([
+        ...     A.BBoxSafeRandomCrop(erosion_rate=0.5),  # More flexibility in crop placement
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']))
+        >>>
+        >>> # Apply transform with only image and bboxes
+        >>> result_bboxes_only = transform_more_flexible(
+        ...     image=image,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels
+        ... )
+        >>> transformed_image = result_bboxes_only['image']
+        >>> transformed_bboxes = result_bboxes_only['bboxes']  # All bboxes still preserved
 
     Note:
         - All bounding boxes will be preserved in their entirety
@@ -1721,19 +2405,92 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         5. Bounding box coordinates are transformed to match the new image size:
            new_coord = (old_coord - crop_start) * (new_size / crop_size)
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
         >>> image = np.random.randint(0, 256, (300, 300, 3), dtype=np.uint8)
-        >>> bboxes = [(10, 10, 50, 50), (100, 100, 150, 150)]
-        >>> transform = A.Compose([
-        ...     A.RandomSizedBBoxSafeCrop(height=224, width=224, erosion_rate=0.2, p=1.0),
-        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
-        >>> transformed = transform(image=image, bboxes=bboxes, labels=['cat', 'dog'])
-        >>> transformed_image = transformed['image']
-        >>> transformed_bboxes = transformed['bboxes']
-        # transformed_image will be a 224x224 image containing all original bounding boxes,
-        # with their coordinates adjusted to the new image size.
+        >>> mask = np.random.randint(0, 2, (300, 300), dtype=np.uint8)
+        >>>
+        >>> # Create bounding boxes with some overlap and separation
+        >>> bboxes = np.array([
+        ...     [10, 10, 80, 80],    # top-left box
+        ...     [100, 100, 200, 200], # center box
+        ...     [210, 210, 290, 290]  # bottom-right box
+        ... ], dtype=np.float32)
+        >>> bbox_labels = ['cat', 'dog', 'bird']
+        >>>
+        >>> # Create keypoints inside the bounding boxes
+        >>> keypoints = np.array([
+        ...     [45, 45],    # inside first box
+        ...     [150, 150],  # inside second box
+        ...     [250, 250]   # inside third box
+        ... ], dtype=np.float32)
+        >>> keypoint_labels = ['nose', 'eye', 'tail']
+        >>>
+        >>> # Example 1: Basic usage with default parameters
+        >>> transform_basic = A.Compose([
+        ...     A.RandomSizedBBoxSafeCrop(height=224, width=224, p=1.0),
+        ... ], bbox_params=A.BboxParams(
+        ...     format='pascal_voc',
+        ...     label_fields=['bbox_labels']
+        ... ), keypoint_params=A.KeypointParams(
+        ...     format='xy',
+        ...     label_fields=['keypoint_labels']
+        ... ))
+        >>>
+        >>> # Apply the transform
+        >>> result_basic = transform_basic(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Access the transformed data
+        >>> transformed_image = result_basic['image']  # Shape will be (224, 224, 3)
+        >>> transformed_mask = result_basic['mask']    # Shape will be (224, 224)
+        >>> transformed_bboxes = result_basic['bboxes']  # All original bounding boxes preserved
+        >>> transformed_bbox_labels = result_basic['bbox_labels']  # Original labels preserved
+        >>> transformed_keypoints = result_basic['keypoints']  # Keypoints adjusted to new coordinates
+        >>> transformed_keypoint_labels = result_basic['keypoint_labels']  # Original labels preserved
+        >>>
+        >>> # Example 2: With erosion_rate for more flexibility in crop placement
+        >>> transform_erosion = A.Compose([
+        ...     A.RandomSizedBBoxSafeCrop(
+        ...         height=256,
+        ...         width=256,
+        ...         erosion_rate=0.2,  # Allows 20% flexibility in crop placement
+        ...         interpolation=cv2.INTER_CUBIC,  # Higher quality interpolation
+        ...         mask_interpolation=cv2.INTER_NEAREST,  # Preserve mask edges
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(
+        ...     format='pascal_voc',
+        ...     label_fields=['bbox_labels'],
+        ...     min_visibility=0.3  # Only keep bboxes with at least 30% visibility
+        ... ), keypoint_params=A.KeypointParams(
+        ...     format='xy',
+        ...     label_fields=['keypoint_labels'],
+        ...     remove_invisible=True  # Remove keypoints outside the crop
+        ... ))
+        >>>
+        >>> # Apply the transform with erosion
+        >>> result_erosion = transform_erosion(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # With erosion_rate=0.2, the crop has more flexibility in placement
+        >>> # while still ensuring all bounding boxes are included
 
     """
 
@@ -1926,16 +2683,97 @@ class CropAndPad(DualTransform):
         - Bounding boxes that end up fully outside the image after cropping will be removed.
         - Keypoints that end up outside the image after cropping will be removed.
 
-    Example:
+    Examples:
+        >>> import numpy as np
         >>> import albumentations as A
-        >>> transform = A.Compose([
-        ...     A.CropAndPad(px=(-10, 20, 30, -40), border_mode=cv2.BORDER_REFLECT, fill=128, p=1.0),
-        ... ])
-        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
-        >>> transformed_image = transformed['image']
-        >>> transformed_mask = transformed['mask']
-        >>> transformed_bboxes = transformed['bboxes']
-        >>> transformed_keypoints = transformed['keypoints']
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Example 1: Using px parameter with specific values for each side
+        >>> # Crop 10px from top, pad 20px on right, pad 30px on bottom, crop 40px from left
+        >>> transform_px = A.Compose([
+        ...     A.CropAndPad(
+        ...         px=(-10, 20, 30, -40),  # (top, right, bottom, left)
+        ...         border_mode=cv2.BORDER_CONSTANT,
+        ...         fill=128,  # Gray padding color
+        ...         fill_mask=0,
+        ...         keep_size=False,  # Don't resize back to original dimensions
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> result_px = transform_px(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data with px parameters
+        >>> transformed_image_px = result_px['image']  # Shape will be different from original
+        >>> transformed_mask_px = result_px['mask']
+        >>> transformed_bboxes_px = result_px['bboxes']  # Adjusted to new dimensions
+        >>> transformed_bbox_labels_px = result_px['bbox_labels']  # Bounding box labels after crop
+        >>> transformed_keypoints_px = result_px['keypoints']  # Adjusted to new dimensions
+        >>> transformed_keypoint_labels_px = result_px['keypoint_labels']  # Keypoint labels after crop
+        >>>
+        >>> # Example 2: Using percent parameter as a single value
+        >>> # This will pad all sides by 10% of image dimensions
+        >>> transform_percent = A.Compose([
+        ...     A.CropAndPad(
+        ...         percent=0.1,  # Pad all sides by 10%
+        ...         border_mode=cv2.BORDER_REFLECT,  # Use reflection padding
+        ...         keep_size=True,  # Resize back to original dimensions
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> result_percent = transform_percent(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data with percent parameters
+        >>> # Since keep_size=True, image dimensions remain the same (100x100)
+        >>> transformed_image_pct = result_percent['image']
+        >>> transformed_mask_pct = result_percent['mask']
+        >>> transformed_bboxes_pct = result_percent['bboxes']
+        >>> transformed_bbox_labels_pct = result_percent['bbox_labels']
+        >>> transformed_keypoints_pct = result_percent['keypoints']
+        >>> transformed_keypoint_labels_pct = result_percent['keypoint_labels']
+        >>>
+        >>> # Example 3: Random padding within a range
+        >>> # Pad top and bottom by 5-15%, left and right by 10-20%
+        >>> transform_random = A.Compose([
+        ...     A.CropAndPad(
+        ...         percent=[(0.05, 0.15), (0.1, 0.2), (0.05, 0.15), (0.1, 0.2)],  # (top, right, bottom, left)
+        ...         sample_independently=True,  # Sample each side independently
+        ...         border_mode=cv2.BORDER_CONSTANT,
+        ...         fill=0,  # Black padding
+        ...         keep_size=False,
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Result dimensions will vary based on the random padding values chosen
 
     """
 
@@ -2332,18 +3170,52 @@ class RandomCropFromBorders(BaseCrop):
         - Bounding boxes that end up fully outside the cropped area will be removed.
         - Keypoints that end up outside the cropped area will be removed.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.RandomCropFromBorders(
-        ...     crop_left=0.1, crop_right=0.2, crop_top=0.2, crop_bottom=0.1, p=1.0
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Define transform with crop fractions for each border
+        >>> transform = A.Compose([
+        ...     A.RandomCropFromBorders(
+        ...         crop_left=0.1,     # Max 10% crop from left
+        ...         crop_right=0.2,    # Max 20% crop from right
+        ...         crop_top=0.15,     # Max 15% crop from top
+        ...         crop_bottom=0.05,  # Max 5% crop from bottom
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply transform
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
         ... )
-        >>> result = transform(image=image)
-        >>> transformed_image = result['image']
-        # The resulting image will have random crops from each border, with the maximum
-        # possible crops being 10% from the left, 20% from the right, 20% from the top,
-        # and 10% from the bottom. The image size will be reduced accordingly.
+        >>>
+        >>> # Access transformed data
+        >>> transformed_image = result['image']  # Reduced size image with borders cropped
+        >>> transformed_mask = result['mask']    # Reduced size mask with borders cropped
+        >>> transformed_bboxes = result['bboxes']  # Bounding boxes adjusted to new dimensions
+        >>> transformed_bbox_labels = result['bbox_labels']  # Bounding box labels after crop
+        >>> transformed_keypoints = result['keypoints']  # Keypoints adjusted to new dimensions
+        >>> transformed_keypoint_labels = result['keypoint_labels']  # Keypoint labels after crop
+        >>>
+        >>> # The resulting output shapes will be smaller, with dimensions reduced by
+        >>> # the random crop amounts from each side (within the specified maximums)
+        >>> print(f"Original image shape: (100, 100, 3)")
+        >>> print(f"Transformed image shape: {transformed_image.shape}")  # e.g., (85, 75, 3)
 
     """
 
@@ -2460,16 +3332,79 @@ class AtLeastOneBBoxRandomCrop(BaseCrop):
     Raises:
         CropSizeError: If requested crop size exceeds image dimensions
 
-    Example:
+    Examples:
+        >>> import numpy as np
         >>> import albumentations as A
-        >>> transform = A.AtLeastOneBBoxRandomCrop(height=100, width=100)
-        >>> result = transform(
+        >>> import cv2
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (300, 300, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (300, 300), dtype=np.uint8)
+        >>> # Create multiple bounding boxes - the transform will ensure at least one is in the crop
+        >>> bboxes = np.array([
+        ...     [30, 50, 100, 140],   # first box
+        ...     [150, 120, 270, 250], # second box
+        ...     [200, 30, 280, 90]    # third box
+        ... ], dtype=np.float32)
+        >>> bbox_labels = [1, 2, 3]
+        >>> keypoints = np.array([
+        ...     [50, 70],    # keypoint inside first box
+        ...     [190, 170],  # keypoint inside second box
+        ...     [240, 60]    # keypoint inside third box
+        ... ], dtype=np.float32)
+        >>> keypoint_labels = [0, 1, 2]
+        >>>
+        >>> # Define transform with different erosion_factor values
+        >>> transform = A.Compose([
+        ...     A.AtLeastOneBBoxRandomCrop(
+        ...         height=200,
+        ...         width=200,
+        ...         erosion_factor=0.2,  # Allows moderate flexibility in crop placement
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
         ...     image=image,
-        ...     bboxes=[[0.1, 0.2, 0.5, 0.7, 'cat']],
-        ...     bbox_format='yolo'  # or 'coco', 'pascal_voc'
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
         ... )
-        >>> transformed_image = result['image']
-        >>> transformed_bboxes = result['bboxes']
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']       # Shape: (200, 200, 3)
+        >>> transformed_mask = transformed['mask']         # Shape: (200, 200)
+        >>> transformed_bboxes = transformed['bboxes']     # At least one bbox is guaranteed
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for the preserved bboxes
+        >>> transformed_keypoints = transformed['keypoints']      # Only keypoints in crop are kept
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Their labels
+        >>>
+        >>> # Verify that at least one bounding box was preserved
+        >>> assert len(transformed_bboxes) > 0, "Should have at least one bbox in the crop"
+        >>>
+        >>> # With erosion_factor=0.0, the crop must fully contain the selected reference bbox
+        >>> conservative_transform = A.Compose([
+        ...     A.AtLeastOneBBoxRandomCrop(
+        ...         height=200,
+        ...         width=200,
+        ...         erosion_factor=0.0,  # No erosion - crop must fully contain a bbox
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']))
+        >>>
+        >>> # With erosion_factor=1.0, the crop must only intersect with the selected reference bbox
+        >>> flexible_transform = A.Compose([
+        ...     A.AtLeastOneBBoxRandomCrop(
+        ...         height=200,
+        ...         width=200,
+        ...         erosion_factor=1.0,  # Maximum erosion - crop only needs to intersect a bbox
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']))
 
     Note:
         - Uses fixed crop dimensions (height and width)

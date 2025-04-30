@@ -28,7 +28,77 @@ NUM_DIMENSIONS = 3
 
 
 class BasePad3D(Transform3D):
-    """Base class for 3D padding transforms."""
+    """Base class for 3D padding transforms.
+
+    This class serves as a foundation for all 3D transforms that perform padding operations
+    on volumetric data. It provides common functionality for padding 3D volumes, masks,
+    and processing 3D keypoints during padding operations.
+
+    The class handles different types of padding values (scalar or per-channel) and
+    provides separate fill values for volumes and masks.
+
+    Args:
+        fill (tuple[float, ...] | float): Value to fill the padded voxels for volumes.
+            Can be a single value for all channels or a tuple of values per channel.
+        fill_mask (tuple[float, ...] | float): Value to fill the padded voxels for 3D masks.
+            Can be a single value for all channels or a tuple of values per channel.
+        p (float): Probability of applying the transform. Default: 1.0.
+
+    Targets:
+        volume, mask3d, keypoints
+
+    Note:
+        This is a base class and not intended to be used directly. Use its derivatives
+        like Pad3D or PadIfNeeded3D instead, or create a custom padding transform
+        by inheriting from this class.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Example of a custom padding transform inheriting from BasePad3D
+        >>> class CustomPad3D(A.BasePad3D):
+        ...     def __init__(self, padding_size: tuple[int, int, int] = (5, 5, 5), *args, **kwargs):
+        ...         super().__init__(*args, **kwargs)
+        ...         self.padding_size = padding_size
+        ...
+        ...     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        ...         # Create symmetric padding: same amount on all sides of each dimension
+        ...         pad_d, pad_h, pad_w = self.padding_size
+        ...         padding = (pad_d, pad_d, pad_h, pad_h, pad_w, pad_w)
+        ...         return {"padding": padding}
+        >>>
+        >>> # Prepare sample data
+        >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)    # (D, H, W)
+        >>> keypoints = np.array([[20, 30, 5], [60, 70, 8]], dtype=np.float32)  # (x, y, z)
+        >>> keypoint_labels = [1, 2]  # Labels for each keypoint
+        >>>
+        >>> # Use the custom transform in a pipeline
+        >>> transform = A.Compose([
+        ...     CustomPad3D(
+        ...         padding_size=(2, 10, 10),
+        ...         fill=0,
+        ...         fill_mask=1,
+        ...         p=1.0
+        ...     )
+        ... ], keypoint_params=A.KeypointParams(format='xyz', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     volume=volume,
+        ...     mask3d=mask3d,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> transformed_volume = transformed["volume"]           # Shape: (14, 120, 120)
+        >>> transformed_mask3d = transformed["mask3d"]           # Shape: (14, 120, 120)
+        >>> transformed_keypoints = transformed["keypoints"]     # Keypoints shifted by padding offsets
+        >>> transformed_keypoint_labels = transformed["keypoint_labels"]  # Labels remain unchanged
+
+    """
 
     _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
@@ -140,6 +210,40 @@ class Pad3D(BasePad3D):
         Input volume should be a numpy array with dimensions ordered as (z, y, x) or (depth, height, width),
         with optional channel dimension as the last axis.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
+        >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)    # (D, H, W)
+        >>> keypoints = np.array([[20, 30, 5], [60, 70, 8]], dtype=np.float32)  # (x, y, z)
+        >>> keypoint_labels = [1, 2]  # Labels for each keypoint
+        >>>
+        >>> # Create the transform with symmetric padding
+        >>> transform = A.Compose([
+        ...     A.Pad3D(
+        ...         padding=(2, 5, 10),  # (depth, height, width) applied symmetrically
+        ...         fill=0,
+        ...         fill_mask=1,
+        ...         p=1.0
+        ...     )
+        ... ], keypoint_params=A.KeypointParams(format='xyz', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     volume=volume,
+        ...     mask3d=mask3d,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> padded_volume = transformed["volume"]  # Shape: (14, 110, 120)
+        >>> padded_mask3d = transformed["mask3d"]  # Shape: (14, 110, 120)
+        >>> padded_keypoints = transformed["keypoints"]  # Keypoints shifted by padding
+        >>> padded_keypoint_labels = transformed["keypoint_labels"]  # Labels remain unchanged
+
     """
 
     class InitSchema(BasePad3D.InitSchema):
@@ -236,6 +340,42 @@ class PadIfNeeded3D(BasePad3D):
         Input volume should be a numpy array with dimensions ordered as (z, y, x) or (depth, height, width),
         with optional channel dimension as the last axis.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
+        >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)    # (D, H, W)
+        >>> keypoints = np.array([[20, 30, 5], [60, 70, 8]], dtype=np.float32)  # (x, y, z)
+        >>> keypoint_labels = [1, 2]  # Labels for each keypoint
+        >>>
+        >>> # Create a transform with both min_zyx and pad_divisor_zyx
+        >>> transform = A.Compose([
+        ...     A.PadIfNeeded3D(
+        ...         min_zyx=(16, 128, 128),        # Minimum size (depth, height, width)
+        ...         pad_divisor_zyx=(8, 16, 16),   # Make dimensions divisible by these values
+        ...         position="center",              # Center the volume in the padded space
+        ...         fill=0,                         # Fill value for volume
+        ...         fill_mask=1,                    # Fill value for mask
+        ...         p=1.0
+        ...     )
+        ... ], keypoint_params=A.KeypointParams(format='xyz', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     volume=volume,
+        ...     mask3d=mask3d,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> padded_volume = transformed["volume"]           # Shape: (16, 128, 128)
+        >>> padded_mask3d = transformed["mask3d"]           # Shape: (16, 128, 128)
+        >>> padded_keypoints = transformed["keypoints"]     # Keypoints shifted by padding
+        >>> padded_keypoint_labels = transformed["keypoint_labels"]  # Labels remain unchanged
+
     """
 
     class InitSchema(BasePad3D.InitSchema):
@@ -310,7 +450,100 @@ class PadIfNeeded3D(BasePad3D):
 
 
 class BaseCropAndPad3D(Transform3D):
-    """Base class for 3D transforms that need both cropping and padding."""
+    """Base class for 3D transforms that need both cropping and padding.
+
+    This class serves as a foundation for transforms that combine cropping and padding operations
+    on 3D volumetric data. It provides functionality for calculating padding parameters,
+    applying crop and pad operations to volumes, masks, and handling keypoint coordinate shifts.
+
+    Args:
+        pad_if_needed (bool): Whether to pad if the volume is smaller than target dimensions
+        fill (tuple[float, ...] | float): Value to fill the padded voxels for volume
+        fill_mask (tuple[float, ...] | float): Value to fill the padded voxels for mask
+        pad_position (Literal["center", "random"]): How to distribute padding when needed
+            "center" - equal amount on both sides, "random" - random distribution
+        p (float): Probability of applying the transform. Default: 1.0
+
+    Targets:
+        volume, mask3d, keypoints
+
+    Note:
+        This is a base class and not intended to be used directly. Use its derivatives
+        like CenterCrop3D or RandomCrop3D instead, or create a custom transform
+        by inheriting from this class.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Example of a custom crop transform inheriting from BaseCropAndPad3D
+        >>> class CustomFixedCrop3D(A.BaseCropAndPad3D):
+        ...     def __init__(self, crop_size: tuple[int, int, int] = (8, 64, 64), *args, **kwargs):
+        ...         super().__init__(
+        ...             pad_if_needed=True,
+        ...             fill=0,
+        ...             fill_mask=0,
+        ...             pad_position="center",
+        ...             *args,
+        ...             **kwargs
+        ...         )
+        ...         self.crop_size = crop_size
+        ...
+        ...     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        ...         # Get the volume shape
+        ...         volume = data["volume"]
+        ...         z, h, w = volume.shape[:3]
+        ...         target_z, target_h, target_w = self.crop_size
+        ...
+        ...         # Check if padding is needed and calculate parameters
+        ...         pad_params = self._get_pad_params(
+        ...             image_shape=(z, h, w),
+        ...             target_shape=self.crop_size,
+        ...         )
+        ...
+        ...         # Update dimensions if padding is applied
+        ...         if pad_params is not None:
+        ...             z = z + pad_params["pad_front"] + pad_params["pad_back"]
+        ...             h = h + pad_params["pad_top"] + pad_params["pad_bottom"]
+        ...             w = w + pad_params["pad_left"] + pad_params["pad_right"]
+        ...
+        ...         # Calculate fixed crop coordinates - always start at position (0,0,0)
+        ...         crop_coords = (0, target_z, 0, target_h, 0, target_w)
+        ...
+        ...         return {
+        ...             "crop_coords": crop_coords,
+        ...             "pad_params": pad_params,
+        ...         }
+        >>>
+        >>> # Prepare sample data
+        >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (10, 100, 100), dtype=np.uint8)    # (D, H, W)
+        >>> keypoints = np.array([[20, 30, 5], [60, 70, 8]], dtype=np.float32)  # (x, y, z)
+        >>> keypoint_labels = [1, 2]  # Labels for each keypoint
+        >>>
+        >>> # Use the custom transform in a pipeline
+        >>> transform = A.Compose([
+        ...     CustomFixedCrop3D(
+        ...         crop_size=(8, 64, 64),  # Crop first 8x64x64 voxels (with padding if needed)
+        ...         p=1.0
+        ...     )
+        ... ], keypoint_params=A.KeypointParams(format='xyz', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     volume=volume,
+        ...     mask3d=mask3d,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> cropped_volume = transformed["volume"]           # Shape: (8, 64, 64)
+        >>> cropped_mask3d = transformed["mask3d"]           # Shape: (8, 64, 64)
+        >>> cropped_keypoints = transformed["keypoints"]     # Keypoints shifted relative to crop
+        >>> cropped_keypoint_labels = transformed["keypoint_labels"]  # Labels remain unchanged
+
+    """
 
     _targets = (Targets.VOLUME, Targets.MASK3D, Targets.KEYPOINTS)
 
@@ -561,6 +794,54 @@ class CenterCrop3D(BaseCropAndPad3D):
         the Z axis, consider using CenterCrop instead. CenterCrop will apply the same XY crop
         to each slice independently, maintaining the full depth of the volume.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
+        >>> volume = np.random.randint(0, 256, (20, 200, 200), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (20, 200, 200), dtype=np.uint8)    # (D, H, W)
+        >>> keypoints = np.array([[100, 100, 10], [150, 150, 15]], dtype=np.float32)  # (x, y, z)
+        >>> keypoint_labels = [1, 2]  # Labels for each keypoint
+        >>>
+        >>> # Create the transform - crop to 16x128x128 from center
+        >>> transform = A.Compose([
+        ...     A.CenterCrop3D(
+        ...         size=(16, 128, 128),        # Output size (depth, height, width)
+        ...         pad_if_needed=True,         # Pad if input is smaller than crop size
+        ...         fill=0,                     # Fill value for volume padding
+        ...         fill_mask=1,                # Fill value for mask padding
+        ...         p=1.0
+        ...     )
+        ... ], keypoint_params=A.KeypointParams(format='xyz', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     volume=volume,
+        ...     mask3d=mask3d,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> cropped_volume = transformed["volume"]           # Shape: (16, 128, 128)
+        >>> cropped_mask3d = transformed["mask3d"]           # Shape: (16, 128, 128)
+        >>> cropped_keypoints = transformed["keypoints"]     # Keypoints shifted relative to center crop
+        >>> cropped_keypoint_labels = transformed["keypoint_labels"]  # Labels remain unchanged
+        >>>
+        >>> # Example with a small volume that requires padding
+        >>> small_volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)
+        >>> small_transform = A.Compose([
+        ...     A.CenterCrop3D(
+        ...         size=(16, 128, 128),
+        ...         pad_if_needed=True,   # Will pad since the input is smaller
+        ...         fill=0,
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>> small_result = small_transform(volume=small_volume)
+        >>> padded_and_cropped = small_result["volume"]  # Shape: (16, 128, 128), padded to size
+
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -665,6 +946,41 @@ class RandomCrop3D(BaseCropAndPad3D):
         If you want to perform random cropping only in the XY plane while preserving all slices along
         the Z axis, consider using RandomCrop instead. RandomCrop will apply the same XY crop
         to each slice independently, maintaining the full depth of the volume.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
+        >>> volume = np.random.randint(0, 256, (20, 200, 200), dtype=np.uint8)  # (D, H, W)
+        >>> mask3d = np.random.randint(0, 2, (20, 200, 200), dtype=np.uint8)    # (D, H, W)
+        >>> keypoints = np.array([[100, 100, 10], [150, 150, 15]], dtype=np.float32)  # (x, y, z)
+        >>> keypoint_labels = [1, 2]  # Labels for each keypoint
+        >>>
+        >>> # Create the transform with random crop and padding if needed
+        >>> transform = A.Compose([
+        ...     A.RandomCrop3D(
+        ...         size=(16, 128, 128),        # Output size (depth, height, width)
+        ...         pad_if_needed=True,         # Pad if input is smaller than crop size
+        ...         fill=0,                     # Fill value for volume padding
+        ...         fill_mask=1,                # Fill value for mask padding
+        ...         p=1.0
+        ...     )
+        ... ], keypoint_params=A.KeypointParams(format='xyz', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     volume=volume,
+        ...     mask3d=mask3d,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed data
+        >>> cropped_volume = transformed["volume"]           # Shape: (16, 128, 128)
+        >>> cropped_mask3d = transformed["mask3d"]           # Shape: (16, 128, 128)
+        >>> cropped_keypoints = transformed["keypoints"]     # Keypoints shifted relative to random crop
+        >>> cropped_keypoint_labels = transformed["keypoint_labels"]  # Labels remain unchanged
 
     """
 
@@ -778,7 +1094,7 @@ class CoarseDropout3D(Transform3D):
           to each slice independently, effectively creating cylindrical dropout regions that extend
           through the entire depth of the volume.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
@@ -1034,7 +1350,7 @@ class CubicSymmetry(Transform3D):
           pure rotations (indices 0-23) and invert it when using rotoreflections
           (indices 24-47).
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> volume = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)  # (D, H, W)
