@@ -303,8 +303,8 @@ def test_lambda_transform():
         p=1,
     )
 
-    bboxes = [(0.1, 0.1, 0.4, 0.5)]
-    keypoints = [(2, 3, np.pi / 4, 5)]
+    bboxes = np.array([[0.1, 0.1, 0.4, 0.5]])
+    keypoints = np.array([[2, 3, np.pi / 4, 5]])
 
     height, width = 10, 10
 
