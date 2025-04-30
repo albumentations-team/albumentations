@@ -57,15 +57,58 @@ class RandomScale(DualTransform):
         The scale factor s is sampled from the range [1 + scale_limit[0], 1 + scale_limit[1]].
         Then, W' = W * s and H' = H * s.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.RandomScale(scale_limit=0.1, p=1.0)
-        >>> result = transform(image=image)
-        >>> scaled_image = result['image']
-        # scaled_image will have dimensions in the range [90, 110] x [90, 110]
-        # (assuming the scale_limit of 0.1 results in a scaling factor between 0.9 and 1.1)
+        >>> import cv2
+        >>>
+        >>> # Create sample data for demonstration
+        >>> image = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize scaling effects
+        >>> cv2.rectangle(image, (25, 25), (75, 75), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (50, 50), 10, (0, 255, 0), -1)  # Green circle
+        >>>
+        >>> # Create a mask for segmentation
+        >>> mask = np.zeros((100, 100), dtype=np.uint8)
+        >>> mask[25:75, 25:75] = 1  # Mask covering the red square
+        >>>
+        >>> # Create bounding boxes and keypoints
+        >>> bboxes = np.array([[25, 25, 75, 75]])  # Box around the red square
+        >>> bbox_labels = [1]
+        >>> keypoints = np.array([[50, 50]])  # Center of circle
+        >>> keypoint_labels = [0]
+        >>>
+        >>> # Apply RandomScale transform with comprehensive parameters
+        >>> transform = A.Compose([
+        ...     A.RandomScale(
+        ...         scale_limit=(-0.3, 0.5),     # Scale between 0.7x and 1.5x
+        ...         interpolation=cv2.INTER_LINEAR,
+        ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         p=1.0                         # Always apply
+        ...     )
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform to all targets
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed results
+        >>> scaled_image = result['image']        # Dimensions will be between 70-150 pixels
+        >>> scaled_mask = result['mask']          # Mask scaled proportionally to image
+        >>> scaled_bboxes = result['bboxes']      # Bounding boxes adjusted to new dimensions
+        >>> scaled_bbox_labels = result['bbox_labels']  # Labels remain unchanged
+        >>> scaled_keypoints = result['keypoints']      # Keypoints adjusted to new dimensions
+        >>> scaled_keypoint_labels = result['keypoint_labels']  # Labels remain unchanged
+        >>>
+        >>> # The image dimensions will vary based on the randomly sampled scale factor
+        >>> # With scale_limit=(-0.3, 0.5), dimensions could be anywhere from 70% to 150% of original
 
     """
 
@@ -207,7 +250,96 @@ class RandomScale(DualTransform):
 
 
 class MaxSizeTransform(DualTransform):
-    """Base class for transforms that resize based on maximum size constraints."""
+    """Base class for transforms that resize based on maximum size constraints.
+
+    This class provides common functionality for derived transforms like LongestMaxSize and
+    SmallestMaxSize that resize images based on size constraints while preserving aspect ratio.
+
+    Args:
+        max_size (int, Sequence[int], optional): Maximum size constraint. The specific interpretation
+            depends on the derived class. Default: None.
+        max_size_hw (tuple[int | None, int | None], optional): Maximum (height, width) constraints.
+            Either max_size or max_size_hw must be specified, but not both. Default: None.
+        interpolation (OpenCV flag): Flag for the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        mask_interpolation (OpenCV flag): Flag for the mask interpolation algorithm.
+            Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_NEAREST.
+        p (float): Probability of applying the transform. Default: 1.
+
+    Targets:
+        image, mask, bboxes, keypoints, volume, mask3d
+
+    Image types:
+        uint8, float32
+
+    Note:
+        - This is a base class that should be extended by concrete resize transforms.
+        - The scaling calculation is implemented in derived classes.
+        - Aspect ratio is preserved by applying the same scale factor to both dimensions.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Example of creating a custom transform that extends MaxSizeTransform
+        >>> class CustomMaxSize(A.MaxSizeTransform):
+        ...     def get_params_dependent_on_data(self, params, data):
+        ...         img_h, img_w = params["shape"][:2]
+        ...         # Calculate scale factor - here we scale to make the image area constant
+        ...         target_area = 300 * 300  # Target area of 300x300
+        ...         current_area = img_h * img_w
+        ...         scale = np.sqrt(target_area / current_area)
+        ...         return {"scale": scale}
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.zeros((100, 200, 3), dtype=np.uint8)
+        >>> # Add a rectangle to visualize the effect
+        >>> cv2.rectangle(image, (50, 20), (150, 80), (255, 0, 0), -1)
+        >>>
+        >>> # Create a mask
+        >>> mask = np.zeros((100, 200), dtype=np.uint8)
+        >>> mask[20:80, 50:150] = 1
+        >>>
+        >>> # Create bounding boxes and keypoints
+        >>> bboxes = np.array([[50, 20, 150, 80]])
+        >>> bbox_labels = [1]
+        >>> keypoints = np.array([[100, 50]])
+        >>> keypoint_labels = [0]
+        >>>
+        >>> # Apply the custom transform
+        >>> transform = A.Compose([
+        ...     CustomMaxSize(
+        ...         max_size=None,
+        ...         max_size_hw=(None, None),  # Not used in our custom implementation
+        ...         interpolation=cv2.INTER_LINEAR,
+        ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         p=1.0
+        ...     )
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get results
+        >>> transformed_image = result['image']  # Shape will be approximately (122, 245, 3)
+        >>> transformed_mask = result['mask']    # Shape will be approximately (122, 245)
+        >>> transformed_bboxes = result['bboxes']  # Bounding boxes are scale invariant
+        >>> transformed_keypoints = result['keypoints']  # Keypoints scaled proportionally
+        >>> transformed_bbox_labels = result['bbox_labels']  # Labels remain unchanged
+        >>> transformed_keypoint_labels = result['keypoint_labels']  # Labels remain unchanged
+
+    """
 
     _targets = ALL_TARGETS
 
@@ -574,6 +706,62 @@ class Resize(DualTransform):
 
     Image types:
         uint8, float32
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create sample data for demonstration
+        >>> image = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize resize effects
+        >>> cv2.rectangle(image, (25, 25), (75, 75), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (50, 50), 10, (0, 255, 0), -1)  # Green circle
+        >>>
+        >>> # Create a mask for segmentation
+        >>> mask = np.zeros((100, 100), dtype=np.uint8)
+        >>> mask[25:75, 25:75] = 1  # Mask covering the red square
+        >>>
+        >>> # Create bounding boxes and keypoints
+        >>> bboxes = np.array([[25, 25, 75, 75]])  # Box around the red square
+        >>> bbox_labels = [1]
+        >>> keypoints = np.array([[50, 50]])  # Center of circle
+        >>> keypoint_labels = [0]
+        >>>
+        >>> # Resize all data to 224x224 (common input size for many CNNs)
+        >>> transform = A.Compose([
+        ...     A.Resize(
+        ...         height=224,
+        ...         width=224,
+        ...         interpolation=cv2.INTER_LINEAR,
+        ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         p=1.0
+        ...     )
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform to all targets
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Get the transformed results
+        >>> resized_image = result['image']        # Shape will be (224, 224, 3)
+        >>> resized_mask = result['mask']          # Shape will be (224, 224)
+        >>> resized_bboxes = result['bboxes']      # Bounding boxes scaled to new dimensions
+        >>> resized_bbox_labels = result['bbox_labels']  # Labels remain unchanged
+        >>> resized_keypoints = result['keypoints']      # Keypoints scaled to new dimensions
+        >>> resized_keypoint_labels = result['keypoint_labels']  # Labels remain unchanged
+        >>>
+        >>> # Note: When resizing from 100x100 to 224x224:
+        >>> # - The red square will be scaled from (25-75) to approximately (56-168)
+        >>> # - The keypoint at (50, 50) will move to approximately (112, 112)
+        >>> # - All spatial relationships are preserved but coordinates are scaled
 
     """
 

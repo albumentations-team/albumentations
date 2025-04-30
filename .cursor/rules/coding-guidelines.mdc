@@ -202,7 +202,63 @@ def apply(self, img: np.ndarray, **params) -> np.ndarray:
       if img.shape[-1] != 3:
           raise ValueError("Transform requires RGB image")
       return rgb_to_hsv(img)  # RGB-specific processing
+  ```
 
+### Handling Auxiliary Data via Metadata
+
+When a transform requires complex or variable auxiliary data beyond simple configuration parameters (e.g., additional images and labels for `Mosaic`, extra images for domain adaptation transforms like `FDA` or `HistogramMatching`), **do not pass this data directly through the `__init__` constructor**.
+
+Instead, follow this preferred pattern:
+
+1. **Pass the auxiliary data** within the main `data` dictionary provided to the transform's `__call__` method, using a descriptive key (e.g., `mosaic_metadata`, `target_image`).
+2. **Declare this key** in the transform's `targets_as_params` class attribute. This attribute signals to the `Compose` pipeline that the associated auxiliary data should be extracted from the main data dictionary and forwarded to the transform. In other words, targets_as_params enables the dynamic inclusion of per-sample metadata into the `get_params_dependent_on_data` method, ensuring the transform has access to this additional context during processing.
+3. **Access the data** inside `get_params_dependent_on_data` using `data.get("your_metadata_key")`.
+
+This approach keeps the transform's initialization focused on static configuration and allows the dynamic, per-sample auxiliary data to flow through the standard pipeline mechanism.
+
+**Example (`Mosaic` transform):**
+
+```python
+# Correct - Data passed via `data` dict, key declared in `targets_as_params`
+class Mosaic(DualTransform):
+    def __init__(self, target_size: tuple[int, int] = (512, 512), p=0.5, metadata_key="mosaic_metadata"):
+        super().__init__(p=p)
+        self.target_size = target_size
+        # NO auxiliary data like list of images/bboxes in __init__
+        self.metadata_key = metadata_key
+
+    @property
+    def targets_as_params(self) -> list[str]:
+        """Get list of targets that should be passed as parameters to transforms."""
+        return [self.metadata_key]
+
+    def get_params_dependent_on_data(self, params: dict, data: dict) -> dict:
+        # Access auxiliary data here
+        additional_items = data.get(self.metadata_key, [])
+        # ... process additional_items ...
+        return { ... } # Return calculated parameters
+
+# Usage
+transform = A.Mosaic(target_size=(640, 640))
+result = transform(image=img1, mask=mask1, bboxes=bboxes1,
+                   mosaic_metadata=[
+                       {'image': img2, 'bboxes': bboxes2},
+                       {'image': img3, 'bboxes': bboxes3},
+                       # ... more items
+                   ])
+
+
+# Incorrect - Avoid passing variable data structures via __init__
+class BadMosaic(DualTransform):
+    def __init__(self, additional_items: list[dict], target_size: tuple[int, int] = (512, 512), p=0.5):
+         super().__init__(p=p)
+         self.additional_items = additional_items # Discouraged!
+         self.target_size = target_size
+
+    # ... might not even need get_params_dependent_on_data if data is in self ...
+```
+
+Passing data via `__init__` couples the transform instance to specific data, making it less reusable and potentially breaking serialization or pipeline composition.
 
 ## Random Number Generation
 
@@ -395,6 +451,130 @@ This small difference is crucial for pixel-perfect accuracy. Always use the appr
           >>> transformed = transform(image=image)
       """
   ```
+
+### Examples in Docstrings
+
+Every transform class that is a descendant of `ImageOnlyTransform`, `DualTransform`, or `Transform3D` **must** include a comprehensive Examples section in its docstring. The examples should follow these guidelines:
+
+1. **Section Naming**: The section should be titled "Examples" (not "Example").
+
+2. **Jupyter Notebook Format**: Examples should mimic Jupyter notebook format, using `>>>` for code lines and no prefix for output lines.
+
+3. **Comprehensiveness**: Examples should be fully reproducible, including:
+   - Initialization of sample data
+   - Creation of transform(s)
+   - Application of transform(s)
+   - Retrieving results from the transform
+
+4. **Target-Specific Requirements**:
+   - For `ImageOnlyTransform`: Pass and demonstrate transformation of image data. Including how to get all transformed targets.
+   - For `DualTransform`: Pass and demonstrate transformation of image, mask, bboxes, keypoints, bbox_labels, class_labels (where supported). Including how to get all transformed targets
+   - For `Transform3D`: Pass and demonstrate transformation of volume and mask3d data. Including how to get all transformed targets.
+
+5. **For Base Classes**: Examples for base classes should show:
+   - How to initialize a custom transform that inherits from the base class
+   - How to use the custom transform as part of a Compose pipeline
+
+6. **Parameter Examples**: When a parameter accepts both a single value and a tuple of values (to be sampled from), always use a tuple in the example.
+
+Here's an example for a `DualTransform`:
+
+```python
+"""
+Examples:
+    >>> import numpy as np
+    >>> import albumentations as A
+    >>> # Prepare sample data
+    >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+    >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+    >>> bbox_labels = [1, 2]
+    >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+    >>> keypoint_labels = [0, 1]
+    >>>
+    >>> # Define transform with parameters as tuples when possible
+    >>> transform = A.Compose([
+    ...     A.HorizontalFlip(p=1.0),
+    ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+    ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+    >>>
+    >>> # Apply the transform
+    >>> transformed = transform(
+    ...     image=image,
+    ...     mask=mask,
+    ...     bboxes=bboxes,
+    ...     bbox_labels=bbox_labels,
+    ...     keypoints=keypoints,
+    ...     keypoint_labels=keypoint_labels
+    ... )
+    >>>
+    >>> # Get the transformed data
+    >>> transformed_image = transformed['image']  # Horizontally flipped image
+    >>> transformed_mask = transformed['mask']    # Horizontally flipped mask
+    >>> transformed_bboxes = transformed['bboxes']  # Horizontally flipped bounding boxes
+    >>> transformed_keypoints = transformed['keypoints']  # Horizontally flipped keypoints
+"""
+```
+
+Examples for a base class showing custom implementation:
+
+```python
+"""
+Examples:
+    # Example of a custom distortion subclass
+    >>> import numpy as np
+    >>> import albumentations as A
+    >>>
+    >>> class CustomDistortion(A.BaseDistortion):
+    ...     def __init__(self, *args, **kwargs):
+    ...         super().__init__(*args, **kwargs)
+    ...         # Add custom parameters here
+    ...
+    ...     def get_params_dependent_on_data(self, params, data):
+    ...         height, width = params["shape"][:2]
+    ...         # Generate distortion maps
+    ...         map_x = np.zeros((height, width), dtype=np.float32)
+    ...         map_y = np.zeros((height, width), dtype=np.float32)
+    ...         # Apply your custom distortion logic here
+    ...         # ...
+    ...         return {"map_x": map_x, "map_y": map_y}
+    >>>
+    >>> # Prepare sample data
+    >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+    >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+    >>> bbox_labels = [1, 2]
+    >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+    >>> keypoint_labels = [0, 1]
+    >>>
+    >>> # Apply the custom distortion
+    >>> transform = A.Compose([
+    ...     CustomDistortion(
+    ...         interpolation=A.cv2.INTER_LINEAR,
+    ...         mask_interpolation=A.cv2.INTER_NEAREST,
+    ...         keypoint_remapping_method="mask",
+    ...         p=1.0
+    ...     )
+    ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+    ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+    >>>
+    >>> # Apply the transform
+    >>> transformed = transform(
+    ...     image=image,
+    ...     mask=mask,
+    ...     bboxes=bboxes,
+    ...     bbox_labels=bbox_labels,
+    ...     keypoints=keypoints,
+    ...     keypoint_labels=keypoint_labels
+    ... )
+    >>>
+    >>> # Get results
+    >>> transformed_image = transformed['image']
+    >>> transformed_mask = transformed['mask']
+    >>> transformed_bboxes = transformed['bboxes']
+    >>> transformed_keypoints = transformed['keypoints']
+"""
+```
 
 ### Comments
 

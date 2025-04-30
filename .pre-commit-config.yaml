@@ -47,6 +47,14 @@ repos:
       entry: python -m tools.check_naming_conflicts
       language: python
       pass_filenames: false
+    - id: check-example-docstrings
+      name: Check for 'Examples' sections in transform classes (must be plural form)
+      entry: python tools/check_example_docstrings.py
+      language: python
+      types: [python]
+      files: ^albumentations/
+      pass_filenames: true
+      additional_dependencies: ["google-docstring-parser>=0.0.7"]
   - repo: local
     hooks:
       - id: check-albucore-version

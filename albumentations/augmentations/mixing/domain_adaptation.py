@@ -59,9 +59,116 @@ class BaseDomainAdaptationInitSchema(BaseTransformInitSchema):
         return self
 
 
-# Base class for Domain Adaptation Transforms
 class BaseDomainAdaptation(ImageOnlyTransform):
-    # Pydantic schema for initialization arguments
+    """Base class for domain adaptation transforms.
+
+    Domain adaptation transforms modify source images to match the characteristics of a target domain.
+    These transforms typically require an additional reference image or dataset from the target domain
+    to extract style information or domain-specific features.
+
+    This base class provides the framework for implementing various domain adaptation techniques such as
+    color transfer, style transfer, frequency domain adaptation, or histogram matching.
+
+    Args:
+        reference_images (Sequence[Any] | None): Deprecated. Sequence of references to images from the target
+            domain. Should be used with read_fn to load actual images. Prefer passing pre-loaded images via
+            metadata_key.
+        read_fn (Callable[[Any], np.ndarray] | None): Deprecated. Function to read an image from a reference.
+            Should be used with reference_images.
+        metadata_key (str): Key in the input data dictionary that contains pre-loaded target domain images.
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Notes:
+        - Subclasses should implement the `apply` method to perform the actual adaptation.
+        - Use `targets_as_params` property to define what additional data your transform needs.
+        - Override `get_params_dependent_on_data` to extract the target domain data.
+        - Domain adaptation often requires per-sample auxiliary data, which should be passed
+          through the main data dictionary rather than at initialization time.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Implement a simple color transfer domain adaptation transform
+        >>> class SimpleColorTransfer(A.BaseDomainAdaptation):
+        ...     class InitSchema(A.BaseTransformInitSchema):
+        ...         intensity: float = Field(gt=0, le=1)
+        ...         reference_key: str
+        ...
+        ...     def __init__(
+        ...         self,
+        ...         intensity: float = 0.5,
+        ...         reference_key: str = "target_image",
+        ...         p: float = 1.0
+        ...     ):
+        ...         super().__init__(p=p)
+        ...         self.intensity = intensity
+        ...         self.reference_key = reference_key
+        ...
+        ...     @property
+        ...     def targets_as_params(self) -> list[str]:
+        ...         return [self.reference_key]  # We need target domain image
+        ...
+        ...     def get_params_dependent_on_data(
+        ...         self,
+        ...         params: dict[str, Any],
+        ...         data: dict[str, Any]
+        ...     ) -> dict[str, Any]:
+        ...         target_image = data.get(self.reference_key)
+        ...         if target_image is None:
+        ...             # Fallback if target image is not provided
+        ...             return {"target_image": None}
+        ...         return {"target_image": target_image}
+        ...
+        ...     def apply(
+        ...         self,
+        ...         img: np.ndarray,
+        ...         target_image: np.ndarray = None,
+        ...         **params
+        ...     ) -> np.ndarray:
+        ...         if target_image is None:
+        ...             return img
+        ...
+        ...         # Simple color transfer implementation
+        ...         # Calculate mean and std of source and target images
+        ...         src_mean = np.mean(img, axis=(0, 1))
+        ...         src_std = np.std(img, axis=(0, 1))
+        ...         tgt_mean = np.mean(target_image, axis=(0, 1))
+        ...         tgt_std = np.std(target_image, axis=(0, 1))
+        ...
+        ...         # Normalize source image
+        ...         normalized = (img - src_mean) / (src_std + 1e-7)
+        ...
+        ...         # Scale by target statistics and blend with original
+        ...         transformed = normalized * tgt_std + tgt_mean
+        ...         transformed = np.clip(transformed, 0, 255).astype(np.uint8)
+        ...
+        ...         # Blend the result based on intensity
+        ...         result = cv2.addWeighted(img, 1 - self.intensity, transformed, self.intensity, 0)
+        ...         return result
+        >>>
+        >>> # Usage example with a target image from a different domain
+        >>> source_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> target_image = np.random.randint(100, 200, (200, 200, 3), dtype=np.uint8)  # Different domain image
+        >>>
+        >>> # Create the transform with the pipeline
+        >>> transform = A.Compose([
+        ...     SimpleColorTransfer(intensity=0.7, reference_key="target_img", p=1.0),
+        ... ])
+        >>>
+        >>> # Apply the transform with the target image passed in the data dictionary
+        >>> result = transform(image=source_image, target_img=target_image)
+        >>> adapted_image = result["image"]  # Image with characteristics transferred from target domain
+
+    """
+
     InitSchema: type[BaseDomainAdaptationInitSchema]
 
     def __init__(
@@ -192,16 +299,48 @@ class HistogramMatching(BaseDomainAdaptation):
         - Requires at least one reference image to be provided via the `metadata_key` argument.
         - The `reference_images` and `read_fn` constructor arguments are deprecated.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> # Initialize transform using default metadata_key="hm_metadata"
-        >>> transform = A.HistogramMatching(blend_ratio=(0.5, 1.0), p=1)
-        >>> # Pass the reference image via the default metadata key
-        >>> result = transform(image=image, hm_metadata=[reference_image])
+        >>> import cv2
+        >>>
+        >>> # Create sample images for demonstration
+        >>> # Source image: dark image with low contrast
+        >>> source_image = np.ones((100, 100, 3), dtype=np.uint8) * 50  # Dark gray image
+        >>> source_image[30:70, 30:70] = 100  # Add slightly brighter square in center
+        >>>
+        >>> # Target image: higher brightness and contrast
+        >>> target_image = np.ones((100, 100, 3), dtype=np.uint8) * 150  # Bright image
+        >>> target_image[20:80, 20:80] = 200  # Add even brighter square
+        >>>
+        >>> # Initialize the histogram matching transform with custom settings
+        >>> transform = A.Compose([
+        ...     A.HistogramMatching(
+        ...         blend_ratio=(0.7, 0.9),  # Control the strength of histogram matching
+        ...         metadata_key="reference_imgs",  # Custom metadata key
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> # Apply the transform
+        >>> result = transform(
+        ...     image=source_image,
+        ...     reference_imgs=[target_image]  # Pass reference image via metadata key
+        ... )
+        >>>
+        >>> # Get the histogram-matched image
         >>> matched_image = result["image"]
+        >>>
+        >>> # The matched_image will have brightness and contrast similar to target_image
+        >>> # while preserving the content of source_image
+        >>>
+        >>> # Multiple reference images can be provided:
+        >>> ref_imgs = [
+        ...     target_image,
+        ...     np.random.randint(100, 200, (100, 100, 3), dtype=np.uint8)  # Another reference image
+        ... ]
+        >>> multiple_refs_result = transform(image=source_image, reference_imgs=ref_imgs)
+        >>> # A random reference image from the list will be chosen for each transform application
 
     References:
         Histogram Matching in scikit-image:
@@ -313,19 +452,94 @@ class FDA(BaseDomainAdaptation):
         - Requires at least one reference image to be provided via the `metadata_key` argument.
         - The `reference_images` and `read_fn` constructor arguments are deprecated.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create sample images for demonstration
+        >>> # Source image: synthetic or simulated image (e.g., from a rendered game environment)
+        >>> source_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> # Create a pattern in the source image
+        >>> source_img[20:80, 20:80, 0] = 200  # Red square
+        >>> source_img[40:60, 40:60, 1] = 200  # Green inner square
+        >>>
+        >>> # Target domain image: real-world image with different texture/frequency characteristics
+        >>> # For this example, we'll create an image with different frequency patterns
+        >>> target_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> for i in range(100):
+        ...     for j in range(100):
+        ...         # Create a high-frequency pattern
+        ...         target_img[i, j, 0] = ((i + j) % 8) * 30
+        ...         target_img[i, j, 1] = ((i - j) % 8) * 30
+        ...         target_img[i, j, 2] = ((i * j) % 8) * 30
+        >>>
+        >>> # Example 1: FDA with minimal adaptation (small beta value)
+        >>> # This will subtly adjust the frequency characteristics
+        >>> minimal_fda = A.Compose([
+        ...     A.FDA(
+        ...         beta_limit=(0.01, 0.05),  # Small beta range for subtle adaptation
+        ...         metadata_key="target_domain",  # Custom metadata key
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> # Apply the transform with minimal adaptation
+        >>> minimal_result = minimal_fda(
+        ...     image=source_img,
+        ...     target_domain=[target_img]  # Pass reference image via custom metadata key
+        ... )
+        >>> minimal_adapted_img = minimal_result["image"]
+        >>>
+        >>> # Example 2: FDA with moderate adaptation (medium beta value)
+        >>> moderate_fda = A.Compose([
+        ...     A.FDA(
+        ...         beta_limit=(0.1, 0.2),  # Medium beta range
+        ...         metadata_key="target_domain",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> moderate_result = moderate_fda(image=source_img, target_domain=[target_img])
+        >>> moderate_adapted_img = moderate_result["image"]
+        >>>
+        >>> # Example 3: FDA with strong adaptation (larger beta value)
+        >>> strong_fda = A.Compose([
+        ...     A.FDA(
+        ...         beta_limit=(0.3, 0.5),  # Larger beta range (upper limit is MAX_BETA_LIMIT)
+        ...         metadata_key="target_domain",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> strong_result = strong_fda(image=source_img, target_domain=[target_img])
+        >>> strong_adapted_img = strong_result["image"]
+        >>>
+        >>> # Example 4: Using multiple target domain images
+        >>> # Creating a list of target domain images with different characteristics
+        >>> target_imgs = [target_img]
+        >>>
+        >>> # Add another target image with different pattern
+        >>> another_target = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> for i in range(100):
+        ...     for j in range(100):
+        ...         another_target[i, j, 0] = (i // 10) * 25
+        ...         another_target[i, j, 1] = (j // 10) * 25
+        ...         another_target[i, j, 2] = ((i + j) // 10) * 25
+        >>> target_imgs.append(another_target)
+        >>>
+        >>> # Using default FDA settings with multiple target images
+        >>> multi_target_fda = A.Compose([
+        ...     A.FDA(p=1.0)  # Using default settings with default metadata_key="fda_metadata"
+        ... ])
+        >>>
+        >>> # A random target image will be selected from the list for each application
+        >>> multi_target_result = multi_target_fda(image=source_img, fda_metadata=target_imgs)
+        >>> adapted_image = multi_target_result["image"]
+
     References:
         - FDA: https://github.com/YanchaoYang/FDA
         - FDA: https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
-
-    Example:
-        >>> import numpy as np
-        >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> # Initialize transform using default metadata_key="fda_metadata"
-        >>> aug = A.Compose([A.FDA(p=1)])
-        >>> # Pass the reference image via the default metadata key
-        >>> result = aug(image=image, fda_metadata=[reference_image])
 
     """
 
@@ -434,20 +648,88 @@ class PixelDistributionAdaptation(BaseDomainAdaptation):
         - Requires at least one reference image to be provided via the `metadata_key` argument.
         - The `reference_images` and `read_fn` constructor arguments are deprecated.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> reference_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> # Initialize transform using default metadata_key="pda_metadata"
-        >>> transform = A.PixelDistributionAdaptation(
-        ...     blend_ratio=(0.5, 1.0),
-        ...     transform_type="standard",
-        ...     p=1.0
+        >>> import cv2
+        >>>
+        >>> # Create sample images for demonstration
+        >>> # Source image: simulated image from domain A (e.g., medical scan from one scanner)
+        >>> source_image = np.random.normal(100, 20, (100, 100, 3)).clip(0, 255).astype(np.uint8)
+        >>>
+        >>> # Reference image: image from domain B with different statistical properties
+        >>> # (e.g., scan from a different scanner with different intensity distribution)
+        >>> reference_image = np.random.normal(150, 30, (100, 100, 3)).clip(0, 255).astype(np.uint8)
+        >>>
+        >>> # Example 1: Using PCA transformation (default)
+        >>> pca_transform = A.Compose([
+        ...     A.PixelDistributionAdaptation(
+        ...         transform_type="pca",
+        ...         blend_ratio=(0.8, 1.0),  # Strong adaptation
+        ...         metadata_key="reference_images",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> # Apply the transform with the reference image
+        >>> pca_result = pca_transform(
+        ...     image=source_image,
+        ...     reference_images=[reference_image]
         ... )
-        >>> # Pass the reference image via the default metadata key
-        >>> result = transform(image=image, pda_metadata=[reference_image])
-        >>> adapted_image = result["image"]
+        >>>
+        >>> # Get the adapted image
+        >>> pca_adapted_image = pca_result["image"]
+        >>>
+        >>> # Example 2: Using StandardScaler transformation
+        >>> standard_transform = A.Compose([
+        ...     A.PixelDistributionAdaptation(
+        ...         transform_type="standard",
+        ...         blend_ratio=(0.5, 0.7),  # Moderate adaptation
+        ...         metadata_key="reference_images",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> standard_result = standard_transform(
+        ...     image=source_image,
+        ...     reference_images=[reference_image]
+        ... )
+        >>> standard_adapted_image = standard_result["image"]
+        >>>
+        >>> # Example 3: Using MinMaxScaler transformation
+        >>> minmax_transform = A.Compose([
+        ...     A.PixelDistributionAdaptation(
+        ...         transform_type="minmax",
+        ...         blend_ratio=(0.3, 0.5),  # Subtle adaptation
+        ...         metadata_key="reference_images",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> minmax_result = minmax_transform(
+        ...     image=source_image,
+        ...     reference_images=[reference_image]
+        ... )
+        >>> minmax_adapted_image = minmax_result["image"]
+        >>>
+        >>> # Example 4: Using multiple reference images
+        >>> # When multiple reference images are provided, one is randomly selected for each transformation
+        >>> multiple_references = [
+        ...     reference_image,
+        ...     np.random.normal(180, 25, (100, 100, 3)).clip(0, 255).astype(np.uint8),
+        ...     np.random.normal(120, 40, (100, 100, 3)).clip(0, 255).astype(np.uint8)
+        ... ]
+        >>>
+        >>> multi_ref_transform = A.Compose([
+        ...     A.PixelDistributionAdaptation(p=1.0)  # Using default settings
+        ... ])
+        >>>
+        >>> # Each time the transform is applied, it randomly selects one of the reference images
+        >>> multi_ref_result = multi_ref_transform(
+        ...     image=source_image,
+        ...     pda_metadata=multiple_references  # Using the default metadata key
+        ... )
+        >>> adapted_image = multi_ref_result["image"]
 
     References:
         Qudida: https://github.com/arsenyinfo/qudida

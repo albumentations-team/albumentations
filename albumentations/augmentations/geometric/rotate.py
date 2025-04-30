@@ -76,6 +76,37 @@ class RandomRotate90(DualTransform):
     Image types:
         uint8, float32
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> # Create example data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]  # Class labels for bounding boxes
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]  # Labels for keypoints
+        >>> # Define the transform
+        >>> transform = A.Compose([
+        ...     A.RandomRotate90(p=1.0),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>> # Apply the transform to all targets
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>> rotated_image = transformed["image"]
+        >>> rotated_mask = transformed["mask"]
+        >>> rotated_bboxes = transformed["bboxes"]
+        >>> rotated_bbox_labels = transformed["bbox_labels"]
+        >>> rotated_keypoints = transformed["keypoints"]
+        >>> rotated_keypoint_labels = transformed["keypoint_labels"]
+
     """
 
     _targets = ALL_TARGETS
@@ -280,14 +311,36 @@ class Rotate(DualTransform):
            where (cx, cy) is the center of the image.
         5. If 'crop_border' is True, the image is cropped to the largest rectangle that fits inside the rotated image.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
+        >>> # Create example data
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.Rotate(limit=45, p=1.0)
-        >>> result = transform(image=image)
-        >>> rotated_image = result['image']
-        # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]  # Class labels for bounding boxes
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]  # Labels for keypoints
+        >>> # Define the transform
+        >>> transform = A.Compose([
+        ...     A.Rotate(limit=45, p=1.0),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>> # Apply the transform to all targets
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>> rotated_image = transformed["image"]
+        >>> rotated_mask = transformed["mask"]
+        >>> rotated_bboxes = transformed["bboxes"]
+        >>> rotated_bbox_labels = transformed["bbox_labels"]
+        >>> rotated_keypoints = transformed["keypoints"]
+        >>> rotated_keypoint_labels = transformed["keypoint_labels"]
 
     """
 
@@ -643,15 +696,36 @@ class SafeRotate(Affine):
            [y'] = [-s*sin(θ)  s*cos(θ)] [y - cy] + [cy]
            where (cx, cy) is the center of the image.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
+        >>> # Create example data
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.SafeRotate(limit=45, p=1.0)
-        >>> result = transform(image=image)
-        >>> rotated_image = result['image']
-        # rotated_image will be the input image rotated by a random angle between -45 and 45 degrees,
-        # scaled to fit within the original 100x100 frame
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]  # Class labels for bounding boxes
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]  # Labels for keypoints
+        >>> # Define the transform
+        >>> transform = A.Compose([
+        ...     A.SafeRotate(limit=45, p=1.0),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>> # Apply the transform to all targets
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>> rotated_image = transformed["image"]
+        >>> rotated_mask = transformed["mask"]
+        >>> rotated_bboxes = transformed["bboxes"]
+        >>> rotated_bbox_labels = transformed["bbox_labels"]
+        >>> rotated_keypoints = transformed["keypoints"]
+        >>> rotated_keypoint_labels = transformed["keypoint_labels"]
 
     """
 

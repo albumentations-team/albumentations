@@ -20,7 +20,7 @@ from pydantic import (
 )
 from typing_extensions import Self
 
-from albumentations.augmentations import functional as fmain
+from albumentations.augmentations.pixel import functional as fpixel
 from albumentations.core.pydantic import (
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
@@ -96,13 +96,55 @@ class Blur(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.Blur(blur_limit=(3, 7), p=1.0)
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize blur effects
+        >>> cv2.rectangle(image, (50, 50), (250, 250), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 60, (0, 255, 0), -1)  # Green circle
+        >>> cv2.line(image, (50, 150), (250, 150), (0, 0, 255), 5)  # Blue line
+        >>>
+        >>> # Example 1: Basic usage with default parameters
+        >>> transform = A.Compose([
+        ...     A.Blur(p=1.0)  # Always apply with default blur_limit=(3, 7)
+        ... ])
+        >>>
         >>> result = transform(image=image)
         >>> blurred_image = result["image"]
+        >>> # The image will have a random blur with kernel size between 3 and 7
+        >>>
+        >>> # Example 2: Using a fixed blur kernel size
+        >>> fixed_transform = A.Compose([
+        ...     A.Blur(blur_limit=5, p=1.0)  # Always use kernel size 5x5
+        ... ])
+        >>>
+        >>> fixed_result = fixed_transform(image=image)
+        >>> fixed_blurred_image = fixed_result["image"]
+        >>> # The image will have a consistent 5x5 kernel blur
+        >>>
+        >>> # Example 3: Using a custom range for blur kernel sizes
+        >>> strong_transform = A.Compose([
+        ...     A.Blur(blur_limit=(7, 13), p=1.0)  # Use larger kernel for stronger blur
+        ... ])
+        >>>
+        >>> strong_result = strong_transform(image=image)
+        >>> strong_blurred = strong_result["image"]
+        >>> # The image will have a stronger blur with kernel size between 7 and 13
+        >>>
+        >>> # Example 4: As part of a pipeline with other transforms
+        >>> pipeline = A.Compose([
+        ...     A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.7),
+        ...     A.Blur(blur_limit=(3, 5), p=0.5),  # 50% chance of applying blur
+        ...     A.HorizontalFlip(p=0.5)
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> transformed_image = pipeline_result["image"]
+        >>> # The image may or may not be blurred depending on the random probability
 
     """
 
@@ -211,21 +253,119 @@ class MotionBlur(Blur):
           * Object motion: Specific angle + direction=1.0
           * Complex motion: Random angle + random direction
 
-    Example:
+    Examples:
+        >>> import numpy as np
         >>> import albumentations as A
-        >>> # Horizontal camera shake (symmetric)
-        >>> transform = A.MotionBlur(
-        ...     angle_range=(-5, 5),      # Near-horizontal motion
-        ...     direction_range=(0, 0),    # Symmetric blur
-        ...     p=1.0
-        ... )
+        >>> import cv2
         >>>
-        >>> # Object moving right
-        >>> transform = A.MotionBlur(
-        ...     angle_range=(0, 0),        # Horizontal motion
-        ...     direction_range=(0.8, 1.0), # Strong forward bias
-        ...     p=1.0
-        ... )
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize motion blur effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.putText(image, "Motion Blur", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        >>>
+        >>> # Example 1: Horizontal camera shake (symmetric)
+        >>> horizontal_shake = A.Compose([
+        ...     A.MotionBlur(
+        ...         blur_limit=(10, 12),     # Strong blur
+        ...         angle_range=(-5, 5),     # Near-horizontal motion (±5°)
+        ...         direction_range=(0, 0),  # Symmetric blur (equally in both directions)
+        ...         p=1.0                    # Always apply
+        ...     )
+        ... ])
+        >>>
+        >>> horizontal_result = horizontal_shake(image=image)
+        >>> horizontal_blur = horizontal_result["image"]
+        >>> # The image will have a horizontal camera shake effect, blurring equally in both directions
+        >>>
+        >>> # Example 2: Object moving right (directional motion)
+        >>> rightward_motion = A.Compose([
+        ...     A.MotionBlur(
+        ...         blur_limit=(7, 9),         # Medium blur
+        ...         angle_range=(0, 0),        # Exactly horizontal motion (0°)
+        ...         direction_range=(0.8, 1.0), # Strong forward bias (mostly rightward)
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> rightward_result = rightward_motion(image=image)
+        >>> rightward_blur = rightward_result["image"]
+        >>> # The image will simulate an object moving rightward, with blur mostly to the right
+        >>>
+        >>> # Example 3: Object moving diagonally down-right
+        >>> diagonal_motion = A.Compose([
+        ...     A.MotionBlur(
+        ...         blur_limit=(9, 11),       # Stronger blur
+        ...         angle_range=(135, 135),   # 135° motion (down-right diagonal)
+        ...         direction_range=(0.7, 0.9), # Forward bias
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> diagonal_result = diagonal_motion(image=image)
+        >>> diagonal_blur = diagonal_result["image"]
+        >>> # The image will simulate diagonal motion down and to the right
+        >>>
+        >>> # Example 4: Vertical motion (up-down)
+        >>> vertical_motion = A.Compose([
+        ...     A.MotionBlur(
+        ...         blur_limit=9,             # Fixed kernel size
+        ...         angle_range=(90, 90),     # Vertical motion (90°)
+        ...         direction_range=(-0.2, 0.2), # Near-symmetric (slight bias)
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> vertical_result = vertical_motion(image=image)
+        >>> vertical_blur = vertical_result["image"]
+        >>> # The image will simulate vertical motion blur
+        >>>
+        >>> # Example 5: Random motion blur (can be in any direction)
+        >>> random_motion = A.Compose([
+        ...     A.MotionBlur(
+        ...         blur_limit=(5, 12),       # Variable strength
+        ...         angle_range=(0, 360),     # Any angle
+        ...         direction_range=(-1.0, 1.0), # Any direction bias
+        ...         allow_shifted=True,       # Allow kernel to be shifted from center
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> random_result = random_motion(image=image)
+        >>> random_blur = random_result["image"]
+        >>> # The image will have a random motion blur in any direction
+        >>>
+        >>> # Example 6: Multiple random parameters with kernel centered (not shifted)
+        >>> centered_motion = A.Compose([
+        ...     A.MotionBlur(
+        ...         blur_limit=(5, 9),
+        ...         angle_range=(0, 360),
+        ...         direction_range=(-1.0, 1.0),
+        ...         allow_shifted=False,      # Kernel will always be centered
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> centered_result = centered_motion(image=image)
+        >>> centered_blur = centered_result["image"]
+        >>> # The image will have motion blur with the kernel centered (not shifted)
+        >>>
+        >>> # Example 7: In a composition with other transforms
+        >>> pipeline = A.Compose([
+        ...     A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
+        ...     A.MotionBlur(                                   # 30% chance of applying motion blur
+        ...         blur_limit=(3, 7),
+        ...         angle_range=(0, 180),                       # Only horizontal to vertical
+        ...         direction_range=(-0.5, 0.5),                # Moderate direction bias
+        ...         p=0.3
+        ...     ),
+        ...     A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.3)
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> transformed_image = pipeline_result["image"]
+        >>> # The image may have motion blur applied with 30% probability along with other effects
 
     References:
         - Motion blur fundamentals:
@@ -295,7 +435,7 @@ class MotionBlur(Blur):
             np.ndarray: Motion blurred image.
 
         """
-        return fmain.convolve(img, kernel=kernel)
+        return fpixel.convolve(img, kernel=kernel)
 
     def get_params(self) -> dict[str, Any]:
         """Get parameters for the transform.
@@ -364,13 +504,86 @@ class MedianBlur(Blur):
         - Larger kernel sizes result in stronger blurring effects but may also remove
           fine details from the image.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.MedianBlur(blur_limit=(3, 7), p=0.5)
-        >>> result = transform(image=image)
-        >>> blurred_image = result["image"]
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize blur effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.putText(image, "Sample Text", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        >>>
+        >>> # Add salt and pepper noise to demonstrate median blur's noise removal capability
+        >>> noise = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> noise_points = np.random.random((300, 300)) > 0.95  # 5% of pixels as noise
+        >>> image[noise_points] = 255  # White noise (salt)
+        >>> noise_points = np.random.random((300, 300)) > 0.95  # Another 5% of pixels
+        >>> image[noise_points] = 0    # Black noise (pepper)
+        >>>
+        >>> # Example 1: Minimal median blur (3x3 kernel)
+        >>> minimal_blur = A.Compose([
+        ...     A.MedianBlur(
+        ...         blur_limit=3,  # Fixed 3x3 kernel
+        ...         p=1.0          # Always apply
+        ...     )
+        ... ])
+        >>>
+        >>> minimal_result = minimal_blur(image=image)
+        >>> minimal_blurred = minimal_result["image"]
+        >>> # The image will have minimal median blur, removing most salt and pepper noise
+        >>> # while preserving edges and details
+        >>>
+        >>> # Example 2: Medium median blur
+        >>> medium_blur = A.Compose([
+        ...     A.MedianBlur(
+        ...         blur_limit=5,  # Fixed 5x5 kernel
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> medium_result = medium_blur(image=image)
+        >>> medium_blurred = medium_result["image"]
+        >>> # The image will have a medium median blur, removing noise and small details
+        >>> # while still preserving major edges
+        >>>
+        >>> # Example 3: Strong median blur
+        >>> strong_blur = A.Compose([
+        ...     A.MedianBlur(
+        ...         blur_limit=9,  # Fixed 9x9 kernel
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> strong_result = strong_blur(image=image)
+        >>> strong_blurred = strong_result["image"]
+        >>> # The image will have a strong median blur, potentially removing smaller
+        >>> # features while still preserving major edges better than other blur types
+        >>>
+        >>> # Example 4: Random kernel size range
+        >>> random_kernel = A.Compose([
+        ...     A.MedianBlur(
+        ...         blur_limit=(3, 9),  # Kernel size between 3x3 and 9x9
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> random_result = random_kernel(image=image)
+        >>> random_blurred = random_result["image"]
+        >>> # The image will have a random median blur strength
+        >>>
+        >>> # Example 5: In a pipeline for noise reduction
+        >>> pipeline = A.Compose([
+        ...     A.GaussNoise(var_limit=(10, 50), p=0.5),        # Possibly add some noise
+        ...     A.MedianBlur(blur_limit=(3, 5), p=0.7),         # 70% chance of applying median blur
+        ...     A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.3)
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> processed_image = pipeline_result["image"]
+        >>> # The image may have been denoised with the median blur (70% probability)
 
     References:
         - Median filter: https://en.wikipedia.org/wiki/Median_filter
@@ -447,21 +660,96 @@ class GaussianBlur(ImageOnlyTransform):
           regardless of sigma, which might result in inconsistent blur effects.
         - The default sigma range (0.5, 3.0) provides a good balance between subtle
           and strong blur effects:
-          * sigma=0.5 results in a 3x3 kernel
-          * sigma=1.0 results in a 7x7 kernel
-          * sigma=2.0 results in a 15x15 kernel
-          * sigma=3.0 results in a 21x21 kernel
+          * sigma=0.5 results in a subtle blur
+          * sigma=3.0 results in a stronger blur
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> # Default behavior: matches PIL's GaussianBlur
-        >>> transform = A.GaussianBlur(p=1.0, sigma_limit=(0.5, 3.0))
-        >>> # Or manual kernel size range
-        >>> transform = A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.5, 3.0), p=1.0)
-        >>> result = transform(image=image)
-        >>> blurred_image = result["image"]
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize blur effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.putText(image, "Sample Text", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        >>>
+        >>> # Example 1: Default Gaussian blur (automatic kernel size)
+        >>> default_blur = A.Compose([
+        ...     A.GaussianBlur(p=1.0)  # Using default parameters
+        ... ])
+        >>>
+        >>> default_result = default_blur(image=image)
+        >>> default_blurred = default_result["image"]
+        >>> # The image will have a medium Gaussian blur with sigma between 0.5 and 3.0
+        >>>
+        >>> # Example 2: Light Gaussian blur
+        >>> light_blur = A.Compose([
+        ...     A.GaussianBlur(
+        ...         sigma_limit=(0.2, 0.5),  # Small sigma for subtle blur
+        ...         blur_limit=0,            # Auto-compute kernel size
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> light_result = light_blur(image=image)
+        >>> light_blurred = light_result["image"]
+        >>> # The image will have a subtle Gaussian blur effect
+        >>>
+        >>> # Example 3: Strong Gaussian blur
+        >>> strong_blur = A.Compose([
+        ...     A.GaussianBlur(
+        ...         sigma_limit=(3.0, 7.0),  # Larger sigma for stronger blur
+        ...         blur_limit=0,            # Auto-compute kernel size
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> strong_result = strong_blur(image=image)
+        >>> strong_blurred = strong_result["image"]
+        >>> # The image will have a strong Gaussian blur effect
+        >>>
+        >>> # Example 4: Fixed kernel size
+        >>> fixed_kernel = A.Compose([
+        ...     A.GaussianBlur(
+        ...         sigma_limit=(0.5, 2.0),
+        ...         blur_limit=(9, 9),       # Fixed 9x9 kernel size
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> fixed_result = fixed_kernel(image=image)
+        >>> fixed_kernel_blur = fixed_result["image"]
+        >>> # The image will have Gaussian blur with a fixed 9x9 kernel
+        >>>
+        >>> # Example 5: Random kernel size range
+        >>> random_kernel = A.Compose([
+        ...     A.GaussianBlur(
+        ...         sigma_limit=(1.0, 2.0),
+        ...         blur_limit=(5, 9),       # Kernel size between 5x5 and 9x9
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> random_result = random_kernel(image=image)
+        >>> random_kernel_blur = random_result["image"]
+        >>> # The image will have Gaussian blur with a kernel size between 5x5 and 9x9
+        >>>
+        >>> # Example 6: In an augmentation pipeline
+        >>> pipeline = A.Compose([
+        ...     A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
+        ...     A.GaussianBlur(sigma_limit=(0.5, 1.5), p=0.3),  # 30% chance of applying
+        ...     A.RGBShift(r_shift_limit=10, g_shift_limit=10, b_shift_limit=10, p=0.3)
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> transformed_image = pipeline_result["image"]
+        >>> # The image may have Gaussian blur applied with 30% probability along with other effects
+
+    References:
+        - OpenCV Gaussian Blur: https://docs.opencv.org/master/d4/d86/group__imgproc__filter.html#gaabe8c836e97159a9193fb0b11ac52cf1
+        - PIL GaussianBlur: https://pillow.readthedocs.io/en/stable/reference/ImageFilter.html#PIL.ImageFilter.GaussianBlur
 
     """
 
@@ -504,7 +792,7 @@ class GaussianBlur(ImageOnlyTransform):
             np.ndarray: Gaussian blurred image.
 
         """
-        return fmain.separable_convolve(img, kernel=kernel)
+        return fpixel.separable_convolve(img, kernel=kernel)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
         """Get parameters that depend on input data.
@@ -568,13 +856,88 @@ class GlassBlur(ImageOnlyTransform):
         - Increasing 'iterations' will strengthen the effect but also increase the
           processing time linearly.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.GlassBlur(sigma=0.7, max_delta=4, iterations=3, mode="fast", p=1)
-        >>> result = transform(image=image)
-        >>> glass_blurred_image = result["image"]
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize glass blur effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.putText(image, "Text Sample", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        >>>
+        >>> # Example 1: Subtle glass effect (light frosting)
+        >>> subtle_transform = A.Compose([
+        ...     A.GlassBlur(
+        ...         sigma=0.4,           # Lower sigma for gentler blur
+        ...         max_delta=2,         # Small displacement
+        ...         iterations=1,        # Single iteration
+        ...         mode="fast",
+        ...         p=1.0                # Always apply
+        ...     )
+        ... ])
+        >>>
+        >>> subtle_result = subtle_transform(image=image)
+        >>> subtle_glass = subtle_result["image"]
+        >>> # The image will have a subtle glass-like distortion, like light frosting
+        >>>
+        >>> # Example 2: Medium glass effect (typical frosted glass)
+        >>> medium_transform = A.Compose([
+        ...     A.GlassBlur(
+        ...         sigma=0.7,           # Default sigma
+        ...         max_delta=4,         # Default displacement
+        ...         iterations=2,        # Default iterations
+        ...         mode="fast",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> medium_result = medium_transform(image=image)
+        >>> medium_glass = medium_result["image"]
+        >>> # The image will have a moderate glass-like effect, similar to standard frosted glass
+        >>>
+        >>> # Example 3: Strong glass effect (heavy distortion)
+        >>> strong_transform = A.Compose([
+        ...     A.GlassBlur(
+        ...         sigma=1.0,           # Higher sigma for stronger blur
+        ...         max_delta=6,         # Larger displacement
+        ...         iterations=3,        # More iterations
+        ...         mode="fast",
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> strong_result = strong_transform(image=image)
+        >>> strong_glass = strong_result["image"]
+        >>> # The image will have a strong glass-like distortion, heavily obscuring details
+        >>>
+        >>> # Example 4: Using exact mode for higher quality
+        >>> exact_transform = A.Compose([
+        ...     A.GlassBlur(
+        ...         sigma=0.7,
+        ...         max_delta=4,
+        ...         iterations=2,
+        ...         mode="exact",        # More precise but slower
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> exact_result = exact_transform(image=image)
+        >>> exact_glass = exact_result["image"]
+        >>> # The image will have a similar effect to medium, but with potentially better quality
+        >>>
+        >>> # Example 5: In a pipeline with other transforms
+        >>> pipeline = A.Compose([
+        ...     A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.7),
+        ...     A.GlassBlur(sigma=0.7, max_delta=4, iterations=2, p=0.5),  # 50% chance of applying
+        ...     A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=15, val_shift_limit=10, p=0.3)
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> transformed_image = pipeline_result["image"]
+        >>> # The image may have glass blur applied with 50% probability along with other effects
 
     References:
         - This implementation is based on the technique described in:
@@ -733,6 +1096,130 @@ class AdvancedBlur(ImageOnlyTransform):
         - Extreme values, especially for beta and noise, may result in unrealistic effects and
           should be used cautiously.
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize blur effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.putText(image, "Text Example", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        >>> cv2.line(image, (50, 250), (250, 250), (0, 0, 255), 3)  # Blue line
+        >>>
+        >>> # Example 1: Gaussian-like blur (beta = 1)
+        >>> gaussian_like = A.Compose([
+        ...     A.AdvancedBlur(
+        ...         blur_limit=5,
+        ...         sigma_x_limit=(0.5, 0.5),
+        ...         sigma_y_limit=(0.5, 0.5),
+        ...         rotate_limit=0,
+        ...         beta_limit=(1.0, 1.0),  # Standard Gaussian (beta = 1)
+        ...         noise_limit=(1.0, 1.0),  # No noise
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> gaussian_result = gaussian_like(image=image)
+        >>> gaussian_image = gaussian_result["image"]
+        >>> # The image will have a standard Gaussian blur applied
+        >>>
+        >>> # Example 2: Box-like blur (beta < 1)
+        >>> box_like = A.Compose([
+        ...     A.AdvancedBlur(
+        ...         blur_limit=(7, 9),
+        ...         sigma_x_limit=(0.6, 0.8),
+        ...         sigma_y_limit=(0.6, 0.8),
+        ...         rotate_limit=0,
+        ...         beta_limit=(0.5, 0.7),  # Box-like blur (beta < 1)
+        ...         noise_limit=(0.9, 1.1),  # Slight noise
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> box_result = box_like(image=image)
+        >>> box_image = box_result["image"]
+        >>> # The image will have a more box-like blur with heavier tails
+        >>>
+        >>> # Example 3: Peaked blur (beta > 1)
+        >>> peaked = A.Compose([
+        ...     A.AdvancedBlur(
+        ...         blur_limit=(7, 9),
+        ...         sigma_x_limit=(0.6, 0.8),
+        ...         sigma_y_limit=(0.6, 0.8),
+        ...         rotate_limit=0,
+        ...         beta_limit=(3.0, 6.0),  # Peaked blur (beta > 1)
+        ...         noise_limit=(0.9, 1.1),  # Slight noise
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> peaked_result = peaked(image=image)
+        >>> peaked_image = peaked_result["image"]
+        >>> # The image will have a more focused, peaked blur with lighter tails
+        >>>
+        >>> # Example 4: Anisotropic blur (directional)
+        >>> directional = A.Compose([
+        ...     A.AdvancedBlur(
+        ...         blur_limit=(9, 11),
+        ...         sigma_x_limit=(0.8, 1.0),    # Stronger x blur
+        ...         sigma_y_limit=(0.2, 0.3),    # Weaker y blur
+        ...         rotate_limit=(0, 0),         # No rotation
+        ...         beta_limit=(1.0, 2.0),
+        ...         noise_limit=(0.9, 1.1),
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> directional_result = directional(image=image)
+        >>> directional_image = directional_result["image"]
+        >>> # The image will have a horizontal directional blur
+        >>>
+        >>> # Example 5: Rotated directional blur
+        >>> rotated = A.Compose([
+        ...     A.AdvancedBlur(
+        ...         blur_limit=(9, 11),
+        ...         sigma_x_limit=(0.8, 1.0),    # Stronger x blur
+        ...         sigma_y_limit=(0.2, 0.3),    # Weaker y blur
+        ...         rotate_limit=(45, 45),       # 45 degree rotation
+        ...         beta_limit=(1.0, 2.0),
+        ...         noise_limit=(0.9, 1.1),
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> rotated_result = rotated(image=image)
+        >>> rotated_image = rotated_result["image"]
+        >>> # The image will have a diagonal directional blur
+        >>>
+        >>> # Example 6: Noisy blur
+        >>> noisy = A.Compose([
+        ...     A.AdvancedBlur(
+        ...         blur_limit=(5, 7),
+        ...         sigma_x_limit=(0.4, 0.6),
+        ...         sigma_y_limit=(0.4, 0.6),
+        ...         rotate_limit=(-30, 30),
+        ...         beta_limit=(0.8, 1.2),
+        ...         noise_limit=(0.7, 1.3),      # Strong noise variation
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> noisy_result = noisy(image=image)
+        >>> noisy_image = noisy_result["image"]
+        >>> # The image will have blur with significant noise in the kernel
+        >>>
+        >>> # Example 7: Random parameters (for general augmentation)
+        >>> random_blur = A.Compose([
+        ...     A.AdvancedBlur(p=0.5)  # Using default parameter ranges
+        ... ])
+        >>>
+        >>> random_result = random_blur(image=image)
+        >>> random_image = random_result["image"]
+        >>> # The image may have a random advanced blur applied with 50% probability
+
     Reference:
         This transform is inspired by techniques described in:
         "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"
@@ -806,7 +1293,7 @@ class AdvancedBlur(ImageOnlyTransform):
             np.ndarray: Blurred image.
 
         """
-        return fmain.convolve(img, kernel=kernel)
+        return fpixel.convolve(img, kernel=kernel)
 
     def get_params(self) -> dict[str, np.ndarray]:
         """Get parameters for the transform.
@@ -897,13 +1384,67 @@ class Defocus(ImageOnlyTransform):
         - The alias_blur parameter can be used to fine-tune the appearance of the defocus, with larger values
           creating a smoother, potentially more realistic effect.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> transform = A.Defocus(radius=(4, 8), alias_blur=(0.2, 0.4))
-        >>> result = transform(image=image)
-        >>> defocused_image = result['image']
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize defocus effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.putText(image, "Sharp Text", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        >>>
+        >>> # Example 1: Subtle defocus effect (small aperture)
+        >>> subtle_transform = A.Compose([
+        ...     A.Defocus(
+        ...         radius=(2, 3),           # Small defocus radius
+        ...         alias_blur=(0.1, 0.2),   # Minimal aliasing
+        ...         p=1.0                    # Always apply
+        ...     )
+        ... ])
+        >>>
+        >>> subtle_result = subtle_transform(image=image)
+        >>> subtle_defocus = subtle_result["image"]
+        >>> # The image will have a subtle defocus effect, with just slight blurring
+        >>>
+        >>> # Example 2: Moderate defocus effect (medium aperture)
+        >>> moderate_transform = A.Compose([
+        ...     A.Defocus(
+        ...         radius=(4, 6),           # Medium defocus radius
+        ...         alias_blur=(0.2, 0.3),   # Moderate aliasing
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> moderate_result = moderate_transform(image=image)
+        >>> moderate_defocus = moderate_result["image"]
+        >>> # The image will have a noticeable defocus effect, similar to a poorly focused camera
+        >>>
+        >>> # Example 3: Strong defocus effect (large aperture)
+        >>> strong_transform = A.Compose([
+        ...     A.Defocus(
+        ...         radius=(8, 12),          # Large defocus radius
+        ...         alias_blur=(0.4, 0.6),   # Strong aliasing
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> strong_result = strong_transform(image=image)
+        >>> strong_defocus = strong_result["image"]
+        >>> # The image will have a strong defocus effect, heavily blurring the details
+        >>>
+        >>> # Example 4: Using in a pipeline with other transforms
+        >>> pipeline = A.Compose([
+        ...     A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.7),
+        ...     A.Defocus(radius=(3, 8), alias_blur=0.3, p=0.5),  # 50% chance of applying defocus
+        ...     A.GaussNoise(var_limit=(10, 30), p=0.3)           # Possible noise after defocus
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> transformed_image = pipeline_result["image"]
+        >>> # The image may have defocus blur applied with 50% probability
 
     References:
         Defocus aberration: https://en.wikipedia.org/wiki/Defocus_aberration
@@ -961,6 +1502,10 @@ class Defocus(ImageOnlyTransform):
 class ZoomBlur(ImageOnlyTransform):
     """Apply zoom blur transform.
 
+    This transform simulates the effect of zooming during exposure, creating a dynamic radial blur.
+    It works by averaging multiple versions of the image at different zoom levels, creating
+    a smooth transition from the center outward.
+
     Args:
         max_factor ((float, float) or float): range for max factor for blurring.
             If max_factor is a single float, the range will be (1, limit). Default: (1, 1.31).
@@ -974,7 +1519,69 @@ class ZoomBlur(ImageOnlyTransform):
         image
 
     Image types:
-        unit8, float32
+        uint8, float32
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Create a sample image for demonstration
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> # Add some shapes to visualize zoom blur effects
+        >>> cv2.rectangle(image, (100, 100), (200, 200), (255, 0, 0), -1)  # Red square
+        >>> cv2.circle(image, (150, 150), 30, (0, 255, 0), -1)  # Green circle
+        >>> cv2.line(image, (50, 150), (250, 150), (0, 0, 255), 5)  # Blue line
+        >>>
+        >>> # Example 1: Subtle zoom blur
+        >>> subtle_transform = A.Compose([
+        ...     A.ZoomBlur(
+        ...         max_factor=(1.05, 1.10),  # Small zoom range
+        ...         step_factor=0.01,         # Fine steps
+        ...         p=1.0                     # Always apply
+        ...     )
+        ... ])
+        >>>
+        >>> subtle_result = subtle_transform(image=image)
+        >>> subtle_blur = subtle_result["image"]
+        >>> # The image will have a subtle zoom blur effect, simulating a slight zoom during exposure
+        >>>
+        >>> # Example 2: Moderate zoom blur
+        >>> moderate_transform = A.Compose([
+        ...     A.ZoomBlur(
+        ...         max_factor=(1.15, 1.25),  # Medium zoom range
+        ...         step_factor=0.02,         # Medium steps
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> moderate_result = moderate_transform(image=image)
+        >>> moderate_blur = moderate_result["image"]
+        >>> # The image will have a more noticeable zoom blur effect
+        >>>
+        >>> # Example 3: Strong zoom blur
+        >>> strong_transform = A.Compose([
+        ...     A.ZoomBlur(
+        ...         max_factor=(1.3, 1.5),    # Large zoom range
+        ...         step_factor=(0.03, 0.05), # Larger steps (randomly chosen)
+        ...         p=1.0
+        ...     )
+        ... ])
+        >>>
+        >>> strong_result = strong_transform(image=image)
+        >>> strong_blur = strong_result["image"]
+        >>> # The image will have a strong zoom blur effect, simulating fast zooming
+        >>>
+        >>> # Example 4: In a pipeline with other transforms
+        >>> pipeline = A.Compose([
+        ...     A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.7),
+        ...     A.ZoomBlur(max_factor=(1.1, 1.3), step_factor=0.02, p=0.5),
+        ...     A.HorizontalFlip(p=0.5)
+        ... ])
+        >>>
+        >>> pipeline_result = pipeline(image=image)
+        >>> transformed_image = pipeline_result["image"]
+        >>> # The image may have zoom blur applied with 50% probability
 
     Reference:
         Zoom Blur: https://arxiv.org/abs/1903.12261
