@@ -125,19 +125,8 @@ class Lambda(NoOp):
             np.ndarray: The bounding boxes with the applied Lambda transform.
 
         """
-        is_ndarray = True
-
-        if not isinstance(bboxes, np.ndarray):
-            is_ndarray = False
-            bboxes = np.array(bboxes, dtype=np.float32)
-
         fn = self.custom_apply_fns["bboxes"]
-        result = fn(bboxes, **params)
-
-        if not is_ndarray:
-            return result.tolist()
-
-        return result
+        return fn(bboxes, **params)
 
     def apply_to_keypoints(self, keypoints: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the Lambda transform to the input keypoints.
@@ -150,18 +139,8 @@ class Lambda(NoOp):
             np.ndarray: The keypoints with the applied Lambda transform.
 
         """
-        is_ndarray = True
-        if not isinstance(keypoints, np.ndarray):
-            is_ndarray = False
-            keypoints = np.array(keypoints, dtype=np.float32)
-
         fn = self.custom_apply_fns["keypoints"]
-        result = fn(keypoints, **params)
-
-        if not is_ndarray:
-            return result.tolist()
-
-        return result
+        return fn(keypoints, **params)
 
     @classmethod
     def is_serializable(cls) -> bool:

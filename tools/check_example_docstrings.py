@@ -68,12 +68,10 @@ def has_target_ancestor(class_name: str, inheritance_map: dict[str, list[str]], 
     # Get direct parents
     parents = inheritance_map.get(class_name, [])
 
-    # Recursively check parents
-    for parent in parents:
-        if has_target_ancestor(parent, inheritance_map, visited):
-            return True
-
-    return False
+    return any(
+        has_target_ancestor(parent, inheritance_map, visited)
+        for parent in parents
+    )
 
 
 def check_docstring(docstring: str, class_name: str) -> list[tuple[str, str]]:
@@ -91,7 +89,10 @@ def check_docstring(docstring: str, class_name: str) -> list[tuple[str, str]]:
         if EXAMPLE_SECTION in parsed and EXAMPLES_SECTION not in parsed:
             errors.append((class_name, f"Using '{EXAMPLE_SECTION}' instead of '{EXAMPLES_SECTION}' - use plural form"))
         # Then check if neither is present
-        elif not any(section in parsed for section in [EXAMPLES_SECTION, EXAMPLE_SECTION]):
+        elif all(
+            section not in parsed
+            for section in [EXAMPLES_SECTION, EXAMPLE_SECTION]
+        ):
             errors.append((class_name, f"Missing '{EXAMPLES_SECTION}' section in docstring"))
     except Exception as e:
         errors.append((class_name, f"Error parsing docstring: {str(e)}"))
@@ -114,10 +115,8 @@ def check_file(file_path: str) -> list[tuple[str, str]]:
         spec.loader.exec_module(module)
 
         # Find all classes in the module
-        for name, obj in inspect.getmembers(module):
-            if inspect.isclass(obj) and obj.__module__ == module.__name__:
-                # Check if class inherits from target classes
-                if is_target_class(obj):
+        for _, obj in inspect.getmembers(module):
+            if inspect.isclass(obj) and obj.__module__ == module.__name__ and is_target_class(obj):
                     docstring = inspect.getdoc(obj)
                     errors.extend(check_docstring(docstring, obj.__name__))
     except Exception as e:

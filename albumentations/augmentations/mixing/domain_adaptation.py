@@ -106,10 +106,9 @@ class BaseDomainAdaptation(ImageOnlyTransform):
         ...         self,
         ...         intensity: float = 0.5,
         ...         reference_key: str = "target_image",
-        ...         always_apply: bool = False,
         ...         p: float = 1.0
         ...     ):
-        ...         super().__init__(always_apply=always_apply, p=p)
+        ...         super().__init__(p=p)
         ...         self.intensity = intensity
         ...         self.reference_key = reference_key
         ...
