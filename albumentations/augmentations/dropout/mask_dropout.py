@@ -56,27 +56,60 @@ class MaskDropout(DualTransform):
           different object instances.
         - For bounding box and keypoint augmentation, make sure to set up the corresponding processors in the pipeline.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>>
-        >>> # Define a sample image, mask, and bounding boxes
+        >>> # Prepare sample data
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> mask = np.zeros((100, 100), dtype=np.uint8)
         >>> mask[20:40, 20:40] = 1  # Object 1
         >>> mask[60:80, 60:80] = 2  # Object 2
-        >>> bboxes = np.array([[20, 20, 40, 40], [60, 60, 80, 80]])
+        >>> bboxes = np.array([[20, 20, 40, 40], [60, 60, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[30, 30], [70, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
         >>>
-        >>> # Define the transform
-        >>> transform = A.Compose([
-        ...     A.MaskDropout(max_objects=1, mask_fill_value=0, min_area=100, min_visibility=0.5, p=1.0),
-        ... ], bbox_params=A.BboxParams(format='pascal_voc', min_area=1, min_visibility=0.1))
+        >>> # Define the transform with tuple for max_objects
+        >>> transform = A.Compose(
+        ...     transforms=[
+        ...         A.MaskDropout(
+        ...             max_objects=(1, 2),  # Using tuple to specify min and max objects to drop
+        ...             fill=0,  # Fill value for dropped regions in image
+        ...             fill_mask=0,  # Fill value for dropped regions in mask
+        ...             p=1.0
+        ...         ),
+        ...     ],
+        ...     bbox_params=A.BboxParams(
+        ...         format='pascal_voc',
+        ...         label_fields=['bbox_labels'],
+        ...         min_area=1,
+        ...         min_visibility=0.1
+        ...     ),
+        ...     keypoint_params=A.KeypointParams(
+        ...         format='xy',
+        ...         label_fields=['keypoint_labels'],
+        ...         remove_invisible=True
+        ...     )
+        ... )
         >>>
         >>> # Apply the transform
-        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes)
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
         >>>
-        >>> # The result will have one of the objects dropped out in both image and mask,
-        >>> # and the corresponding bounding box removed if it doesn't meet the area and visibility criteria
+        >>> # Get the transformed data
+        >>> transformed_image = transformed['image']  # Image with dropped out regions
+        >>> transformed_mask = transformed['mask']    # Mask with dropped out regions
+        >>> transformed_bboxes = transformed['bboxes']  # Remaining bboxes after dropout
+        >>> transformed_bbox_labels = transformed['bbox_labels']  # Labels for remaining bboxes
+        >>> transformed_keypoints = transformed['keypoints']  # Remaining keypoints after dropout
+        >>> transformed_keypoint_labels = transformed['keypoint_labels']  # Labels for remaining keypoints
 
     """
 

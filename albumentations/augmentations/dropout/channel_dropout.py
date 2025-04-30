@@ -58,7 +58,7 @@ class ChannelDropout(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)

@@ -14,13 +14,13 @@ import numpy as np
 from albucore import get_num_channels
 from pydantic import Field
 
-from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.dropout import functional as fdropout
 from albumentations.augmentations.dropout.functional import (
     cutout,
     filter_bboxes_by_holes,
     filter_keypoints_in_holes,
 )
+from albumentations.augmentations.pixel import functional as fpixel
 from albumentations.core.bbox_utils import BboxProcessor, denormalize_bboxes, normalize_bboxes
 from albumentations.core.keypoints_utils import KeypointsProcessor
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -47,6 +47,64 @@ class BaseDropout(DualTransform):
 
     Image types:
         uint8, float32
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Example of a custom dropout transform inheriting from BaseDropout
+        >>> class CustomDropout(A.BaseDropout):
+        ...     def __init__(self, num_holes_range=(4, 8), hole_size_range=(10, 20), *args, **kwargs):
+        ...         super().__init__(*args, **kwargs)
+        ...         self.num_holes_range = num_holes_range
+        ...         self.hole_size_range = hole_size_range
+        ...
+        ...     def get_params_dependent_on_data(self, params, data):
+        ...         img = data["image"]
+        ...         height, width = img.shape[:2]
+        ...
+        ...         # Generate random holes
+        ...         num_holes = self.py_random.randint(*self.num_holes_range)
+        ...         hole_sizes = self.py_random.randint(*self.hole_size_range, size=num_holes)
+        ...
+        ...         holes = []
+        ...         for i in range(num_holes):
+        ...             # Random position for each hole
+        ...             x1 = self.py_random.randint(0, max(1, width - hole_sizes[i]))
+        ...             y1 = self.py_random.randint(0, max(1, height - hole_sizes[i]))
+        ...             x2 = min(width, x1 + hole_sizes[i])
+        ...             y2 = min(height, y1 + hole_sizes[i])
+        ...             holes.append([x1, y1, x2, y2])
+        ...
+        ...         # Return holes and random seed
+        ...         return {
+        ...             "holes": np.array(holes) if holes else np.empty((0, 4), dtype=np.int32),
+        ...             "seed": self.py_random.integers(0, 100000)
+        ...         }
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[0.1, 0.1, 0.4, 0.4], [0.6, 0.6, 0.9, 0.9]])
+        >>>
+        >>> # Create a transform with custom dropout
+        >>> transform = A.Compose([
+        ...     CustomDropout(
+        ...         num_holes_range=(3, 6),       # Generate 3-6 random holes
+        ...         hole_size_range=(5, 15),      # Holes of size 5-15 pixels
+        ...         fill=0,                       # Fill holes with black
+        ...         fill_mask=1,                  # Fill mask holes with 1
+        ...         p=1.0                         # Always apply for this example
+        ...     )
+        ... ], bbox_params=A.BboxParams(format='yolo', min_visibility=0.3))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(image=image, mask=mask, bboxes=bboxes)
+        >>>
+        >>> # Get the transformed data
+        >>> dropout_image = transformed["image"]      # Image with random holes filled with 0
+        >>> dropout_mask = transformed["mask"]        # Mask with same holes filled with 1
+        >>> dropout_bboxes = transformed["bboxes"]    # Bboxes filtered by visibility threshold
 
     """
 
@@ -168,7 +226,7 @@ class PixelDropout(DualTransform):
         - When applied to keypoints, keypoints that fall on dropped pixels will be removed if
           the keypoint processor is configured to remove invisible keypoints.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -220,7 +278,7 @@ class PixelDropout(DualTransform):
             np.ndarray: The transformed image.
 
         """
-        return fmain.pixel_dropout(img, drop_mask, drop_values)
+        return fpixel.pixel_dropout(img, drop_mask, drop_values)
 
     def apply_to_mask(
         self,
@@ -244,7 +302,7 @@ class PixelDropout(DualTransform):
         if self.mask_drop_value is None:
             return mask
 
-        return fmain.pixel_dropout(mask, mask_drop_mask, mask_drop_values)
+        return fpixel.pixel_dropout(mask, mask_drop_mask, mask_drop_values)
 
     def apply_to_bboxes(
         self,
@@ -330,13 +388,13 @@ class PixelDropout(DualTransform):
         reference_array = data["image"] if "image" in data else data["images"][0]
 
         # Generate drop mask and values for all targets
-        drop_mask = fmain.get_drop_mask(
+        drop_mask = fpixel.get_drop_mask(
             reference_array.shape,
             self.per_channel,
             self.dropout_prob,
             self.random_generator,
         )
-        drop_values = fmain.prepare_drop_values(
+        drop_values = fpixel.prepare_drop_values(
             reference_array,
             self.drop_value,
             self.random_generator,
@@ -345,15 +403,15 @@ class PixelDropout(DualTransform):
         # Handle mask drop values if specified
         mask_drop_mask = None
         mask_drop_values = None
-        mask = fmain.get_mask_array(data)
+        mask = fpixel.get_mask_array(data)
         if self.mask_drop_value is not None and mask is not None:
-            mask_drop_mask = fmain.get_drop_mask(
+            mask_drop_mask = fpixel.get_drop_mask(
                 mask.shape,
                 self.per_channel,
                 self.dropout_prob,
                 self.random_generator,
             )
-            mask_drop_values = fmain.prepare_drop_values(
+            mask_drop_values = fpixel.prepare_drop_values(
                 mask,
                 self.mask_drop_value,
                 self.random_generator,

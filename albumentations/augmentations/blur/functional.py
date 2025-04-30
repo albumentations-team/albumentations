@@ -19,8 +19,8 @@ import numpy as np
 from albucore import clipped, float32_io, maybe_process_in_chunks, preserve_channel_dim, uint8_io
 from pydantic import ValidationInfo
 
-from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
+from albumentations.augmentations.pixel.functional import convolve
 from albumentations.core.type_definitions import EIGHT
 
 __all__ = ["box_blur", "central_zoom", "defocus", "glass_blur", "median_blur", "zoom_blur"]

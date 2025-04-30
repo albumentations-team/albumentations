@@ -39,37 +39,6 @@ from albumentations.core.type_definitions import (
     REFLECT_BORDER_MODES,
 )
 
-__all__ = [
-    "bboxes_d4",
-    "bboxes_hflip",
-    "bboxes_rot90",
-    "bboxes_transpose",
-    "bboxes_vflip",
-    "center",
-    "center_bbox",
-    "d4",
-    "from_distance_maps",
-    "generate_grid",
-    "is_identity_matrix",
-    "keypoints_d4",
-    "keypoints_hflip",
-    "keypoints_rot90",
-    "keypoints_transpose",
-    "keypoints_vflip",
-    "pad",
-    "pad_with_params",
-    "perspective",
-    "remap",
-    "remap_bboxes",
-    "remap_keypoints",
-    "resize",
-    "rotation2d_matrix_to_euler_angles",
-    "scale",
-    "to_distance_maps",
-    "transpose",
-    "warp_affine",
-]
-
 PAIR = 2
 
 ROT90_180_FACTOR = 2
@@ -590,6 +559,23 @@ def warp_affine_with_value_extension(
     border_mode: int,
     border_value: tuple[float, ...] | float,
 ) -> np.ndarray:
+    """Warp affine with value extension.
+
+    This function warps an image with a given affine transformation matrix.
+    It also extends the value to a sequence of floats.
+
+    Args:
+        image (np.ndarray): The image to warp.
+        matrix (np.ndarray): The affine transformation matrix.
+        dsize (tuple[int, int]): The size of the output image.
+        flags (int): The flags for the warp.
+        border_mode (int): The border mode to use.
+        border_value (tuple[float, ...] | float): The value to pad the image with.
+
+    Returns:
+        np.ndarray: The warped image.
+
+    """
     num_channels = get_num_channels(image)
     extended_value = extend_value(border_value, num_channels)
 
@@ -1245,6 +1231,16 @@ def transpose(img: np.ndarray) -> np.ndarray:
 
 
 def rot90(img: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
+    """Rotate an image 90 degrees counterclockwise.
+
+    Args:
+        img (np.ndarray): The input image to rotate.
+        factor (Literal[0, 1, 2, 3]): The number of 90-degree rotations to apply.
+
+    Returns:
+        np.ndarray: The rotated image.
+
+    """
     return np.rot90(img, factor)
 
 
@@ -1436,6 +1432,19 @@ def pad(
 
 
 def extend_value(value: tuple[float, ...] | float, num_channels: int) -> Sequence[float]:
+    """Extend value to a sequence of floats.
+
+    This function extends a value to a sequence of floats.
+    It is used to pad an image with a given value.
+
+    Args:
+        value (tuple[float, ...] | float): The value to extend.
+        num_channels (int): The number of channels in the image.
+
+    Returns:
+        Sequence[float]: The extended value.
+
+    """
     return [value] * num_channels if isinstance(value, float) else value
 
 
@@ -1448,6 +1457,24 @@ def copy_make_border_with_value_extension(
     border_mode: int,
     value: tuple[float, ...] | float,
 ) -> np.ndarray:
+    """Copy and make border with value extension.
+
+    This function copies and makes border with value extension.
+    It is used to pad an image with a given value.
+
+    Args:
+        img (np.ndarray): The image to pad.
+        top (int): The amount to pad the top of the image.
+        bottom (int): The amount to pad the bottom of the image.
+        left (int): The amount to pad the left of the image.
+        right (int): The amount to pad the right of the image.
+        border_mode (int): The border mode to use.
+        value (tuple[float, ...] | float): The value to pad the image with.
+
+    Returns:
+        np.ndarray: The padded image.
+
+    """
     # For 0-channel images, return empty array of correct padded size
     if img.size == 0:
         height, width = img.shape[:2]
@@ -1715,7 +1742,26 @@ def generate_displacement_fields(
     random_generator: np.random.Generator,
     noise_distribution: Literal["gaussian", "uniform"],
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Generate displacement fields for elastic transform."""
+    """Generate displacement fields for elastic transform.
+
+    This function generates displacement fields for elastic transform based on the provided parameters.
+    It generates noise either from a Gaussian or uniform distribution and normalizes it to the range [-1, 1].
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        alpha (float): The alpha parameter for the elastic transform.
+        sigma (float): The sigma parameter for the elastic transform.
+        same_dxdy (bool): Whether to use the same displacement field for both x and y directions.
+        kernel_size (tuple[int, int]): The size of the kernel for the elastic transform.
+        random_generator (np.random.Generator): The random number generator to use.
+        noise_distribution (Literal["gaussian", "uniform"]): The distribution of the noise.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - fields: The displacement fields for the elastic transform.
+            - output_shape: The output shape of the elastic warp.
+
+    """
     # Pre-allocate memory and generate noise in one step
     if noise_distribution == "gaussian":
         # Generate and normalize in one step, directly as float32
@@ -1769,6 +1815,24 @@ def pad_bboxes(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Pad bounding boxes by a given amount.
+
+    This function pads bounding boxes by a given amount.
+    It handles both reflection and padding.
+
+    Args:
+        bboxes (np.ndarray): The bounding boxes to pad.
+        pad_top (int): The amount to pad the top of the bounding boxes.
+        pad_bottom (int): The amount to pad the bottom of the bounding boxes.
+        pad_left (int): The amount to pad the left of the bounding boxes.
+        pad_right (int): The amount to pad the right of the bounding boxes.
+        border_mode (int): The border mode to use.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: The padded bounding boxes.
+
+    """
     if border_mode not in REFLECT_BORDER_MODES:
         shift_vector = np.array([pad_left, pad_top, pad_left, pad_top])
         return shift_bboxes(bboxes, shift_vector)
@@ -2080,6 +2144,20 @@ def bbox_distort_image(
     generated_mesh: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Distort bounding boxes based on a generated mesh.
+
+    This function applies a perspective transformation to each bounding box based on the provided generated mesh.
+    It ensures that the bounding boxes are clipped to the image boundaries after transformation.
+
+    Args:
+        bboxes (np.ndarray): The bounding boxes to distort.
+        generated_mesh (np.ndarray): The generated mesh to distort the bounding boxes with.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: The distorted bounding boxes.
+
+    """
     bboxes = bboxes.copy()
     masks = masks_from_bboxes(bboxes, image_shape)
 
@@ -2102,6 +2180,20 @@ def distort_image_keypoints(
     generated_mesh: np.ndarray,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Distort keypoints based on a generated mesh.
+
+    This function applies a perspective transformation to each keypoint based on the provided generated mesh.
+    It ensures that the keypoints are clipped to the image boundaries after transformation.
+
+    Args:
+        keypoints (np.ndarray): The keypoints to distort.
+        generated_mesh (np.ndarray): The generated mesh to distort the keypoints with.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: The distorted keypoints.
+
+    """
     distorted_keypoints = keypoints.copy()
     height, width = image_shape[:2]
 
@@ -2251,6 +2343,24 @@ def pad_keypoints(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Pad keypoints by a given amount.
+
+    This function pads keypoints by a given amount.
+    It handles both reflection and padding.
+
+    Args:
+        keypoints (np.ndarray): The keypoints to pad.
+        pad_top (int): The amount to pad the top of the keypoints.
+        pad_bottom (int): The amount to pad the bottom of the keypoints.
+        pad_left (int): The amount to pad the left of the keypoints.
+        pad_right (int): The amount to pad the right of the keypoints.
+        border_mode (int): The border mode to use.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: The padded keypoints.
+
+    """
     if border_mode not in REFLECT_BORDER_MODES:
         shift_vector = np.array([pad_left, pad_top, 0])
         return shift_keypoints(keypoints, shift_vector)
@@ -2309,6 +2419,19 @@ def validate_keypoints(
 
 
 def shift_keypoints(keypoints: np.ndarray, shift_vector: np.ndarray) -> np.ndarray:
+    """Shift keypoints by a given shift vector.
+
+    This function shifts the keypoints by a given shift vector.
+    It only shifts the x, y and z coordinates of the keypoints.
+
+    Args:
+        keypoints (np.ndarray): The keypoints to shift.
+        shift_vector (np.ndarray): The shift vector to apply to the keypoints.
+
+    Returns:
+        np.ndarray: The shifted keypoints.
+
+    """
     shifted_keypoints = keypoints.copy()
     shifted_keypoints[:, :3] += shift_vector[:3]  # Only shift x, y and z
     return shifted_keypoints
@@ -2417,6 +2540,21 @@ def flip_keypoints(
     flip_vertical: bool = False,
     image_shape: tuple[int, int] = (0, 0),
 ) -> np.ndarray:
+    """Flip keypoints horizontally or vertically.
+
+    This function flips keypoints horizontally or vertically based on the provided parameters.
+    It also flips the angle of the keypoints when flipping horizontally.
+
+    Args:
+        keypoints (np.ndarray): The keypoints to flip.
+        flip_horizontal (bool): Whether to flip horizontally.
+        flip_vertical (bool): Whether to flip vertically.
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: The flipped keypoints.
+
+    """
     rows, cols = image_shape[:2]
     flipped_keypoints = keypoints.copy()
     if flip_horizontal:
@@ -2527,6 +2665,21 @@ def compute_affine_warp_output_shape(
     matrix: np.ndarray,
     input_shape: tuple[int, ...],
 ) -> tuple[np.ndarray, tuple[int, int]]:
+    """Compute the output shape of an affine warp.
+
+    This function computes the output shape of an affine warp based on the input matrix and input shape.
+    It calculates the transformed image bounds and then determines the output shape based on the input shape.
+
+    Args:
+        matrix (np.ndarray): The 3x3 affine transformation matrix.
+        input_shape (tuple[int, ...]): The shape of the input image as (height, width, ...).
+
+    Returns:
+        tuple[np.ndarray, tuple[int, int]]: A tuple containing:
+            - matrix: The 3x3 affine transformation matrix.
+            - output_shape: The output shape of the affine warp.
+
+    """
     height, width = input_shape[:2]
 
     if height == 0 or width == 0:
@@ -2661,7 +2814,28 @@ def normalize_grid_distortion_steps(
     x_steps: list[float],
     y_steps: list[float],
 ) -> dict[str, np.ndarray]:
-    height, width = image_shape
+    """Normalize the grid distortion steps.
+
+    This function normalizes the grid distortion steps, ensuring that the distortion never leaves the image bounds.
+    It compensates for smaller last steps in the source image and normalizes the steps such that the distortion
+    never leaves the image bounds.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        num_steps (int): The number of steps to divide each axis into. This determines
+            the granularity of the distortion grid.
+        x_steps (list[float]): List of step sizes for the x-axis distortion. The length
+            should be num_steps + 1. Each value represents the relative step size for
+            a segment of the grid in the x direction.
+        y_steps (list[float]): List of step sizes for the y-axis distortion. The length
+            should be num_steps + 1. Each value represents the relative step size for
+            a segment of the grid in the y direction.
+
+    Returns:
+        dict[str, np.ndarray]: A dictionary containing the normalized step sizes for the x and y axes.
+
+    """
+    height, width = image_shape[:2]
 
     # compensate for smaller last steps in source image.
     x_step = width // num_steps
@@ -2780,6 +2954,20 @@ def generate_perspective_points(
     scale: float,
     random_generator: np.random.Generator,
 ) -> np.ndarray:
+    """Generate perspective points for a given image shape and scale.
+
+    This function generates perspective points for a given image shape and scale.
+    It uses a normal distribution to generate the points, and then modulates them to be within the image bounds.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        scale (float): The scale of the perspective points.
+        random_generator (np.random.Generator): The random generator to use for generating the points.
+
+    Returns:
+        np.ndarray: The perspective points.
+
+    """
     height, width = image_shape[:2]
     points = random_generator.normal(0, scale, (4, 2))
     points = np.mod(np.abs(points), 0.32)
@@ -2799,6 +2987,18 @@ def generate_perspective_points(
 
 
 def order_points(pts: np.ndarray) -> np.ndarray:
+    """Order points in a clockwise manner.
+
+    This function orders the points in a clockwise manner, ensuring that the points are in the correct
+    order for perspective transformation.
+
+    Args:
+        pts (np.ndarray): The points to order.
+
+    Returns:
+        np.ndarray: The ordered points.
+
+    """
     pts = np.array(sorted(pts, key=lambda x: x[0]))
     left = pts[:2]  # points with smallest x coordinate - left points
     right = pts[2:]  # points with greatest x coordinate - right points
@@ -2820,6 +3020,20 @@ def compute_perspective_params(
     points: np.ndarray,
     image_shape: tuple[int, int],
 ) -> tuple[np.ndarray, int, int]:
+    """Compute perspective transformation parameters.
+
+    This function computes the perspective transformation parameters for a given set of points.
+    It adjusts the points to ensure that the transformed image retains its original dimensions.
+
+    Args:
+        points (np.ndarray): The points to compute the perspective transformation parameters for.
+        image_shape (tuple[int, int]): The shape of the image.
+
+    Returns:
+        tuple[np.ndarray, int, int]: The perspective transformation parameters and the maximum
+            dimensions of the transformed image.
+
+    """
     height, width = image_shape
     top_left, top_right, bottom_right, bottom_left = points
 
@@ -2857,6 +3071,21 @@ def expand_transform(
     matrix: np.ndarray,
     shape: tuple[int, int],
 ) -> tuple[np.ndarray, int, int]:
+    """Expand a transformation matrix to include padding.
+
+    This function expands a transformation matrix to include padding, ensuring that the transformed
+    image retains its original dimensions. It first calculates the destination points of the transformed
+    image, then adjusts the matrix to include padding, and finally returns the expanded matrix and the
+    maximum dimensions of the transformed image.
+
+    Args:
+        matrix (np.ndarray): The transformation matrix to expand.
+        shape (tuple[int, int]): The shape of the image.
+
+    Returns:
+        tuple[np.ndarray, int, int]: The expanded matrix and the maximum dimensions of the transformed image.
+
+    """
     height, width = shape[:2]
     rect = np.array(
         [[0, 0], [width, 0], [width, height], [0, height]],
@@ -2879,7 +3108,23 @@ def create_piecewise_affine_maps(
     absolute_scale: bool,
     random_generator: np.random.Generator,
 ) -> tuple[np.ndarray | None, np.ndarray | None]:
-    """Create maps for piecewise affine transformation using OpenCV's remap function."""
+    """Create maps for piecewise affine transformation using OpenCV's remap function.
+
+    This function creates maps for piecewise affine transformation using OpenCV's remap function.
+    It generates the control points for the transformation, then uses the remap function to create
+    the transformation maps.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        grid (tuple[int, int]): The grid size as (rows, columns).
+        scale (float): The scale of the transformation.
+        absolute_scale (bool): Whether to use absolute scale.
+        random_generator (np.random.Generator): The random generator to use for generating the points.
+
+    Returns:
+        tuple[np.ndarray | None, np.ndarray | None]: The transformation maps.
+
+    """
     height, width = image_shape[:2]
     nb_rows, nb_cols = grid
 
@@ -2953,6 +3198,23 @@ def bboxes_piecewise_affine(
     border_mode: int,
     image_shape: tuple[int, int],
 ) -> np.ndarray:
+    """Apply a piecewise affine transformation to bounding boxes.
+
+    This function applies a piecewise affine transformation to the bounding boxes of an image.
+    It first converts the bounding boxes to masks, then applies the transformation, and finally
+    converts the transformed masks back to bounding boxes.
+
+    Args:
+        bboxes (np.ndarray): The bounding boxes to transform.
+        map_x (np.ndarray): The x-coordinates of the transformation.
+        map_y (np.ndarray): The y-coordinates of the transformation.
+        border_mode (int): The border mode to use for the transformation.
+        image_shape (tuple[int, int]): The shape of the image.
+
+    Returns:
+        np.ndarray: The transformed bounding boxes.
+
+    """
     masks = masks_from_bboxes(bboxes, image_shape).transpose(1, 2, 0)
 
     map_xy = np.stack([map_x, map_y], axis=-1).astype(np.float32)
@@ -3630,3 +3892,92 @@ def volumes_rot90(volumes: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarra
     """
     # Axes 2 (height) and 3 (width) for rotation
     return np.rot90(volumes, k=factor, axes=(2, 3))
+
+
+@preserve_channel_dim
+def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    """Apply erosion to an image.
+
+    This function applies erosion to an image using the cv2.erode function.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array.
+        kernel (np.ndarray): Kernel as a numpy array.
+
+    Returns:
+        np.ndarray: The eroded image.
+
+    """
+    return cv2.erode(img, kernel, iterations=1)
+
+
+@preserve_channel_dim
+def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    """Apply dilation to an image.
+
+    This function applies dilation to an image using the cv2.dilate function.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array.
+        kernel (np.ndarray): Kernel as a numpy array.
+
+    Returns:
+        np.ndarray: The dilated image.
+
+    """
+    return cv2.dilate(img, kernel, iterations=1)
+
+
+def morphology(
+    img: np.ndarray,
+    kernel: np.ndarray,
+    operation: Literal["dilation", "erosion"],
+) -> np.ndarray:
+    """Apply morphology to an image.
+
+    This function applies morphology to an image using the cv2.morphologyEx function.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array.
+        kernel (np.ndarray): Kernel as a numpy array.
+        operation (Literal["dilation", "erosion"]): The operation to apply.
+
+    Returns:
+        np.ndarray: The morphology applied to the image.
+
+    """
+    if operation == "dilation":
+        return dilate(img, kernel)
+    if operation == "erosion":
+        return erode(img, kernel)
+
+    raise ValueError(f"Unsupported operation: {operation}")
+
+
+@handle_empty_array("bboxes")
+def bboxes_morphology(
+    bboxes: np.ndarray,
+    kernel: np.ndarray,
+    operation: Literal["dilation", "erosion"],
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    """Apply morphology to bounding boxes.
+
+    This function applies morphology to bounding boxes by first converting the bounding
+    boxes to a mask and then applying the morphology to the mask.
+
+    Args:
+        bboxes (np.ndarray): Bounding boxes as a numpy array.
+        kernel (np.ndarray): Kernel as a numpy array.
+        operation (Literal["dilation", "erosion"]): The operation to apply.
+        image_shape (tuple[int, int]): The shape of the image.
+
+    Returns:
+        np.ndarray: The morphology applied to the bounding boxes.
+
+    """
+    bboxes = bboxes.copy()
+    masks = masks_from_bboxes(bboxes, image_shape)
+    masks = morphology(masks, kernel, operation)
+    bboxes[:, :4] = bboxes_from_masks(masks)
+    return bboxes

@@ -775,6 +775,50 @@ class NoOp(DualTransform):
 
     Targets:
         image, mask, bboxes, keypoints, volume, mask3d
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>>
+        >>> # Prepare sample data
+        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> bboxes = np.array([[10, 10, 50, 50], [40, 40, 80, 80]], dtype=np.float32)
+        >>> bbox_labels = [1, 2]
+        >>> keypoints = np.array([[20, 30], [60, 70]], dtype=np.float32)
+        >>> keypoint_labels = [0, 1]
+        >>>
+        >>> # Create transform pipeline with NoOp
+        >>> transform = A.Compose([
+        ...     A.NoOp(p=1.0),  # Always applied, but does nothing
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
+        ...    keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     bboxes=bboxes,
+        ...     bbox_labels=bbox_labels,
+        ...     keypoints=keypoints,
+        ...     keypoint_labels=keypoint_labels
+        ... )
+        >>>
+        >>> # Verify nothing has changed
+        >>> np.array_equal(image, transformed['image'])  # True
+        >>> np.array_equal(mask, transformed['mask'])  # True
+        >>> np.array_equal(bboxes, transformed['bboxes'])  # True
+        >>> np.array_equal(keypoints, transformed['keypoints'])  # True
+        >>> bbox_labels == transformed['bbox_labels']  # True
+        >>> keypoint_labels == transformed['keypoint_labels']  # True
+        >>>
+        >>> # NoOp is often used as a placeholder or for testing
+        >>> # For example, in conditional transforms:
+        >>> condition = False  # Some condition
+        >>> transform = A.Compose([
+        ...     A.HorizontalFlip(p=1.0) if condition else A.NoOp(p=1.0)
+        ... ])
+
     """
 
     _targets = ALL_TARGETS

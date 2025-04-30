@@ -57,6 +57,78 @@ class OverlayElements(DualTransform):
     References:
         doc-augmentation: https://github.com/danaaubakirova/doc-augmentation
 
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare primary data (base image and mask)
+        >>> image = np.zeros((300, 300, 3), dtype=np.uint8)
+        >>> mask = np.zeros((300, 300), dtype=np.uint8)
+        >>>
+        >>> # 1. Create a simple overlay image (a red square)
+        >>> overlay_image1 = np.zeros((50, 50, 3), dtype=np.uint8)
+        >>> overlay_image1[:, :, 0] = 255  # Red color
+        >>>
+        >>> # 2. Create another overlay with a mask (a blue circle with transparency)
+        >>> overlay_image2 = np.zeros((80, 80, 3), dtype=np.uint8)
+        >>> overlay_image2[:, :, 2] = 255  # Blue color
+        >>> overlay_mask2 = np.zeros((80, 80), dtype=np.uint8)
+        >>> # Create a circular mask
+        >>> center = (40, 40)
+        >>> radius = 30
+        >>> for i in range(80):
+        ...     for j in range(80):
+        ...         if (i - center[0])**2 + (j - center[1])**2 < radius**2:
+        ...             overlay_mask2[i, j] = 255
+        >>>
+        >>> # 3. Create an overlay with both bbox and mask_id
+        >>> overlay_image3 = np.zeros((60, 120, 3), dtype=np.uint8)
+        >>> overlay_image3[:, :, 1] = 255  # Green color
+        >>> # Create a rectangular mask with rounded corners
+        >>> overlay_mask3 = np.zeros((60, 120), dtype=np.uint8)
+        >>> cv2.rectangle(overlay_mask3, (10, 10), (110, 50), 255, -1)
+        >>>
+        >>> # Create the metadata list - each item is a dictionary with overlay information
+        >>> overlay_metadata = [
+        ...     {
+        ...         'image': overlay_image1,
+        ...         # No bbox provided - will be placed randomly
+        ...     },
+        ...     {
+        ...         'image': overlay_image2,
+        ...         'bbox': [0.6, 0.1, 0.9, 0.4],  # Normalized coordinates [x_min, y_min, x_max, y_max]
+        ...         'mask': overlay_mask2,
+        ...         'mask_id': 1  # This overlay will update the mask with id 1
+        ...     },
+        ...     {
+        ...         'image': overlay_image3,
+        ...         'bbox': [0.1, 0.7, 0.5, 0.9],  # Bottom left placement
+        ...         'mask': overlay_mask3,
+        ...         'mask_id': 2  # This overlay will update the mask with id 2
+        ...     }
+        ... ]
+        >>>
+        >>> # Create the transform
+        >>> transform = A.Compose([
+        ...     A.OverlayElements(p=1.0),
+        ... ])
+        >>>
+        >>> # Apply the transform
+        >>> result = transform(
+        ...     image=image,
+        ...     mask=mask,
+        ...     overlay_metadata=overlay_metadata  # Pass metadata using the default key
+        ... )
+        >>>
+        >>> # Get results with overlays applied
+        >>> result_image = result['image']  # Image with the three overlays applied
+        >>> result_mask = result['mask']    # Mask with regions labeled using the mask_id values
+        >>>
+        >>> # Let's verify the mask contains the specified mask_id values
+        >>> has_mask_id_1 = np.any(result_mask == 1)  # Should be True
+        >>> has_mask_id_2 = np.any(result_mask == 2)  # Should be True
+
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
@@ -318,6 +390,82 @@ class Mosaic(DualTransform):
 
     Reference:
         YOLOv4: Optimal Speed and Accuracy of Object Detection: https://arxiv.org/pdf/2004.10934
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> import cv2
+        >>>
+        >>> # Prepare primary data
+        >>> primary_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> primary_mask = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> primary_bboxes = np.array([[10, 10, 40, 40], [50, 50, 90, 90]], dtype=np.float32)
+        >>> primary_labels = [1, 2]
+        >>>
+        >>> # Prepare additional images for mosaic
+        >>> additional_image1 = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> additional_mask1 = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> additional_bboxes1 = np.array([[20, 20, 60, 60]], dtype=np.float32)
+        >>> additional_labels1 = [3]
+        >>>
+        >>> additional_image2 = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> additional_mask2 = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> additional_bboxes2 = np.array([[30, 30, 70, 70]], dtype=np.float32)
+        >>> additional_labels2 = [4]
+        >>>
+        >>> additional_image3 = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> additional_mask3 = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
+        >>> additional_bboxes3 = np.array([[5, 5, 45, 45]], dtype=np.float32)
+        >>> additional_labels3 = [5]
+        >>>
+        >>> # Create metadata for additional images - structured as a list of dicts
+        >>> mosaic_metadata = [
+        ...     {
+        ...         'image': additional_image1,
+        ...         'mask': additional_mask1,
+        ...         'bboxes': additional_bboxes1,
+        ...         'labels': additional_labels1
+        ...     },
+        ...     {
+        ...         'image': additional_image2,
+        ...         'mask': additional_mask2,
+        ...         'bboxes': additional_bboxes2,
+        ...         'labels': additional_labels2
+        ...     },
+        ...     {
+        ...         'image': additional_image3,
+        ...         'mask': additional_mask3,
+        ...         'bboxes': additional_bboxes3,
+        ...         'labels': additional_labels3
+        ...     }
+        ... ]
+        >>>
+        >>> # Create the transform with Mosaic
+        >>> transform = A.Compose([
+        ...     A.Mosaic(
+        ...         grid_yx=(2, 2),
+        ...         target_size=(200, 200),
+        ...         cell_shape=(120, 120),
+        ...         center_range=(0.4, 0.6),
+        ...         fit_mode="cover",
+        ...         p=1.0
+        ...     ),
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
+        >>>
+        >>> # Apply the transform
+        >>> transformed = transform(
+        ...     image=primary_image,
+        ...     mask=primary_mask,
+        ...     bboxes=primary_bboxes,
+        ...     labels=primary_labels,
+        ...     mosaic_metadata=mosaic_metadata  # Pass the metadata using the default key
+        ... )
+        >>>
+        >>> # Access the transformed data
+        >>> mosaic_image = transformed['image']        # Combined mosaic image
+        >>> mosaic_mask = transformed['mask']          # Combined mosaic mask
+        >>> mosaic_bboxes = transformed['bboxes']      # Combined and repositioned bboxes
+        >>> mosaic_labels = transformed['labels']      # Combined labels from all images
 
     """
 
