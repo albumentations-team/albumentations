@@ -43,51 +43,13 @@ from albucore import (
 import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.augmentations.utils import (
     PCA,
-    handle_empty_array,
     non_rgb_error,
 )
-from albumentations.core.bbox_utils import bboxes_from_masks, masks_from_bboxes
 from albumentations.core.type_definitions import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
 )
-
-__all__ = [
-    "add_fog",
-    "add_gravel",
-    "add_rain",
-    "add_shadow",
-    "add_snow_bleach",
-    "add_snow_texture",
-    "add_sun_flare_overlay",
-    "add_sun_flare_physics_based",
-    "adjust_brightness_torchvision",
-    "adjust_contrast_torchvision",
-    "adjust_hue_torchvision",
-    "adjust_saturation_torchvision",
-    "channel_shuffle",
-    "chromatic_aberration",
-    "clahe",
-    "dilate",
-    "downscale",
-    "equalize",
-    "erode",
-    "fancy_pca",
-    "gamma_transform",
-    "image_compression",
-    "invert",
-    "iso_noise",
-    "linear_transformation_rgb",
-    "move_tone_curve",
-    "noop",
-    "posterize",
-    "shift_hsv",
-    "solarize",
-    "superpixels",
-    "to_gray",
-    "unsharp_mask",
-]
 
 
 @uint8_io
@@ -855,7 +817,6 @@ def add_fog(
 
     This function adds fog to an image by drawing fog particles on the image.
     The fog particles are drawn using the OpenCV function cv2.circle.
-    Image has Gaussian blur applied as last step.
 
     Args:
         img (np.ndarray): The image to add fog to.
@@ -2133,95 +2094,6 @@ def _distort_channel(
         interpolation=interpolation,
         borderMode=cv2.BORDER_REPLICATE,
     )
-
-
-@preserve_channel_dim
-def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """Apply erosion to an image.
-
-    This function applies erosion to an image using the cv2.erode function.
-
-    Args:
-        img (np.ndarray): Input image as a numpy array.
-        kernel (np.ndarray): Kernel as a numpy array.
-
-    Returns:
-        np.ndarray: The eroded image.
-
-    """
-    return cv2.erode(img, kernel, iterations=1)
-
-
-@preserve_channel_dim
-def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """Apply dilation to an image.
-
-    This function applies dilation to an image using the cv2.dilate function.
-
-    Args:
-        img (np.ndarray): Input image as a numpy array.
-        kernel (np.ndarray): Kernel as a numpy array.
-
-    Returns:
-        np.ndarray: The dilated image.
-
-    """
-    return cv2.dilate(img, kernel, iterations=1)
-
-
-def morphology(
-    img: np.ndarray,
-    kernel: np.ndarray,
-    operation: Literal["dilation", "erosion"],
-) -> np.ndarray:
-    """Apply morphology to an image.
-
-    This function applies morphology to an image using the cv2.morphologyEx function.
-
-    Args:
-        img (np.ndarray): Input image as a numpy array.
-        kernel (np.ndarray): Kernel as a numpy array.
-        operation (Literal["dilation", "erosion"]): The operation to apply.
-
-    Returns:
-        np.ndarray: The morphology applied to the image.
-
-    """
-    if operation == "dilation":
-        return dilate(img, kernel)
-    if operation == "erosion":
-        return erode(img, kernel)
-
-    raise ValueError(f"Unsupported operation: {operation}")
-
-
-@handle_empty_array("bboxes")
-def bboxes_morphology(
-    bboxes: np.ndarray,
-    kernel: np.ndarray,
-    operation: Literal["dilation", "erosion"],
-    image_shape: tuple[int, int],
-) -> np.ndarray:
-    """Apply morphology to bounding boxes.
-
-    This function applies morphology to bounding boxes by first converting the bounding
-    boxes to a mask and then applying the morphology to the mask.
-
-    Args:
-        bboxes (np.ndarray): Bounding boxes as a numpy array.
-        kernel (np.ndarray): Kernel as a numpy array.
-        operation (Literal["dilation", "erosion"]): The operation to apply.
-        image_shape (tuple[int, int]): The shape of the image.
-
-    Returns:
-        np.ndarray: The morphology applied to the bounding boxes.
-
-    """
-    bboxes = bboxes.copy()
-    masks = masks_from_bboxes(bboxes, image_shape)
-    masks = morphology(masks, kernel, operation)
-    bboxes[:, :4] = bboxes_from_masks(masks)
-    return bboxes
 
 
 PLANCKIAN_COEFFS: dict[str, dict[int, list[float]]] = {
@@ -3810,6 +3682,37 @@ class StainNormalizer:
 
 
 class SimpleNMF:
+    """Simple Non-negative Matrix Factorization (NMF) for histology stain separation.
+
+    This class implements a simplified version of the Non-negative Matrix Factorization algorithm
+    specifically designed for separating Hematoxylin and Eosin (H&E) stains in histopathology images.
+    It is used as part of the Vahadane stain normalization method.
+
+    The algorithm decomposes optical density values of H&E stained images into stain color appearances
+    (the stain color vectors) and stain concentrations (the density of each stain at each pixel).
+
+    The implementation uses an iterative multiplicative update approach that preserves non-negativity
+    constraints, which are physically meaningful for stain separation as concentrations and
+    absorption coefficients cannot be negative.
+
+    This implementation is optimized for stability by:
+    1. Initializing with standard H&E reference colors from Ruifrok
+    2. Using normalized projection for initial concentrations
+    3. Applying careful normalization to avoid numerical issues
+
+    Args:
+        n_iter (int): Number of iterations for the NMF algorithm. Default: 100
+
+    References:
+        - Vahadane, A., et al. (2016): Structure-preserving color normalization and
+          sparse stain separation for histological images. IEEE Transactions on
+          Medical Imaging, 35(8), 1962-1971.
+        - Ruifrok, A. C., & Johnston, D. A. (2001): Quantification of histochemical
+          staining by color deconvolution. Analytical and Quantitative Cytology and
+          Histology, 23(4), 291-299.
+
+    """
+
     def __init__(self, n_iter: int = 100):
         self.n_iter = n_iter
         # Initialize with standard H&E colors from Ruifrok
@@ -3899,6 +3802,50 @@ def order_stains_combined(stain_colors: np.ndarray) -> tuple[int, int]:
 
 
 class VahadaneNormalizer(StainNormalizer):
+    """A stain normalizer implementation based on Vahadane's method for histopathology images.
+
+    This class implements the "Structure-Preserving Color Normalization and Sparse Stain Separation
+    for Histological Images" method proposed by Vahadane et al. The technique uses Non-negative
+    Matrix Factorization (NMF) to separate Hematoxylin and Eosin (H&E) stains in histopathology
+    images and then normalizes them to a target standard.
+
+    The Vahadane method is particularly effective for histology image normalization because:
+    1. It maintains tissue structure during color normalization
+    2. It performs sparse stain separation, reducing color bleeding
+    3. It adaptively estimates stain vectors from each image
+    4. It preserves biologically relevant information
+
+    This implementation uses SimpleNMF as its core matrix factorization algorithm to extract
+    stain color vectors (appearance matrix) and concentration matrices from optical
+    density-transformed images. It identifies the Hematoxylin and Eosin stains by their
+    characteristic color profiles and spatial distribution.
+
+    References:
+        Vahadane, et al., 2016: Structure-preserving color normalization
+        and sparse stain separation for histological images. IEEE transactions on medical imaging,
+        35(8), pp.1962-1971.
+
+    Examples:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> from albumentations.augmentations.pixel import functional as F
+        >>> import cv2
+        >>>
+        >>> # Load source and target images (H&E stained histopathology)
+        >>> source_img = cv2.imread('source_image.png')
+        >>> source_img = cv2.cvtColor(source_img, cv2.COLOR_BGR2RGB)
+        >>> target_img = cv2.imread('target_image.png')
+        >>> target_img = cv2.cvtColor(target_img, cv2.COLOR_BGR2RGB)
+        >>>
+        >>> # Create and fit the normalizer to the target image
+        >>> normalizer = F.VahadaneNormalizer()
+        >>> normalizer.fit(target_img)
+        >>>
+        >>> # Normalize the source image to match the target's stain characteristics
+        >>> normalized_img = normalizer.transform(source_img)
+
+    """
+
     def fit(self, img: np.ndarray) -> None:
         """Fit the Vahadane stain normalizer to an image.
 
