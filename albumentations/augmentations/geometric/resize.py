@@ -801,7 +801,7 @@ class Resize(DualTransform):
             cv2.INTER_AREA,
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
-        ] = cv2.INTER_LINEAR,
+        ] = cv2.INTER_AREA,
         mask_interpolation: Literal[
             cv2.INTER_NEAREST,
             cv2.INTER_NEAREST_EXACT,
