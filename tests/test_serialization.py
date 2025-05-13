@@ -812,3 +812,12 @@ def test_serialization_excludes_strict() -> None:
     transform = A.HorizontalFlip(strict=True)
     transform_dict = A.to_dict(transform)["transform"]
     assert "strict" not in transform_dict
+
+
+def test_serialization_from_float() -> None:
+    dtype = "uint8"
+    max_value = 137
+    transform = A.FromFloat(dtype=dtype, max_value=max_value)
+    transform_dict = A.to_dict(transform)["transform"]
+    assert transform_dict["dtype"] == dtype
+    assert transform_dict["max_value"] == max_value

@@ -176,7 +176,7 @@ class FromFloat(ImageOnlyTransform):
         p: float = 1.0,
     ):
         super().__init__(p=p)
-        self.dtype_value = np.dtype(dtype)
+        self.dtype = dtype
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -190,7 +190,7 @@ class FromFloat(ImageOnlyTransform):
             np.ndarray: The image with the applied FromFloat transform.
 
         """
-        return from_float(img, self.dtype_value, self.max_value)
+        return from_float(img, np.dtype(self.dtype), self.max_value)
 
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the FromFloat transform to the input images.
@@ -200,7 +200,7 @@ class FromFloat(ImageOnlyTransform):
             **params (Any): Additional parameters (not used in this transform).
 
         """
-        return clip(np.rint(images * self.max_value), self.dtype_value, inplace=True)
+        return clip(np.rint(images * self.max_value), np.dtype(self.dtype), inplace=True)
 
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the FromFloat transform to the input volume.
