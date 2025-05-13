@@ -177,6 +177,7 @@ class FromFloat(ImageOnlyTransform):
     ):
         super().__init__(p=p)
         self.dtype_value = np.dtype(dtype)
+        self.dtype = dtype
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
