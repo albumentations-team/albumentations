@@ -32,23 +32,23 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 Albumentations thrives on developer contributions. We appreciate our sponsors who help sustain the project's infrastructure.
 
-| 🏆 Gold Sponsors |
-|-----------------|
+| 🟠 Exclusive Partner |
+|-------------------|
 | Your company could be here |
 
-| 🥈 Silver Sponsors |
+| 🟡 Integration Partner |
 |-------------------|
-| <a href="https://datature.io" target="_blank"><img src="https://albumentations.ai/assets/sponsors/datature-full.png" width="100" alt="Datature"/></a> |
+| Your company could be here |
 
-| 🥉 Bronze Sponsors |
-|-------------------|
-| <a href="https://roboflow.com" target="_blank"><img src="https://albumentations.ai/assets/sponsors/roboflow.png" width="100" alt="Roboflow"/></a> |
+| 🟢 Community Sponsor |
+|-----------------|
+| <a href="https://datature.io" target="_blank"><img src="https://albumentations.ai/assets/sponsors/datature-full.png" width="100" alt="Datature"/></a> |
 
 ---
 
 ### 💝 Become a Sponsor
 
-Your sponsorship is a way to say "thank you" to the maintainers and contributors who spend their free time building and maintaining Albumentations. Sponsors are featured on our website and README. View sponsorship tiers on [GitHub Sponsors](https://github.com/sponsors/albumentations-team)
+Your sponsorship is a way to say "thank you" to the maintainers and contributors who spend their free time building and maintaining Albumentations. Sponsors are featured on our website and README. View sponsorship tiers on [our support page](https://albumentations.ai/support/)
 
 ## Table of contents
 
