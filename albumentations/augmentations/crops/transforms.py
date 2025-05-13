@@ -2195,7 +2195,7 @@ class BBoxSafeRandomCrop(BaseCrop):
     """Crop an area from image while ensuring all bounding boxes are preserved in the crop.
 
     Similar to AtLeastOneBboxRandomCrop, but with a key difference:
-    - BBoxSafeRandomCrop ensures ALL bounding boxes are preserved in the crop
+    - BBoxSafeRandomCrop ensures ALL bounding boxes are preserved in the crop when erosion_rate=0.0
     - AtLeastOneBboxRandomCrop ensures AT LEAST ONE bounding box is present in the crop
 
     This makes BBoxSafeRandomCrop more suitable for scenarios where:
@@ -2217,8 +2217,8 @@ class BBoxSafeRandomCrop(BaseCrop):
     Args:
         erosion_rate (float): Controls how much the valid crop region can deviate from the bbox union.
             Must be in range [0.0, 1.0].
-            - 0.0: crop must contain the exact bbox union
-            - 1.0: crop can deviate maximally from the bbox union while still containing all boxes
+            - 0.0: crop must contain the exact bbox union (safest option that guarantees all boxes are preserved)
+            - 1.0: crop can deviate maximally from the bbox union (increases likelihood of cutting off some boxes)
             Defaults to 0.0.
         p (float, optional): Probability of applying the transform. Defaults to 1.0.
 
@@ -2282,7 +2282,9 @@ class BBoxSafeRandomCrop(BaseCrop):
         >>> transformed_bboxes = result_bboxes_only['bboxes']  # All bboxes still preserved
 
     Note:
-        - All bounding boxes will be preserved in their entirety
+        - IMPORTANT: Using erosion_rate > 0.0 may result in some bounding boxes being cut off,
+          particularly narrow boxes at the boundary of the union area. For guaranteed preservation
+          of all bounding boxes, use erosion_rate=0.0.
         - Aspect ratio is preserved only when no bounding boxes are present
         - May be more restrictive in crop placement compared to AtLeastOneBboxRandomCrop
         - The crop size is determined by the bounding boxes when present
