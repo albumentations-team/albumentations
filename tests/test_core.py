@@ -1957,5 +1957,5 @@ def test_compose_with_empty_masks():
     result = transform(image=image, masks=[])
     # Verify that the result contains an empty masks list
     assert "masks" in result
-    assert isinstance(result["masks"], list)
+    assert isinstance(result["masks"], (list, tuple))
     assert len(result["masks"]) == 0

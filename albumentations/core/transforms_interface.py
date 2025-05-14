@@ -302,7 +302,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
                 # Handle empty lists for mask-like keys
-                if key in {"masks", "masks3d"} and isinstance(arg, list) and not arg:
+                if key in {"masks", "masks3d"} and isinstance(arg, (list, tuple)) and not arg:
                     res[key] = arg  # Keep empty list as is
                 else:
                     target_function = self._key2func[key]

@@ -920,9 +920,7 @@ class Compose(BaseCompose, HubMixin):
         if internal_name == "masks":
             shape = self._check_masks_data(data_name, data)
             # Skip empty masks lists when returning shape
-            if shape is None:
-                return None
-            return shape
+            return None if shape is None else shape
 
         if internal_name in {"volumes", "masks3d"}:  # Group these together
             if not isinstance(data, np.ndarray):
