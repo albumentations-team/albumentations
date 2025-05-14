@@ -301,10 +301,14 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         res = {}
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
-                target_function = self._key2func[key]
-                res[key] = ensure_contiguous_output(
-                    target_function(ensure_contiguous_output(arg), **params),
-                )
+                # Handle empty lists for mask-like keys
+                if key in {"masks", "masks3d"} and isinstance(arg, list) and not arg:
+                    res[key] = arg  # Keep empty list as is
+                else:
+                    target_function = self._key2func[key]
+                    res[key] = ensure_contiguous_output(
+                        target_function(ensure_contiguous_output(arg), **params),
+                    )
             else:
                 res[key] = arg
         return res
