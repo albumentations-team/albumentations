@@ -2,15 +2,13 @@
 
 [![PyPI version](https://badge.fury.io/py/albumentations.svg)](https://badge.fury.io/py/albumentations)
 ![CI](https://github.com/albumentations-team/albumentations/workflows/CI/badge.svg)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/albumentations.svg?label=PyPI%20downloads)](
-https://pypi.org/project/albumentations/)
-[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/albumentations.svg?label=Conda%20downloads)](
-https://anaconda.org/conda-forge/albumentations)
-[![Stack Overflow](https://img.shields.io/badge/stackoverflow-Ask%20questions-blue.svg)](
-https://stackoverflow.com/questions/tagged/albumentations)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/albumentations.svg?label=PyPI%20downloads)](https://pypi.org/project/albumentations/)
+[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/albumentations.svg?label=Conda%20downloads)](https://anaconda.org/conda-forge/albumentations)
+
+> 📣 **Stay updated!** [Subscribe to our newsletter](https://albumentations.ai/subscribe) for the latest releases, tutorials, and tips directly from the Albumentations team.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Albumentations%20Guru-006BFF)](https://gurubase.io/g/albumentations)
-![PyPI - Types](https://img.shields.io/pypi/types/albumentations)
 
 [Docs](https://albumentations.ai/docs/) | [Discord](https://discord.gg/AKPrrDYNAt) | [Twitter](https://twitter.com/albumentations) | [LinkedIn](https://www.linkedin.com/company/100504475/)
 
@@ -457,3 +455,9 @@ If you find this library useful for your research, please consider citing [Album
     DOI = {10.3390/info11020125}
 }
 ```
+
+---
+
+## 📫 Stay Connected
+
+Never miss updates, tutorials, and tips from the Albumentations team! [Subscribe to our newsletter](https://albumentations.ai/subscribe).
