@@ -685,6 +685,9 @@ class Compose(BaseCompose, HubMixin):
 
         if isinstance(data["images"], (list, tuple)):
             self._images_was_list = True
+            # Skip stacking for empty lists
+            if not data["images"]:
+                return
             data["images"] = np.stack(data["images"])
         else:
             self._images_was_list = False
@@ -696,6 +699,9 @@ class Compose(BaseCompose, HubMixin):
 
         if isinstance(data["masks"], (list, tuple)):
             self._masks_was_list = True
+            # Skip stacking for empty lists
+            if not data["masks"]:
+                return
             data["masks"] = np.stack(data["masks"])
         else:
             self._masks_was_list = False
@@ -771,7 +777,7 @@ class Compose(BaseCompose, HubMixin):
         return data.shape[:2]
 
     @staticmethod
-    def _check_masks_data(data_name: str, data: Any) -> tuple[int, int]:
+    def _check_masks_data(data_name: str, data: Any) -> tuple[int, int] | None:
         """Check masks data format and return shape.
 
         Args:
@@ -779,9 +785,10 @@ class Compose(BaseCompose, HubMixin):
             data (Any): Input data in one of these formats:
                 - List of numpy arrays, each of shape (H, W) or (H, W, C)
                 - Numpy array of shape (N, H, W) or (N, H, W, C)
+                - Empty list for cases where no masks are present
 
         Returns:
-            tuple[int, int]: (height, width) of the first mask
+            tuple[int, int] | None: (height, width) of the first mask, or None if masks list is empty
         Raises:
             TypeError: If data format is invalid
 
@@ -793,7 +800,8 @@ class Compose(BaseCompose, HubMixin):
 
         if isinstance(data, (list, tuple)):
             if not data:
-                raise ValueError(f"{data_name} cannot be empty")
+                # Allow empty list/tuple of masks
+                return None
             if not all(isinstance(m, np.ndarray) for m in data):
                 raise TypeError(f"All elements in {data_name} must be numpy arrays")
             if any(m.ndim not in {2, 3} for m in data):
@@ -883,29 +891,45 @@ class Compose(BaseCompose, HubMixin):
 
     def _get_data_shape(self, data_name: str, internal_name: str, data: Any) -> tuple[int, ...] | None:
         """Get shape of data based on its type."""
+        # Handle single images and masks
         if internal_name in CHECKED_SINGLE:
-            if not isinstance(data, np.ndarray):
-                raise TypeError(f"{data_name} must be numpy array type")
-            return data.shape
+            return self._get_single_data_shape(data_name, data)
 
+        # Handle volumes
         if internal_name in CHECKED_VOLUME:
             return self._check_volume_data(data_name, data)
 
+        # Handle 3D masks
         if internal_name in CHECKED_MASK3D:
             return self._check_mask3d_data(data_name, data)
 
+        # Handle multi-item data (masks, images, volumes)
         if internal_name in CHECKED_MULTI:
-            if internal_name == "masks":
-                return self._check_masks_data(data_name, data)
-            if internal_name in {"volumes", "masks3d"}:  # Group these together
-                if not isinstance(data, np.ndarray):
-                    raise TypeError(f"{data_name} must be numpy array type")
-                if data.ndim not in {4, 5}:  # (N,D,H,W) or (N,D,H,W,C)
-                    raise TypeError(f"{data_name} must be 4D or 5D array")
-                return data.shape  # Return full shape
-            return self._check_multi_data(data_name, data)
+            return self._get_multi_data_shape(data_name, internal_name, data)
 
         return None
+
+    def _get_single_data_shape(self, data_name: str, data: np.ndarray) -> tuple[int, ...]:
+        """Get shape of single image or mask."""
+        if not isinstance(data, np.ndarray):
+            raise TypeError(f"{data_name} must be numpy array type")
+        return data.shape
+
+    def _get_multi_data_shape(self, data_name: str, internal_name: str, data: Any) -> tuple[int, ...] | None:
+        """Get shape of multi-item data (masks, images, volumes)."""
+        if internal_name == "masks":
+            shape = self._check_masks_data(data_name, data)
+            # Skip empty masks lists when returning shape
+            return None if shape is None else shape
+
+        if internal_name in {"volumes", "masks3d"}:  # Group these together
+            if not isinstance(data, np.ndarray):
+                raise TypeError(f"{data_name} must be numpy array type")
+            if data.ndim not in {4, 5}:  # (N,D,H,W) or (N,D,H,W,C)
+                raise TypeError(f"{data_name} must be 4D or 5D array")
+            return data.shape  # Return full shape
+
+        return self._check_multi_data(data_name, data)
 
     def _check_shape_consistency(self, shapes: list[tuple[int, ...]], volume_shapes: list[tuple[int, ...]]) -> None:
         """Check consistency of shapes."""
