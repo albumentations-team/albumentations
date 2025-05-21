@@ -1901,7 +1901,6 @@ def unsharp_mask(
     threshold: int,
 ) -> np.ndarray:
     """Apply an unsharp mask to an image.
-
     This function applies an unsharp mask to an image using the Gaussian blur function.
     The unsharp mask is applied by subtracting the blurred image from the original image and
     then adding the result to the original image.
@@ -3913,7 +3912,19 @@ class MacenkoNormalizer(StainNormalizer):
         principal_eigenvectors = np.ascontiguousarray(eigenvectors[:, idx], dtype=np.float32)
 
         # Step 5: Project onto eigenvector plane
-        plane_coordinates = tissue_density @ principal_eigenvectors
+        # Add small epsilon to avoid numerical instability
+        epsilon = 1e-8
+        if np.any(np.abs(principal_eigenvectors) < epsilon):
+            # Regularize near-zero entries by assigning ±ε based on original sign
+            principal_eigenvectors = np.where(
+                np.abs(principal_eigenvectors) < epsilon,
+                np.where(principal_eigenvectors < 0, -epsilon, epsilon),
+                principal_eigenvectors,
+            )
+
+        # Add small epsilon to tissue_density to avoid numerical issues
+        safe_tissue_density = tissue_density + epsilon
+        plane_coordinates = safe_tissue_density @ principal_eigenvectors
 
         # Step 6: Find angles of extreme points
         polar_angles = np.arctan2(
@@ -3933,23 +3944,24 @@ class MacenkoNormalizer(StainNormalizer):
             [[hem_cos, hem_sin], [eos_cos, eos_sin]],
             dtype=np.float32,
         )
+
+        # Ensure both matrices have the same data type for cv2.gemm
+        principal_eigenvectors_t = np.ascontiguousarray(principal_eigenvectors.T, dtype=np.float32)
         stain_vectors = cv2.gemm(
             angle_to_vector,
-            principal_eigenvectors.T,
+            principal_eigenvectors_t,
             1,
             None,
             0,
         )
 
         # Step 8: Ensure non-negativity by taking absolute values
-        # This is valid because stain vectors represent absorption coefficients
         stain_vectors = np.abs(stain_vectors)
 
         # Step 9: Normalize vectors to unit length
-        stain_vectors = stain_vectors / np.sqrt(np.sum(stain_vectors**2, axis=1, keepdims=True))
+        stain_vectors = stain_vectors / np.sqrt(np.sum(stain_vectors**2, axis=1, keepdims=True) + epsilon)
 
         # Step 10: Order vectors as [hematoxylin, eosin]
-        # Hematoxylin typically has larger red component
         self.stain_matrix_target = stain_vectors if stain_vectors[0, 0] > stain_vectors[1, 0] else stain_vectors[::-1]
 
 

@@ -83,11 +83,11 @@ repos:
       - id: codespell
         additional_dependencies: ["tomli"]
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.44.0
+    rev: v0.45.0
     hooks:
       - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "v2.5.1"
+    rev: "v2.6.0"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -99,7 +99,7 @@ repos:
         args:
           [ --config-file=pyproject.toml ]
   - repo: https://github.com/ternaus/google-docstring-parser
-    rev: 0.0.7  # Use the latest version
+    rev: 0.0.8  # Use the latest version
     hooks:
       - id: check-google-docstrings
         files: ^albumentations/
