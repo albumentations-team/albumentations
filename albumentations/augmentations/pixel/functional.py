@@ -3915,10 +3915,10 @@ class MacenkoNormalizer(StainNormalizer):
         # Add small epsilon to avoid numerical instability
         epsilon = 1e-8
         if np.any(np.abs(principal_eigenvectors) < epsilon):
-            # Handle the case when eigenvectors are close to zero
+            # Regularize near-zero entries by assigning ±ε based on original sign
             principal_eigenvectors = np.where(
                 np.abs(principal_eigenvectors) < epsilon,
-                np.sign(principal_eigenvectors + epsilon) * epsilon,
+                np.where(principal_eigenvectors < 0, -epsilon, epsilon),
                 principal_eigenvectors,
             )
 
@@ -3944,9 +3944,12 @@ class MacenkoNormalizer(StainNormalizer):
             [[hem_cos, hem_sin], [eos_cos, eos_sin]],
             dtype=np.float32,
         )
+
+        # Ensure both matrices have the same data type for cv2.gemm
+        principal_eigenvectors_t = np.ascontiguousarray(principal_eigenvectors.T, dtype=np.float32)
         stain_vectors = cv2.gemm(
             angle_to_vector,
-            principal_eigenvectors.T,
+            principal_eigenvectors_t,
             1,
             None,
             0,
