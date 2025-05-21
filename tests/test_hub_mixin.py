@@ -1,13 +1,11 @@
 """Tests for the HubMixin class."""
 
-import os
 import platform
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
-import albumentations as A
 from albumentations.core.hub_mixin import HubMixin, is_huggingface_hub_available
 
 # Skip tests if huggingface_hub is not available
