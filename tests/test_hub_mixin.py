@@ -31,36 +31,34 @@ class TestTransform(HubMixin):
         ("normal/path/format", "normal/path/format"),
         ("windows\\path\\format", "windows/path/format"),
         ("mixed/path\\format", "mixed/path/format"),
+        (Path("windows\\path\\format"), "windows/path/format"),
     ],
 )
 def test_windows_path_handling(path_string, expected_posix):
-    """Test that Windows backslashes in paths are correctly handled.
+    """Test that Windows paths are handled correctly in from_pretrained.
 
-    This test verifies that the from_pretrained method correctly converts
-    Windows backslash path separators to forward slashes before using them
-    as repo_id for Hugging Face Hub.
+    This test verifies that backslashes in Windows paths are properly converted to forward slashes
+    when passed to huggingface_hub.hf_hub_download in the from_pretrained method.
+
+    Args:
+        path_string: Input path with various formats
+        expected_posix: Expected path after conversion to POSIX format
     """
-    # Create a path object from the string
-    path = path_string  # Use string directly, not Path
-
-    # Mock the hf_hub_download function to verify the repo_id parameter
     with patch("albumentations.core.hub_mixin.hf_hub_download") as mock_download:
-        # Mock file object as return value
-        mock_download.return_value = "mocked_file_path"
+        mock_download.return_value = "config.json"
 
-        # Mock _from_pretrained to avoid actual file loading
+        # Also mock _from_pretrained to avoid file operations
         with patch.object(TestTransform, "_from_pretrained") as mock_from_pretrained:
             mock_from_pretrained.return_value = "mocked_transform"
 
-            # Call from_pretrained with the path
-            TestTransform.from_pretrained(path)
+            transform = TestTransform()
+            transform.from_pretrained(path_string)
 
-            # Verify that the repo_id passed to hf_hub_download uses forward slashes
-            repo_id = mock_download.call_args[1]["repo_id"]
-            assert "\\" not in repo_id, f"Backslash found in repo_id: {repo_id}"
-
-            # Verify that the original path is properly converted
-            assert repo_id == expected_posix, f"Expected {expected_posix}, got {repo_id}"
+            # Check that the repo_id argument was properly formatted
+            called_args, _ = mock_download.call_args
+            assert called_args == ()
+            called_kwargs = mock_download.call_args.kwargs
+            assert called_kwargs["repo_id"] == expected_posix
 
 
 @pytest.mark.skipif(platform.system() != "Windows", reason="Test only relevant on Windows")
