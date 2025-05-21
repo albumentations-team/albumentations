@@ -1269,8 +1269,6 @@ def test_pad_if_needed_functionality(params, expected):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
-        custom_arguments={
-        },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.RandomCropNearBBox,
