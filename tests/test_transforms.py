@@ -424,6 +424,45 @@ def test_crop_non_empty_mask():
     _test_crops(np.stack([mask_2, mask_1]), np.stack([crop_2, crop_1]), aug_1, n=1)
 
 
+def test_crop_non_empty_mask_edge_cases():
+    """Test edge cases for CropNonEmptyMaskIfExists where mask_sum would be empty after preprocessing."""
+
+    # Edge case 1: Create a multichannel mask where all values become 0 after ignoring a channel
+    mask_channels = np.zeros((10, 10, 2), dtype=np.uint8)
+    mask_channels[0, 0, 0] = 1  # Value only in first channel
+
+    # This transform will ignore the first channel, making mask_sum all zeros
+    transform_channels = A.CropNonEmptyMaskIfExists(
+        height=5,
+        width=5,
+        ignore_channels=[0]  # This will make mask_sum all zeros
+    )
+
+    # This should not crash, but would fail before the fix
+    result_channels = transform_channels(image=mask_channels, mask=mask_channels)
+
+    # Verify the result has the expected shape
+    assert result_channels['image'].shape == (5, 5, 2)
+    assert result_channels['mask'].shape == (5, 5, 2)
+
+    # Edge case 2: Create a mask where all values become 0 after ignoring specific values
+    mask_values = np.ones((10, 10), dtype=np.uint8)
+
+    # This transform will ignore all values of 1, making mask_sum all zeros
+    transform_values = A.CropNonEmptyMaskIfExists(
+        height=5,
+        width=5,
+        ignore_values=[1]  # This will make mask_sum all zeros
+    )
+
+    # This should not crash, but would fail before the fix
+    result_values = transform_values(image=mask_values, mask=mask_values)
+
+    # Verify the result has the expected shape
+    assert result_values['image'].shape == (5, 5)
+    assert result_values['mask'].shape == (5, 5)
+
+
 @pytest.mark.parametrize(
     "image",
     [
@@ -1230,6 +1269,8 @@ def test_pad_if_needed_functionality(params, expected):
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
+        custom_arguments={
+        },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
             A.RandomCropNearBBox,
