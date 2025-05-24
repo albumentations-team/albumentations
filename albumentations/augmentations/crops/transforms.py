@@ -2059,10 +2059,15 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
         area = image_height * image_width
 
+        # Pre-compute constants to avoid repeated calculations
+        scale_min_area = self.scale[0] * area
+        scale_max_area = self.scale[1] * area
+        log_ratio_min = math.log(self.ratio[0])
+        log_ratio_max = math.log(self.ratio[1])
+
         for _ in range(10):
-            target_area = self.py_random.uniform(*self.scale) * area
-            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            aspect_ratio = math.exp(self.py_random.uniform(*log_ratio))
+            target_area = self.py_random.uniform(scale_min_area, scale_max_area)
+            aspect_ratio = math.exp(self.py_random.uniform(log_ratio_min, log_ratio_max))
 
             width = round(math.sqrt(target_area * aspect_ratio))
             height = round(math.sqrt(target_area / aspect_ratio))
@@ -2071,23 +2076,18 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
                 i = self.py_random.randint(0, image_height - height)
                 j = self.py_random.randint(0, image_width - width)
 
-                h_start = i * 1.0 / (image_height - height + 1e-10)
-                w_start = j * 1.0 / (image_width - width + 1e-10)
-
-                crop_shape = (height, width)
-
-                crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
-
+                # Inline crop_coords calculation to avoid function call overhead
+                crop_coords = (j, i, j + width, i + height)
                 return {"crop_coords": crop_coords}
 
-        # Fallback to central crop
+        # Fallback to central crop - optimized version
         in_ratio = image_width / image_height
-        if in_ratio < min(self.ratio):
+        if in_ratio < self.ratio[0]:
             width = image_width
-            height = round(image_width / min(self.ratio))
-        elif in_ratio > max(self.ratio):
+            height = round(image_width / self.ratio[0])
+        elif in_ratio > self.ratio[1]:
             height = image_height
-            width = round(height * max(self.ratio))
+            width = round(height * self.ratio[1])
         else:  # whole image
             width = image_width
             height = image_height
@@ -2095,13 +2095,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         i = (image_height - height) // 2
         j = (image_width - width) // 2
 
-        h_start = i * 1.0 / (image_height - height + 1e-10)
-        w_start = j * 1.0 / (image_width - width + 1e-10)
-
-        crop_shape = (height, width)
-
-        crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
-
+        # Direct crop_coords calculation
+        crop_coords = (j, i, j + width, i + height)
         return {"crop_coords": crop_coords}
 
 
