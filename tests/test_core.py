@@ -1031,7 +1031,9 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
                                 A.MaskDropout, A.ConstrainedCoarseDropout, A.ChannelShuffle, A.ToRGB, A.RandomSunFlare,
                                 A.RandomFog, A.RandomSnow, A.RandomRain, A.HEStain}:
             pytest.skip(f"{augmentation_cls.__name__} is not applicable to grayscale images")
-
+        
+        if "fill" in params and not np.isscalar(params["fill"]):
+            params["fill"] = params["fill"][0]
 
     image = np.random.uniform(0, 255, shape).astype(np.float32) if augmentation_cls == A.FromFloat else np.random.randint(0, 255, shape, dtype=np.uint8)
 
