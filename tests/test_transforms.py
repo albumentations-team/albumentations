@@ -914,7 +914,13 @@ def test_rotate_equal(img, aug_cls, angle):
 
 
 def test_motion_blur_allow_shifted():
-    transform = A.MotionBlur(allow_shifted=False)
+    # Use fixed parameters to ensure horizontal/vertical lines for center checking
+    transform = A.MotionBlur(
+        allow_shifted=False,
+        angle_range=(0, 0),  # Fixed horizontal angle
+        direction_range=(0, 0),  # Symmetric direction
+        blur_limit=(7, 7)  # Fixed kernel size
+    )
     kernel = transform.get_params()["kernel"]
 
     center = kernel.shape[0] / 2 - 0.5
@@ -936,6 +942,35 @@ def test_motion_blur_allow_shifted():
 
     check_center(kernel.sum(axis=0))
     check_center(kernel.sum(axis=1))
+
+
+def test_motion_blur_allow_shifted_true():
+    """Test that allow_shifted=True produces different kernels at transform level."""
+    transform = A.MotionBlur(
+        allow_shifted=True,
+        angle_range=(0, 0),  # Fixed horizontal angle
+        direction_range=(0, 0),  # Symmetric direction
+        blur_limit=(7, 7),  # Fixed kernel size
+        p=1.0
+    )
+
+    # Generate multiple kernels with same transform instance
+    kernels = []
+    for _ in range(10):
+        kernel = transform.get_params()["kernel"]
+        kernels.append(kernel)
+
+    # Check that not all kernels are identical (shifting should cause variation)
+    # We expect at least some kernels to be different due to random shifting
+    unique_kernels = set()
+    for kernel in kernels:
+        # Convert to tuple for hashability
+        kernel_tuple = tuple(kernel.flatten())
+        unique_kernels.add(kernel_tuple)
+
+    # With allow_shifted=True, we should get some variation in kernel positions
+    # Even if not all are different, we should have more than 1 unique kernel
+    assert len(unique_kernels) > 1, "allow_shifted=True should produce some variation in kernel positions"
 
 
 @pytest.mark.parametrize(

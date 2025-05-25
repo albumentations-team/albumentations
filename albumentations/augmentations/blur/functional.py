@@ -263,6 +263,9 @@ def create_motion_kernel(
         np.ndarray: Motion blur kernel
 
     """
+    # Validate direction range to prevent unexpected interpolation results
+    direction = np.clip(direction, -1.0, 1.0)
+
     kernel = np.zeros((kernel_size, kernel_size), dtype=np.float32)
     center = kernel_size // 2
 
@@ -275,20 +278,34 @@ def create_motion_kernel(
 
     # Create line points with direction bias
     line_length = kernel_size // 2
-    t = np.linspace(-line_length, line_length, kernel_size * 2)
 
-    # Apply direction bias
-    if direction != 0:
-        t = t * (1 + abs(direction))
-        if direction < 0:
-            t = t * -1
+    # Apply direction bias to control the distribution of blur
+    if direction < 0:
+        # Backward bias: interpolate between symmetric and backward-only
+        # direction = -1: only backward, direction = 0: symmetric
+        bias_factor = abs(direction)
+        t_start = float(-line_length)
+        t_end = line_length * (1 - bias_factor)
+    elif direction > 0:
+        # Forward bias: interpolate between symmetric and forward-only
+        # direction = 1: only forward, direction = 0: symmetric
+        bias_factor = direction
+        t_start = -line_length * (1 - bias_factor)
+        t_end = float(line_length)
+    else:
+        # Symmetric case (direction = 0)
+        t_start = float(-line_length)
+        t_end = float(line_length)
+
+    # Generate points along the biased line
+    t = np.linspace(t_start, t_end, kernel_size)
 
     # Generate line coordinates
     x = center + dx * t
     y = center + dy * t
 
     # Apply random shift if allowed
-    if allow_shifted and random_state is not None:
+    if allow_shifted:
         shift_x = random_state.uniform(-1, 1) * line_length / 2
         shift_y = random_state.uniform(-1, 1) * line_length / 2
         x += shift_x
