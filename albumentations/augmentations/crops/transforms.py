@@ -15,6 +15,7 @@ from typing import Annotated, Any, Literal, Union, cast
 
 import cv2
 import numpy as np
+from albucore import batch_transform
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Self
 
@@ -1711,6 +1712,74 @@ class _BaseRandomSizedCrop(DualTransform):
         # Scale the cropped keypoints
         return fgeometric.keypoints_scale(cropped_keypoints, scale_x, scale_y)
 
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the crop and resize to a volume/images.
+
+        This method crops the volume first (reducing data size), then resizes using
+        a helper method with batch transform decorator.
+
+        Args:
+            images (np.ndarray): The volume/images to crop and resize with shape (D, H, W) or (D, H, W, C).
+            crop_coords (tuple[int, int, int, int]): The coordinates of the crop.
+            **params (Any): Additional parameters.
+
+        """
+        # First crop the volume using volume_crop_yx (reduces data size)
+        crop = fcrops.volume_crop_yx(images, *crop_coords)
+
+        # Then resize the smaller cropped volume using decorated helper method
+        return self._resize_volume(crop)
+
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the crop and resize to a volume.
+
+        Args:
+            volume (np.ndarray): The volume to crop.
+            crop_coords (tuple[int, int, int, int]): The coordinates of the crop.
+            **params (Any): Additional parameters.
+
+        """
+        return self.apply_to_images(volume, crop_coords, **params)
+
+    def apply_to_mask3d(
+        self,
+        mask3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the crop and resize to a mask3d.
+
+        Args:
+            mask3d (np.ndarray): The mask3d to crop.
+            crop_coords (tuple[int, int, int, int]): The coordinates of the crop.
+            **params (Any): Additional parameters.
+
+        """
+        return self.apply_to_images(mask3d, crop_coords, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def _resize_volume(self, volume: np.ndarray) -> np.ndarray:
+        """Resize volume using batch transform that reshapes (D, H, W, C) to (H, W, D*C).
+
+        Args:
+            volume (np.ndarray): Volume to resize with shape (D, H, W) or (D, H, W, C).
+
+        Returns:
+            np.ndarray: Resized volume with same number of dimensions as input.
+
+        """
+        return fgeometric.resize(volume, self.size, self.interpolation)
+
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
     """Crop a random part of the input and rescale it to a specific size.
@@ -2059,49 +2128,38 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
         area = image_height * image_width
 
+        # Pre-compute constants to avoid repeated calculations
+        scale_min_area = self.scale[0] * area
+        scale_max_area = self.scale[1] * area
+        log_ratio_min = math.log(self.ratio[0])
+        log_ratio_max = math.log(self.ratio[1])
+
         for _ in range(10):
-            target_area = self.py_random.uniform(*self.scale) * area
-            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            aspect_ratio = math.exp(self.py_random.uniform(*log_ratio))
+            target_area = self.py_random.uniform(scale_min_area, scale_max_area)
+            aspect_ratio = math.exp(self.py_random.uniform(log_ratio_min, log_ratio_max))
 
             width = round(math.sqrt(target_area * aspect_ratio))
             height = round(math.sqrt(target_area / aspect_ratio))
 
             if 0 < width <= image_width and 0 < height <= image_height:
-                i = self.py_random.randint(0, image_height - height)
-                j = self.py_random.randint(0, image_width - width)
-
-                h_start = i * 1.0 / (image_height - height + 1e-10)
-                w_start = j * 1.0 / (image_width - width + 1e-10)
-
-                crop_shape = (height, width)
-
-                crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
-
+                h_start = self.py_random.random()
+                w_start = self.py_random.random()
+                crop_coords = fcrops.get_crop_coords(image_shape, (height, width), h_start, w_start)
                 return {"crop_coords": crop_coords}
 
-        # Fallback to central crop
+        # Fallback to central crop - use proper function
         in_ratio = image_width / image_height
-        if in_ratio < min(self.ratio):
+        if in_ratio < self.ratio[0]:
             width = image_width
-            height = round(image_width / min(self.ratio))
-        elif in_ratio > max(self.ratio):
+            height = round(image_width / self.ratio[0])
+        elif in_ratio > self.ratio[1]:
             height = image_height
-            width = round(height * max(self.ratio))
+            width = round(height * self.ratio[1])
         else:  # whole image
             width = image_width
             height = image_height
 
-        i = (image_height - height) // 2
-        j = (image_width - width) // 2
-
-        h_start = i * 1.0 / (image_height - height + 1e-10)
-        w_start = j * 1.0 / (image_width - width + 1e-10)
-
-        crop_shape = (height, width)
-
-        crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
-
+        crop_coords = fcrops.get_center_crop_coords(image_shape, (height, width))
         return {"crop_coords": crop_coords}
 
 
