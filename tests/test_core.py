@@ -1060,7 +1060,7 @@ def test_images_as_target(augmentation_cls, params, as_array, shape):
 
 
     # Check both images were transformed identically
-    np.testing.assert_allclose(transformed["images"][0], transformed["images"][1], atol=3)
+    np.testing.assert_allclose(transformed["images"][0], transformed["images"][1])
 
     # Check output format matches input format
     if as_array:
