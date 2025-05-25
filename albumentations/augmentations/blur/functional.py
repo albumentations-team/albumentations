@@ -263,6 +263,9 @@ def create_motion_kernel(
         np.ndarray: Motion blur kernel
 
     """
+    # Validate direction range to prevent unexpected interpolation results
+    direction = np.clip(direction, -1.0, 1.0)
+
     kernel = np.zeros((kernel_size, kernel_size), dtype=np.float32)
     center = kernel_size // 2
 

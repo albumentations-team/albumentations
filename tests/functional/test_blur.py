@@ -258,13 +258,19 @@ def test_create_motion_kernel_angles(angle, expected_orientation):
     if expected_orientation == "horizontal":
         middle_row = kernel_size // 2
         row_sum = np.sum(kernel[middle_row, :])
-        assert row_sum > 0.5, f"Horizontal motion should be concentrated in middle row for angle={angle}"
+        assert np.isclose(row_sum, kernel_size, atol=1.5) or row_sum > kernel_size * 0.8, (
+            f"Horizontal motion should be concentrated in middle row for angle={angle} "
+            f"(row_sum={row_sum}, expected≈{kernel_size})"
+        )
 
     # For vertical angles (90, 270), expect motion in middle column
     elif expected_orientation == "vertical":
         middle_col = kernel_size // 2
         col_sum = np.sum(kernel[:, middle_col])
-        assert col_sum > 0.5, f"Vertical motion should be concentrated in middle column for angle={angle}"
+        assert np.isclose(col_sum, kernel_size, atol=1.5) or col_sum > kernel_size * 0.8, (
+            f"Vertical motion should be concentrated in middle column for angle={angle} "
+            f"(col_sum={col_sum}, expected≈{kernel_size})"
+        )
 
 
 @pytest.mark.parametrize("allow_shifted", [True, False])
@@ -290,10 +296,8 @@ def test_create_motion_kernel_allow_shifted(allow_shifted):
         for i in range(1, len(kernels)):
             np.testing.assert_array_equal(kernels[0], kernels[i],
                                         "Kernels should be identical when allow_shifted=False")
-    else:
-        # With shifting enabled, kernels might be different
-        # (This is harder to test deterministically due to randomness)
-        pass
+    # Note: With shifting enabled, kernels might be different
+    # (This is harder to test deterministically due to randomness)
 
 
 @pytest.mark.parametrize(
@@ -389,7 +393,7 @@ def test_create_motion_kernel_center_pixel_behavior():
 
 
 @pytest.mark.parametrize("kernel_size", [3, 5, 7])
-def test_create_motion_kernel_empty_kernel_fallback(kernel_size):
+def test_create_motion_kernel_non_empty(kernel_size):
     """Test that kernel always has at least one non-zero pixel."""
     random_state = Random(42)
 
@@ -404,3 +408,43 @@ def test_create_motion_kernel_empty_kernel_fallback(kernel_size):
 
     assert kernel.sum() > 0, "Kernel should never be completely empty"
     assert np.any(kernel > 0), "Kernel should have at least one non-zero pixel"
+
+
+@pytest.mark.parametrize(
+    "direction_input, expected_clamped",
+    [
+        (-2.0, -1.0),  # Should be clamped to -1.0
+        (-1.5, -1.0),  # Should be clamped to -1.0
+        (1.5, 1.0),    # Should be clamped to 1.0
+        (2.0, 1.0),    # Should be clamped to 1.0
+        (0.5, 0.5),    # Should remain unchanged
+        (-0.5, -0.5),  # Should remain unchanged
+    ]
+)
+def test_create_motion_kernel_direction_validation(direction_input, expected_clamped):
+    """Test that direction values are properly clamped to [-1, 1] range."""
+    random_state = Random(42)
+    kernel_size = 5
+
+    # Create kernel with extreme direction value
+    kernel = fblur.create_motion_kernel(
+        kernel_size=kernel_size,
+        angle=0.0,
+        direction=direction_input,
+        allow_shifted=False,
+        random_state=random_state
+    )
+
+    # Create reference kernel with expected clamped value
+    random_state = Random(42)  # Reset for consistency
+    reference_kernel = fblur.create_motion_kernel(
+        kernel_size=kernel_size,
+        angle=0.0,
+        direction=expected_clamped,
+        allow_shifted=False,
+        random_state=random_state
+    )
+
+    # Kernels should be identical (direction was clamped to valid range)
+    np.testing.assert_array_equal(kernel, reference_kernel,
+                                  f"direction={direction_input} should be clamped to {expected_clamped}")
