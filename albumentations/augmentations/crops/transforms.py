@@ -2142,14 +2142,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             height = round(math.sqrt(target_area / aspect_ratio))
 
             if 0 < width <= image_width and 0 < height <= image_height:
-                i = self.py_random.randint(0, image_height - height)
-                j = self.py_random.randint(0, image_width - width)
-
-                # Inline crop_coords calculation to avoid function call overhead
-                crop_coords = (j, i, j + width, i + height)
+                h_start = self.py_random.random()
+                w_start = self.py_random.random()
+                crop_coords = fcrops.get_crop_coords(image_shape, (height, width), h_start, w_start)
                 return {"crop_coords": crop_coords}
 
-        # Fallback to central crop - optimized version
+        # Fallback to central crop - use proper function
         in_ratio = image_width / image_height
         if in_ratio < self.ratio[0]:
             width = image_width
@@ -2161,11 +2159,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             width = image_width
             height = image_height
 
-        i = (image_height - height) // 2
-        j = (image_width - width) // 2
-
-        # Direct crop_coords calculation
-        crop_coords = (j, i, j + width, i + height)
+        crop_coords = fcrops.get_center_crop_coords(image_shape, (height, width))
         return {"crop_coords": crop_coords}
 
 
