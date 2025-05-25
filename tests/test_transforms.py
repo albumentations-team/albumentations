@@ -914,7 +914,13 @@ def test_rotate_equal(img, aug_cls, angle):
 
 
 def test_motion_blur_allow_shifted():
-    transform = A.MotionBlur(allow_shifted=False)
+    # Use fixed parameters to ensure horizontal/vertical lines for center checking
+    transform = A.MotionBlur(
+        allow_shifted=False,
+        angle_range=(0, 0),  # Fixed horizontal angle
+        direction_range=(0, 0),  # Symmetric direction
+        blur_limit=(7, 7)  # Fixed kernel size
+    )
     kernel = transform.get_params()["kernel"]
 
     center = kernel.shape[0] / 2 - 0.5
