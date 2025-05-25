@@ -335,7 +335,7 @@ class Pad(DualTransform):
         )
 
     def apply_to_images(
-        self, 
+        self,
         images,
         pad_top: int,
         pad_bottom: int,
