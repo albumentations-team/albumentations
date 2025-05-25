@@ -268,53 +268,42 @@ def create_motion_kernel(
 
     # Convert angle to radians
     angle_rad = np.deg2rad(angle)
-
-    # Calculate direction vector
     dx = np.cos(angle_rad)
     dy = np.sin(angle_rad)
-
-    # Create line points with direction bias
     line_length = kernel_size // 2
 
-    # Apply direction bias to control the distribution of blur
+    # Calculate t_start and t_end using direction
     if direction < 0:
-        # Backward bias: interpolate between symmetric and backward-only
-        # direction = -1: only backward, direction = 0: symmetric
-        bias_factor = abs(direction)
-        t_start = float(-line_length)
+        bias_factor = -direction
+        t_start = -line_length
         t_end = line_length * (1 - bias_factor)
     elif direction > 0:
-        # Forward bias: interpolate between symmetric and forward-only
-        # direction = 1: only forward, direction = 0: symmetric
         bias_factor = direction
         t_start = -line_length * (1 - bias_factor)
-        t_end = float(line_length)
+        t_end = line_length
     else:
-        # Symmetric case (direction = 0)
-        t_start = float(-line_length)
-        t_end = float(line_length)
+        t_start = -line_length
+        t_end = line_length
 
-    # Generate points along the biased line
+    # Vectorized linspace for t
     t = np.linspace(t_start, t_end, kernel_size)
-
-    # Generate line coordinates
-    x = center + dx * t
-    y = center + dy * t
-
-    # Apply random shift if allowed
     if allow_shifted:
         shift_x = random_state.uniform(-1, 1) * line_length / 2
         shift_y = random_state.uniform(-1, 1) * line_length / 2
-        x += shift_x
-        y += shift_y
+        # Inlined coordinate calculation including shifts
+        x = center + dx * t + shift_x
+        y = center + dy * t + shift_y
+    else:
+        x = center + dx * t
+        y = center + dy * t
 
-    # Round coordinates and clip to kernel bounds
-    x = np.clip(np.round(x), 0, kernel_size - 1).astype(int)
-    y = np.clip(np.round(y), 0, kernel_size - 1).astype(int)
+    # Round and clip to kernel bounds
+    x = np.clip(np.round(x), 0, kernel_size - 1).astype(np.intp)
+    y = np.clip(np.round(y), 0, kernel_size - 1).astype(np.intp)
 
-    # Keep only unique points to avoid multiple assignments
-    points = np.unique(np.column_stack([y, x]), axis=0)
-    kernel[points[:, 0], points[:, 1]] = 1
+    # Efficient scatter to ensure only unique (y, x)
+    # Directly set 1 at all (y, x) pairs; pixel assignment is idempotent
+    kernel[y, x] = 1
 
     # Ensure at least one point is set
     if not kernel.any():
