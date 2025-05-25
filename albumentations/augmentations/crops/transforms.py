@@ -15,7 +15,6 @@ from typing import Annotated, Any, Literal, Union, cast
 
 import cv2
 import numpy as np
-from albucore import batch_transform
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Self
 
@@ -1733,7 +1732,7 @@ class _BaseRandomSizedCrop(DualTransform):
         crop = fcrops.volume_crop_yx(images, *crop_coords)
 
         # Then resize the smaller cropped volume using decorated helper method
-        return self._resize_volume(crop)
+        return np.stack([fgeometric.resize(crop[i], self.size, self.interpolation) for i in range(images.shape[0])])
 
     def apply_to_volume(
         self,
@@ -1766,19 +1765,6 @@ class _BaseRandomSizedCrop(DualTransform):
 
         """
         return self.apply_to_images(mask3d, crop_coords, **params)
-
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
-    def _resize_volume(self, volume: np.ndarray) -> np.ndarray:
-        """Resize volume using batch transform that reshapes (D, H, W, C) to (H, W, D*C).
-
-        Args:
-            volume (np.ndarray): Volume to resize with shape (D, H, W) or (D, H, W, C).
-
-        Returns:
-            np.ndarray: Resized volume with same number of dimensions as input.
-
-        """
-        return fgeometric.resize(volume, self.size, self.interpolation)
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
