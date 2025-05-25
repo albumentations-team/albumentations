@@ -336,7 +336,7 @@ class Pad(DualTransform):
 
     def apply_to_images(
         self,
-        images,
+        images: np.ndarray,
         pad_top: int,
         pad_bottom: int,
         pad_left: int,

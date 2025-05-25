@@ -1585,7 +1585,7 @@ def pad_images_with_params(
         kwargs = {"constant_values": constant_values}
     else:
         kwargs = {}
-    
+
     images = np.pad(images, pad_width=pad_width, mode=mode, **kwargs)
     if no_channel_dim:
         images = images[..., 0]
