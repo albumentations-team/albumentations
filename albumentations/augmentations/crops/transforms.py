@@ -15,6 +15,7 @@ from typing import Annotated, Any, Literal, Union, cast
 
 import cv2
 import numpy as np
+from albucore import batch_transform
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Self
 
@@ -1710,6 +1711,74 @@ class _BaseRandomSizedCrop(DualTransform):
 
         # Scale the cropped keypoints
         return fgeometric.keypoints_scale(cropped_keypoints, scale_x, scale_y)
+
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the crop and resize to a volume/images.
+
+        This method crops the volume first (reducing data size), then resizes using
+        a helper method with batch transform decorator.
+
+        Args:
+            images (np.ndarray): The volume/images to crop and resize with shape (D, H, W) or (D, H, W, C).
+            crop_coords (tuple[int, int, int, int]): The coordinates of the crop.
+            **params (Any): Additional parameters.
+
+        """
+        # First crop the volume using volume_crop_yx (reduces data size)
+        crop = fcrops.volume_crop_yx(images, *crop_coords)
+
+        # Then resize the smaller cropped volume using decorated helper method
+        return self._resize_volume(crop)
+
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the crop and resize to a volume.
+
+        Args:
+            volume (np.ndarray): The volume to crop.
+            crop_coords (tuple[int, int, int, int]): The coordinates of the crop.
+            **params (Any): Additional parameters.
+
+        """
+        return self.apply_to_images(volume, crop_coords, **params)
+
+    def apply_to_mask3d(
+        self,
+        mask3d: np.ndarray,
+        crop_coords: tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the crop and resize to a mask3d.
+
+        Args:
+            mask3d (np.ndarray): The mask3d to crop.
+            crop_coords (tuple[int, int, int, int]): The coordinates of the crop.
+            **params (Any): Additional parameters.
+
+        """
+        return self.apply_to_images(mask3d, crop_coords, **params)
+
+    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
+    def _resize_volume(self, volume: np.ndarray) -> np.ndarray:
+        """Resize volume using batch transform that reshapes (D, H, W, C) to (H, W, D*C).
+
+        Args:
+            volume (np.ndarray): Volume to resize with shape (D, H, W) or (D, H, W, C).
+
+        Returns:
+            np.ndarray: Resized volume with same number of dimensions as input.
+
+        """
+        return fgeometric.resize(volume, self.size, self.interpolation)
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
