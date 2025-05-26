@@ -40,7 +40,7 @@ __all__ = [
 def channel_dropout(
     img: np.ndarray,
     channels_to_drop: int | tuple[int, ...] | np.ndarray,
-    fill_value: tuple[float, ...] | float = 0,
+    fill: tuple[float, ...] | float = 0,
 ) -> np.ndarray:
     """Drop channels from an image.
 
@@ -49,7 +49,7 @@ def channel_dropout(
     Args:
         img (np.ndarray): Input image.
         channels_to_drop (int | tuple[int, ...] | np.ndarray): Channels to drop.
-        fill_value (tuple[float, ...] | float): Value to fill the dropped channels with.
+        fill (tuple[float, ...] | float): Value to fill the dropped channels with.
 
     Returns:
         np.ndarray: Image with channels dropped.
@@ -60,7 +60,7 @@ def channel_dropout(
         raise NotImplementedError(msg)
 
     img = img.copy()
-    img[..., channels_to_drop] = fill_value
+    img[..., channels_to_drop] = fill
     return img
 
 
@@ -143,45 +143,45 @@ def apply_inpainting(img: np.ndarray, holes: np.ndarray, method: Literal["inpain
     return cv2.inpaint(img, mask, 3, inpaint_method)
 
 
-def fill_holes_with_value(img: np.ndarray, holes: np.ndarray, fill_value: np.ndarray) -> np.ndarray:
+def fill_holes_with_value(img: np.ndarray, holes: np.ndarray, fill: np.ndarray) -> np.ndarray:
     """Fill holes with a constant value.
 
     Args:
         img (np.ndarray): Input image
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        fill_value (np.ndarray): Value to fill the holes with
+        fill (np.ndarray): Value to fill the holes with
 
     """
     for x_min, y_min, x_max, y_max in holes:
-        img[y_min:y_max, x_min:x_max] = fill_value
+        img[y_min:y_max, x_min:x_max] = fill
     return img
 
 
-def fill_volume_holes_with_value(volume: np.ndarray, holes: np.ndarray, fill_value: np.ndarray) -> np.ndarray:
+def fill_volume_holes_with_value(volume: np.ndarray, holes: np.ndarray, fill: np.ndarray) -> np.ndarray:
     """Fill holes in a volume with a constant value.
 
     Args:
         volume (np.ndarray): Input volume
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        fill_value (np.ndarray): Value to fill the holes with
+        fill (np.ndarray): Value to fill the holes with
 
     """
     for x_min, y_min, x_max, y_max in holes:
-        volume[:, y_min:y_max, x_min:x_max] = fill_value
+        volume[:, y_min:y_max, x_min:x_max] = fill
     return volume
 
 
-def fill_volumes_holes_with_value(volumes: np.ndarray, holes: np.ndarray, fill_value: np.ndarray) -> np.ndarray:
+def fill_volumes_holes_with_value(volumes: np.ndarray, holes: np.ndarray, fill: np.ndarray) -> np.ndarray:
     """Fill holes in a batch of volumes with a constant value.
 
     Args:
         volumes (np.ndarray): Input batch of volumes
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        fill_value (np.ndarray): Value to fill the holes with
+        fill (np.ndarray): Value to fill the holes with
 
     """
     for x_min, y_min, x_max, y_max in holes:
-        volumes[:, :, y_min:y_max, x_min:x_max] = fill_value
+        volumes[:, :, y_min:y_max, x_min:x_max] = fill
     return volumes
 
 
@@ -268,7 +268,7 @@ def fill_volumes_holes_with_random(
 def cutout(
     img: np.ndarray,
     holes: np.ndarray,
-    fill_value: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
+    fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Apply cutout augmentation to the image by cutting out holes and filling them.
@@ -276,7 +276,7 @@ def cutout(
     Args:
         img (np.ndarray): The image to augment
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        fill_value (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value to fill holes with. Can be:
             - number (int/float): Will be broadcast to all channels
             - sequence (tuple/list/ndarray): Must match number of channels
@@ -286,30 +286,30 @@ def cutout(
         random_generator (np.random.Generator): Random number generator for random fills
 
     Raises:
-        ValueError: If fill_value length doesn't match number of channels
+        ValueError: If fill length doesn't match number of channels
 
     """
     img = img.copy()
 
     # Handle inpainting methods
-    if isinstance(fill_value, str):
-        if fill_value in {"inpaint_telea", "inpaint_ns"}:
-            return apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill_value))
-        if fill_value == "random":
+    if isinstance(fill, str):
+        if fill in {"inpaint_telea", "inpaint_ns"}:
+            return apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill))
+        if fill == "random":
             return fill_holes_with_random(img, holes, random_generator, uniform=False)
-        if fill_value == "random_uniform":
+        if fill == "random_uniform":
             return fill_holes_with_random(img, holes, random_generator, uniform=True)
-        raise ValueError(f"Unsupported string fill_value: {fill_value}")
+        raise ValueError(f"Unsupported string fill: {fill}")
 
     # Convert numeric fill values to numpy array
-    if isinstance(fill_value, (int, float)):
-        fill_array = np.array(fill_value, dtype=img.dtype)
+    if isinstance(fill, (int, float)):
+        fill_array = np.array(fill, dtype=img.dtype)
         return fill_holes_with_value(img, holes, fill_array)
 
     # Handle sequence fill values
-    fill_array = np.array(fill_value, dtype=img.dtype)
+    fill_array = np.array(fill, dtype=img.dtype)
 
-    # For multi-channel images, verify fill_value matches number of channels
+    # For multi-channel images, verify fill matches number of channels
     if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS:
         fill_array = fill_array.ravel()
         if fill_array.size != img.shape[2]:
@@ -324,7 +324,7 @@ def cutout(
 def cutout_on_volume(
     volume: np.ndarray,
     holes: np.ndarray,
-    fill_value: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
+    fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Apply cutout augmentation to a volume of shape (D, H, W) or (D, H, W, C) by cutting out holes and filling them.
@@ -332,7 +332,7 @@ def cutout_on_volume(
     Args:
         volume (np.ndarray): The volume to augment
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        fill_value (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value to fill holes with. Can be:
             - number (int/float): Will be broadcast to all channels
             - sequence (tuple/list/ndarray): Must match number of channels
@@ -342,35 +342,35 @@ def cutout_on_volume(
         random_generator (np.random.Generator): Random number generator for random fills
 
     Raises:
-        ValueError: If fill_value length doesn't match number of channels
+        ValueError: If fill length doesn't match number of channels
 
     """
     volume = volume.copy()
 
     # Handle inpainting methods
-    if isinstance(fill_value, str):
-        if fill_value in {"inpaint_telea", "inpaint_ns"}:
-            return np.ndarray(
-                [
-                    apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill_value))
-                    for img in volume
-                ],
-            )
-        if fill_value == "random":
+    if isinstance(fill, str):
+        if fill in {"inpaint_telea", "inpaint_ns"}:
+            processed_images = [
+                apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill)) for img in volume
+            ]
+            result = np.array(processed_images)
+            # Reshape to original volume shape: (D, H, W, C) or (D, H, W)
+            return result.reshape(volume.shape)
+        if fill == "random":
             return fill_volume_holes_with_random(volume, holes, random_generator, uniform=False)
-        if fill_value == "random_uniform":
+        if fill == "random_uniform":
             return fill_volume_holes_with_random(volume, holes, random_generator, uniform=True)
-        raise ValueError(f"Unsupported string fill_value: {fill_value}")
+        raise ValueError(f"Unsupported string fill: {fill}")
 
     # Convert numeric fill values to numpy array
-    if isinstance(fill_value, (int, float)):
-        fill_array = np.array(fill_value, dtype=volume.dtype)
+    if isinstance(fill, (int, float)):
+        fill_array = np.array(fill, dtype=volume.dtype)
         return fill_volume_holes_with_value(volume, holes, fill_array)
 
     # Handle sequence fill values
-    fill_array = np.array(fill_value, dtype=volume.dtype)
+    fill_array = np.array(fill, dtype=volume.dtype)
 
-    # For multi-channel images, verify fill_value matches number of channels
+    # For multi-channel images, verify fill matches number of channels
     if volume.ndim == 4:
         fill_array = fill_array.ravel()
         if fill_array.size != volume.shape[3]:
@@ -385,7 +385,7 @@ def cutout_on_volume(
 def cutout_on_volumes(
     volumes: np.ndarray,
     holes: np.ndarray,
-    fill_value: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
+    fill: tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"],
     random_generator: np.random.Generator,
 ) -> np.ndarray:
     """Apply cutout augmentation to a batch of volumes of shape (N, D, H, W) or (N, D, H, W, C)
@@ -393,7 +393,7 @@ def cutout_on_volumes(
     Args:
         volumes (np.ndarray): The image to augment
         holes (np.ndarray): Array of [x1, y1, x2, y2] coordinates
-        fill_value (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
+        fill (tuple[float, ...] | float | Literal["random", "random_uniform", "inpaint_telea", "inpaint_ns"]):
             Value to fill holes with. Can be:
             - number (int/float): Will be broadcast to all channels
             - sequence (tuple/list/ndarray): Must match number of channels
@@ -403,42 +403,43 @@ def cutout_on_volumes(
         random_generator (np.random.Generator): Random number generator for random fills
 
     Raises:
-        ValueError: If fill_value length doesn't match number of channels
+        ValueError: If fill length doesn't match number of channels
 
     """
     volumes = volumes.copy()
 
     # Handle inpainting methods
-    if isinstance(fill_value, str):
-        if fill_value in {"inpaint_telea", "inpaint_ns"}:
-            return np.ndarray(
-                [
-                    apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill_value))
-                    for volume in volumes
-                    for img in volume
-                ],
-            )
-        if fill_value == "random":
+    if isinstance(fill, str):
+        if fill in {"inpaint_telea", "inpaint_ns"}:
+            processed_images = [
+                apply_inpainting(img, holes, cast("Literal['inpaint_telea', 'inpaint_ns']", fill))
+                for volume in volumes
+                for img in volume
+            ]
+            result = np.array(processed_images)
+            # Reshape to original batch of volumes shape: (N, D, H, W, C) or (N, D, H, W)
+            return result.reshape(volumes.shape)
+        if fill == "random":
             return fill_volumes_holes_with_random(volumes, holes, random_generator, uniform=False)
-        if fill_value == "random_uniform":
+        if fill == "random_uniform":
             return fill_volumes_holes_with_random(volumes, holes, random_generator, uniform=True)
-        raise ValueError(f"Unsupported string fill_value: {fill_value}")
+        raise ValueError(f"Unsupported string fill: {fill}")
 
     # Convert numeric fill values to numpy array
-    if isinstance(fill_value, (int, float)):
-        fill_array = np.array(fill_value, dtype=volumes.dtype)
+    if isinstance(fill, (int, float)):
+        fill_array = np.array(fill, dtype=volumes.dtype)
         return fill_volumes_holes_with_value(volumes, holes, fill_array)
 
     # Handle sequence fill values
-    fill_array = np.array(fill_value, dtype=volumes.dtype)
+    fill_array = np.array(fill, dtype=volumes.dtype)
 
-    # For multi-channel images, verify fill_value matches number of channels
-    if volumes.ndim == 4:
+    # For multi-channel images, verify fill matches number of channels
+    if volumes.ndim == 5:
         fill_array = fill_array.ravel()
-        if fill_array.size != volumes.shape[3]:
+        if fill_array.size != volumes.shape[4]:
             raise ValueError(
                 f"Fill value must have same number of channels as image. "
-                f"Got {fill_array.size}, expected {volumes.shape[3]}",
+                f"Got {fill_array.size}, expected {volumes.shape[4]}",
             )
 
     return fill_volumes_holes_with_value(volumes, holes, fill_array)
