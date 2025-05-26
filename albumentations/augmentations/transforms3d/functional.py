@@ -130,14 +130,14 @@ def crop3d(
     return volume[z_min:z_max, y_min:y_max, x_min:x_max]
 
 
-def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: tuple[float, ...] | float) -> np.ndarray:
+def cutout3d(volume: np.ndarray, holes: np.ndarray, fill: tuple[float, ...] | float) -> np.ndarray:
     """Cut out holes in 3D volume and fill them with a given value.
 
     Args:
         volume (np.ndarray): Input volume with shape (depth, height, width) or (depth, height, width, channels)
         holes (np.ndarray): Array of holes with shape (num_holes, 6).
             Each hole is represented as [z1, y1, x1, z2, y2, x2]
-        fill_value (tuple[float, ...] | float): Value to fill the holes
+        fill (tuple[float, ...] | float): Value to fill the holes
 
     Returns:
         np.ndarray: Volume with holes filled with the given value
@@ -145,7 +145,7 @@ def cutout3d(volume: np.ndarray, holes: np.ndarray, fill_value: tuple[float, ...
     """
     volume = volume.copy()
     for z1, y1, x1, z2, y2, x2 in holes:
-        volume[z1:z2, y1:y2, x1:x2] = fill_value
+        volume[z1:z2, y1:y2, x1:x2] = fill
     return volume
 
 
