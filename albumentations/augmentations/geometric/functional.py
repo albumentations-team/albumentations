@@ -1537,6 +1537,62 @@ def pad_with_params(
     return pad_fn(img)
 
 
+def pad_images_with_params(
+    images: np.ndarray,
+    h_pad_top: int,
+    h_pad_bottom: int,
+    w_pad_left: int,
+    w_pad_right: int,
+    border_mode: int,
+    value: tuple[float, ...] | float | None,
+) -> np.ndarray:
+    """Pad a batch of images with explicitly defined padding on each side.
+
+    This function adds specified amounts of padding to each side of the image for each
+    image in the batch.
+
+    Args:
+        images (np.ndarray): Input batch of images to pad.
+        h_pad_top (int): Number of pixels to add at the top.
+        h_pad_bottom (int): Number of pixels to add at the bottom.
+        w_pad_left (int): Number of pixels to add on the left.
+        w_pad_right (int): Number of pixels to add on the right.
+        border_mode (int): OpenCV border mode for padding.
+        value (tuple[float, ...] | float | None): Value(s) to fill the border pixels.
+
+    Returns:
+        np.ndarray: Padded batch of images.
+
+    """
+    no_channel_dim = images.ndim == 3
+    if no_channel_dim:
+        images = images[..., np.newaxis]
+
+    cv2np_border_modes = {
+        cv2.BORDER_CONSTANT: "constant",
+        cv2.BORDER_REPLICATE: "edge",
+        cv2.BORDER_REFLECT: "symmetric",
+        cv2.BORDER_WRAP: "wrap",
+        cv2.BORDER_REFLECT_101: "reflect",
+        cv2.BORDER_REFLECT101: "reflect",
+        cv2.BORDER_DEFAULT: "reflect",  # same as cv2.BORDER_REFLECT_101
+    }
+    mode = cv2np_border_modes[border_mode]
+
+    pad_width = ((0, 0), (h_pad_top, h_pad_bottom), (w_pad_left, w_pad_right), (0, 0))
+    if mode == "constant":
+        constant_values = np.array(((0, 0), (value, value), (value, value), (0, 0)), dtype=object)
+        kwargs = {"constant_values": constant_values}
+    else:
+        kwargs = {}
+
+    images = np.pad(images, pad_width=pad_width, mode=mode, **kwargs)
+    if no_channel_dim:
+        images = images[..., 0]
+
+    return images
+
+
 @preserve_channel_dim
 def remap(
     img: np.ndarray,

@@ -334,6 +334,36 @@ class Pad(DualTransform):
             image_shape=params["shape"][:2],
         )
 
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        pad_top: int,
+        pad_bottom: int,
+        pad_left: int,
+        pad_right: int,
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the Pad transform to a batch of images.
+
+        Args:
+            images (np.ndarray): Batch of images to be transformed.
+            pad_top (int): Top padding.
+            pad_bottom (int): Bottom padding.
+            pad_left (int): Left padding.
+            pad_right (int): Right padding.
+            **params (Any): Additional parameters.
+
+        """
+        return fgeometric.pad_images_with_params(
+            images,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            border_mode=self.border_mode,
+            value=self.fill,
+        )
+
     def get_params_dependent_on_data(
         self,
         params: dict[str, Any],
