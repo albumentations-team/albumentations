@@ -1498,6 +1498,12 @@ class _BaseRandomSizedCrop(DualTransform):
             for image resizing. Default: cv2.INTER_LINEAR.
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation
             algorithm for mask resizing. Default: cv2.INTER_NEAREST.
+        area_for_downscale (Literal[None, "image", "image_mask"]): Controls automatic use of INTER_AREA interpolation
+            for downscaling. Options:
+            - None: No automatic interpolation selection, always use the specified interpolation method
+            - "image": Use INTER_AREA when downscaling images, retain specified interpolation for upscaling and masks
+            - "image_mask": Use INTER_AREA when downscaling both images and masks
+            Default: None.
         p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -1510,6 +1516,8 @@ class _BaseRandomSizedCrop(DualTransform):
         This class is not meant to be used directly. Instead, use derived transforms
         like RandomSizedCrop or RandomResizedCrop that implement specific crop selection
         strategies.
+        When area_for_downscale is set, INTER_AREA interpolation will be used automatically for
+        downscaling (when the crop is larger than the target size), which provides better quality for size reduction.
 
     Examples:
         >>> import numpy as np
@@ -1524,12 +1532,14 @@ class _BaseRandomSizedCrop(DualTransform):
         ...         custom_parameter=0.5,
         ...         interpolation=cv2.INTER_LINEAR,
         ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         area_for_downscale="image",
         ...         p=1.0
         ...     ):
         ...         super().__init__(
         ...             size=size,
         ...             interpolation=interpolation,
         ...             mask_interpolation=mask_interpolation,
+        ...             area_for_downscale=area_for_downscale,
         ...             p=p,
         ...         )
         ...         self.custom_parameter = custom_parameter
@@ -1560,7 +1570,7 @@ class _BaseRandomSizedCrop(DualTransform):
         >>>
         >>> # Create a pipeline with our custom transform
         >>> transform = A.Compose(
-        ...     [CustomRandomCrop(size=(64, 64), custom_parameter=0.6)],
+        ...     [CustomRandomCrop(size=(64, 64), custom_parameter=0.6, area_for_downscale="image")],
         ...     bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
         ...     keypoint_params=A.KeypointParams(format='xy', label_fields=['keypoint_labels'])
         ... )
@@ -1604,6 +1614,7 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ]
+        area_for_downscale: Literal[None, "image", "image_mask"] = None
 
     def __init__(
         self,
@@ -1626,12 +1637,42 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ] = cv2.INTER_NEAREST,
+        area_for_downscale: Literal[None, "image", "image_mask"] = None,
         p: float = 1.0,
     ):
         super().__init__(p=p)
         self.size = size
         self.interpolation = interpolation
         self.mask_interpolation = mask_interpolation
+        self.area_for_downscale = area_for_downscale
+
+    def _get_interpolation_for_resize(self, crop_shape: tuple[int, int], target_type: str) -> int:
+        """Get the appropriate interpolation method for resizing.
+
+        Args:
+            crop_shape: Shape of the crop (height, width)
+            target_type: Either "image" or "mask" to determine base interpolation
+
+        Returns:
+            OpenCV interpolation flag
+
+        """
+        crop_height, crop_width = crop_shape
+        target_height, target_width = self.size
+
+        # Determine if this is downscaling
+        is_downscale = (crop_height > target_height) or (crop_width > target_width)
+
+        # Get base interpolation
+        base_interpolation = self.interpolation if target_type == "image" else self.mask_interpolation
+
+        # Use INTER_AREA for downscaling if configured
+        if (is_downscale and (target_type == "image" and self.area_for_downscale in ["image", "image_mask"])) or (
+            target_type == "mask" and self.area_for_downscale == "image_mask"
+        ):
+            return cv2.INTER_AREA
+
+        return base_interpolation
 
     def apply(
         self,
@@ -1648,7 +1689,8 @@ class _BaseRandomSizedCrop(DualTransform):
 
         """
         crop = fcrops.crop(img, *crop_coords)
-        return fgeometric.resize(crop, self.size, self.interpolation)
+        interpolation = self._get_interpolation_for_resize(crop.shape[:2], "image")
+        return fgeometric.resize(crop, self.size, interpolation)
 
     def apply_to_mask(
         self,
@@ -1665,7 +1707,8 @@ class _BaseRandomSizedCrop(DualTransform):
 
         """
         crop = fcrops.crop(mask, *crop_coords)
-        return fgeometric.resize(crop, self.size, self.mask_interpolation)
+        interpolation = self._get_interpolation_for_resize(crop.shape[:2], "mask")
+        return fgeometric.resize(crop, self.size, interpolation)
 
     def apply_to_bboxes(
         self,
@@ -1731,8 +1774,11 @@ class _BaseRandomSizedCrop(DualTransform):
         # First crop the volume using volume_crop_yx (reduces data size)
         crop = fcrops.volume_crop_yx(images, *crop_coords)
 
-        # Then resize the smaller cropped volume using decorated helper method
-        return np.stack([fgeometric.resize(crop[i], self.size, self.interpolation) for i in range(images.shape[0])])
+        # Get interpolation method based on crop dimensions
+        interpolation = self._get_interpolation_for_resize(crop.shape[1:3], "image")
+
+        # Then resize the smaller cropped volume using the selected interpolation
+        return np.stack([fgeometric.resize(crop[i], self.size, interpolation) for i in range(images.shape[0])])
 
     def apply_to_volume(
         self,
@@ -1783,6 +1829,12 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST.
+        area_for_downscale (Literal[None, "image", "image_mask"]): Controls automatic use of INTER_AREA interpolation
+            for downscaling. Options:
+            - None: No automatic interpolation selection, always use the specified interpolation method
+            - "image": Use INTER_AREA when downscaling images, retain specified interpolation for upscaling and masks
+            - "image_mask": Use INTER_AREA when downscaling both images and masks
+            Default: None.
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
@@ -1799,6 +1851,8 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         - Keypoints that end up outside the cropped area will be removed.
         - This transform differs from RandomResizedCrop in that it allows more control over the crop size
           through the 'min_max_height' parameter, rather than using a scale parameter.
+        - When area_for_downscale is set, INTER_AREA interpolation will be used automatically for
+          downscaling (when the crop is larger than the target size), which provides better quality for size reduction.
 
     Mathematical Details:
         1. A random crop height h is sampled from the range [min_max_height[0], min_max_height[1]].
@@ -1828,6 +1882,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         ...         w2h_ratio=1.0,
         ...         interpolation=cv2.INTER_LINEAR,
         ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         area_for_downscale="image",  # Use INTER_AREA for image downscaling
         ...         p=1.0
         ...     ),
         ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
@@ -1877,6 +1932,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
         size: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
+        area_for_downscale: Literal[None, "image", "image_mask"] = None
 
     def __init__(
         self,
@@ -1901,12 +1957,14 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ] = cv2.INTER_NEAREST,
+        area_for_downscale: Literal[None, "image", "image_mask"] = None,
         p: float = 1.0,
     ):
         super().__init__(
             size=size,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            area_for_downscale=area_for_downscale,
             p=p,
         )
         self.min_max_height = min_max_height
@@ -1960,6 +2018,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         mask_interpolation (OpenCV flag): Flag that is used to specify the interpolation algorithm for mask.
             Should be one of: cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_NEAREST
+        area_for_downscale (Literal[None, "image", "image_mask"]): Controls automatic use of INTER_AREA interpolation
+            for downscaling. Options:
+            - None: No automatic interpolation selection, always use the specified interpolation method
+            - "image": Use INTER_AREA when downscaling images, retain specified interpolation for upscaling and masks
+            - "image_mask": Use INTER_AREA when downscaling both images and masks
+            Default: None.
         p (float): Probability of applying the transform. Default: 1.0
 
     Targets:
@@ -1976,6 +2040,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         - Bounding boxes that end up fully outside the cropped area will be removed.
         - Keypoints that end up outside the cropped area will be removed.
         - After cropping, the result is resized to the specified size.
+        - When area_for_downscale is set, INTER_AREA interpolation will be used automatically for
+          downscaling (when the crop is larger than the target size), which provides better quality for size reduction.
 
     Mathematical Details:
         1. A target area A is sampled from the range [scale[0] * input_area, scale[1] * input_area].
@@ -2009,6 +2075,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         ...         ratio=(0.75, 1.33),  # Aspect ratio will vary from 3:4 to 4:3
         ...         interpolation=cv2.INTER_LINEAR,
         ...         mask_interpolation=cv2.INTER_NEAREST,
+        ...         area_for_downscale="image",  # Use INTER_AREA for image downscaling
         ...         p=1.0
         ...     ),
         ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['bbox_labels']),
@@ -2062,6 +2129,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ]
+        area_for_downscale: Literal[None, "image", "image_mask"] = None
 
     def __init__(
         self,
@@ -2086,12 +2154,14 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ] = cv2.INTER_NEAREST,
+        area_for_downscale: Literal[None, "image", "image_mask"] = None,
         p: float = 1.0,
     ):
         super().__init__(
             size=size,
             interpolation=interpolation,
             mask_interpolation=mask_interpolation,
+            area_for_downscale=area_for_downscale,
             p=p,
         )
         self.scale = scale
