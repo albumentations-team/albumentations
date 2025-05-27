@@ -6,7 +6,7 @@ requires = [ "setuptools>=45", "wheel" ]
 [project]
 name = "albumentations"
 
-version = "2.0.7"
+version = "2.0.8"
 
 description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks, keypoints) data, with optimized performance and seamless integration into ML workflows."
 readme = "README.md"
@@ -138,12 +138,15 @@ packages = { find = { include = [
   "tests",
   "tools",
   "benchmark",
+  "docs",
+  ".github",
+  ".cursor",
 ] } }
 
 package-data = { albumentations = [ "*.txt", "*.md" ] }
 
 [tool.setuptools.exclude-package-data]
-"*" = [ "tests*", "tools*", "benchmark*", "conda.recipe*" ]
+"*" = [ "tests*", "tools*", "benchmark*", "conda.recipe*", "docs*", ".github*", ".cursor" ]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
