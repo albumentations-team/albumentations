@@ -1614,7 +1614,7 @@ class _BaseRandomSizedCrop(DualTransform):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ]
-        area_for_downscale: Literal[None, "image", "image_mask"] = None
+        area_for_downscale: Literal[None, "image", "image_mask"]
 
     def __init__(
         self,
@@ -1932,7 +1932,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0)]
         size: Annotated[tuple[int, int], AfterValidator(check_range_bounds(1, None))]
-        area_for_downscale: Literal[None, "image", "image_mask"] = None
+        area_for_downscale: Literal[None, "image", "image_mask"]
 
     def __init__(
         self,
@@ -2129,7 +2129,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_LANCZOS4,
             cv2.INTER_LINEAR_EXACT,
         ]
-        area_for_downscale: Literal[None, "image", "image_mask"] = None
+        area_for_downscale: Literal[None, "image", "image_mask"]
 
     def __init__(
         self,

@@ -182,7 +182,6 @@ exclude = [
   "site",
   "site-packages",
   "tests",
-  "tools",
   "venv",
 ]
 
@@ -229,6 +228,16 @@ lint.ignore = [
   "TC002",
   "TC003",
   "TRY003",
+]
+
+lint.per-file-ignores."tools/*" = [
+  "ANN201",
+  "D100",
+  "D101",
+  "D103",
+  "INP001",
+  "SLF001",
+  "T201",
 ]
 
 [tool.mypy]

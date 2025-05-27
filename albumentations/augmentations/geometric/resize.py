@@ -375,7 +375,7 @@ class MaxSizeTransform(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_size: int | list[int] | None
         max_size_hw: tuple[int | None, int | None] | None
-        area_for_downscale: Literal[None, "image", "image_mask"] = None
+        area_for_downscale: Literal[None, "image", "image_mask"]
         interpolation: Literal[
             cv2.INTER_NEAREST,
             cv2.INTER_NEAREST_EXACT,
@@ -833,7 +833,7 @@ class Resize(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         height: int = Field(ge=1)
         width: int = Field(ge=1)
-        area_for_downscale: Literal[None, "image", "image_mask"] = None
+        area_for_downscale: Literal[None, "image", "image_mask"]
         interpolation: Literal[
             cv2.INTER_NEAREST,
             cv2.INTER_NEAREST_EXACT,

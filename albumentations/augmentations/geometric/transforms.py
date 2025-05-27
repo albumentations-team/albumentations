@@ -1184,8 +1184,8 @@ class ShiftScaleRotate(Affine):
             cv2.BORDER_REFLECT_101,
         ]
 
-        fill: tuple[float, ...] | float = 0
-        fill_mask: tuple[float, ...] | float = 0
+        fill: tuple[float, ...] | float
+        fill_mask: tuple[float, ...] | float
 
         shift_limit_x: tuple[float, float] | float | None
         shift_limit_y: tuple[float, float] | float | None

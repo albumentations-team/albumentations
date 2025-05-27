@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 import sys
+from pathlib import Path
+
 
 def check_albucore_version(filename: str) -> int:
-    with open(filename, 'r') as file:
+    with Path(filename).open() as file:
         content = file.read()
 
     # Look for albucore in INSTALL_REQUIRES
@@ -20,5 +22,6 @@ def check_albucore_version(filename: str) -> int:
 
     return 0
 
-if __name__ == '__main__':
-    sys.exit(check_albucore_version('setup.py'))
+
+if __name__ == "__main__":
+    sys.exit(check_albucore_version("setup.py"))
