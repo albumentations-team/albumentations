@@ -1663,16 +1663,13 @@ class _BaseRandomSizedCrop(DualTransform):
         # Determine if this is downscaling
         is_downscale = (crop_height > target_height) or (crop_width > target_width)
 
-        # Get base interpolation
-        base_interpolation = self.interpolation if target_type == "image" else self.mask_interpolation
-
         # Use INTER_AREA for downscaling if configured
         if (is_downscale and (target_type == "image" and self.area_for_downscale in ["image", "image_mask"])) or (
             target_type == "mask" and self.area_for_downscale == "image_mask"
         ):
             return cv2.INTER_AREA
-
-        return base_interpolation
+        # Get base interpolation
+        return self.interpolation if target_type == "image" else self.mask_interpolation
 
     def apply(
         self,
