@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import ast
-import sys
 import importlib.util
 import inspect
+import sys
 from pathlib import Path
-import os
 
 from google_docstring_parser import parse_google_docstring
 
-TARGET_PARENT_CLASSES = {'DualTransform', 'ImageOnlyTransform', "Transform3D"}
+TARGET_PARENT_CLASSES = {"DualTransform", "ImageOnlyTransform", "Transform3D"}
 
 # We'll check for both, but have different error messages
-EXAMPLES_SECTION = 'Examples'
-EXAMPLE_SECTION = 'Example'
+EXAMPLES_SECTION = "Examples"
+EXAMPLE_SECTION = "Example"
 
 
 def is_target_class(cls) -> bool:
@@ -37,7 +36,7 @@ def is_target_class(cls) -> bool:
 
 def build_inheritance_map(file_path: str) -> dict[str, list[str]]:
     """Build a map of class names to their direct parent class names."""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with Path(file_path).open(encoding="utf-8") as f:
         tree = ast.parse(f.read())
 
     inheritance_map = {}
@@ -51,7 +50,11 @@ def build_inheritance_map(file_path: str) -> dict[str, list[str]]:
     return inheritance_map
 
 
-def has_target_ancestor(class_name: str, inheritance_map: dict[str, list[str]], visited: set[str] | None = None) -> bool:
+def has_target_ancestor(
+    class_name: str,
+    inheritance_map: dict[str, list[str]],
+    visited: set[str] | None = None,
+) -> bool:
     """Recursively check if a class has any target class in its ancestry."""
     if visited is None:
         visited = set()
@@ -68,10 +71,7 @@ def has_target_ancestor(class_name: str, inheritance_map: dict[str, list[str]], 
     # Get direct parents
     parents = inheritance_map.get(class_name, [])
 
-    return any(
-        has_target_ancestor(parent, inheritance_map, visited)
-        for parent in parents
-    )
+    return any(has_target_ancestor(parent, inheritance_map, visited) for parent in parents)
 
 
 def check_docstring(docstring: str, class_name: str) -> list[tuple[str, str]]:
@@ -89,13 +89,10 @@ def check_docstring(docstring: str, class_name: str) -> list[tuple[str, str]]:
         if EXAMPLE_SECTION in parsed and EXAMPLES_SECTION not in parsed:
             errors.append((class_name, f"Using '{EXAMPLE_SECTION}' instead of '{EXAMPLES_SECTION}' - use plural form"))
         # Then check if neither is present
-        elif all(
-            section not in parsed
-            for section in [EXAMPLES_SECTION, EXAMPLE_SECTION]
-        ):
+        elif all(section not in parsed for section in [EXAMPLES_SECTION, EXAMPLE_SECTION]):
             errors.append((class_name, f"Missing '{EXAMPLES_SECTION}' section in docstring"))
-    except Exception as e:
-        errors.append((class_name, f"Error parsing docstring: {str(e)}"))
+    except (ValueError, AttributeError, TypeError) as e:
+        errors.append((class_name, f"Error parsing docstring: {e!s}"))
 
     return errors
 
@@ -117,11 +114,11 @@ def check_file(file_path: str) -> list[tuple[str, str]]:
         # Find all classes in the module
         for _, obj in inspect.getmembers(module):
             if inspect.isclass(obj) and obj.__module__ == module.__name__ and is_target_class(obj):
-                    docstring = inspect.getdoc(obj)
-                    errors.extend(check_docstring(docstring, obj.__name__))
-    except Exception as e:
+                docstring = inspect.getdoc(obj)
+                errors.extend(check_docstring(docstring, obj.__name__))
+    except (ImportError, AttributeError, ModuleNotFoundError, SyntaxError):
         # If module import fails, use AST to check
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with Path(file_path).open(encoding="utf-8") as f:
             content = f.read()
 
         tree = ast.parse(content)
@@ -149,7 +146,7 @@ def main():
     all_errors = []
 
     for file_path in files:
-        if not file_path.endswith('.py'):
+        if not file_path.endswith(".py"):
             continue
 
         errors = check_file(file_path)
@@ -160,7 +157,7 @@ def main():
     # Print all errors
     if all_errors:
         for file_path, errors in all_errors:
-            file_rel_path = file_path.replace(os.getcwd() + '/', '')
+            file_rel_path = file_path.replace(str(Path.cwd()) + "/", "")
             print(f"\n{file_rel_path}:")
             for class_name, message in errors:
                 print(f"  - {class_name}: {message}")

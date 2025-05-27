@@ -385,6 +385,44 @@ Each transform must include an `InitSchema` class that inherits from `BaseTransf
           self.brightness_coefficient = brightness_coefficient
   ```
 
+#### No Default Values in InitSchema
+
+**InitSchema classes must not contain default values for their fields.** This ensures that all transform parameters are explicitly provided and validated at initialization time.
+
+```python
+# Correct - no default values in InitSchema
+class MyTransform(ImageOnlyTransform):
+    class InitSchema(BaseTransformInitSchema):
+        brightness_range: tuple[float, float]
+        contrast_range: tuple[float, float]
+
+    def __init__(self, brightness_range: tuple[float, float] = (0.8, 1.2),
+                 contrast_range: tuple[float, float] = (0.8, 1.2), p: float = 0.5):
+        # Default values go in __init__, not InitSchema
+        super().__init__(p=p)
+        self.brightness_range = brightness_range
+        self.contrast_range = contrast_range
+
+# Incorrect - default values in InitSchema
+class MyTransform(ImageOnlyTransform):
+    class InitSchema(BaseTransformInitSchema):
+        brightness_range: tuple[float, float] = (0.8, 1.2)  # ❌ No defaults in InitSchema
+        contrast_range: tuple[float, float] = (0.8, 1.2)    # ❌ No defaults in InitSchema
+```
+
+##### Exception: Discriminator Fields
+
+The only exception to this rule is discriminator fields used for Pydantic discriminated unions, where the default value must match the literal type:
+
+```python
+# Correct - discriminator field with matching default
+class UniformParams(NoiseParamsBase):
+    noise_type: Literal["uniform"] = "uniform"  # ✅ Required for discriminated unions
+    ranges: list[Sequence[float]]
+```
+
+This rule is enforced by a pre-commit hook that will flag any violations during development.
+
 ### Coordinate Systems
 
 #### Image Center Calculations

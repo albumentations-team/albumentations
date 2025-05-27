@@ -78,10 +78,10 @@ def get_dual_transforms_info():
             and not issubclass(cls, albumentations.Transform3D)  # Exclude 3D transforms
             and name not in IGNORED_CLASSES
         ) and not is_deprecated(cls):
-                dual_transforms_info[name] = {
-                    "targets": cls._targets,
-                    "docs_link": make_augmentation_docs_link(cls),
-                }
+            dual_transforms_info[name] = {
+                "targets": cls._targets,
+                "docs_link": make_augmentation_docs_link(cls),
+            }
     return dual_transforms_info
 
 
@@ -93,11 +93,7 @@ def get_3d_transforms_info():
             inspect.isclass(cls) and issubclass(cls, albumentations.Transform3D) and name not in IGNORED_CLASSES
         ) and not is_deprecated(cls):
             # Get targets from class or parent class if not defined
-            if hasattr(cls, "_targets"):
-                targets = cls._targets
-            else:
-                # Get from Transform3D base class
-                targets = albumentations.Transform3D._targets
+            targets = cls._targets if hasattr(cls, "_targets") else albumentations.Transform3D._targets
 
             transforms_3d_info[name] = {
                 "targets": targets if isinstance(targets, tuple) else (targets,),
@@ -126,12 +122,10 @@ def make_transforms_targets_table(transforms_info, header, targets_to_check=None
             make_separator(width, align_center=column_index > 0) for column_index, width in enumerate(column_widths)
         ),
     ]
-    for row in rows[1:]:
-        lines.append(
-            " | ".join(
-                "{column: <{width}}".format(width=width, column=column) for width, column in zip(column_widths, row)
-            ),
-        )
+    lines.extend(
+        " | ".join("{column: <{width}}".format(width=width, column=column) for width, column in zip(column_widths, row))
+        for row in rows[1:]
+    )
     return "\n".join(f"| {line} |" for line in lines)
 
 
@@ -140,7 +134,10 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(
-    filepath: str, image_only_transforms_links: str, dual_transforms_table: str, transforms_3d_table: str
+    filepath: str,
+    image_only_transforms_links: str,
+    dual_transforms_table: str,
+    transforms_3d_table: str,
 ) -> None:
     """Check if the documentation file is up to date with the current transforms.
 
@@ -152,8 +149,9 @@ def check_docs(
 
     Raises:
         ValueError: If any section is outdated with detailed information about missing lines
+
     """
-    with open(filepath, encoding="utf8") as f:
+    with Path(filepath).open(encoding="utf8") as f:
         text = f.read()
 
     # Find sections using regex
@@ -204,7 +202,7 @@ def check_docs(
         ).format(
             outdated_docs_headers=", ".join(sorted(outdated_docs)),
             py_file=Path(os.path.realpath(__file__)).name,
-            filename=os.path.basename(filepath),
+            filename=Path(filepath).name,
         )
 
         # Add missing lines for each outdated section

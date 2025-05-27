@@ -852,7 +852,7 @@ class RandomRain(ImageOnlyTransform):
             AfterValidator(nondecreasing),
             AfterValidator(check_range_bounds(-MAX_RAIN_ANGLE, MAX_RAIN_ANGLE)),
         ]
-        drop_length: int | None = None
+        drop_length: int | None
         drop_width: int = Field(ge=1)
         drop_color: tuple[int, int, int]
         blur_value: int = Field(ge=1)
@@ -3379,7 +3379,6 @@ class ToGray(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         num_output_channels: int = Field(
-            default=3,
             description="The number of output channels.",
             ge=1,
         )
@@ -5058,7 +5057,7 @@ class Spatter(ImageOnlyTransform):
         cutout_threshold: ZeroOneRangeType
         intensity: ZeroOneRangeType
         mode: Literal["rain", "mud"]
-        color: Sequence[int] | None = None
+        color: Sequence[int] | None
 
         @model_validator(mode="after")
         def _check_color(self) -> Self:
@@ -5721,10 +5720,7 @@ class NoiseParamsBase(BaseModel):
 
 class UniformParams(NoiseParamsBase):
     noise_type: Literal["uniform"] = "uniform"
-    ranges: list[Sequence[float]] = Field(
-        description="List of (min, max) ranges for each channel",
-        min_length=1,
-    )
+    ranges: list[Sequence[float]] = Field(min_length=1)
 
     @field_validator("ranges", mode="after")
     @classmethod
@@ -6383,8 +6379,8 @@ class PlasmaBrightnessContrast(ImageOnlyTransform):
             tuple[float, float],
             AfterValidator(check_range_bounds(-1, 1)),
         ]
-        plasma_size: int = Field(default=256, ge=1)
-        roughness: float = Field(default=3.0, gt=0)
+        plasma_size: int = Field(ge=1)
+        roughness: float = Field(gt=0)
 
     def __init__(
         self,
@@ -6589,7 +6585,7 @@ class PlasmaShadow(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         shadow_intensity_range: Annotated[tuple[float, float], AfterValidator(check_range_bounds(0, 1))]
-        roughness: float = Field(default=3.0, gt=0)
+        roughness: float = Field(gt=0)
 
     def __init__(
         self,

@@ -37,8 +37,8 @@ MAX_BETA_LIMIT = 0.5
 
 # Base class for Domain Adaptation Init Schema
 class BaseDomainAdaptationInitSchema(BaseTransformInitSchema):
-    reference_images: Sequence[Any] | None = None
-    read_fn: Callable[[Any], np.ndarray] | None = None
+    reference_images: Sequence[Any] | None
+    read_fn: Callable[[Any], np.ndarray] | None
     metadata_key: str
 
     @model_validator(mode="after")

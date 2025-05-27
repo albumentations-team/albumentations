@@ -55,6 +55,13 @@ repos:
       files: ^albumentations/
       pass_filenames: true
       additional_dependencies: ["google-docstring-parser>=0.0.7"]
+    - id: check-no-defaults-in-schemas
+      name: Check no defaults in BaseModel schemas
+      entry: python tools/check_no_defaults_in_schemas.py
+      language: python
+      types: [python]
+      files: ^albumentations/
+      pass_filenames: true
   - repo: local
     hooks:
       - id: check-albucore-version

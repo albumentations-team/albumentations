@@ -39,7 +39,7 @@ class Interpolation:
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     p: float = Field(ge=0, le=1)
-    strict: bool = False
+    strict: bool
 
 
 class CombinedMeta(SerializableMeta, ValidatedTransformMeta):

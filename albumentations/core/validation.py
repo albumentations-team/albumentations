@@ -61,7 +61,10 @@ class ValidatedTransformMeta(type):
         strict: bool,
     ) -> dict[str, Any]:
         try:
-            config = schema_cls(**{k: v for k, v in full_kwargs.items() if k in param_names})
+            # Include strict parameter for schema validation
+            schema_kwargs = {k: v for k, v in full_kwargs.items() if k in param_names}
+            schema_kwargs["strict"] = strict
+            config = schema_cls(**schema_kwargs)
             validated_kwargs = config.model_dump()
             validated_kwargs.pop("strict", None)
         except ValidationError as e:
