@@ -604,10 +604,11 @@ Examples:
     ...     bboxes=bboxes,
     ...     bbox_labels=bbox_labels,
     ...     keypoints=keypoints,
-    ...     keypoi_labels
+    ...     keypoint_labels=keypoint_labels
     ... )
->
-    >>> # Get >> transformed_image = transformed['image']
+    >>>
+    >>> # Get results
+    >>> transformed_image = transformed['image']
     >>> transformed_mask = transformed['mask']
     >>> transformed_bboxes = transformed['bboxes']
     >>> transformed_keypoints = transformed['keypoints']
