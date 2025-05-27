@@ -128,6 +128,7 @@ class DefaultValueChecker(ast.NodeVisitor):
         # Allow specific field names that might legitimately have defaults
         allowed_fields = {
             "model_config",  # Pydantic config
+            "strict",  # Core validation system field
             "__annotations__",
             "__module__",
             "__qualname__",
