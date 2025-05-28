@@ -12,7 +12,6 @@ from typing import Any
 
 import numpy as np
 from albucore import (
-    clip,
     from_float,
     get_max_value,
     to_float,
@@ -116,6 +115,19 @@ class ToFloat(ImageOnlyTransform):
         """
         return to_float(img, self.max_value)
 
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the ToFloat transform to the input batch of images.
+
+        Args:
+            images (np.ndarray): The input batch of images to apply the ToFloat transform to.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The batch of images with the applied ToFloat transform.
+
+        """
+        return to_float(images, self.max_value)
+
 
 class FromFloat(ImageOnlyTransform):
     """Convert an image from floating point representation to the specified data type.
@@ -200,7 +212,7 @@ class FromFloat(ImageOnlyTransform):
             **params (Any): Additional parameters (not used in this transform).
 
         """
-        return clip(np.rint(images * self.max_value), np.dtype(self.dtype), inplace=True)
+        return from_float(images, np.dtype(self.dtype), self.max_value)
 
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply the FromFloat transform to the input volume.
