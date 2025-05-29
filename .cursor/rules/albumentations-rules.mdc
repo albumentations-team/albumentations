@@ -10,3 +10,4 @@ alwaysApply: true
 - get_params_dependent_on_data should look minimal, but should look small and clear as we just call other functions from it
 - we do not use fill_value, but fill. Not fill_mask_value, but fill_mask
 - We do not have ANY default values in the InitSchema class
+- For tests we use pytest and parametrize

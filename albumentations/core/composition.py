@@ -79,6 +79,12 @@ class BaseCompose(Serializable):
     in the Albumentations library. It provides basic functionality for
     managing a sequence of transforms and applying them to data.
 
+    The class supports dynamic pipeline modification after initialization using
+    mathematical operators:
+    - Addition (`+`): Add transforms to the end of the pipeline
+    - Right addition (`__radd__`): Add transforms to the beginning of the pipeline
+    - Subtraction (`-`): Remove specific transform instances from the pipeline
+
     Attributes:
         transforms (List[TransformType]): A list of transforms to be applied.
         p (float): Probability of applying the compose. Should be in the range [0, 1].
@@ -100,6 +106,26 @@ class BaseCompose(Serializable):
         - The class supports serialization and deserialization of transforms.
         - It provides methods for adding targets, setting deterministic behavior,
           and checking data validity post-transform.
+        - All compose classes support pipeline modification operators:
+          - `compose + transform` adds transform(s) to the end
+          - `transform + compose` adds transform(s) to the beginning
+          - `compose - transform` removes specific transform instance
+        - All operator operations return new instances without modifying the original.
+
+    Examples:
+        >>> import albumentations as A
+        >>> # Create base pipeline
+        >>> compose = A.Compose([A.HorizontalFlip(p=1.0)])
+        >>>
+        >>> # Add transforms using operators
+        >>> extended = compose + A.VerticalFlip(p=1.0)  # Append
+        >>> extended = compose + [A.Blur(), A.Rotate()]  # Append multiple
+        >>> extended = A.RandomCrop(256, 256) + compose  # Prepend
+        >>>
+        >>> # Remove transforms
+        >>> flip_transform = A.HorizontalFlip(p=1.0)
+        >>> compose = A.Compose([flip_transform, A.VerticalFlip(p=1.0)])
+        >>> reduced = compose - flip_transform  # Remove specific instance
 
     """
 
@@ -382,6 +408,103 @@ class BaseCompose(Serializable):
                         data[data_name] = proc.filter(data_value, shape)
         return data
 
+    def __add__(self, other: TransformType | TransformsSeqType) -> BaseCompose:
+        """Add transform(s) to the end of this compose.
+
+        Args:
+            other: Transform or sequence of transforms to append
+
+        Returns:
+            BaseCompose: New compose instance with transforms appended
+
+        Example:
+            >>> new_compose = compose + A.HorizontalFlip()
+            >>> new_compose = compose + [A.HorizontalFlip(), A.VerticalFlip()]
+
+        """
+        if isinstance(other, (list, tuple)):
+            new_transforms = [*list(self.transforms), *list(other)]
+        else:
+            new_transforms = [*list(self.transforms), other]
+        return self._create_new_instance(new_transforms)
+
+    def __radd__(self, other: TransformType | TransformsSeqType) -> BaseCompose:
+        """Add transform(s) to the beginning of this compose.
+
+        Args:
+            other: Transform or sequence of transforms to prepend
+
+        Returns:
+            BaseCompose: New compose instance with transforms prepended
+
+        Example:
+            >>> new_compose = A.HorizontalFlip() + compose
+            >>> new_compose = [A.HorizontalFlip(), A.VerticalFlip()] + compose
+
+        """
+        if isinstance(other, (list, tuple)):
+            new_transforms = [*list(other), *list(self.transforms)]
+        else:
+            new_transforms = [other, *list(self.transforms)]
+        return self._create_new_instance(new_transforms)
+
+    def __sub__(self, other: TransformType) -> BaseCompose:
+        """Remove transform from this compose.
+
+        Args:
+            other: Transform instance to remove
+
+        Returns:
+            BaseCompose: New compose instance with transform removed
+
+        Raises:
+            ValueError: If transform is not found in the compose
+
+        Example:
+            >>> new_compose = compose - transform_instance
+
+        """
+        try:
+            new_transforms = list(self.transforms)
+            new_transforms.remove(other)
+            return self._create_new_instance(new_transforms)
+        except ValueError as e:
+            raise ValueError(f"Transform {other} not found in compose") from e
+
+    def _create_new_instance(self, new_transforms: TransformsSeqType) -> BaseCompose:
+        """Create a new instance of the same class with new transforms.
+
+        Args:
+            new_transforms: List of transforms for the new instance
+
+        Returns:
+            BaseCompose: New instance of the same class
+
+        """
+        # Get current instance parameters
+        init_params = self._get_init_params()
+        init_params["transforms"] = new_transforms
+
+        # Create new instance
+        new_instance = self.__class__(**init_params)
+
+        # Copy random state from original instance to new instance
+        if hasattr(self, "random_generator") and hasattr(self, "py_random"):
+            new_instance.set_random_state(self.random_generator, self.py_random)
+
+        return new_instance
+
+    def _get_init_params(self) -> dict[str, Any]:
+        """Get parameters needed to recreate this instance.
+
+        Returns:
+            dict[str, Any]: Dictionary of initialization parameters
+
+        """
+        return {
+            "p": self.p,
+        }
+
 
 class Compose(BaseCompose, HubMixin):
     """Compose multiple transforms together and apply them sequentially to input data.
@@ -389,6 +512,10 @@ class Compose(BaseCompose, HubMixin):
     This class allows you to chain multiple image augmentation transforms and apply them
     in a specified order. It also handles bounding box and keypoint transformations if
     the appropriate parameters are provided.
+
+    The Compose class supports dynamic pipeline modification after initialization using
+    mathematical operators. All parameters (bbox_params, keypoint_params, additional_targets,
+    etc.) are preserved when using operators to modify the pipeline.
 
     Args:
         transforms (list[BasicTransform | BaseCompose]): A list of transforms to apply.
@@ -432,6 +559,7 @@ class Compose(BaseCompose, HubMixin):
             You will need to use the `applied_transforms` key in the output dictionary to access the parameters.
 
     Example:
+        Basic usage:
         >>> import albumentations as A
         >>> transform = A.Compose([
         ...     A.RandomCrop(width=256, height=256),
@@ -440,12 +568,32 @@ class Compose(BaseCompose, HubMixin):
         ... ], seed=137)
         >>> transformed = transform(image=image)
 
+        Pipeline modification after initialization:
+        >>> # Create initial pipeline with bbox support
+        >>> base_transform = A.Compose([
+        ...     A.HorizontalFlip(p=0.5),
+        ...     A.RandomCrop(width=512, height=512)
+        ... ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
+        >>>
+        >>> # Add transforms using operators (bbox_params preserved)
+        >>> extended = base_transform + A.RandomBrightnessContrast(p=0.3)
+        >>> extended = base_transform + [A.Blur(), A.GaussNoise()]
+        >>> extended = A.Resize(height=1024, width=1024) + base_transform
+        >>>
+        >>> # Remove specific transform instance
+        >>> flip = A.HorizontalFlip(p=0.5)
+        >>> pipeline = A.Compose([flip, A.VerticalFlip(), A.Rotate()])
+        >>> without_flip = pipeline - flip
+
     Note:
         - The class checks the validity of input data and shapes if is_check_args and is_check_shapes are True.
         - When bbox_params or keypoint_params are provided, it sets up the corresponding processors.
         - The transform can handle additional targets specified in the additional_targets dictionary.
         - When strict mode is enabled, it performs additional validation to ensure data and transform
           configuration correctness.
+        - Pipeline modification operators (+, -, __radd__) preserve all Compose parameters including
+          bbox_params, keypoint_params, additional_targets, and other configuration settings.
+        - All operators return new Compose instances without modifying the original pipeline.
 
     """
 
@@ -969,6 +1117,28 @@ class Compose(BaseCompose, HubMixin):
             raise TypeError(f"{data_name} must be 4D or 5D array")
         return data.shape[1:4]  # Return (D,H,W)
 
+    def _get_init_params(self) -> dict[str, Any]:
+        """Get parameters needed to recreate this Compose instance.
+
+        Returns:
+            dict[str, Any]: Dictionary of initialization parameters
+
+        """
+        bbox_processor = self.processors.get("bboxes")
+        keypoints_processor = self.processors.get("keypoints")
+
+        return {
+            "bbox_params": bbox_processor.params if bbox_processor else None,
+            "keypoint_params": keypoints_processor.params if keypoints_processor else None,
+            "additional_targets": self.additional_targets if self.additional_targets else None,
+            "p": self.p,
+            "is_check_shapes": self.is_check_shapes,
+            "strict": self.strict,
+            "mask_interpolation": getattr(self, "mask_interpolation", None),
+            "seed": getattr(self, "seed", None),
+            "save_applied_params": getattr(self, "save_applied_params", False),
+        }
+
 
 class OneOf(BaseCompose):
     """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
@@ -1042,6 +1212,10 @@ class SomeOf(BaseCompose):
           that specific transform runs *if it is selected*.
         - If `replace` is True, the same transform might be selected multiple times, and
           its individual probability `p` will be checked each time it's encountered.
+        - When using pipeline modification operators (+, -, __radd__), the `n` parameter
+          is preserved while the pool of available transforms changes:
+          - `SomeOf([A, B], n=2) + C` → `SomeOf([A, B, C], n=2)` (selects 2 from 3 transforms)
+          - This allows for dynamic adjustment of the transform pool without changing selection count.
 
     Example:
         >>> import albumentations as A
@@ -1058,6 +1232,11 @@ class SomeOf(BaseCompose):
         # If VFlip and Rotate90 are chosen:
         # - VFlip runs if random() < 0.8
         # - Rotate90 runs if random() < 1.0 (always)
+
+        Pipeline modification example:
+        >>> # Add more transforms to the pool while keeping n=2
+        >>> extended = transform + [A.Blur(p=1.0), A.RandomBrightnessContrast(p=0.7)]
+        >>> # Now selects 2 transforms from 5 available transforms uniformly
 
     """
 
@@ -1122,6 +1301,22 @@ class SomeOf(BaseCompose):
         dictionary = super().to_dict_private()
         dictionary.update({"n": self.n, "replace": self.replace})
         return dictionary
+
+    def _get_init_params(self) -> dict[str, Any]:
+        """Get parameters needed to recreate this SomeOf instance.
+
+        Returns:
+            dict[str, Any]: Dictionary of initialization parameters
+
+        """
+        base_params = super()._get_init_params()
+        base_params.update(
+            {
+                "n": self.n,
+                "replace": self.replace,
+            },
+        )
+        return base_params
 
 
 class RandomOrder(SomeOf):
@@ -1229,6 +1424,11 @@ class SelectiveChannelTransform(BaseCompose):
     Returns:
         dict[str, Any]: The transformed data dictionary, which includes the transformed 'image' key.
 
+    Note:
+        - When using pipeline modification operators (+, -, __radd__), the `channels` parameter
+          is preserved in the resulting SelectiveChannelTransform instance.
+        - Only the transform list is modified while maintaining the same channel selection behavior.
+
     """
 
     def __init__(
@@ -1271,6 +1471,21 @@ class SelectiveChannelTransform(BaseCompose):
             data["image"] = np.ascontiguousarray(output_img)
 
         return data
+
+    def _get_init_params(self) -> dict[str, Any]:
+        """Get parameters needed to recreate this SelectiveChannelTransform instance.
+
+        Returns:
+            dict[str, Any]: Dictionary of initialization parameters
+
+        """
+        base_params = super()._get_init_params()
+        base_params.update(
+            {
+                "channels": self.channels,
+            },
+        )
+        return base_params
 
 
 class ReplayCompose(Compose):
@@ -1419,6 +1634,21 @@ class ReplayCompose(Compose):
         dictionary = super().to_dict_private()
         dictionary.update({"save_key": self.save_key})
         return dictionary
+
+    def _get_init_params(self) -> dict[str, Any]:
+        """Get parameters needed to recreate this ReplayCompose instance.
+
+        Returns:
+            dict[str, Any]: Dictionary of initialization parameters
+
+        """
+        base_params = super()._get_init_params()
+        base_params.update(
+            {
+                "save_key": self.save_key,
+            },
+        )
+        return base_params
 
 
 class Sequential(BaseCompose):
