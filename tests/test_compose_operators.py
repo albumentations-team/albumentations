@@ -304,6 +304,36 @@ def test_compose_subtract_nonexistent_transform_raises_error():
         compose - transform_c
 
 
+def test_compose_subtract_removes_only_first_occurrence():
+    """Test that subtraction only removes the first occurrence of duplicate transforms."""
+    flip_a = A.HorizontalFlip(p=1.0)
+    flip_b = A.HorizontalFlip(p=0.5)  # Different instance with different p
+    vertical = A.VerticalFlip(p=1.0)
+
+    # Create compose with same instance appearing twice
+    compose = A.Compose([flip_a, vertical, flip_a], p=1.0)
+
+    # Remove first occurrence of flip_a
+    result = compose - flip_a
+
+    # Should have 2 transforms remaining: vertical and second flip_a
+    assert len(result.transforms) == 2
+    assert result.transforms[0] is vertical  # First should be vertical
+    assert result.transforms[1] is flip_a   # Second should be the remaining flip_a
+    assert flip_a in result.transforms      # flip_a should still be present (second occurrence)
+
+    # Test with different instances of same transform type
+    compose2 = A.Compose([flip_a, vertical, flip_b], p=1.0)
+    result2 = compose2 - flip_a
+
+    # Should remove flip_a but keep flip_b (different instance)
+    assert len(result2.transforms) == 2
+    assert result2.transforms[0] is vertical
+    assert result2.transforms[1] is flip_b
+    assert flip_a not in result2.transforms
+    assert flip_b in result2.transforms
+
+
 @pytest.mark.parametrize(
     "bbox_params,keypoint_params",
     [

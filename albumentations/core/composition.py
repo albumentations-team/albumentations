@@ -460,8 +460,18 @@ class BaseCompose(Serializable):
         Raises:
             ValueError: If transform is not found in the compose
 
+        Note:
+            If the same transform instance appears multiple times in the compose,
+            only the first occurrence will be removed.
+
         Example:
             >>> new_compose = compose - transform_instance
+            >>>
+            >>> # With duplicates - only first occurrence removed
+            >>> flip = A.HorizontalFlip(p=1.0)
+            >>> compose = A.Compose([flip, A.VerticalFlip(), flip])  # flip appears twice
+            >>> result = compose - flip  # Only removes first flip
+            >>> len(result.transforms)  # 2 (VerticalFlip and second flip remain)
 
         """
         try:
