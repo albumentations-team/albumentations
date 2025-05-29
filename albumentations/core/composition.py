@@ -601,7 +601,7 @@ class Compose(BaseCompose, HubMixin):
             You will need to use the `applied_transforms` key in the output dictionary to access the parameters.
 
     Example:
-        Basic usage:
+        >>> # Basic usage:
         >>> import albumentations as A
         >>> transform = A.Compose([
         ...     A.RandomCrop(width=256, height=256),
