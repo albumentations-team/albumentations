@@ -561,77 +561,57 @@ def test_some_of_operators_behavior(sample_image, sample_mask):
     assert "mask" in result1 and "mask" in result2
 
 
-@pytest.mark.parametrize("compose_class", [A.Compose, A.Sequential])
-def test_compose_operators_associativity(compose_class, sample_image, sample_mask):
-    """Test functional associativity: (A + B) + C produces same results as A + (B + C)."""
+def test_compose_operators_validation():
+    """Test that operators validate transform types and reject invalid objects."""
+    base_compose = A.Compose([A.HorizontalFlip(p=1.0)], p=1.0)
 
-    # Create fresh transform instances for each path
-    transform_a1 = A.HorizontalFlip(p=1.0)
-    transform_b1 = A.VerticalFlip(p=1.0)
-    transform_c1 = A.Blur(p=1.0)
+    # Test __add__ with invalid single object
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got str"):
+        base_compose + "invalid"
 
-    transform_a2 = A.HorizontalFlip(p=1.0)
-    transform_b2 = A.VerticalFlip(p=1.0)
-    transform_c2 = A.Blur(p=1.0)
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got int"):
+        base_compose + 42
 
-    # Path 1: (A + B) + C  -> [A, B, C] (flat)
-    ab_compose = compose_class([transform_a1], p=1.0) + transform_b1
-    abc_left = ab_compose + transform_c1
+    # Test __add__ with invalid object in list
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got str"):
+        base_compose + [A.VerticalFlip(p=1.0), "invalid"]
 
-    # Path 2: A + (B + C)  -> [A, compose(B, C)] (nested)
-    bc_compose = compose_class([transform_b2], p=1.0) + transform_c2
-    abc_right = compose_class([transform_a2], p=1.0) + bc_compose
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got NoneType"):
+        base_compose + [A.VerticalFlip(p=1.0), None]
 
-    # Structure is different (flat vs nested), but function should be equivalent
-    assert len(abc_left.transforms) == 3  # Flat: [A, B, C]
-    assert len(abc_right.transforms) == 2  # Nested: [A, compose(B, C)]
+    # Test __radd__ with invalid single object
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got str"):
+        "invalid" + base_compose
 
-    # Apply with same seed - should produce identical results despite different structure
-    abc_left.set_random_seed(137)
-    abc_right.set_random_seed(137)
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got dict"):
+        {"not": "a transform"} + base_compose
 
-    data = {"image": sample_image, "mask": sample_mask}
+    # Test __radd__ with invalid object in list
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got str"):
+        [A.Blur(p=1.0), "invalid"] + base_compose
 
-    result_left = abc_left(**data)
-    result_right = abc_right(**data)
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got float"):
+        [A.Blur(p=1.0), 3.14] + base_compose
 
-    # Results should be functionally identical
-    np.testing.assert_array_equal(result_left["image"], result_right["image"])
-    np.testing.assert_array_equal(result_left["mask"], result_right["mask"])
+    # Test that BaseCompose instances are now rejected
+    other_compose = A.Sequential([A.VerticalFlip(p=1.0)])
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got Sequential"):
+        base_compose + other_compose
 
+    with pytest.raises(TypeError, match="All elements must be instances of BasicTransform, got Compose"):
+        other_compose + base_compose
 
-@pytest.mark.parametrize("compose_class", [A.Compose, A.Sequential])
-def test_compose_operators_mixed_associativity(compose_class, sample_image, sample_mask):
-    """Test mixed associativity with transforms and lists."""
+    # Test that valid cases still work
+    # Valid single transforms
+    result1 = base_compose + A.VerticalFlip(p=1.0)
+    assert len(result1.transforms) == 2
 
-    # Create fresh instances
-    transform_a1 = A.HorizontalFlip(p=1.0)
-    transform_b1 = A.VerticalFlip(p=1.0)
-    transform_c1 = A.Blur(p=1.0)
+    result2 = A.Blur(p=1.0) + base_compose
+    assert len(result2.transforms) == 2
 
-    transform_a2 = A.HorizontalFlip(p=1.0)
-    transform_b2 = A.VerticalFlip(p=1.0)
-    transform_c2 = A.Blur(p=1.0)
+    # Valid lists of transforms
+    result3 = base_compose + [A.VerticalFlip(p=1.0), A.Blur(p=1.0)]
+    assert len(result3.transforms) == 3
 
-    # Path 1: (A + [B]) + C
-    a_compose = compose_class([transform_a1], p=1.0)
-    ab_compose = a_compose + [transform_b1]
-    abc_left = ab_compose + transform_c1
-
-    # Path 2: A + ([B] + C) - this creates: A + compose([B, C])
-    c_compose = compose_class([transform_c2], p=1.0)
-    bc_compose = [transform_b2] + c_compose  # [B] + compose([C]) -> compose([B, compose([C])])
-    abc_right = compose_class([transform_a2], p=1.0) + bc_compose
-
-    # Different structures but should produce same results
-    abc_left.set_random_seed(137)
-    abc_right.set_random_seed(137)
-
-    data = {"image": sample_image, "mask": sample_mask}
-
-    result_left = abc_left(**data)
-    result_right = abc_right(**data)
-
-    # Results should be functionally identical
-    np.testing.assert_array_equal(result_left["image"], result_right["image"])
-    np.testing.assert_array_equal(result_left["mask"], result_right["mask"])
+    result4 = [A.RandomCrop(100, 100), A.Blur(p=1.0)] + base_compose
+    assert len(result4.transforms) == 3

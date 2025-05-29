@@ -107,9 +107,10 @@ class BaseCompose(Serializable):
         - It provides methods for adding targets, setting deterministic behavior,
           and checking data validity post-transform.
         - All compose classes support pipeline modification operators:
-          - `compose + transform` adds transform(s) to the end
-          - `transform + compose` adds transform(s) to the beginning
+          - `compose + transform` adds individual transform(s) to the end
+          - `transform + compose` adds individual transform(s) to the beginning
           - `compose - transform` removes specific transform instance
+          - Only BasicTransform instances (not BaseCompose) can be added
         - All operator operations return new instances without modifying the original.
 
     Examples:
@@ -417,14 +418,27 @@ class BaseCompose(Serializable):
         Returns:
             BaseCompose: New compose instance with transforms appended
 
+        Raises:
+            TypeError: If other is not a valid transform or sequence of transforms
+
         Example:
             >>> new_compose = compose + A.HorizontalFlip()
             >>> new_compose = compose + [A.HorizontalFlip(), A.VerticalFlip()]
 
         """
+
+        def _validate_transforms(transforms: list[Any]) -> None:
+            for t in transforms:
+                if not isinstance(t, BasicTransform):
+                    raise TypeError(
+                        f"All elements must be instances of BasicTransform, got {type(t).__name__}",
+                    )
+
         if isinstance(other, (list, tuple)):
+            _validate_transforms(other)
             new_transforms = [*list(self.transforms), *list(other)]
         else:
+            _validate_transforms([other])
             new_transforms = [*list(self.transforms), other]
         return self._create_new_instance(new_transforms)
 
@@ -437,14 +451,27 @@ class BaseCompose(Serializable):
         Returns:
             BaseCompose: New compose instance with transforms prepended
 
+        Raises:
+            TypeError: If other is not a valid transform or sequence of transforms
+
         Example:
             >>> new_compose = A.HorizontalFlip() + compose
             >>> new_compose = [A.HorizontalFlip(), A.VerticalFlip()] + compose
 
         """
+
+        def _validate_transforms(transforms: list[Any]) -> None:
+            for t in transforms:
+                if not isinstance(t, BasicTransform):
+                    raise TypeError(
+                        f"All elements must be instances of BasicTransform, got {type(t).__name__}",
+                    )
+
         if isinstance(other, (list, tuple)):
+            _validate_transforms(other)
             new_transforms = [*list(other), *list(self.transforms)]
         else:
+            _validate_transforms([other])
             new_transforms = [other, *list(self.transforms)]
         return self._create_new_instance(new_transforms)
 
@@ -507,12 +534,18 @@ class BaseCompose(Serializable):
     def _get_init_params(self) -> dict[str, Any]:
         """Get parameters needed to recreate this instance.
 
+        Note:
+            Subclasses that add new initialization parameters (other than 'transforms',
+            which is set separately in _create_new_instance) should override this method
+            to include those parameters in the returned dictionary.
+
         Returns:
             dict[str, Any]: Dictionary of initialization parameters
 
         """
         return {
             "p": self.p,
+            "additional_targets": self.additional_targets or None,
         }
 
 
@@ -901,7 +934,7 @@ class Compose(BaseCompose, HubMixin):
             {
                 "bbox_params": bbox_processor.params.to_dict_private() if bbox_processor else None,
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
-                "additional_targets": self.additional_targets,
+                "additional_targets": self.additional_targets or None,
                 "is_check_shapes": self.is_check_shapes,
             },
         )
@@ -921,7 +954,7 @@ class Compose(BaseCompose, HubMixin):
             {
                 "bbox_params": bbox_processor.params.to_dict_private() if bbox_processor else None,
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
-                "additional_targets": self.additional_targets,
+                "additional_targets": self.additional_targets or None,
                 "params": None,
                 "is_check_shapes": self.is_check_shapes,
             },
@@ -1140,7 +1173,7 @@ class Compose(BaseCompose, HubMixin):
         return {
             "bbox_params": bbox_processor.params if bbox_processor else None,
             "keypoint_params": keypoints_processor.params if keypoints_processor else None,
-            "additional_targets": self.additional_targets if self.additional_targets else None,
+            "additional_targets": self.additional_targets or None,
             "p": self.p,
             "is_check_shapes": self.is_check_shapes,
             "strict": self.strict,
