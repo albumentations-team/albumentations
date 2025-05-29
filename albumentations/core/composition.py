@@ -409,6 +409,47 @@ class BaseCompose(Serializable):
                         data[data_name] = proc.filter(data_value, shape)
         return data
 
+    def _validate_transforms(self, transforms: list[Any]) -> None:
+        """Validate that all elements are BasicTransform instances.
+
+        Args:
+            transforms: List of objects to validate
+
+        Raises:
+            TypeError: If any element is not a BasicTransform instance
+
+        """
+        for t in transforms:
+            if not isinstance(t, BasicTransform):
+                raise TypeError(
+                    f"All elements must be instances of BasicTransform, got {type(t).__name__}",
+                )
+
+    def _combine_transforms(self, other: TransformType | TransformsSeqType, *, prepend: bool = False) -> BaseCompose:
+        """Combine transforms with the current compose.
+
+        Args:
+            other: Transform or sequence of transforms to combine
+            prepend: If True, prepend other to the beginning; if False, append to the end
+
+        Returns:
+            BaseCompose: New compose instance with combined transforms
+
+        Raises:
+            TypeError: If other is not a valid transform or sequence of transforms
+
+        """
+        if isinstance(other, (list, tuple)):
+            self._validate_transforms(other)
+            other_list = list(other)
+        else:
+            self._validate_transforms([other])
+            other_list = [other]
+
+        new_transforms = [*other_list, *list(self.transforms)] if prepend else [*list(self.transforms), *other_list]
+
+        return self._create_new_instance(new_transforms)
+
     def __add__(self, other: TransformType | TransformsSeqType) -> BaseCompose:
         """Add transform(s) to the end of this compose.
 
@@ -426,21 +467,7 @@ class BaseCompose(Serializable):
             >>> new_compose = compose + [A.HorizontalFlip(), A.VerticalFlip()]
 
         """
-
-        def _validate_transforms(transforms: list[Any]) -> None:
-            for t in transforms:
-                if not isinstance(t, BasicTransform):
-                    raise TypeError(
-                        f"All elements must be instances of BasicTransform, got {type(t).__name__}",
-                    )
-
-        if isinstance(other, (list, tuple)):
-            _validate_transforms(other)
-            new_transforms = [*list(self.transforms), *list(other)]
-        else:
-            _validate_transforms([other])
-            new_transforms = [*list(self.transforms), other]
-        return self._create_new_instance(new_transforms)
+        return self._combine_transforms(other, prepend=False)
 
     def __radd__(self, other: TransformType | TransformsSeqType) -> BaseCompose:
         """Add transform(s) to the beginning of this compose.
@@ -459,21 +486,7 @@ class BaseCompose(Serializable):
             >>> new_compose = [A.HorizontalFlip(), A.VerticalFlip()] + compose
 
         """
-
-        def _validate_transforms(transforms: list[Any]) -> None:
-            for t in transforms:
-                if not isinstance(t, BasicTransform):
-                    raise TypeError(
-                        f"All elements must be instances of BasicTransform, got {type(t).__name__}",
-                    )
-
-        if isinstance(other, (list, tuple)):
-            _validate_transforms(other)
-            new_transforms = [*list(other), *list(self.transforms)]
-        else:
-            _validate_transforms([other])
-            new_transforms = [other, *list(self.transforms)]
-        return self._create_new_instance(new_transforms)
+        return self._combine_transforms(other, prepend=True)
 
     def __sub__(self, other: TransformType) -> BaseCompose:
         """Remove transform from this compose.
