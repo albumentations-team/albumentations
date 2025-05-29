@@ -630,7 +630,7 @@ class Compose(BaseCompose, HubMixin):
         ... ], seed=137)
         >>> transformed = transform(image=image)
 
-        Pipeline modification after initialization:
+        >>> # Pipeline modification after initialization:
         >>> # Create initial pipeline with bbox support
         >>> base_transform = A.Compose([
         ...     A.HorizontalFlip(p=0.5),
@@ -1279,7 +1279,7 @@ class SomeOf(BaseCompose):
           - `SomeOf([A, B], n=2) + C` → `SomeOf([A, B, C], n=2)` (selects 2 from 3 transforms)
           - This allows for dynamic adjustment of the transform pool without changing selection count.
 
-    Example:
+    Examples:
         >>> import albumentations as A
         >>> transform = A.SomeOf([
         ...     A.HorizontalFlip(p=0.5),  # 50% chance to apply if selected
@@ -1295,7 +1295,7 @@ class SomeOf(BaseCompose):
         # - VFlip runs if random() < 0.8
         # - Rotate90 runs if random() < 1.0 (always)
 
-        Pipeline modification example:
+        >>> # Pipeline modification example:
         >>> # Add more transforms to the pool while keeping n=2
         >>> extended = transform + [A.Blur(p=1.0), A.RandomBrightnessContrast(p=0.7)]
         >>> # Now selects 2 transforms from 5 available transforms uniformly
@@ -1396,7 +1396,7 @@ class RandomOrder(SomeOf):
                         selected multiple times. Default is False.
         p (float): Probability of applying the selected transforms. Should be in the range [0, 1]. Default is 1.0.
 
-    Example:
+    Examples:
         >>> import albumentations as A
         >>> transform = A.RandomOrder([
         ...     A.HorizontalFlip(p=0.5),
