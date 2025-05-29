@@ -545,7 +545,6 @@ class BaseCompose(Serializable):
         """
         return {
             "p": self.p,
-            "additional_targets": self.additional_targets or None,
         }
 
 
@@ -934,7 +933,7 @@ class Compose(BaseCompose, HubMixin):
             {
                 "bbox_params": bbox_processor.params.to_dict_private() if bbox_processor else None,
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
-                "additional_targets": self.additional_targets or None,
+                "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
             },
         )
@@ -954,7 +953,7 @@ class Compose(BaseCompose, HubMixin):
             {
                 "bbox_params": bbox_processor.params.to_dict_private() if bbox_processor else None,
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
-                "additional_targets": self.additional_targets or None,
+                "additional_targets": self.additional_targets,
                 "params": None,
                 "is_check_shapes": self.is_check_shapes,
             },
@@ -1173,7 +1172,7 @@ class Compose(BaseCompose, HubMixin):
         return {
             "bbox_params": bbox_processor.params if bbox_processor else None,
             "keypoint_params": keypoints_processor.params if keypoints_processor else None,
-            "additional_targets": self.additional_targets or None,
+            "additional_targets": self.additional_targets,
             "p": self.p,
             "is_check_shapes": self.is_check_shapes,
             "strict": self.strict,
