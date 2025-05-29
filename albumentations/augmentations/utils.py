@@ -132,7 +132,7 @@ def non_rgb_error(image: np.ndarray) -> None:
         - Grayscale images (1 channel) will trigger an error with conversion instructions.
         - Multi-spectral images (more than 3 channels) will trigger an error stating incompatibility.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> rgb_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> non_rgb_error(rgb_image)  # No error raised

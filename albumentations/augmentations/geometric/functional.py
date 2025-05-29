@@ -408,7 +408,7 @@ def perspective_bboxes(
         - Any additional attributes (columns beyond the first 4) are kept unchanged.
         - The function handles denormalization and renormalization of coordinates internally.
 
-    Example:
+    Examples:
         >>> bboxes = np.array([[0.1, 0.1, 0.3, 0.3, 1], [0.5, 0.5, 0.8, 0.8, 2]])
         >>> image_shape = (100, 100)
         >>> matrix = np.array([[1.5, 0.2, -20], [-0.1, 1.3, -10], [0.002, 0.001, 1]])
@@ -668,7 +668,7 @@ def keypoints_affine(
         - Scales are multiplied by the maximum of x and y scale factors.
         - The @angle_2pi_range decorator ensures angles remain in the [0, 2π] range.
 
-    Example:
+    Examples:
         >>> keypoints = np.array([[100, 100, 0, 1]])
         >>> matrix = np.array([[1.5, 0, 10], [0, 1.2, 20]])
         >>> scale = {'x': 1.5, 'y': 1.2}
@@ -830,7 +830,7 @@ def bboxes_affine_largest_box(bboxes: np.ndarray, matrix: np.ndarray) -> np.ndar
         - This method is called "largest box" because it returns the largest axis-aligned box
           that encloses all corners of the transformed bounding box.
 
-    Example:
+    Examples:
         >>> bboxes = np.array([[10, 10, 20, 20, 1], [30, 30, 40, 40, 2]])  # Two boxes with class labels
         >>> matrix = np.array([[2, 0, 5], [0, 2, 5], [0, 0, 1]])  # Scale by 2 and translate by (5, 5)
         >>> transformed_bboxes = bboxes_affine_largest_box(bboxes, matrix)
@@ -1112,7 +1112,7 @@ def from_distance_maps(
         - The function assumes that the input distance maps are properly normalized and scaled according to the
           original image dimensions.
 
-    Example:
+    Examples:
         >>> distance_maps = np.random.rand(100, 100, 3)  # 3 keypoints
         >>> inverted = True
         >>> if_not_found_coords = [0, 0]
@@ -1932,7 +1932,7 @@ def validate_bboxes(bboxes: np.ndarray, image_shape: Sequence[int]) -> np.ndarra
     Returns:
         np.ndarray: Array of valid bounding boxes, potentially with fewer boxes than the input.
 
-    Example:
+    Examples:
         >>> bboxes = np.array([[10, 20, 30, 40], [-10, -10, 5, 5], [100, 100, 120, 120]])
         >>> valid_bboxes = validate_bboxes(bboxes, (100, 100))
         >>> print(valid_bboxes)
@@ -2147,7 +2147,7 @@ def distort_image(
         - The distortion is applied using perspective transformation, which allows for more complex
           distortions compared to affine transformations.
 
-    Example:
+    Examples:
         >>> image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
         >>> mesh = np.array([[0, 0, 50, 50, 5, 5, 45, 5, 45, 45, 5, 45]])
         >>> distorted = distort_image(image, mesh, cv2.INTER_LINEAR)
@@ -2343,7 +2343,7 @@ def generate_distorted_grid_polygons(
         - For each X, the coordinates of the left, right, top, and bottom edges
           in the four adjacent cells are displaced.
 
-    Example:
+    Examples:
         >>> dimensions = np.array([[[0, 0, 50, 50], [50, 0, 100, 50]],
         ...                        [[0, 50, 50, 100], [50, 50, 100, 100]]])
         >>> distorted = generate_distorted_grid_polygons(dimensions, magnitude=10)
@@ -2829,7 +2829,7 @@ def generate_grid(
         - The distortion is applied smoothly across each grid cell using linear
           interpolation.
 
-    Example:
+    Examples:
         >>> image_shape = (100, 100)
         >>> steps_x = [1.1, 0.9, 1.0, 1.2, 0.95, 1.05]
         >>> steps_y = [0.9, 1.1, 1.0, 1.1, 0.9, 1.0]
@@ -2925,7 +2925,7 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
     Returns:
         np.ndarray: An array of integers where each integer represents the size of a part.
 
-    Example:
+    Examples:
         >>> almost_equal_intervals(20, 3)
         array([7, 7, 6])  # Splits 20 into three parts: 7, 7, and 6
         >>> almost_equal_intervals(16, 4)
