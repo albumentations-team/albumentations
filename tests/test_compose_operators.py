@@ -300,7 +300,7 @@ def test_compose_subtract_nonexistent_transform_raises_error():
 
     compose = A.Compose([transform_a, transform_b], p=1.0)
 
-    with pytest.raises(ValueError, match="Transform .* not found in compose"):
+    with pytest.raises(ValueError, match="Transform .* not found in the compose pipeline"):
         compose - transform_c
 
 
@@ -332,6 +332,27 @@ def test_compose_subtract_removes_only_first_occurrence():
     assert result2.transforms[1] is flip_b
     assert flip_a not in result2.transforms
     assert flip_b in result2.transforms
+
+
+def test_compose_subtract_type_validation():
+    """Test that __sub__ validates input types and rejects invalid objects."""
+    base_compose = A.Compose([A.HorizontalFlip(p=1.0)], p=1.0)
+
+    # Test __sub__ with invalid types
+    with pytest.raises(TypeError, match="Can only remove BasicTransform instances, got str"):
+        base_compose - "invalid"
+
+    with pytest.raises(TypeError, match="Can only remove BasicTransform instances, got int"):
+        base_compose - 42
+
+    with pytest.raises(TypeError, match="Can only remove BasicTransform instances, got Sequential"):
+        base_compose - A.Sequential([A.VerticalFlip(p=1.0)])
+
+    # Test that valid cases still work
+    flip = A.HorizontalFlip(p=1.0)
+    compose_with_flip = A.Compose([flip, A.VerticalFlip(p=1.0)])
+    result = compose_with_flip - flip
+    assert len(result.transforms) == 1
 
 
 @pytest.mark.parametrize(

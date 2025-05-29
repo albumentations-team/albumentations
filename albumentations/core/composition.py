@@ -498,6 +498,7 @@ class BaseCompose(Serializable):
             BaseCompose: New compose instance with transform removed
 
         Raises:
+            TypeError: If other is not a BasicTransform instance
             ValueError: If transform is not found in the compose
 
         Note:
@@ -514,12 +515,18 @@ class BaseCompose(Serializable):
             >>> len(result.transforms)  # 2 (VerticalFlip and second flip remain)
 
         """
+        # Validate that other is a BasicTransform
+        if not isinstance(other, BasicTransform):
+            raise TypeError(
+                f"Can only remove BasicTransform instances, got {type(other).__name__}",
+            )
+
         try:
             new_transforms = list(self.transforms)
             new_transforms.remove(other)
             return self._create_new_instance(new_transforms)
         except ValueError as e:
-            raise ValueError(f"Transform {other} not found in compose") from e
+            raise ValueError(f"Transform {other!r} not found in the compose pipeline") from e
 
     def _create_new_instance(self, new_transforms: TransformsSeqType) -> BaseCompose:
         """Create a new instance of the same class with new transforms.
