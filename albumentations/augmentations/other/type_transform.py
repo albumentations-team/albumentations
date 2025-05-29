@@ -128,6 +128,32 @@ class ToFloat(ImageOnlyTransform):
         """
         return to_float(images, self.max_value)
 
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the ToFloat transform to the input volume.
+
+        Args:
+            volume (np.ndarray): The input volume to apply the ToFloat transform to.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The volume with the applied ToFloat transform.
+
+        """
+        return self.apply_to_images(volume, **params)
+
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the ToFloat transform to the input volumes.
+
+        Args:
+            volumes (np.ndarray): The input volumes to apply the ToFloat transform to.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The volumes with the applied ToFloat transform.
+
+        """
+        return self.apply_to_images(volumes, **params)
+
 
 class FromFloat(ImageOnlyTransform):
     """Convert an image from floating point representation to the specified data type.
