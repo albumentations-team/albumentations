@@ -256,20 +256,15 @@ def test_compose_radd_multiple_transforms_equivalence(
 
 
 def test_compose_subtract_transform_equivalence(sample_image, sample_mask):
-    """Test that compose - transform removes the specific transform instance."""
-    # Create fresh instances for full compose
-    transform_a = A.HorizontalFlip(p=1.0)
-    transform_b = A.VerticalFlip(p=1.0)
-    transform_c = A.Blur(p=1.0)
+    """Test that compose - TransformClass removes the first transform of that class."""
+    # Create compose with different transform types
+    compose = A.Compose([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=1.0), A.Blur(p=0.3)], p=1.0)
 
-    # Create compose with three transforms
-    full_compose = A.Compose([transform_a, transform_b, transform_c], p=1.0)
+    # Remove HorizontalFlip by class
+    reduced_compose = compose - A.HorizontalFlip
 
-    # Remove the middle transform
-    reduced_compose = full_compose - transform_b
-
-    # Expected compose without transform_b - use fresh instances
-    expected_compose = A.Compose([A.HorizontalFlip(p=1.0), A.Blur(p=1.0)], p=1.0)
+    # Expected compose without HorizontalFlip - use fresh instances
+    expected_compose = A.Compose([A.VerticalFlip(p=1.0), A.Blur(p=0.3)], p=1.0)
 
     # Set the same random seed on both composes before applying
     reduced_compose.set_random_seed(137)
@@ -285,53 +280,75 @@ def test_compose_subtract_transform_equivalence(sample_image, sample_mask):
     np.testing.assert_array_equal(expected_result["image"], actual_result["image"])
     np.testing.assert_array_equal(expected_result["mask"], actual_result["mask"])
 
-    # Verify the transform was actually removed
+    # Verify the correct transform was removed
     assert len(reduced_compose.transforms) == 2
-    assert transform_b not in reduced_compose.transforms
-    assert transform_a in reduced_compose.transforms
-    assert transform_c in reduced_compose.transforms
+    transform_classes = [type(t) for t in reduced_compose.transforms]
+    assert A.HorizontalFlip not in transform_classes
+    assert A.VerticalFlip in transform_classes
+    assert A.Blur in transform_classes
+
+
+def test_compose_subtract_by_class(sample_image, sample_mask):
+    """Test that compose - TransformClass removes the first transform of that class."""
+    # Create compose with different instances of the same class
+    transform_a = A.HorizontalFlip(p=0.5)
+    transform_b = A.VerticalFlip(p=1.0)
+    transform_c = A.HorizontalFlip(p=1.0)  # Different instance, different p value
+
+    full_compose = A.Compose([transform_a, transform_b, transform_c], p=1.0)
+
+    # Remove by class - should remove first HorizontalFlip (transform_a)
+    reduced_compose = full_compose - A.HorizontalFlip
+
+    # Expected compose should have VerticalFlip and the second HorizontalFlip
+    expected_compose = A.Compose([A.VerticalFlip(p=1.0), A.HorizontalFlip(p=1.0)], p=1.0)
+
+    # Set the same random seed on both composes before applying
+    reduced_compose.set_random_seed(137)
+    expected_compose.set_random_seed(137)
+
+    # Apply both compositions to the same data
+    data = {"image": sample_image, "mask": sample_mask}
+
+    expected_result = expected_compose(**data)
+    actual_result = reduced_compose(**data)
+
+    # Compare results
+    np.testing.assert_array_equal(expected_result["image"], actual_result["image"])
+    np.testing.assert_array_equal(expected_result["mask"], actual_result["mask"])
+
+    # Verify correct transform was removed
+    assert len(reduced_compose.transforms) == 2
+    assert transform_a not in reduced_compose.transforms  # First HorizontalFlip removed
+    assert transform_b in reduced_compose.transforms     # VerticalFlip remains
+    assert transform_c in reduced_compose.transforms     # Second HorizontalFlip remains
 
 
 def test_compose_subtract_nonexistent_transform_raises_error():
-    """Test that subtracting a non-existent transform raises ValueError."""
-    transform_a = A.HorizontalFlip(p=1.0)
-    transform_b = A.VerticalFlip(p=1.0)
-    transform_c = A.Blur(p=1.0)  # Not in the compose
+    """Test that subtracting a non-existent transform class raises ValueError."""
+    compose = A.Compose([A.HorizontalFlip(p=1.0), A.VerticalFlip(p=1.0)], p=1.0)
 
-    compose = A.Compose([transform_a, transform_b], p=1.0)
-
-    with pytest.raises(ValueError, match="Transform .* not found in the compose pipeline"):
-        compose - transform_c
+    # Test removing by class not in compose
+    with pytest.raises(ValueError, match="No transform of type Blur found in the compose pipeline"):
+        compose - A.Blur
 
 
 def test_compose_subtract_removes_only_first_occurrence():
-    """Test that subtraction only removes the first occurrence of duplicate transforms."""
+    """Test that subtraction only removes the first occurrence of duplicate transform classes."""
     flip_a = A.HorizontalFlip(p=1.0)
     flip_b = A.HorizontalFlip(p=0.5)  # Different instance with different p
     vertical = A.VerticalFlip(p=1.0)
 
-    # Create compose with same instance appearing twice
-    compose = A.Compose([flip_a, vertical, flip_a], p=1.0)
+    # Test removing by class - should remove first occurrence by type
+    compose = A.Compose([flip_a, vertical, flip_b], p=1.0)
+    result = compose - A.HorizontalFlip  # Remove by class
 
-    # Remove first occurrence of flip_a
-    result = compose - flip_a
-
-    # Should have 2 transforms remaining: vertical and second flip_a
+    # Should remove flip_a (first HorizontalFlip) but keep flip_b
     assert len(result.transforms) == 2
-    assert result.transforms[0] is vertical  # First should be vertical
-    assert result.transforms[1] is flip_a   # Second should be the remaining flip_a
-    assert flip_a in result.transforms      # flip_a should still be present (second occurrence)
-
-    # Test with different instances of same transform type
-    compose2 = A.Compose([flip_a, vertical, flip_b], p=1.0)
-    result2 = compose2 - flip_a
-
-    # Should remove flip_a but keep flip_b (different instance)
-    assert len(result2.transforms) == 2
-    assert result2.transforms[0] is vertical
-    assert result2.transforms[1] is flip_b
-    assert flip_a not in result2.transforms
-    assert flip_b in result2.transforms
+    assert result.transforms[0] is vertical
+    assert result.transforms[1] is flip_b
+    assert flip_a not in result.transforms
+    assert flip_b in result.transforms
 
 
 def test_compose_subtract_type_validation():
@@ -339,20 +356,25 @@ def test_compose_subtract_type_validation():
     base_compose = A.Compose([A.HorizontalFlip(p=1.0)], p=1.0)
 
     # Test __sub__ with invalid types
-    with pytest.raises(TypeError, match="Can only remove BasicTransform instances, got str"):
+    with pytest.raises(TypeError, match="Can only remove BasicTransform classes, got str"):
         base_compose - "invalid"
 
-    with pytest.raises(TypeError, match="Can only remove BasicTransform instances, got int"):
+    with pytest.raises(TypeError, match="Can only remove BasicTransform classes, got int"):
         base_compose - 42
 
-    with pytest.raises(TypeError, match="Can only remove BasicTransform instances, got Sequential"):
+    with pytest.raises(TypeError, match="Can only remove BasicTransform classes, got HorizontalFlip"):
+        base_compose - A.HorizontalFlip(p=1.0)  # Instance not allowed
+
+    with pytest.raises(TypeError, match="Can only remove BasicTransform classes, got Sequential"):
         base_compose - A.Sequential([A.VerticalFlip(p=1.0)])
 
     # Test that valid cases still work
-    flip = A.HorizontalFlip(p=1.0)
-    compose_with_flip = A.Compose([flip, A.VerticalFlip(p=1.0)])
-    result = compose_with_flip - flip
+    compose_with_flip = A.Compose([A.HorizontalFlip(p=1.0), A.VerticalFlip(p=1.0)])
+
+    # Test removing by class
+    result = compose_with_flip - A.HorizontalFlip
     assert len(result.transforms) == 1
+    assert type(result.transforms[0]) == A.VerticalFlip
 
 
 @pytest.mark.parametrize(
@@ -496,12 +518,12 @@ def test_compose_operators_immutability(sample_image, sample_mask):
     assert len(prepended_compose.transforms) == original_length + 1
     assert prepended_compose is not original_compose
 
-    # Test subtraction doesn't modify original
-    reduced_compose = original_compose - transform_a
+    # Test subtraction doesn't modify original (using simplified class-based subtraction)
+    reduced_compose = original_compose - A.HorizontalFlip  # Remove by class
     assert len(original_compose.transforms) == original_length
     assert len(reduced_compose.transforms) == original_length - 1
     assert reduced_compose is not original_compose
-    assert transform_a in original_compose.transforms
+    assert transform_a in original_compose.transforms  # Original still has the instance
 
 
 @pytest.mark.parametrize("compose_class", [A.OneOf])

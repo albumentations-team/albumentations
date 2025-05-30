@@ -83,7 +83,7 @@ class BaseCompose(Serializable):
     mathematical operators:
     - Addition (`+`): Add transforms to the end of the pipeline
     - Right addition (`__radd__`): Add transforms to the beginning of the pipeline
-    - Subtraction (`-`): Remove specific transform instances from the pipeline
+    - Subtraction (`-`): Remove transforms by class from the pipeline
 
     Attributes:
         transforms (List[TransformType]): A list of transforms to be applied.
@@ -109,7 +109,7 @@ class BaseCompose(Serializable):
         - All compose classes support pipeline modification operators:
           - `compose + transform` adds individual transform(s) to the end
           - `transform + compose` adds individual transform(s) to the beginning
-          - `compose - transform` removes specific transform instance
+          - `compose - TransformClass` removes transforms by class type
           - Only BasicTransform instances (not BaseCompose) can be added
         - All operator operations return new instances without modifying the original.
 
@@ -123,10 +123,9 @@ class BaseCompose(Serializable):
         >>> extended = compose + [A.Blur(), A.Rotate()]  # Append multiple
         >>> extended = A.RandomCrop(256, 256) + compose  # Prepend
         >>>
-        >>> # Remove transforms
-        >>> flip_transform = A.HorizontalFlip(p=1.0)
-        >>> compose = A.Compose([flip_transform, A.VerticalFlip(p=1.0)])
-        >>> reduced = compose - flip_transform  # Remove specific instance
+        >>> # Remove transforms by class
+        >>> compose = A.Compose([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=1.0)])
+        >>> reduced = compose - A.HorizontalFlip  # Remove by class
 
     """
 
@@ -488,45 +487,51 @@ class BaseCompose(Serializable):
         """
         return self._combine_transforms(other, prepend=True)
 
-    def __sub__(self, other: TransformType) -> BaseCompose:
-        """Remove transform from this compose.
+    def __sub__(self, other: type[BasicTransform]) -> BaseCompose:
+        """Remove transform from this compose by class type.
+
+        Removes the first transform in the compose that matches the provided transform class.
 
         Args:
-            other: Transform instance to remove
+            other: Transform class to remove (e.g., A.HorizontalFlip)
 
         Returns:
             BaseCompose: New compose instance with transform removed
 
         Raises:
-            TypeError: If other is not a BasicTransform instance
-            ValueError: If transform is not found in the compose
+            TypeError: If other is not a BasicTransform class
+            ValueError: If no transform of that type is found in the compose
 
         Note:
-            If the same transform instance appears multiple times in the compose,
+            If multiple transforms of the same type exist in the compose,
             only the first occurrence will be removed.
 
         Examples:
-            >>> new_compose = compose - transform_instance
+            >>> # Remove by transform class
+            >>> new_compose = compose - A.HorizontalFlip
             >>>
             >>> # With duplicates - only first occurrence removed
-            >>> flip = A.HorizontalFlip(p=1.0)
-            >>> compose = A.Compose([flip, A.VerticalFlip(), flip])  # flip appears twice
-            >>> result = compose - flip  # Only removes first flip
-            >>> len(result.transforms)  # 2 (VerticalFlip and second flip remain)
+            >>> compose = A.Compose([A.HorizontalFlip(p=0.5), A.VerticalFlip(), A.HorizontalFlip(p=1.0)])
+            >>> result = compose - A.HorizontalFlip  # Removes first HorizontalFlip (p=0.5)
+            >>> len(result.transforms)  # 2 (VerticalFlip and second HorizontalFlip remain)
 
         """
-        # Validate that other is a BasicTransform
-        if not isinstance(other, BasicTransform):
+        # Validate that other is a BasicTransform class
+        if not (isinstance(other, type) and issubclass(other, BasicTransform)):
             raise TypeError(
-                f"Can only remove BasicTransform instances, got {type(other).__name__}",
+                f"Can only remove BasicTransform classes, got {type(other).__name__}",
             )
 
-        try:
-            new_transforms = list(self.transforms)
-            new_transforms.remove(other)
-            return self._create_new_instance(new_transforms)
-        except ValueError as e:
-            raise ValueError(f"Transform {other!r} not found in the compose pipeline") from e
+        # Find first transform of matching class
+        new_transforms = list(self.transforms)
+        for i, transform in enumerate(new_transforms):
+            if type(transform) is other:
+                new_transforms.pop(i)
+                return self._create_new_instance(new_transforms)
+
+        # No matching transform found
+        class_name = other.__name__
+        raise ValueError(f"No transform of type {class_name} found in the compose pipeline")
 
     def _create_new_instance(self, new_transforms: TransformsSeqType) -> BaseCompose:
         """Create a new instance of the same class with new transforms.
@@ -642,10 +647,9 @@ class Compose(BaseCompose, HubMixin):
         >>> extended = base_transform + [A.Blur(), A.GaussNoise()]
         >>> extended = A.Resize(height=1024, width=1024) + base_transform
         >>>
-        >>> # Remove specific transform instance
-        >>> flip = A.HorizontalFlip(p=0.5)
-        >>> pipeline = A.Compose([flip, A.VerticalFlip(), A.Rotate()])
-        >>> without_flip = pipeline - flip
+        >>> # Remove transforms by class
+        >>> pipeline = A.Compose([A.HorizontalFlip(p=0.5), A.VerticalFlip(), A.Rotate()])
+        >>> without_flip = pipeline - A.HorizontalFlip  # Remove by class
 
     Note:
         - The class checks the validity of input data and shapes if is_check_args and is_check_shapes are True.
