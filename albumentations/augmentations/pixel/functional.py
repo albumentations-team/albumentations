@@ -307,7 +307,7 @@ def equalize(
           color space, equalized on the Y channel, and then converted back to RGB.
         - The function preserves the original number of channels in the image.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
@@ -435,7 +435,7 @@ def clahe(
     Raises:
         ValueError: If the input image is not 2D or 3D.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
         >>> result = clahe(img, clip_limit=2.0, tile_grid_size=(8, 8))
