@@ -456,7 +456,7 @@ def calculate_bbox_areas_in_pixels(bboxes: np.ndarray, shape: ShapeType) -> np.n
         - The function preserves the input array and creates a copy for internal calculations.
         - The returned areas are in pixel units, not normalized.
 
-    Example:
+    Examples:
         >>> bboxes = np.array([[0.1, 0.1, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8]])
         >>> image_shape = (100, 100)
         >>> areas = calculate_bbox_areas(bboxes, image_shape)
@@ -652,7 +652,7 @@ def clip_bboxes(bboxes: np.ndarray, shape: ShapeType) -> np.ndarray:
     # But this would cause the bounding box to be clipped to the image dimensions - 1 which is not what we want.
     # Bounding box lives not in the middle of pixels but between them.
 
-    # Example: for image with height 100, width 100, the pixel values are in the range [0, 99]
+    # Examples: for image with height 100, width 100, the pixel values are in the range [0, 99]
     # but if we want bounding box to be 1 pixel width and height and lie on the boundary of the image
     # it will be described as [99, 99, 100, 100] => clip by image_size - 1 will lead to [99, 99, 99, 99]
     # which is incorrect

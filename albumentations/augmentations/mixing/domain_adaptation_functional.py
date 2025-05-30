@@ -291,7 +291,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     The `low_freq_mutate` function (not shown here) is responsible for the actual
     amplitude mutation, focusing on low-frequency components which carry style information.
 
-    Example:
+    Examples:
         >>> import numpy as np
         >>> import albumentations as A
         >>> source_img = np.random.rand(100, 100, 3).astype(np.float32)

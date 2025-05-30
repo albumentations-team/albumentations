@@ -462,7 +462,7 @@ class BaseCompose(Serializable):
         Raises:
             TypeError: If other is not a valid transform or sequence of transforms
 
-        Example:
+        Examples:
             >>> new_compose = compose + A.HorizontalFlip()
             >>> new_compose = compose + [A.HorizontalFlip(), A.VerticalFlip()]
 
@@ -481,7 +481,7 @@ class BaseCompose(Serializable):
         Raises:
             TypeError: If other is not a valid transform or sequence of transforms
 
-        Example:
+        Examples:
             >>> new_compose = A.HorizontalFlip() + compose
             >>> new_compose = [A.HorizontalFlip(), A.VerticalFlip()] + compose
 
@@ -505,7 +505,7 @@ class BaseCompose(Serializable):
             If the same transform instance appears multiple times in the compose,
             only the first occurrence will be removed.
 
-        Example:
+        Examples:
             >>> new_compose = compose - transform_instance
             >>>
             >>> # With duplicates - only first occurrence removed
@@ -620,7 +620,7 @@ class Compose(BaseCompose, HubMixin):
         save_applied_params (bool): If True, saves the applied parameters of each transform. Default is False.
             You will need to use the `applied_transforms` key in the output dictionary to access the parameters.
 
-    Example:
+    Examples:
         >>> # Basic usage:
         >>> import albumentations as A
         >>> transform = A.Compose([
@@ -1722,7 +1722,7 @@ class Sequential(BaseCompose):
         create an augmentation pipeline that contains multiple sequences of augmentations and applies one randomly
         chose sequence to input data (see the `Example` section for an example definition of such pipeline).
 
-    Example:
+    Examples:
         >>> import albumentations as A
         >>> transform = A.Compose([
         >>>    A.OneOf([
