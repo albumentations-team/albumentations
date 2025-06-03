@@ -1292,6 +1292,28 @@ def rot90(img: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
     return np.rot90(img, factor)
 
 
+def rot90_images(images: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
+    """Rotate a batch of images 90 degrees counter-clockwise multiple times.
+
+    Args:
+        images (np.ndarray): Batch of images to rotate with shape:
+            - (N, H, W) for grayscale images
+            - (N, H, W, C) for multi-channel images
+            where N is the batch size, H is height, W is width, C is channels
+        factor (Literal[0, 1, 2, 3]): The number of 90-degree rotations to apply.
+
+    Returns:
+        np.ndarray: Rotated batch of images with shape:
+            - (N, W, H) for grayscale images when factor is 1 or 3
+            - (N, H, W) for grayscale images when factor is 0 or 2
+            - (N, W, H, C) for multi-channel images when factor is 1 or 3
+            - (N, H, W, C) for multi-channel images when factor is 0 or 2
+
+    """
+    # Axes 1 (height) and 2 (width) for rotation, preserving batch dimension
+    return np.rot90(images, k=factor, axes=(1, 2))
+
+
 @handle_empty_array("bboxes")
 def bboxes_vflip(bboxes: np.ndarray) -> np.ndarray:
     """Flip bounding boxes vertically.
