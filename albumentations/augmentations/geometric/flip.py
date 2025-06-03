@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 import numpy as np
-from albucore import batch_transform, hflip, vflip
+from albucore import hflip, vflip
 
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -614,49 +614,85 @@ class D4(DualTransform):
         """
         return fgeometric.keypoints_d4(keypoints, group_element, params["shape"])
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
-    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
+        **params: Any,
+    ) -> np.ndarray:
         """Apply the D4 transform to a batch of images.
 
         Args:
             images (np.ndarray): Images to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
             **params (Any): Additional parameters.
 
         """
-        return self.apply(images, **params)
+        return fgeometric.d4_images(images, group_element)
 
-    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
-    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
+        **params: Any,
+    ) -> np.ndarray:
         """Apply the D4 transform to a volume.
 
         Args:
             volume (np.ndarray): Volume to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
             **params (Any): Additional parameters.
 
         """
-        return self.apply(volume, **params)
+        return self.apply_to_images(volume, group_element, **params)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
-    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_volumes(
+        self,
+        volumes: np.ndarray,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
+        **params: Any,
+    ) -> np.ndarray:
         """Apply the D4 transform to a batch of volumes.
 
         Args:
             volumes (np.ndarray): Volumes to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
             **params (Any): Additional parameters.
 
         """
-        return self.apply(volumes, **params)
+        return fgeometric.d4_images(volumes, group_element)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
-    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_mask3d(
+        self,
+        mask3d: np.ndarray,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
+        **params: Any,
+    ) -> np.ndarray:
         """Apply the D4 transform to a 3D mask.
 
         Args:
             mask3d (np.ndarray): 3D mask to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
             **params (Any): Additional parameters.
 
         """
-        return self.apply(mask3d, **params)
+        return self.apply_to_images(mask3d, group_element, **params)
+
+    def apply_to_masks3d(
+        self,
+        masks3d: np.ndarray,
+        group_element: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"],
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the D4 transform to a batch of 3D masks.
+
+        Args:
+            masks3d (np.ndarray): 3D masks to be transformed.
+            group_element (Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]): Group element to apply.
+            **params (Any): Additional parameters.
+
+        """
+        return self.apply_to_volumes(masks3d, group_element, **params)
 
     def get_params(self) -> dict[str, Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]]:
         """Get the parameters for the D4 transform.
