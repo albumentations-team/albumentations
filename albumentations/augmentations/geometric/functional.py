@@ -1166,6 +1166,10 @@ def from_distance_maps(
     return keypoints
 
 
+# Group elements for D4 symmetry group
+D4_GROUP_ELEMENTS = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
+
+
 def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to an image array.
 
@@ -1189,26 +1193,9 @@ def d4(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "
     Returns:
         np.ndarray: The transformed image array.
 
-    Raises:
-        ValueError: If an invalid group member is specified.
-
     """
-    transformations = {
-        "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: rot90(x, 1),  # Rotate 90 degrees
-        "r180": lambda x: rot90(x, 2),  # Rotate 180 degrees
-        "r270": lambda x: rot90(x, 3),  # Rotate 270 degrees
-        "v": vflip,  # Vertical flip
-        "hvt": lambda x: transpose(rot90(x, 2)),  # Reflect over anti-diagonal
-        "h": hflip,  # Horizontal flip
-        "t": transpose,  # Transpose (reflect over main diagonal)
-    }
-
     # Execute the appropriate transformation
-    if group_member in transformations:
-        return transformations[group_member](img)
-
-    raise ValueError(f"Invalid group member: {group_member}")
+    return D4_TRANSFORMATIONS[group_member](img)
 
 
 def transpose(img: np.ndarray) -> np.ndarray:
@@ -1228,6 +1215,18 @@ def transpose(img: np.ndarray) -> np.ndarray:
 
     # Transpose the array using the new axes order
     return img.transpose(new_axes)
+
+
+D4_TRANSFORMATIONS = {
+    "e": lambda x: x,  # Identity transformation
+    "r90": lambda x: rot90(x, 1),  # Rotate 90 degrees
+    "r180": lambda x: rot90(x, 2),  # Rotate 180 degrees
+    "r270": lambda x: rot90(x, 3),  # Rotate 270 degrees
+    "v": vflip,  # Vertical flip
+    "hvt": lambda x: transpose(rot90(x, 2)),  # Reflect over anti-diagonal
+    "h": hflip,  # Horizontal flip
+    "t": transpose,  # Transpose (reflect over main diagonal)
+}
 
 
 def transpose_images(images: np.ndarray) -> np.ndarray:
@@ -4109,6 +4108,18 @@ def bboxes_morphology(
     return bboxes
 
 
+D4_TRANSFORMATIONS_IMAGES = {
+    "e": lambda x: x,  # Identity transformation
+    "r90": lambda x: rot90_images(x, 1),  # Rotate 90 degrees
+    "r180": lambda x: rot90_images(x, 2),  # Rotate 180 degrees
+    "r270": lambda x: rot90_images(x, 3),  # Rotate 270 degrees
+    "v": vflip,  # Vertical flip (already batch-aware)
+    "hvt": lambda x: transpose_images(rot90_images(x, 2)),  # Reflect over anti-diagonal
+    "h": hflip,  # Horizontal flip (already batch-aware)
+    "t": transpose_images,  # Transpose (reflect over main diagonal)
+}
+
+
 def d4_images(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to a batch of images.
 
@@ -4135,23 +4146,6 @@ def d4_images(img: np.ndarray, group_member: Literal["e", "r90", "r180", "r270",
     Returns:
         np.ndarray: The transformed batch of images.
 
-    Raises:
-        ValueError: If an invalid group member is specified.
-
     """
-    transformations = {
-        "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: rot90_images(x, 1),  # Rotate 90 degrees
-        "r180": lambda x: rot90_images(x, 2),  # Rotate 180 degrees
-        "r270": lambda x: rot90_images(x, 3),  # Rotate 270 degrees
-        "v": vflip,  # Vertical flip (already batch-aware)
-        "hvt": lambda x: transpose_images(rot90_images(x, 2)),  # Reflect over anti-diagonal
-        "h": hflip,  # Horizontal flip (already batch-aware)
-        "t": transpose_images,  # Transpose (reflect over main diagonal)
-    }
-
     # Execute the appropriate transformation
-    if group_member in transformations:
-        return transformations[group_member](img)
-
-    raise ValueError(f"Invalid group member: {group_member}")
+    return D4_TRANSFORMATIONS_IMAGES[group_member](img)
