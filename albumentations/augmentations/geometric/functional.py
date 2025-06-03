@@ -1230,6 +1230,60 @@ def transpose(img: np.ndarray) -> np.ndarray:
     return img.transpose(new_axes)
 
 
+def transpose_images(images: np.ndarray) -> np.ndarray:
+    """Transpose a batch of images.
+
+    Args:
+        images (np.ndarray): Batch of images to transpose with shape:
+            - (N, H, W) for grayscale images
+            - (N, H, W, C) for multi-channel images
+            where N is the batch size, H is height, W is width, C is channels
+
+    Returns:
+        np.ndarray: Transposed batch of images with shape:
+            - (N, W, H) for grayscale images
+            - (N, W, H, C) for multi-channel images
+
+    """
+    if images.ndim not in [3, 4]:
+        raise ValueError(f"Expected 3D or 4D array for batch of images, got {images.ndim}D array")
+
+    # Generate the new axes order
+    new_axes = list(range(images.ndim))
+    # Swap dimensions 1 and 2 (Height and Width), preserving batch dimension and channels
+    new_axes[1], new_axes[2] = 2, 1
+
+    # Transpose the array using the new axes order
+    return images.transpose(new_axes)
+
+
+def transpose_volumes(volumes: np.ndarray) -> np.ndarray:
+    """Transpose a batch of volumes.
+
+    Args:
+        volumes (np.ndarray): Batch of volumes to transpose with shape:
+            - (N, D, H, W) for grayscale volumes
+            - (N, D, H, W, C) for multi-channel volumes
+            where N is the batch size, D is depth, H is height, W is width, C is channels
+
+    Returns:
+        np.ndarray: Transposed batch of volumes with shape:
+            - (N, D, W, H) for grayscale volumes
+            - (N, D, W, H, C) for multi-channel volumes
+
+    """
+    if volumes.ndim not in [4, 5]:
+        raise ValueError(f"Expected 4D or 5D array for batch of volumes, got {volumes.ndim}D array")
+
+    # Generate the new axes order
+    new_axes = list(range(volumes.ndim))
+    # Swap dimensions 2 and 3 (Height and Width), preserving batch, depth and channels
+    new_axes[2], new_axes[3] = 3, 2
+
+    # Transpose the array using the new axes order
+    return volumes.transpose(new_axes)
+
+
 def rot90(img: np.ndarray, factor: Literal[0, 1, 2, 3]) -> np.ndarray:
     """Rotate an image 90 degrees counterclockwise.
 

@@ -434,6 +434,71 @@ class Transpose(DualTransform):
         """
         return fgeometric.keypoints_transpose(keypoints)
 
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the transpose to a batch of images.
+
+        Args:
+            images (np.ndarray): Images to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed images.
+
+        """
+        return fgeometric.transpose_images(images)
+
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the transpose to a volume.
+
+        Args:
+            volume (np.ndarray): Volume to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed volume.
+
+        """
+        return self.apply_to_images(volume, **params)
+
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the transpose to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Volumes to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed volumes.
+
+        """
+        return fgeometric.transpose_volumes(volumes)
+
+    def apply_to_mask3d(self, mask3d: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the transpose to a 3D mask.
+
+        Args:
+            mask3d (np.ndarray): 3D mask to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed 3D mask.
+
+        """
+        return self.apply_to_images(mask3d, **params)
+
+    def apply_to_masks3d(self, masks3d: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the transpose to a batch of 3D masks.
+
+        Args:
+            masks3d (np.ndarray): 3D masks to be transposed.
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Transposed 3D masks.
+
+        """
+        return self.apply_to_volumes(masks3d, **params)
+
 
 class D4(DualTransform):
     """Applies one of the eight possible D4 dihedral group transformations to a square-shaped input,
