@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 import numpy as np
-from albucore import batch_transform, hflip, vflip
+from albucore import hflip, vflip
 
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -614,7 +614,6 @@ class D4(DualTransform):
         """
         return fgeometric.keypoints_d4(keypoints, group_element, params["shape"])
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(
         self,
         images: np.ndarray,
@@ -631,7 +630,6 @@ class D4(DualTransform):
         """
         return fgeometric.d4_images(images, group_element)
 
-    @batch_transform("spatial", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(
         self,
         volume: np.ndarray,
@@ -648,7 +646,6 @@ class D4(DualTransform):
         """
         return self.apply_to_images(volume, group_element, **params)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(
         self,
         volumes: np.ndarray,
@@ -665,7 +662,6 @@ class D4(DualTransform):
         """
         return fgeometric.d4_images(volumes, group_element)
 
-    @batch_transform("spatial", has_batch_dim=True, has_depth_dim=False)
     def apply_to_mask3d(
         self,
         mask3d: np.ndarray,
