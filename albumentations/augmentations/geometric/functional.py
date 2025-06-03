@@ -1245,9 +1245,6 @@ def transpose_images(images: np.ndarray) -> np.ndarray:
             - (N, W, H, C) for multi-channel images
 
     """
-    if images.ndim not in [3, 4]:
-        raise ValueError(f"Expected 3D or 4D array for batch of images, got {images.ndim}D array")
-
     # Generate the new axes order
     new_axes = list(range(images.ndim))
     # Swap dimensions 1 and 2 (Height and Width), preserving batch dimension and channels
@@ -1272,9 +1269,6 @@ def transpose_volumes(volumes: np.ndarray) -> np.ndarray:
             - (N, D, W, H, C) for multi-channel volumes
 
     """
-    if volumes.ndim not in [4, 5]:
-        raise ValueError(f"Expected 4D or 5D array for batch of volumes, got {volumes.ndim}D array")
-
     # Generate the new axes order
     new_axes = list(range(volumes.ndim))
     # Swap dimensions 2 and 3 (Height and Width), preserving batch, depth and channels
