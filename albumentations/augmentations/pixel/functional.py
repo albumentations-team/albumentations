@@ -17,6 +17,7 @@ import cv2
 import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
+    NormalizationType,
     add,
     add_array,
     add_constant,
@@ -4083,3 +4084,81 @@ def separable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """
     conv_fn = maybe_process_in_chunks(cv2.sepFilter2D, ddepth=-1, kernelX=kernel, kernelY=kernel)
     return conv_fn(img)
+
+
+def _normalize_per_channel(
+    data: np.ndarray,
+    normalization: NormalizationType,
+    spatial_axes: tuple[int, ...],
+) -> np.ndarray:
+    """Generic normalization function that works with specified spatial axes.
+
+    Args:
+        data: Input array to normalize
+        normalization: Type of normalization to apply
+        spatial_axes: Axes along which to compute statistics for per-channel operations
+        eps: Small epsilon to avoid division by zero
+
+    Returns:
+        Normalized array
+
+    """
+    data = data.astype(np.float32, copy=False)
+    eps = 1e-4
+
+    if normalization == "image":
+        mean = data.mean()
+        std = data.std() + eps
+        normalized_img = (data - mean) / std
+        return np.clip(normalized_img, -20, 20, out=normalized_img)
+
+    if normalization == "image_per_channel":
+        pixel_mean = data.mean(axis=spatial_axes)
+        pixel_std = data.std(axis=spatial_axes) + eps
+        normalized_img = (data - pixel_mean) / pixel_std
+        return np.clip(normalized_img, -20, 20, out=normalized_img)
+
+    if normalization == "min_max":
+        img_min = data.min()
+        img_max = data.max()
+        return np.clip((data - img_min) / (img_max - img_min + eps), -20, 20, out=data)
+
+    if normalization == "min_max_per_channel":
+        img_min = data.min(axis=spatial_axes)
+        img_max = data.max(axis=spatial_axes)
+        return np.clip((data - img_min) / (img_max - img_min + eps), -20, 20, out=data)
+
+    raise ValueError(f"Unknown normalization method: {normalization}")
+
+
+def normalize_per_images(images: np.ndarray, normalization: NormalizationType) -> np.ndarray:
+    """Apply per-image normalization to a batch of images.
+
+    Args:
+        images (np.ndarray): Batch of images with shape (N, H, W) or (N, H, W, C)
+        normalization (NormalizationType): Type of normalization to apply
+
+    Returns:
+        np.ndarray: Batch of normalized images.
+
+    """
+    # For batch of images: normalize each image independently
+    # Spatial axes are H, W (dimensions 1, 2)
+    return _normalize_per_channel(images, normalization, spatial_axes=(0, 1, 2))
+
+
+def normalize_per_volumes(volumes: np.ndarray, normalization: NormalizationType) -> np.ndarray:
+    """Apply per-volume normalization to a batch of volumes.
+
+    Args:
+        volumes (np.ndarray): Batch of volumes with shape (N, D, H, W) or (N, D, H, W, C)
+        normalization (NormalizationType): Type of normalization to apply
+
+    Returns:
+        np.ndarray: Batch of normalized volumes
+
+    """
+    # For batch of volumes: normalize each 2D slice independently
+    # Spatial axes are only H, W (dimensions 2, 3)
+    # Both N and D are kept separate (not spatial)
+    return _normalize_per_channel(volumes, normalization, spatial_axes=(0, 1, 2, 3))

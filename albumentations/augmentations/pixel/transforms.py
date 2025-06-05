@@ -250,47 +250,65 @@ class Normalize(ImageOnlyTransform):
             )
         return normalize_per_image(img, self.normalization)
 
-    @batch_transform("channel", has_batch_dim=True, has_depth_dim=False)
     def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
         """Apply normalization to a batch of images.
 
         Args:
-            images (np.ndarray): Batch of images to normalize with shape (batch, height, width, channels).
+            images (np.ndarray): Batch of images to normalize with shape:
+                - (N, H, W) for grayscale images
+                - (N, H, W, C) for multi-channel images
+                where N is the batch size
             **params (Any): Additional parameters.
 
         Returns:
             np.ndarray: Normalized batch of images.
 
         """
-        return self.apply(images, **params)
+        if self.normalization == "standard":
+            return normalize(
+                images,
+                self.mean_np,
+                self.denominator,
+            )
+        return fpixel.normalize_per_images(images, self.normalization)
 
-    @batch_transform("channel", has_batch_dim=False, has_depth_dim=True)
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply normalization to a 3D volume.
 
         Args:
-            volume (np.ndarray): 3D volume to normalize with shape (depth, height, width, channels).
+            volume (np.ndarray): 3D volume to normalize with shape:
+                - (D, H, W) for grayscale volumes
+                - (D, H, W, C) for multi-channel volumes
+                where D is the depth
             **params (Any): Additional parameters.
 
         Returns:
             np.ndarray: Normalized 3D volume.
 
         """
-        return self.apply(volume, **params)
+        return self.apply_to_images(volume, **params)
 
-    @batch_transform("channel", has_batch_dim=True, has_depth_dim=True)
     def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
         """Apply normalization to a batch of 3D volumes.
 
         Args:
-            volumes (np.ndarray): Batch of 3D volumes to normalize with shape (batch, depth, height, width, channels).
+            volumes (np.ndarray): Batch of 3D volumes to normalize with shape:
+                - (N, D, H, W) for grayscale volumes
+                - (N, D, H, W, C) for multi-channel volumes
+                where N is the batch size, D is the depth
             **params (Any): Additional parameters.
 
         Returns:
             np.ndarray: Normalized batch of 3D volumes.
 
         """
-        return self.apply(volumes, **params)
+        if self.normalization == "standard":
+            return normalize(
+                volumes,
+                self.mean_np,
+                self.denominator,
+            )
+        return fpixel.normalize_per_volumes(volumes, self.normalization)
 
 
 class ImageCompression(ImageOnlyTransform):
