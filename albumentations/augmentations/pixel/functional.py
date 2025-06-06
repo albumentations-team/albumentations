@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 from warnings import warn
 
 import cv2
@@ -23,6 +23,7 @@ from albucore import (
     add_weighted,
     clip,
     clipped,
+    convert_value,
     float32_io,
     from_float,
     get_num_channels,
@@ -33,6 +34,7 @@ from albucore import (
     multiply_add,
     multiply_by_array,
     multiply_by_constant,
+    normalize,
     normalize_per_image,
     power,
     preserve_channel_dim,
@@ -4083,3 +4085,55 @@ def separable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """
     conv_fn = maybe_process_in_chunks(cv2.sepFilter2D, ddepth=-1, kernelX=kernel, kernelY=kernel)
     return conv_fn(img)
+
+
+def normalize_dispatch(
+    img: np.ndarray,
+    normalization: Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"],
+    normalize_fn: Callable[[np.ndarray, str], np.ndarray],
+    mean: np.ndarray | None = None,
+    denominator: np.ndarray | None = None,
+    **params: Any,
+) -> np.ndarray:
+    """Dispatch normalization to the appropriate method based on normalization type.
+
+    This function acts as a dispatcher that either applies standard normalization using
+    provided mean and standard deviation values, or delegates to a specific normalization
+    function for other normalization types.
+
+    Args:
+        img (np.ndarray): Input data to normalize. Can be:
+            - Single image: (H, W) or (H, W, C)
+            - Batch of images: (N, H, W) or (N, H, W, C)
+            - Single volume: (D, H, W) or (D, H, W, C)
+            - Batch of volumes: (N, D, H, W) or (N, D, H, W, C)
+        normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"]):
+            Type of normalization to apply:
+            - "standard": Use provided mean and std values
+            - "image": Normalize using global image statistics
+            - "image_per_channel": Normalize each channel separately
+            - "min_max": Scale to [0, 1] using global min/max
+            - "min_max_per_channel": Scale each channel to [0, 1]
+        normalize_fn (Callable[[np.ndarray, str], np.ndarray]): Function to use for non-standard normalization.
+            Should accept (img, normalization_type) as arguments and return normalized array.
+        mean (np.ndarray | None): Mean values for standard normalization.
+            Required when normalization="standard", ignored otherwise.
+        denominator (np.ndarray | None): Reciprocal of standard deviation for standard normalization.
+            Required when normalization="standard", ignored otherwise.
+        **params (Any): Additional parameters passed to the normalization function.
+
+    Returns:
+        np.ndarray: Normalized data with the same shape as input.
+
+    Note:
+        - For standard normalization, the formula used is: (img - mean) * denominator
+        - The denominator is the reciprocal of std for computational efficiency
+        - Channel conversion is handled automatically based on the number of channels
+
+    """
+    if normalization == "standard":
+        num_channels = get_num_channels(img)
+        denominator = convert_value(denominator, num_channels)
+        mean = convert_value(mean, num_channels)
+        return normalize(img, mean, denominator)
+    return normalize_fn(img, normalization)
