@@ -10,20 +10,20 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 from warnings import warn
 
 import cv2
 import numpy as np
 from albucore import (
     MAX_VALUES_BY_DTYPE,
-    NormalizationType,
     add,
     add_array,
     add_constant,
     add_weighted,
     clip,
     clipped,
+    convert_value,
     float32_io,
     from_float,
     get_num_channels,
@@ -34,6 +34,7 @@ from albucore import (
     multiply_add,
     multiply_by_array,
     multiply_by_constant,
+    normalize,
     normalize_per_image,
     power,
     preserve_channel_dim,
@@ -4086,79 +4087,53 @@ def separable_convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return conv_fn(img)
 
 
-def _normalize_per_channel(
-    data: np.ndarray,
-    normalization: NormalizationType,
-    spatial_axes: tuple[int, ...],
+def normalize_dispatch(
+    img: np.ndarray,
+    normalization: Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"],
+    normalize_fn: Callable[[np.ndarray, str], np.ndarray],
+    mean: np.ndarray | None = None,
+    denominator: np.ndarray | None = None,
+    **params: Any,
 ) -> np.ndarray:
-    """Generic normalization function that works with specified spatial axes.
+    """Dispatch normalization to the appropriate method based on normalization type.
+
+    This function acts as a dispatcher that either applies standard normalization using
+    provided mean and standard deviation values, or delegates to a specific normalization
+    function for other normalization types.
 
     Args:
-        data: Input array to normalize
-        normalization: Type of normalization to apply
-        spatial_axes: Axes along which to compute statistics for per-channel operations
-        eps: Small epsilon to avoid division by zero
+        img (np.ndarray): Input data to normalize. Can be:
+            - Single image: (H, W) or (H, W, C)
+            - Batch of images: (N, H, W) or (N, H, W, C)
+            - Single volume: (D, H, W) or (D, H, W, C)
+            - Batch of volumes: (N, D, H, W) or (N, D, H, W, C)
+        normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"]):
+            Type of normalization to apply:
+            - "standard": Use provided mean and std values
+            - "image": Normalize using global image statistics
+            - "image_per_channel": Normalize each channel separately
+            - "min_max": Scale to [0, 1] using global min/max
+            - "min_max_per_channel": Scale each channel to [0, 1]
+        normalize_fn (Callable[[np.ndarray, str], np.ndarray]): Function to use for non-standard normalization.
+            Should accept (img, normalization_type) as arguments and return normalized array.
+        mean (np.ndarray | None): Mean values for standard normalization.
+            Required when normalization="standard", ignored otherwise.
+        denominator (np.ndarray | None): Reciprocal of standard deviation for standard normalization.
+            Required when normalization="standard", ignored otherwise.
+        **params (Any): Additional parameters passed to the normalization function.
 
     Returns:
-        Normalized array
+        np.ndarray: Normalized data with the same shape as input.
+
+    Note:
+        - For standard normalization, the formula used is: (img - mean) * denominator
+        - The denominator is the reciprocal of std for computational efficiency
+        - Channel conversion is handled automatically based on the number of channels
 
     """
-    data = data.astype(np.float32, copy=False)
-    eps = 1e-4
-
-    if normalization == "image":
-        mean = data.mean()
-        std = data.std() + eps
-        normalized_img = (data - mean) / std
-        return np.clip(normalized_img, -20, 20, out=normalized_img)
-
-    if normalization == "image_per_channel":
-        pixel_mean = data.mean(axis=spatial_axes)
-        pixel_std = data.std(axis=spatial_axes) + eps
-        normalized_img = (data - pixel_mean) / pixel_std
-        return np.clip(normalized_img, -20, 20, out=normalized_img)
-
-    if normalization == "min_max":
-        img_min = data.min()
-        img_max = data.max()
-        return np.clip((data - img_min) / (img_max - img_min + eps), -20, 20, out=data)
-
-    if normalization == "min_max_per_channel":
-        img_min = data.min(axis=spatial_axes)
-        img_max = data.max(axis=spatial_axes)
-        return np.clip((data - img_min) / (img_max - img_min + eps), -20, 20, out=data)
-
-    raise ValueError(f"Unknown normalization method: {normalization}")
-
-
-def normalize_per_images(images: np.ndarray, normalization: NormalizationType) -> np.ndarray:
-    """Apply per-image normalization to a batch of images.
-
-    Args:
-        images (np.ndarray): Batch of images with shape (N, H, W) or (N, H, W, C)
-        normalization (NormalizationType): Type of normalization to apply
-
-    Returns:
-        np.ndarray: Batch of normalized images.
-
-    """
-    # For batch of images: normalize each image independently
-    # Spatial axes are H, W (dimensions 1, 2)
-    return _normalize_per_channel(images, normalization, spatial_axes=(0, 1, 2))
-
-
-def normalize_per_volumes(volumes: np.ndarray, normalization: NormalizationType) -> np.ndarray:
-    """Apply per-volume normalization to a batch of volumes.
-
-    Args:
-        volumes (np.ndarray): Batch of volumes with shape (N, D, H, W) or (N, D, H, W, C)
-        normalization (NormalizationType): Type of normalization to apply
-
-    Returns:
-        np.ndarray: Batch of normalized volumes
-
-    """
-    # For batch of volumes: normalize each 2D slice independently
-    # Spatial axes are only H, W (dimensions 2, 3)
-    # Both N and D are kept separate (not spatial)
-    return _normalize_per_channel(volumes, normalization, spatial_axes=(0, 1, 2, 3))
+    if normalization == "standard":
+        num_channels = get_num_channels(img)
+        denominator = convert_value(denominator, num_channels)
+        mean = convert_value(mean, num_channels)
+        return normalize(img, mean, denominator)
+    return normalize_fn(img, normalization)

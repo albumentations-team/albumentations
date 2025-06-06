@@ -11,6 +11,7 @@ import math
 import numbers
 import warnings
 from collections.abc import Sequence
+from functools import partial
 from typing import Annotated, Any, Callable, Union, cast
 
 import albucore
@@ -26,6 +27,7 @@ from albucore import (
     multiply,
     normalize,
     normalize_per_image,
+    normalize_per_image_batch,
 )
 from pydantic import (
     AfterValidator,
@@ -264,13 +266,14 @@ class Normalize(ImageOnlyTransform):
             np.ndarray: Normalized batch of images.
 
         """
-        if self.normalization == "standard":
-            return normalize(
-                images,
-                self.mean_np,
-                self.denominator,
-            )
-        return fpixel.normalize_per_images(images, self.normalization)
+        # For batch of images: spatial axes are (1, 2) - H and W dimensions
+        return fpixel.normalize_dispatch(
+            images,
+            self.normalization,
+            partial(normalize_per_image_batch, spatial_axes=(0, 1, 2)),
+            mean=self.mean_np,
+            denominator=self.denominator,
+        )
 
     def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
         """Apply normalization to a 3D volume.
@@ -302,13 +305,14 @@ class Normalize(ImageOnlyTransform):
             np.ndarray: Normalized batch of 3D volumes.
 
         """
-        if self.normalization == "standard":
-            return normalize(
-                volumes,
-                self.mean_np,
-                self.denominator,
-            )
-        return fpixel.normalize_per_volumes(volumes, self.normalization)
+        # For batch of volumes: spatial axes are (2, 3) - H and W dimensions
+        return fpixel.normalize_dispatch(
+            volumes,
+            self.normalization,
+            partial(normalize_per_image_batch, spatial_axes=(0, 1, 2, 3)),
+            mean=self.mean_np,
+            denominator=self.denominator,
+        )
 
 
 class ImageCompression(ImageOnlyTransform):
