@@ -14,6 +14,14 @@ from albumentations.core.transforms_interface import BasicTransform
 from tests.conftest import UINT8_IMAGES
 
 
+from albumentations.augmentations.blur.transforms import UnsharpMask
+def test_unsharp_mask_transform_runs():
+    image = np.ones((128, 128, 3), dtype=np.uint8) * 127
+    transform = UnsharpMask(alpha=1.0, kernel_size=(5, 5), p=1.0)
+    result = transform(image=image)
+    assert result["image"].shape == image.shape
+
+
 @pytest.mark.parametrize("aug", [A.Blur, A.MedianBlur, A.MotionBlur])
 @pytest.mark.parametrize(
     "blur_limit_input, blur_limit_used",
