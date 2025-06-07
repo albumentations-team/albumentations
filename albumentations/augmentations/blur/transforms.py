@@ -9,6 +9,7 @@ and support parameters for controlling the intensity and properties of the blur 
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal, cast
+import cv2
 
 import numpy as np
 from pydantic import (
@@ -48,6 +49,7 @@ __all__ = [
     "MedianBlur",
     "MotionBlur",
     "ZoomBlur",
+    "UnsharpMask",
 ]
 
 
@@ -1631,3 +1633,41 @@ class ZoomBlur(ImageOnlyTransform):
         step_factor = self.py_random.uniform(*self.step_factor)
         max_factor = max(1 + step_factor, self.py_random.uniform(*self.max_factor))
         return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
+
+class UnsharpMask(ImageOnlyTransform):
+    """Apply Unsharp Mask to sharpen the image.
+
+    Args:
+        alpha (float): Strength of sharpening. Typical range: 0.2 to 2.0. Default: 1.0
+        kernel_size (tuple[int, int]): Kernel size for Gaussian blur. Must be odd and > 1. Default: (5, 5)
+        p (float): Probability of applying the transform. Default: 0.5
+    """
+
+    def __init__(self, alpha=1.0, kernel_size=(5, 5), p=0.5):
+        super(UnsharpMask, self).__init__(p=p)
+        if not (isinstance(kernel_size, tuple) and len(kernel_size) == 2 and
+                all(isinstance(k, int) and k > 1 and k % 2 == 1 for k in kernel_size)):
+            raise ValueError("kernel_size must be a tuple of two odd integers greater than 1, e.g., (3, 3) or (5, 5)")
+        if not (isinstance(alpha, (int, float)) and alpha >= 0):
+            raise ValueError("alpha must be a non-negative number")
+        self.alpha = alpha
+        self.kernel_size = kernel_size
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        orig_dtype = img.dtype
+        img_float = img.astype(np.float32)
+        blurred = cv2.GaussianBlur(img_float, self.kernel_size, 0)
+        sharpened = cv2.addWeighted(img_float, 1 + self.alpha, blurred, -self.alpha, 0)
+
+        # Clip and cast back to original dtype
+        if np.issubdtype(orig_dtype, np.integer):
+            info = np.iinfo(orig_dtype)
+        else:
+            info = np.finfo(orig_dtype)
+        sharpened = np.clip(sharpened, info.min, info.max)
+
+        return sharpened.astype(orig_dtype)
+
+
+    def get_transform_init_args_names(self):
+        return ("alpha", "kernel_size")
