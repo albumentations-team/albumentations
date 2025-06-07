@@ -16,7 +16,8 @@ from tests.conftest import UINT8_IMAGES
 
 from albumentations.augmentations.blur.transforms import UnsharpMask
 def test_unsharp_mask_transform_runs():
-    image = np.ones((128, 128, 3), dtype=np.uint8) * 127
+    image = np.tile(np.linspace(0, 255, 128, dtype=np.uint8), (128, 1))
+    image = np.stack([image] * 3, axis=-1)  # Make it 3-channel
     transform = UnsharpMask(alpha=1.0, kernel_size=(5, 5), p=1.0)
     result = transform(image=image)
     assert result["image"].shape == image.shape
