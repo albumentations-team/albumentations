@@ -15,11 +15,10 @@ def test_random_crop_with_pad_on_volume():
         A.Resize(height=256, width=256),
         A.RandomScale(scale_limit=(-0.2, 0.3), p=1.0),  # This can make image smaller
         A.RandomCrop(height=256, width=256, pad_if_needed=True, p=1.0),
-    ])
+    ], seed=137)
 
     # Run multiple times to ensure we hit the case where scale makes it smaller
-    np.random.seed(42)
-    for i in range(20):
+    for _ in range(20):
         result = transform(volume=volume)
         transformed_volume = result['volume']
         # Check that output has the expected shape
@@ -46,7 +45,7 @@ def test_random_crop_edge_case_exact_size_after_scale():
     transform = A.Compose([
         A.RandomScale(scale_limit=(0.0, 0.0), p=1.0),  # No scaling
         A.RandomCrop(height=256, width=256, pad_if_needed=True, p=1.0),
-    ])
+    ], seed=137)
 
     result = transform(volume=volume)
     assert result['volume'].shape == (8, 256, 256)
@@ -71,7 +70,7 @@ def test_random_crop_various_scale_factors(scale_factor):
     transform = A.Compose([
         A.RandomScale(scale_limit=(scale_factor, scale_factor), p=1.0),
         A.RandomCrop(height=256, width=256, pad_if_needed=True, p=1.0),
-    ])
+    ], seed=137)
 
     result = transform(volume=volume)
     assert result['volume'].shape == (8, 256, 256), f"Failed with scale_factor={scale_factor}"
