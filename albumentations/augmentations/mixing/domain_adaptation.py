@@ -169,7 +169,8 @@ class BaseDomainAdaptation(ImageOnlyTransform):
 
     """
 
-    InitSchema: type[BaseDomainAdaptationInitSchema]
+    class InitSchema(BaseDomainAdaptationInitSchema):
+        pass
 
     def __init__(
         self,
