@@ -174,14 +174,33 @@ def from_dict(
     name = transform["__class_fullname__"]
     args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
 
-    # Ensure 'p' is included, default to 0.5 if missing for backward compatibility
-    if "p" not in args and name not in ("Compose", "Sequential"):
-        warn(f"Transform {name} has no 'p' parameter in serialized data, defaulting to 0.5", stacklevel=2)
-        args["p"] = 0.5
-
+    # Get the transform class from registry
     cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
+
+    # Handle missing 'p' parameter for backward compatibility
+    # Check if it's a composition class by checking if it has a transforms attribute
+    if "p" not in args:
+        # Import here to avoid circular imports
+        from albumentations.core.composition import BaseCompose
+
+        if not issubclass(cls, BaseCompose):
+            # Use inspect to get the default value of p from __init__
+            import inspect
+
+            sig = inspect.signature(cls.__init__)
+            p_param = sig.parameters.get("p")
+            default_p = p_param.default if p_param and p_param.default != inspect.Parameter.empty else 0.5
+
+            warn(
+                f"Transform {cls.__name__} has no 'p' parameter in serialized data, defaulting to {default_p}",
+                stacklevel=2,
+            )
+            args["p"] = default_p
+
+    # Handle nested transforms
     if "transforms" in args:
         args["transforms"] = [from_dict({"transform": t}, nonserializable=nonserializable) for t in args["transforms"]]
+
     return cls(**args)
 
 
