@@ -526,8 +526,8 @@ class BaseCropAndPad(BaseCrop):
                 pad_params["pad_bottom"],
                 pad_params["pad_left"],
                 pad_params["pad_right"],
-                h_axis=2,
-                w_axis=3,
+                h_axis=1,
+                w_axis=2,
                 border_mode=self.border_mode,
                 pad_value=self.fill,
             )
@@ -555,8 +555,8 @@ class BaseCropAndPad(BaseCrop):
                 pad_params["pad_bottom"],
                 pad_params["pad_left"],
                 pad_params["pad_right"],
-                h_axis=3,
-                w_axis=4,
+                h_axis=2,
+                w_axis=3,
                 border_mode=self.border_mode,
                 pad_value=self.fill,
             )
