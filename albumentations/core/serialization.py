@@ -35,6 +35,9 @@ __all__ = ["from_dict", "load", "save", "to_dict"]
 SERIALIZABLE_REGISTRY: dict[str, SerializableMeta] = {}
 NON_SERIALIZABLE_REGISTRY: dict[str, SerializableMeta] = {}
 
+# Cache for default p values to avoid repeated inspect.signature calls
+_default_p_cache: dict[type, float] = {}
+
 
 def shorten_class_name(class_fullname: str) -> str:
     # Split the class_fullname once at the last '.' to separate the class name
@@ -178,18 +181,23 @@ def from_dict(
     cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
 
     # Handle missing 'p' parameter for backward compatibility
-    # Check if it's a composition class by checking if it has a transforms attribute
     if "p" not in args:
         # Import here to avoid circular imports
         from albumentations.core.composition import BaseCompose
 
+        # Check if it's a composition class by verifying if it is a subclass of BaseCompose
         if not issubclass(cls, BaseCompose):
-            # Use inspect to get the default value of p from __init__
-            import inspect
+            # Check if default 'p' value is cached
+            if cls not in _default_p_cache:
+                # Use inspect to get the default value of p from __init__
+                import inspect
 
-            sig = inspect.signature(cls.__init__)
-            p_param = sig.parameters.get("p")
-            default_p = p_param.default if p_param and p_param.default != inspect.Parameter.empty else 0.5
+                sig = inspect.signature(cls.__init__)
+                p_param = sig.parameters.get("p")
+                default_p = p_param.default if p_param and p_param.default != inspect.Parameter.empty else 0.5
+                _default_p_cache[cls] = default_p
+            else:
+                default_p = _default_p_cache[cls]
 
             warn(
                 f"Transform {cls.__name__} has no 'p' parameter in serialized data, defaulting to {default_p}",
