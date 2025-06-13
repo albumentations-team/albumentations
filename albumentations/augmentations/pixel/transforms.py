@@ -3458,6 +3458,57 @@ class ToGray(ImageOnlyTransform):
 
         return fpixel.to_gray(img, self.num_output_channels, self.method)
 
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply ToGray to a batch of images.
+
+        Args:
+            images (np.ndarray): Batch of images with shape (N, H, W, C) or (N, H, W).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of grayscale images.
+
+        """
+        if is_grayscale_image(images, has_batch_dim=True):
+            warnings.warn("The image is already gray.", stacklevel=2)
+            return images
+
+        return fpixel.to_gray(images, self.num_output_channels, self.method)
+
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply ToGray to a single volume.
+
+        Args:
+            volume (np.ndarray): Volume with shape (D, H, W, C) or (D, H, W).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Grayscale volume.
+
+        """
+        if is_grayscale_image(volume, has_depth_dim=True):
+            warnings.warn("The volume is already gray.", stacklevel=2)
+            return volume
+
+        return fpixel.to_gray(volume, self.num_output_channels, self.method)
+
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply ToGray to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Batch of volumes with shape (N, D, H, W, C) or (N, D, H, W).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of grayscale volumes.
+
+        """
+        if is_grayscale_image(volumes, has_batch_dim=True, has_depth_dim=True):
+            warnings.warn("The volumes are already gray.", stacklevel=2)
+            return volumes
+
+        return fpixel.to_gray(volumes, self.num_output_channels, self.method)
+
 
 class ToRGB(ImageOnlyTransform):
     """Convert an input image from grayscale to RGB format.
