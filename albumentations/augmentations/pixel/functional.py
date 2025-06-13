@@ -1345,7 +1345,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
 
             Supported dtypes:
             - np.uint8: Values in range [0, 255]
-            - np.float32/float64: Values in range [0, 1]
+            - np.float32: Values in range [0, 1]
 
     Returns:
         Grayscale image(s) with the same spatial dimensions as input but without channel dimension:
@@ -1418,7 +1418,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
         has_depth_dim=has_depth_dim,
     )
 
-    return grayscale / 100.0 if original_dtype in [np.float32, np.float64] else grayscale
+    return grayscale / 100.0 if original_dtype == np.float32 else grayscale
 
 
 @clipped
