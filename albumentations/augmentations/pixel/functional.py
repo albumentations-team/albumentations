@@ -1418,11 +1418,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
         has_depth_dim=has_depth_dim,
     )
 
-    if original_dtype in [np.float32, np.float64]:
-        # LAB L channel is in [0, 100], normalize to [0, 1]
-        grayscale = grayscale / 100.0
-
-    return grayscale
+    return grayscale / 100.0 if original_dtype in [np.float32, np.float64] else grayscale
 
 
 @clipped
