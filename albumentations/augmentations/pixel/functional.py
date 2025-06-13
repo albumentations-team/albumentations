@@ -1411,7 +1411,7 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
         # Batch of images (N, H, W, C) or single image with added batch dimension
         has_batch_dim = True
         has_depth_dim = False
-    if ndim == 5:
+    elif ndim == 5:
         # Batch of volumes (N, D, H, W, C)
         has_batch_dim = True
         has_depth_dim = True
