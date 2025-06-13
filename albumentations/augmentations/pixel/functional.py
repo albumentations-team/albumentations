@@ -1648,15 +1648,11 @@ def grayscale_to_multichannel(
         np.ndarray: Multi-channel image with shape (height, width, num_channels)
 
     """
-    # Ensure we have a 2D array
-    squeezed = np.squeeze(grayscale_image)
-
     # If output should be single channel, add channel dimension if needed
     if num_output_channels == 1:
-        if squeezed.ndim == 2:
-            return np.expand_dims(squeezed, axis=-1)
         return grayscale_image
 
+    squeezed = np.squeeze(grayscale_image)
     # For multi-channel output, stack channels
     return np.stack([squeezed] * num_output_channels, axis=-1)
 
