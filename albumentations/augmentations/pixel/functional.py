@@ -1335,17 +1335,6 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
 
         This enables processing all images in a single OpenCV call
 
-        Performance benefits:
-            - 2-8x faster than iterating with OpenCV
-            - 20-40x faster than pure NumPy implementations
-            - Memory efficient with minimal allocations
-            - Produces identical results to standard OpenCV processing
-
-    The optimization works because:
-        1. OpenCV processes images row by row
-        2. LAB conversion is a pixel-wise operation (no spatial dependencies)
-        3. Multiple images can be stacked vertically and processed in one call
-
     Args:
         img: Input RGB image(s) as a numpy array. Must have 3 channels in the last dimension.
             Supported shapes:
