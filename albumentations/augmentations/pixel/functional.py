@@ -1537,13 +1537,9 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
 
     Args:
         img (np.ndarray): Input image as a numpy array. Can be:
-            - Single grayscale image: (H, W)
             - Single multi-channel image: (H, W, C)
-            - Batch of grayscale images: (N, H, W)
             - Batch of multi-channel images: (N, H, W, C)
-            - Single grayscale volume: (D, H, W)
             - Single multi-channel volume: (D, H, W, C)
-            - Batch of grayscale volumes: (N, D, H, W)
             - Batch of multi-channel volumes: (N, D, H, W, C)
 
     Returns:
