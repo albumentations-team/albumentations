@@ -2301,7 +2301,12 @@ def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
         np.ndarray: The noise added to the image.
 
     """
-    return add(img, noise, inplace=False)
+    num_pixels_in_image = np.prod(img.shape)
+    num_pixels_in_noise = np.prod(noise.shape)
+
+    noise = np.stack([noise] * (num_pixels_in_image // num_pixels_in_noise)).reshape(img.shape)
+
+    return add_array(img, noise, inplace=False)
 
 
 def slic(

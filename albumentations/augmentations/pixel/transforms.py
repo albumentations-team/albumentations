@@ -2681,9 +2681,9 @@ class GaussNoise(ImageOnlyTransform):
                 - "noise_map" (np.ndarray): The noise map to apply to the image.
 
         """
-        shape = params["shape"]
-        dtype = get_image_data(data)["dtype"]
-        max_value = MAX_VALUES_BY_DTYPE[dtype]
+        metadata = get_image_data(data)
+        max_value = MAX_VALUES_BY_DTYPE[metadata["dtype"]]
+        shape = (metadata["height"], metadata["width"], metadata["num_channels"])
 
         sigma = self.py_random.uniform(*self.std_range)
         mean = self.py_random.uniform(*self.mean_range)
@@ -6070,9 +6070,9 @@ class AdditiveNoise(ImageOnlyTransform):
             data (dict[str, Any]): The data to apply the transform to.
 
         """
-        shape = params["shape"]
-        dtype = get_image_data(data)["dtype"]
-        max_value = MAX_VALUES_BY_DTYPE[dtype]
+        metadata = get_image_data(data)
+        max_value = MAX_VALUES_BY_DTYPE[metadata["dtype"]]
+        shape = (metadata["height"], metadata["width"], metadata["num_channels"])
 
         noise_map = fpixel.generate_noise(
             noise_type=self.noise_type,
