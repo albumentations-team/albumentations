@@ -1126,6 +1126,11 @@ def test_change_image(augmentation_cls, params, image):
     ["augmentation_cls", "params"],
     get_2d_transforms(
         custom_arguments={
+            A.AdvancedBlur: {"blur_limit": (5, 7),
+                             "sigma_x_limit": (1, 3),
+                             "sigma_y_limit": (1, 3),
+                             "rotate_limit": (0, 0),
+                             },
         },
         except_augmentations={
             A.Crop,
@@ -1784,6 +1789,7 @@ def test_mask_dropout_bboxes(remove_invisible, expected_keypoints):
             A.OpticalDistortion,
             A.ThinPlateSpline,
             A.Mosaic,
+            A.FrequencyMasking,
         },
     ),
 )

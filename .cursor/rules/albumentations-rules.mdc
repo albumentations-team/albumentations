@@ -11,3 +11,4 @@ alwaysApply: true
 - we do not use fill_value, but fill. Not fill_mask_value, but fill_mask
 - We do not have ANY default values in the InitSchema class
 - Use pytest.mark.parametrize for parameterized tests
+- In the code, when need default value use 137, not 42

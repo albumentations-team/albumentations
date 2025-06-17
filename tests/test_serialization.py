@@ -1,7 +1,6 @@
 import io
 from pathlib import Path
 from typing import Any, Dict, Set
-from unittest.mock import patch
 from io import StringIO
 
 import numpy as np
@@ -715,6 +714,7 @@ def test_serialization_v2_to_dict() -> None:
         "keypoint_params": None,
         "additional_targets": {},
         "is_check_shapes": True,
+        "seed": None,
     }
 
 
