@@ -193,9 +193,13 @@ class BaseCompose(Serializable):
             seed (int | None): Random seed to use
 
         """
+        # Store the original seed
         self.seed = seed
+
+        # Use base seed directly (subclasses like Compose can override this)
         self.random_generator = np.random.default_rng(seed)
         self.py_random = random.Random(seed)
+
         # Propagate seed to all transforms
         for transform in self.transforms:
             if isinstance(transform, (BasicTransform, BaseCompose)):
@@ -572,6 +576,35 @@ class BaseCompose(Serializable):
             "p": self.p,
         }
 
+    def _get_effective_seed(self, base_seed: int | None) -> int | None:
+        """Get effective seed considering worker context.
+
+        Args:
+            base_seed (int | None): Base seed value
+
+        Returns:
+            int | None: Effective seed after considering worker context
+
+        """
+        if base_seed is None:
+            return base_seed
+
+        try:
+            import torch
+            import torch.utils.data
+
+            worker_info = torch.utils.data.get_worker_info()
+            if worker_info is not None:
+                # We're in a DataLoader worker process
+                # Use torch.initial_seed() which is unique per worker and changes on respawn
+                torch_seed = torch.initial_seed() % (2**32)
+                return (base_seed + torch_seed) % (2**32)
+        except (ImportError, AttributeError):
+            # PyTorch not available or not in worker context
+            pass
+
+        return base_seed
+
 
 class Compose(BaseCompose, HubMixin):
     """Compose multiple transforms together and apply them sequentially to input data.
@@ -676,11 +709,14 @@ class Compose(BaseCompose, HubMixin):
         seed: int | None = None,
         save_applied_params: bool = False,
     ):
+        # Get effective seed considering worker context
+        effective_seed = self._get_effective_seed(seed)
+
         super().__init__(
             transforms=transforms,
             p=p,
             mask_interpolation=mask_interpolation,
-            seed=seed,
+            seed=effective_seed,
             save_applied_params=save_applied_params,
         )
 
@@ -725,6 +761,7 @@ class Compose(BaseCompose, HubMixin):
         self.save_applied_params = save_applied_params
         self._images_was_list = False
         self._masks_was_list = False
+        self._last_torch_seed: int | None = None
 
     @property
     def strict(self) -> bool:
@@ -788,7 +825,7 @@ class Compose(BaseCompose, HubMixin):
         self.main_compose = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
-        """Apply transformations to data.
+        """Apply transformations to data with automatic worker seed synchronization.
 
         Args:
             *args (Any): Positional arguments are not supported.
@@ -802,13 +839,13 @@ class Compose(BaseCompose, HubMixin):
             KeyError: If positional arguments are provided.
 
         """
+        # Check and sync worker seed if needed
+        self._check_worker_seed()
+
+        # Original __call__ implementation
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
-
-        if not isinstance(force_apply, (bool, int)):
-            msg = "force_apply must have bool or int type"
-            raise TypeError(msg)
 
         # Initialize applied_transforms only in top-level Compose if requested
         if self.save_applied_params and self.main_compose:
@@ -826,6 +863,76 @@ class Compose(BaseCompose, HubMixin):
             data = self.check_data_post_transform(data)
 
         return self.postprocess(data)
+
+    def _check_worker_seed(self) -> None:
+        """Check and update random seed if in worker context."""
+        if not hasattr(self, "seed") or self.seed is None:
+            return
+
+        # Check if we're in a worker and need to update the seed
+        try:
+            import torch
+            import torch.utils.data
+
+            worker_info = torch.utils.data.get_worker_info()
+            if worker_info is not None:
+                # Get the current torch initial seed
+                current_torch_seed = torch.initial_seed()
+
+                # Check if we've already synchronized for this seed
+                if hasattr(self, "_last_torch_seed") and self._last_torch_seed == current_torch_seed:
+                    return
+
+                # Update the seed and mark as synchronized
+                self._last_torch_seed = current_torch_seed
+                effective_seed = self._get_effective_seed(self.seed)
+
+                # Update our own random state
+                self.random_generator = np.random.default_rng(effective_seed)
+                self.py_random = random.Random(effective_seed)
+
+                # Propagate to all transforms
+                for transform in self.transforms:
+                    if hasattr(transform, "set_random_state"):
+                        transform.set_random_state(self.random_generator, self.py_random)
+                    elif hasattr(transform, "set_random_seed"):
+                        # For transforms that don't have set_random_state, use set_random_seed
+                        transform.set_random_seed(effective_seed)
+        except (ImportError, AttributeError):
+            pass
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """Set state from unpickling and handle worker seed."""
+        self.__dict__.update(state)
+        # If we have a seed, recalculate effective seed in worker context
+        if hasattr(self, "seed") and self.seed is not None:
+            # Recalculate effective seed in worker context
+            self.set_random_seed(self.seed)
+
+    def set_random_seed(self, seed: int | None) -> None:
+        """Override to use worker-aware seed functionality.
+
+        Args:
+            seed (int | None): Random seed to use
+
+        """
+        # Store the original seed
+        self.seed = seed
+
+        # Get effective seed considering worker context
+        effective_seed = self._get_effective_seed(seed)
+
+        # Initialize random generators with effective seed
+        self.random_generator = np.random.default_rng(effective_seed)
+        self.py_random = random.Random(effective_seed)
+
+        # Propagate to all transforms
+        for transform in self.transforms:
+            if hasattr(transform, "set_random_state"):
+                transform.set_random_state(self.random_generator, self.py_random)
+            elif hasattr(transform, "set_random_seed"):
+                # For transforms that don't have set_random_state, use set_random_seed
+                transform.set_random_seed(effective_seed)
 
     def preprocess(self, data: Any) -> None:
         """Preprocess input data before applying transforms."""
@@ -959,6 +1066,7 @@ class Compose(BaseCompose, HubMixin):
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
+                "seed": getattr(self, "seed", None),
             },
         )
         return dictionary
@@ -1445,7 +1553,7 @@ class OneOrOther(BaseCompose):
                 msg = "You must set both first and second or set transforms argument."
                 raise ValueError(msg)
             transforms = [first, second]
-        super().__init__(transforms, p)
+        super().__init__(transforms=transforms, p=p)
         if len(self.transforms) != NUM_ONEOF_TRANSFORMS:
             warnings.warn("Length of transforms is not equal to 2.", stacklevel=2)
 
@@ -1503,7 +1611,7 @@ class SelectiveChannelTransform(BaseCompose):
         channels: Sequence[int] = (0, 1, 2),
         p: float = 1.0,
     ) -> None:
-        super().__init__(transforms, p)
+        super().__init__(transforms=transforms, p=p)
         self.channels = channels
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
@@ -1525,8 +1633,9 @@ class SelectiveChannelTransform(BaseCompose):
             sub_image = np.ascontiguousarray(selected_channels)
 
             for t in self.transforms:
-                sub_image = t(image=sub_image)["image"]
-                self._track_transform_params(t, sub_image)
+                sub_data = {"image": sub_image}
+                sub_image = t(**sub_data)["image"]
+                self._track_transform_params(t, data)
 
             transformed_channels = cv2.split(sub_image)
             output_img = image.copy()
