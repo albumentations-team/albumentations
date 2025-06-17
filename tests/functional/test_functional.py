@@ -3163,9 +3163,29 @@ def get_noise_params(noise_type: str) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
-@pytest.mark.parametrize("spatial_mode", ["constant", "per_pixel", "shared"])
-def test_generate_noise_2d_grayscale(noise_type, spatial_mode):
-    """Test generate_noise function for 2D grayscale images."""
+def test_generate_noise_2d_grayscale_constant(noise_type):
+    """Test generate_noise function for 2D grayscale images with constant spatial mode."""
+    random_generator = np.random.default_rng(42)
+    shape = (100, 150)
+    params = get_noise_params(noise_type)
+
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="constant",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+
+    assert noise.shape == (1,), f"Expected shape (1,) for constant mode, got {noise.shape}"
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
+@pytest.mark.parametrize("spatial_mode", ["per_pixel", "shared"])
+def test_generate_noise_2d_grayscale_spatial(noise_type, spatial_mode):
+    """Test generate_noise function for 2D grayscale images with per_pixel/shared spatial modes."""
     random_generator = np.random.default_rng(42)
     shape = (100, 150)
     params = get_noise_params(noise_type)
@@ -3180,23 +3200,19 @@ def test_generate_noise_2d_grayscale(noise_type, spatial_mode):
         random_generator=random_generator,
     )
 
-    if spatial_mode == "constant":
-        assert noise.shape == (1,), f"Expected shape (1,) for constant mode, got {noise.shape}"
-    else:
-        assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
+    assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
 
 
 @pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
-@pytest.mark.parametrize("spatial_mode", ["constant", "per_pixel", "shared"])
-def test_generate_noise_rgb(noise_type, spatial_mode):
-    """Test generate_noise function for RGB images."""
+def test_generate_noise_rgb_constant(noise_type):
+    """Test generate_noise function for RGB images with constant spatial mode."""
     random_generator = np.random.default_rng(42)
     shape = (100, 150, 3)
     params = get_noise_params(noise_type)
 
     noise = fpixel.generate_noise(
         noise_type=noise_type,
-        spatial_mode=spatial_mode,
+        spatial_mode="constant",
         shape=shape,
         params=params,
         max_value=255,
@@ -3204,28 +3220,64 @@ def test_generate_noise_rgb(noise_type, spatial_mode):
         random_generator=random_generator,
     )
 
-    if spatial_mode == "constant":
-        assert noise.shape == (3,), f"Expected shape (3,) for constant mode, got {noise.shape}"
-    else:
-        assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
-
-        if spatial_mode == "shared":
-            np.testing.assert_array_equal(noise[..., 0], noise[..., 1])
-            np.testing.assert_array_equal(noise[..., 1], noise[..., 2])
+    assert noise.shape == (3,), f"Expected shape (3,) for constant mode, got {noise.shape}"
 
 
 @pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
-@pytest.mark.parametrize("spatial_mode", ["constant", "per_pixel", "shared"])
-@pytest.mark.parametrize("num_channels", [1, 2, 3, 4, 5])
-def test_generate_noise_multi_channel(noise_type, spatial_mode, num_channels):
-    """Test generate_noise function for images with different channel counts."""
+def test_generate_noise_rgb_per_pixel(noise_type):
+    """Test generate_noise function for RGB images with per_pixel spatial mode."""
+    random_generator = np.random.default_rng(42)
+    shape = (100, 150, 3)
+    params = get_noise_params(noise_type)
+
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="per_pixel",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+
+    assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
+def test_generate_noise_rgb_shared(noise_type):
+    """Test generate_noise function for RGB images with shared spatial mode."""
+    random_generator = np.random.default_rng(42)
+    shape = (100, 150, 3)
+    params = get_noise_params(noise_type)
+
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="shared",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+
+    assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
+
+    # All channels should have the same noise pattern
+    np.testing.assert_array_equal(noise[..., 0], noise[..., 1])
+    np.testing.assert_array_equal(noise[..., 1], noise[..., 2])
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
+@pytest.mark.parametrize("num_channels", [1, 2, 4, 5])
+def test_generate_noise_multi_channel_constant(noise_type, num_channels):
+    """Test generate_noise function for multi-channel images with constant spatial mode."""
     random_generator = np.random.default_rng(42)
     shape = (50, 50, num_channels)
     params = get_noise_params(noise_type)
 
     noise = fpixel.generate_noise(
         noise_type=noise_type,
-        spatial_mode=spatial_mode,
+        spatial_mode="constant",
         shape=shape,
         params=params,
         max_value=255,
@@ -3233,14 +3285,53 @@ def test_generate_noise_multi_channel(noise_type, spatial_mode, num_channels):
         random_generator=random_generator,
     )
 
-    if spatial_mode == "constant":
-        assert noise.shape == (num_channels,), f"Expected shape ({num_channels},) for constant mode, got {noise.shape}"
-    else:
-        assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
+    assert noise.shape == (num_channels,), f"Expected shape ({num_channels},) for constant mode, got {noise.shape}"
 
-        if spatial_mode == "shared":
-            for c in range(1, num_channels):
-                np.testing.assert_array_equal(noise[..., 0], noise[..., c])
+
+@pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
+@pytest.mark.parametrize("num_channels", [1, 2, 4, 5])
+def test_generate_noise_multi_channel_per_pixel(noise_type, num_channels):
+    """Test generate_noise function for multi-channel images with per_pixel spatial mode."""
+    random_generator = np.random.default_rng(42)
+    shape = (50, 50, num_channels)
+    params = get_noise_params(noise_type)
+
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="per_pixel",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+
+    assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
+@pytest.mark.parametrize("num_channels", [1, 2, 4, 5])
+def test_generate_noise_multi_channel_shared(noise_type, num_channels):
+    """Test generate_noise function for multi-channel images with shared spatial mode."""
+    random_generator = np.random.default_rng(42)
+    shape = (50, 50, num_channels)
+    params = get_noise_params(noise_type)
+
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="shared",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+
+    assert noise.shape == shape, f"Expected shape {shape}, got {noise.shape}"
+
+    # All channels should have the same pattern
+    for c in range(1, num_channels):
+        np.testing.assert_array_equal(noise[..., 0], noise[..., c])
 
 
 @pytest.mark.parametrize("approximation", [0.1, 0.5, 1.0])
@@ -3297,97 +3388,203 @@ def test_generate_noise_value_ranges(noise_type):
 
 
 @pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
-@pytest.mark.parametrize("spatial_mode", ["constant", "per_pixel", "shared"])
-def test_generate_noise_for_gauss_noise_transform(noise_type, spatial_mode):
-    """Test generate_noise shapes match requirements for GaussNoise transform apply methods."""
+def test_generate_noise_for_single_image(noise_type):
+    """Test generate_noise shapes for single image input."""
     random_generator = np.random.default_rng(42)
-
-    # Test for single image: shape (H, W, C)
     image_shape = (100, 150, 3)
-    image = np.random.randint(0, 256, image_shape, dtype=np.uint8)
-
     params = get_noise_params(noise_type)
+
+    # Test constant mode
     noise = fpixel.generate_noise(
         noise_type=noise_type,
-        spatial_mode=spatial_mode,
+        spatial_mode="constant",
         shape=image_shape,
         params=params,
         max_value=255,
         approximation=1.0,
         random_generator=random_generator,
     )
+    assert noise.shape == (3,), f"Expected shape (3,) for constant mode, got {noise.shape}"
 
-    if spatial_mode == "constant":
-        assert noise.shape == (3,), f"Expected shape (3,) for constant mode, got {noise.shape}"
-    else:
-        assert noise.shape == image_shape, f"Expected shape {image_shape}, got {noise.shape}"
-
-    # Test for batch of images (simulate by generating noise for each frame)
-    images_shape = (3, 100, 150, 3)  # 3 images
-    images = np.random.randint(0, 256, images_shape, dtype=np.uint8)
-
-    # Skip 4D tests for problematic cases
-    if spatial_mode == "shared" or noise_type == "gaussian":
-        return
-
-    noise_batch = fpixel.generate_noise(
+    # Test per_pixel mode
+    noise = fpixel.generate_noise(
         noise_type=noise_type,
-        spatial_mode=spatial_mode,
+        spatial_mode="per_pixel",
+        shape=image_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    assert noise.shape == image_shape, f"Expected shape {image_shape}, got {noise.shape}"
+
+    # Test shared mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="shared",
+        shape=image_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    assert noise.shape == image_shape, f"Expected shape {image_shape}, got {noise.shape}"
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "laplace", "beta"])
+def test_generate_noise_for_image_batch(noise_type):
+    """Test generate_noise shapes for batch of images (4D) - non-gaussian types."""
+    random_generator = np.random.default_rng(42)
+    images_shape = (3, 100, 150, 3)  # 3 images
+    params = get_noise_params(noise_type)
+
+    # Test constant mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="constant",
         shape=images_shape,
         params=params,
         max_value=255,
         approximation=1.0,
         random_generator=random_generator,
     )
+    assert noise.shape == (3,), f"Expected shape (3,) for constant mode, got {noise.shape}"
 
-    if spatial_mode == "constant":
-        assert noise_batch.shape == (3,), f"Expected shape (3,) for constant mode, got {noise_batch.shape}"
-    else:
-        assert noise_batch.shape == images_shape, f"Expected shape {images_shape}, got {noise_batch.shape}"
-        assert noise_batch[0].shape == images[0].shape
-        assert noise_batch[1].shape == images[1].shape
-
-    # Test for volume (3D data): shape (D, H, W)
-    volume_shape = (10, 100, 150)
-    volume = np.random.randint(0, 256, volume_shape, dtype=np.uint8)
-
-    noise_volume = fpixel.generate_noise(
+    # Test per_pixel mode
+    noise = fpixel.generate_noise(
         noise_type=noise_type,
-        spatial_mode=spatial_mode,
+        spatial_mode="per_pixel",
+        shape=images_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    assert noise.shape == images_shape, f"Expected shape {images_shape}, got {noise.shape}"
+    assert noise[0].shape == (100, 150, 3)
+    assert noise[1].shape == (100, 150, 3)
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "gaussian", "laplace", "beta"])
+def test_generate_noise_for_volume(noise_type):
+    """Test generate_noise shapes for 3D volume data."""
+    random_generator = np.random.default_rng(42)
+    volume_shape = (10, 100, 150)
+    params = get_noise_params(noise_type)
+
+    # Note: generate_noise treats 3D as (H, W, C) not (D, H, W)
+    # So for volume_shape (10, 100, 150), it thinks there are 150 channels
+
+    # Test constant mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="constant",
         shape=volume_shape,
         params=params,
         max_value=255,
         approximation=1.0,
         random_generator=random_generator,
     )
+    assert noise.shape == (150,), f"Expected shape (150,) for constant mode, got {noise.shape}"
 
-    # Note: generate_noise treats 3D as (H, W, C) not (D, H, W)
-    if spatial_mode == "constant":
-        assert noise_volume.shape == (150,), f"Expected shape (150,) for constant mode, got {noise_volume.shape}"
-    else:
-        assert noise_volume.shape == volume_shape, f"Expected shape {volume_shape}, got {noise_volume.shape}"
-        assert noise_volume[0].shape == volume[0].shape
-        assert noise_volume[1].shape == volume[1].shape
+    # Test per_pixel mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="per_pixel",
+        shape=volume_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    assert noise.shape == volume_shape, f"Expected shape {volume_shape}, got {noise.shape}"
+    assert noise[0].shape == (100, 150)
+    assert noise[1].shape == (100, 150)
 
-    # Test for volumes (batch of 3D data): shape (N, D, H, W)
+    # Test shared mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="shared",
+        shape=volume_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    assert noise.shape == volume_shape, f"Expected shape {volume_shape}, got {noise.shape}"
+    assert noise[0].shape == (100, 150)
+    assert noise[1].shape == (100, 150)
+
+
+@pytest.mark.parametrize("noise_type", ["uniform", "laplace", "beta"])
+def test_generate_noise_for_volume_batch(noise_type):
+    """Test generate_noise shapes for batch of 3D volumes (4D) - only per_pixel mode."""
+    random_generator = np.random.default_rng(42)
     volumes_shape = (2, 10, 100, 150)
-    volumes = np.random.randint(0, 256, volumes_shape, dtype=np.uint8)
+    params = get_noise_params(noise_type)
 
-    if spatial_mode != "shared":
-        noise_volumes = fpixel.generate_noise(
-            noise_type=noise_type,
-            spatial_mode=spatial_mode,
-            shape=volumes_shape,
-            params=params,
-            max_value=255,
-            approximation=1.0,
-            random_generator=random_generator,
-        )
+    # Test constant mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="constant",
+        shape=volumes_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    # For 4D with last dim 150, constant mode returns (150,)
+    assert noise.shape == (150,)
 
-        if spatial_mode == "constant":
-            # For 4D with last dim 150, constant mode returns (150,)
-            assert noise_volumes.shape == (150,)
-        else:
-            assert noise_volumes.shape == volumes_shape
-            assert noise_volumes[0].shape == volumes[0].shape
-            assert noise_volumes[1].shape == volumes[1].shape
+    # Test per_pixel mode
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="per_pixel",
+        shape=volumes_shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    assert noise.shape == volumes_shape
+    assert noise[0].shape == (10, 100, 150)
+    assert noise[1].shape == (10, 100, 150)
+
+
+@pytest.mark.xfail(reason="generate_noise has issues with 4D arrays and shared spatial mode")
+@pytest.mark.parametrize("noise_type", ["uniform", "laplace", "beta"])
+def test_generate_noise_4d_shared_mode(noise_type):
+    """Test that generate_noise fails with 4D arrays and shared spatial mode."""
+    random_generator = np.random.default_rng(42)
+    shape = (3, 100, 150, 3)
+    params = get_noise_params(noise_type)
+
+    noise = fpixel.generate_noise(
+        noise_type=noise_type,
+        spatial_mode="shared",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    # This is expected to fail with broadcast error
+
+
+@pytest.mark.xfail(reason="generate_noise has issues with 4D arrays and gaussian noise type")
+def test_generate_noise_4d_gaussian():
+    """Test that generate_noise fails with 4D arrays and gaussian noise type."""
+    random_generator = np.random.default_rng(42)
+    shape = (3, 100, 150, 3)
+    params = get_noise_params("gaussian")
+
+    noise = fpixel.generate_noise(
+        noise_type="gaussian",
+        spatial_mode="per_pixel",
+        shape=shape,
+        params=params,
+        max_value=255,
+        approximation=1.0,
+        random_generator=random_generator,
+    )
+    # This is expected to fail due to cv2.randn limitations
