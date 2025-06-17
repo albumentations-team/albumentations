@@ -2301,7 +2301,10 @@ def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
         np.ndarray: The noise added to the image.
 
     """
-    return add(img, noise, inplace=False)
+    n_tiles = np.prod(img.shape) // np.prod(noise.shape)
+    noise = np.tile(noise, (n_tiles,) + (1,) * noise.ndim).reshape(img.shape)
+
+    return add_array(img, noise, inplace=False)
 
 
 def slic(

@@ -23,6 +23,7 @@ from tests.conftest import (
 from tests.utils import convert_2d_to_target_format
 from copy import deepcopy
 from sklearn.decomposition import NMF
+from typing import Any
 
 
 @pytest.mark.parametrize(

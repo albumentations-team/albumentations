@@ -21,6 +21,7 @@ from albucore import (
     MAX_VALUES_BY_DTYPE,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     batch_transform,
+    get_image_data,
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
@@ -2631,6 +2632,39 @@ class GaussNoise(ImageOnlyTransform):
         """
         return fpixel.add_noise(img, noise_map)
 
+    def apply_to_images(self, images: np.ndarray, noise_map: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the Gaussian noise to a batch of images.
+
+        Args:
+            images (np.ndarray): The batch of images to apply the Gaussian noise to.
+            noise_map (np.ndarray): The noise map to apply to the images.
+            **params (Any): Additional parameters (not used in this transform).
+
+        """
+        return fpixel.add_noise(images, noise_map)
+
+    def apply_to_volume(self, volume: np.ndarray, noise_map: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the Gaussian noise to a single volume.
+
+        Args:
+            volume (np.ndarray): The volume to apply the Gaussian noise to.
+            noise_map (np.ndarray): The noise map to apply to the volume.
+            **params (Any): Additional parameters (not used in this transform).
+
+        """
+        return fpixel.add_noise(volume, noise_map)
+
+    def apply_to_volumes(self, volumes: np.ndarray, noise_map: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply the Gaussian noise to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): The batch of volumes to apply the Gaussian noise to.
+            noise_map (np.ndarray): The noise map to apply to the volumes.
+            **params (Any): Additional parameters (not used in this transform).
+
+        """
+        return fpixel.add_noise(volumes, noise_map)
+
     def get_params_dependent_on_data(
         self,
         params: dict[str, Any],
@@ -2647,17 +2681,17 @@ class GaussNoise(ImageOnlyTransform):
                 - "noise_map" (np.ndarray): The noise map to apply to the image.
 
         """
-        image = data["image"] if "image" in data else data["images"][0]
-        max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+        metadata = get_image_data(data)
+        max_value = MAX_VALUES_BY_DTYPE[metadata["dtype"]]
+        shape = (metadata["height"], metadata["width"], metadata["num_channels"])
 
         sigma = self.py_random.uniform(*self.std_range)
-
         mean = self.py_random.uniform(*self.mean_range)
 
         noise_map = fpixel.generate_noise(
             noise_type="gaussian",
             spatial_mode="per_pixel" if self.per_channel else "shared",
-            shape=image.shape,
+            shape=shape,
             params={"mean_range": (mean, mean), "std_range": (sigma, sigma)},
             max_value=max_value,
             approximation=self.noise_scale_factor,
@@ -6036,14 +6070,14 @@ class AdditiveNoise(ImageOnlyTransform):
             data (dict[str, Any]): The data to apply the transform to.
 
         """
-        image = data["image"] if "image" in data else data["images"][0]
-
-        max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+        metadata = get_image_data(data)
+        max_value = MAX_VALUES_BY_DTYPE[metadata["dtype"]]
+        shape = (metadata["height"], metadata["width"], metadata["num_channels"])
 
         noise_map = fpixel.generate_noise(
             noise_type=self.noise_type,
             spatial_mode=self.spatial_mode,
-            shape=image.shape,
+            shape=shape,
             params=self.noise_params,
             max_value=max_value,
             approximation=self.approximation,
@@ -6180,7 +6214,7 @@ class SaltAndPepper(ImageOnlyTransform):
     """Apply salt and pepper noise to the input image.
 
     Salt and pepper noise is a form of impulse noise that randomly sets pixels to either maximum value (salt)
-    or minimum value (pepper). The amount and proportion of salt vs pepper noise can be controlled.
+    or minimum value (pepper). The amount and proportion of salt vs pepper can be controlled.
     The same noise mask is applied to all channels of the image to preserve color consistency.
 
     Args:
@@ -6283,8 +6317,7 @@ class SaltAndPepper(ImageOnlyTransform):
             data (dict[str, Any]): The data to apply the transform to.
 
         """
-        image = data["image"] if "image" in data else data["images"][0]
-        height, width = image.shape[:2]
+        height, width = params["shape"][:2]
 
         total_amount = self.py_random.uniform(*self.amount)
         salt_ratio = self.py_random.uniform(*self.salt_vs_pepper)
