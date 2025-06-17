@@ -32,6 +32,10 @@ def test_worker_seed_without_torch():
     "torch" not in sys.modules and not any("torch" in str(p) for p in sys.path),
     reason="PyTorch not available"
 )
+@pytest.mark.skipif(
+    sys.platform in ["darwin", "win32"],
+    reason="Multiprocessing test incompatible with spawn method used on macOS/Windows"
+)
 def test_worker_seed_with_torch():
     """Test worker seed functionality with PyTorch available."""
     import torch
@@ -112,6 +116,10 @@ def test_worker_seed_with_torch():
     "torch" not in sys.modules and not any("torch" in str(p) for p in sys.path),
     reason="PyTorch not available"
 )
+@pytest.mark.skipif(
+    sys.platform == "darwin",
+    reason="Multiprocessing test skipped on macOS due to spawn/fork issues"
+)
 def test_dataloader_epoch_diversity():
     """Test that DataLoader produces different augmentations across epochs with worker-aware seed."""
     import torch
@@ -142,10 +150,6 @@ def test_dataloader_epoch_diversity():
     ], seed=42)
 
     dataset = SimpleDataset(transform=transform)
-
-    # Skip on platforms where multiprocessing is problematic
-    if sys.platform == "darwin":
-        pytest.skip("Multiprocessing test skipped on macOS due to spawn/fork issues")
 
     # Test with persistent_workers=False
     dataloader = torch.utils.data.DataLoader(
@@ -279,11 +283,12 @@ def worker_process_simulation(worker_id: int, base_seed: int, num_iterations: in
     return results
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Multiprocessing test skipped on Windows"
+)
 def test_worker_seed_diversity():
     """Test that different workers produce different augmentation sequences."""
-    if sys.platform == "win32":
-        # Skip on Windows due to multiprocessing limitations
-        pytest.skip("Multiprocessing test skipped on Windows")
 
     base_seed = 137
     num_workers = 4
