@@ -1636,7 +1636,7 @@ class SelectiveChannelTransform(BaseCompose):
             for t in self.transforms:
                 sub_data = {"image": sub_image}
                 sub_image = t(**sub_data)["image"]
-                self._track_transform_params(t, data)
+                self._track_transform_params(t, sub_data)
 
             transformed_channels = cv2.split(sub_image)
             output_img = image.copy()
