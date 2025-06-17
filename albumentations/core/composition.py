@@ -842,7 +842,6 @@ class Compose(BaseCompose, HubMixin):
         # Check and sync worker seed if needed
         self._check_worker_seed()
 
-        # Original __call__ implementation
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
