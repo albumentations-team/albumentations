@@ -709,6 +709,9 @@ class Compose(BaseCompose, HubMixin):
         seed: int | None = None,
         save_applied_params: bool = False,
     ):
+        # Store the original base seed for worker context recalculation
+        self._base_seed = seed
+
         # Get effective seed considering worker context
         effective_seed = self._get_effective_seed(seed)
 
@@ -865,7 +868,7 @@ class Compose(BaseCompose, HubMixin):
 
     def _check_worker_seed(self) -> None:
         """Check and update random seed if in worker context."""
-        if not hasattr(self, "seed") or self.seed is None:
+        if not hasattr(self, "_base_seed") or self._base_seed is None:
             return
 
         # Check if we're in a worker and need to update the seed
@@ -884,7 +887,7 @@ class Compose(BaseCompose, HubMixin):
 
                 # Update the seed and mark as synchronized
                 self._last_torch_seed = current_torch_seed
-                effective_seed = self._get_effective_seed(self.seed)
+                effective_seed = self._get_effective_seed(self._base_seed)
 
                 # Update our own random state
                 self.random_generator = np.random.default_rng(effective_seed)
@@ -903,11 +906,16 @@ class Compose(BaseCompose, HubMixin):
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Set state from unpickling and handle worker seed."""
         self.__dict__.update(state)
-        # If we have a seed, recalculate effective seed in worker context
-        if hasattr(self, "seed") and self.seed is not None:
+        # If we have a base seed, recalculate effective seed in worker context
+        if hasattr(self, "_base_seed") and self._base_seed is not None:
             # Reset _last_torch_seed to ensure worker-seed sync runs after unpickling
             self._last_torch_seed = None
             # Recalculate effective seed in worker context
+            self.set_random_seed(self._base_seed)
+        elif hasattr(self, "seed") and self.seed is not None:
+            # For backward compatibility, if no base seed but seed exists
+            self._base_seed = self.seed
+            self._last_torch_seed = None
             self.set_random_seed(self.seed)
 
     def set_random_seed(self, seed: int | None) -> None:
@@ -917,7 +925,8 @@ class Compose(BaseCompose, HubMixin):
             seed (int | None): Random seed to use
 
         """
-        # Store the original seed
+        # Store the original base seed
+        self._base_seed = seed
         self.seed = seed
 
         # Get effective seed considering worker context
@@ -1067,7 +1076,7 @@ class Compose(BaseCompose, HubMixin):
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
-                "seed": getattr(self, "seed", None),
+                "seed": getattr(self, "_base_seed", None),
             },
         )
         return dictionary
@@ -1310,7 +1319,7 @@ class Compose(BaseCompose, HubMixin):
             "is_check_shapes": self.is_check_shapes,
             "strict": self.strict,
             "mask_interpolation": getattr(self, "mask_interpolation", None),
-            "seed": getattr(self, "seed", None),
+            "seed": getattr(self, "_base_seed", None),
             "save_applied_params": getattr(self, "save_applied_params", False),
         }
 
