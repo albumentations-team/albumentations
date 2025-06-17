@@ -3148,15 +3148,3 @@ def test_gray_pixels_in_mixed_images(image_type, sat_shift):
                 assert actual_sat > orig_sat or actual_sat == 255, \
                     f"Saturation did not increase at ({y},{x}) in {image_type} image. " \
                     f"Original: {orig_sat}, Actual: {actual_sat}"
-
-def get_noise_params(noise_type: str) -> dict[str, Any]:
-    """Get appropriate parameters for each noise type."""
-    if noise_type == "uniform":
-        return {"ranges": [(-0.1, 0.1)]}
-    elif noise_type == "gaussian":
-        return {"mean_range": (0, 0), "std_range": (0.1, 0.1)}
-    elif noise_type == "laplace":
-        return {"mean_range": (0, 0), "scale_range": (0.1, 0.1)}
-    elif noise_type == "beta":
-        return {"alpha_range": (2, 2), "beta_range": (2, 2), "scale_range": (0.1, 0.1)}
-    return {}
