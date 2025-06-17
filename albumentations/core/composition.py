@@ -905,6 +905,8 @@ class Compose(BaseCompose, HubMixin):
         self.__dict__.update(state)
         # If we have a seed, recalculate effective seed in worker context
         if hasattr(self, "seed") and self.seed is not None:
+            # Reset _last_torch_seed to ensure worker-seed sync runs after unpickling
+            self._last_torch_seed = None
             # Recalculate effective seed in worker context
             self.set_random_seed(self.seed)
 

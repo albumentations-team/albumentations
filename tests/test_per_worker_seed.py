@@ -277,7 +277,7 @@ def test_worker_seed_diversity():
         sequences = [result.get() for result in worker_results]
 
     # Check that workers produced different sequences
-    unique_sequences = set(tuple(seq) for seq in sequences)
+    unique_sequences = {tuple(seq) for seq in sequences}
     assert len(unique_sequences) > 1, "All workers produced identical augmentation sequences"
 
     # Each worker should have some flips and some non-flips (with high probability)
