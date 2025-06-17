@@ -2301,10 +2301,8 @@ def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
         np.ndarray: The noise added to the image.
 
     """
-    num_pixels_in_image = np.prod(img.shape)
-    num_pixels_in_noise = np.prod(noise.shape)
-
-    noise = np.stack([noise] * (num_pixels_in_image // num_pixels_in_noise)).reshape(img.shape)
+    n_tiles = np.prod(img.shape) // np.prod(noise.shape)
+    noise = np.tile(noise, (n_tiles,) + (1,) * noise.ndim).reshape(img.shape)
 
     return add_array(img, noise, inplace=False)
 
