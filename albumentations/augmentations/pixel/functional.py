@@ -339,11 +339,33 @@ def equalize(
     return result_img
 
 
+def evaluate_bez(
+    low_y: float | np.ndarray,
+    high_y: float | np.ndarray,
+) -> np.ndarray:
+    """Evaluate the Bezier curve at the given t values.
+
+    Args:
+        t (np.ndarray): The t values to evaluate the Bezier curve at.
+        low_y (float | np.ndarray): The low y values to evaluate the Bezier curve at.
+        high_y (float | np.ndarray): The high y values to evaluate the Bezier curve at.
+
+    Returns:
+        np.ndarray: The Bezier curve values.
+
+    """
+    t = np.linspace(0.0, 1.0, 256)[..., None]
+
+    one_minus_t = 1 - t
+    return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
+
+
 @uint8_io
 def move_tone_curve(
     img: np.ndarray,
     low_y: float | np.ndarray,
     high_y: float | np.ndarray,
+    num_channels: int,
 ) -> np.ndarray:
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
@@ -353,34 +375,25 @@ def move_tone_curve(
             to adjust the tone curve, must be in range [0, 1]
         high_y (float | np.ndarray): per-channel or single y-position of a Bezier control point used
             to adjust image tone curve, must be in range [0, 1]
+        num_channels (int): The number of channels in the input image.
 
     Returns:
         np.ndarray: Image with adjusted tone curve
 
     """
-    t = np.linspace(0.0, 1.0, 256)
-
-    def evaluate_bez(
-        t: np.ndarray,
-        low_y: float | np.ndarray,
-        high_y: float | np.ndarray,
-    ) -> np.ndarray:
-        one_minus_t = 1 - t
-        return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
-
-    num_channels = get_num_channels(img)
-
     if np.isscalar(low_y) and np.isscalar(high_y):
-        lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8, inplace=False)
+        lut = clip(np.rint(evaluate_bez(low_y, high_y)), np.uint8, inplace=False)
         return sz_lut(img, lut, inplace=False)
+
     if isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
         luts = clip(
-            np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T),
+            np.rint(evaluate_bez(low_y, high_y).T),
             np.uint8,
             inplace=False,
         )
-        return cv2.merge(
-            [sz_lut(img[:, :, i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
+        return np.stack(
+            [sz_lut(img[..., i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
+            axis=-1,
         )
 
     raise TypeError(

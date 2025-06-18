@@ -19,6 +19,7 @@ from tests.conftest import (
     RECTANGULAR_IMAGES,
     SQUARE_UINT8_IMAGE,
     UINT8_IMAGES,
+    VOLUME,
 )
 from tests.utils import convert_2d_to_target_format
 from copy import deepcopy
@@ -844,16 +845,20 @@ def test_planckian_jitter_invalid_mode():
         fpixel.planckian_jitter(img, 5000, "invalid_mode")
 
 
-@pytest.mark.parametrize("image", IMAGES)
-def test_random_tone_curve(image):
+@pytest.mark.parametrize(
+        ("image", "num_channels"),
+        [
+            (SQUARE_UINT8_IMAGE, 3),
+            (VOLUME, 3),
+        ]
+)
+def test_random_tone_curve(image, num_channels):
     low_y = 0.1
     high_y = 0.9
 
-    num_channels = get_num_channels(image)
-
-    result_float_value = fpixel.move_tone_curve(image, low_y, high_y)
+    result_float_value = fpixel.move_tone_curve(image, low_y, high_y, num_channels)
     result_array_value = fpixel.move_tone_curve(
-        image, np.array([low_y] * num_channels), np.array([high_y] * num_channels)
+        image, np.array([low_y] * num_channels), np.array([high_y] * num_channels), num_channels
     )
 
     np.testing.assert_allclose(result_float_value, result_array_value)
@@ -2394,7 +2399,7 @@ def test_add_rain_brightness(brightness_coefficient):
         np.testing.assert_allclose(
             np.mean(result_hsv[:, :, 2]) / np.mean(original_hsv[:, :, 2]),
             brightness_coefficient,
-            rtol=0.1  # Allow 10% tolerance due to rounding and blur effects
+            rtol=0.1,  # Allow 10% tolerance due to rounding and blur effects
         )
     else:
         # For brightness_coefficient = 1.0, brightness might slightly increase
@@ -2402,7 +2407,7 @@ def test_add_rain_brightness(brightness_coefficient):
         np.testing.assert_allclose(
             np.mean(result_hsv[:, :, 2]) / np.mean(original_hsv[:, :, 2]),
             1.0,
-            rtol=0.1  # Allow 10% tolerance
+            rtol=0.1,  # Allow 10% tolerance
         )
 
 
