@@ -1465,7 +1465,7 @@ class GridElasticDeform(DualTransform):
                 for tile in tiles
             ],
         ).reshape(
-            self.num_grid_xy[::-1] + (4,),
+            (*self.num_grid_xy[::-1], 4),
         )  # Reshape to (grid_height, grid_width, 4)
 
         polygons = fgeometric.generate_distorted_grid_polygons(

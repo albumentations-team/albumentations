@@ -1647,8 +1647,8 @@ def grayscale_to_multichannel(
         return grayscale_image
 
     squeezed = np.squeeze(grayscale_image)
-    # For multi-channel output, stack channels
-    return np.stack([squeezed] * num_output_channels, axis=-1)
+    # For multi-channel output, use tile for better performance
+    return np.tile(squeezed[..., np.newaxis], (1,) * squeezed.ndim + (num_output_channels,))
 
 
 @preserve_channel_dim
@@ -2519,7 +2519,7 @@ def generate_noise(
     height, width = shape[:2]
     reduced_height = max(1, int(height * approximation))
     reduced_width = max(1, int(width * approximation))
-    reduced_shape = (reduced_height, reduced_width) + shape[2:]
+    reduced_shape = (reduced_height, reduced_width, *shape[2:])
 
     # Generate noise at reduced resolution
     if spatial_mode == "shared":
@@ -3482,7 +3482,7 @@ def prepare_drop_values(
         return np.full(array.shape, values[0], dtype=array.dtype)
 
     # For multichannel input, broadcast values to full shape
-    return np.full(array.shape[:2] + (len(values),), values, dtype=array.dtype)
+    return np.full((*array.shape[:2], len(values)), values, dtype=array.dtype)
 
 
 def get_mask_array(data: dict[str, Any]) -> np.ndarray | None:

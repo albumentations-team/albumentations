@@ -222,6 +222,7 @@ lint.ignore = [
   "FBT002",
   "FBT003",
   "G004",
+  "PLC0415",
   "PLR0911",
   "PLR0913",
   "PLR2004",
