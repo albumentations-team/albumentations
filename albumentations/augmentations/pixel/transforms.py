@@ -3607,13 +3607,52 @@ class ToRGB(ImageOnlyTransform):
             warnings.warn("The image is already an RGB.", stacklevel=2)
             return np.ascontiguousarray(img)
         if not is_grayscale_image(img):
-            msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
+            msg = "ToRGB transformation expects images with the number of channels equal to 1."
             raise TypeError(msg)
 
         return fpixel.grayscale_to_multichannel(
             img,
             num_output_channels=self.num_output_channels,
         )
+
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply ToRGB to a batch of images.
+
+        Args:
+            images (np.ndarray): Batch of images with shape (N, H, W, C) or (N, H, W).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of RGB images.
+
+        """
+        return self.apply(images, **params)
+
+    def apply_to_volume(self, volume: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply ToRGB to a single volume.
+
+        Args:
+            volume (np.ndarray): Volume with shape (D, H, W, C) or (D, H, W).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Grayscale volume.
+
+        """
+        return self.apply(volume, **params)
+
+    def apply_to_volumes(self, volumes: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply ToRGB to a batch of volumes.
+
+        Args:
+            volumes (np.ndarray): Batch of volumes with shape (N, D, H, W, C) or (N, D, H, W).
+            **params (Any): Additional parameters.
+
+        Returns:
+            np.ndarray: Batch of RGB volumes.
+
+        """
+        return self.apply(volumes, **params)
 
 
 class ToSepia(ImageOnlyTransform):
