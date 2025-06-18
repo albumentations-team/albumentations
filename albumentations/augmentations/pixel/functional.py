@@ -339,11 +339,33 @@ def equalize(
     return result_img
 
 
+def evaluate_bez(
+    low_y: float | np.ndarray,
+    high_y: float | np.ndarray,
+) -> np.ndarray:
+    """Evaluate the Bezier curve at the given t values.
+
+    Args:
+        t (np.ndarray): The t values to evaluate the Bezier curve at.
+        low_y (float | np.ndarray): The low y values to evaluate the Bezier curve at.
+        high_y (float | np.ndarray): The high y values to evaluate the Bezier curve at.
+
+    Returns:
+        np.ndarray: The Bezier curve values.
+
+    """
+    t = np.linspace(0.0, 1.0, 256)[..., None]
+
+    one_minus_t = 1 - t
+    return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
+
+
 @uint8_io
 def move_tone_curve(
     img: np.ndarray,
     low_y: float | np.ndarray,
     high_y: float | np.ndarray,
+    num_channels: int,
 ) -> np.ndarray:
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
@@ -353,34 +375,25 @@ def move_tone_curve(
             to adjust the tone curve, must be in range [0, 1]
         high_y (float | np.ndarray): per-channel or single y-position of a Bezier control point used
             to adjust image tone curve, must be in range [0, 1]
+        num_channels (int): The number of channels in the input image.
 
     Returns:
         np.ndarray: Image with adjusted tone curve
 
     """
-    t = np.linspace(0.0, 1.0, 256)
-
-    def evaluate_bez(
-        t: np.ndarray,
-        low_y: float | np.ndarray,
-        high_y: float | np.ndarray,
-    ) -> np.ndarray:
-        one_minus_t = 1 - t
-        return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
-
-    num_channels = get_num_channels(img)
-
     if np.isscalar(low_y) and np.isscalar(high_y):
-        lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8, inplace=False)
+        lut = clip(np.rint(evaluate_bez(low_y, high_y)), np.uint8, inplace=False)
         return sz_lut(img, lut, inplace=False)
+
     if isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
         luts = clip(
-            np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T),
+            np.rint(evaluate_bez(low_y, high_y).T),
             np.uint8,
             inplace=False,
         )
-        return cv2.merge(
-            [sz_lut(img[:, :, i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
+        return np.stack(
+            [sz_lut(img[..., i], np.ascontiguousarray(luts[i]), inplace=False) for i in range(num_channels)],
+            axis=-1,
         )
 
     raise TypeError(
@@ -2442,6 +2455,113 @@ def get_safe_brightness_contrast_params(
         safe_alpha = max(alpha, -safe_beta / max_value)
 
     return safe_alpha, safe_beta
+
+
+def get_spatial_dims_from_shape(
+    shape: tuple[int, ...],
+    has_batch_dim: bool = False,
+    has_depth_dim: bool = False,
+    has_channel_dim: bool | None = None,
+) -> tuple[int, int]:
+    """Extract height and width from shape based on explicit dimension indicators.
+
+    Args:
+        shape: Input shape
+        has_batch_dim: Whether shape includes batch dimension
+        has_depth_dim: Whether shape includes depth dimension
+        has_channel_dim: Whether shape includes channel dimension. If None, inferred from shape.
+
+    Returns:
+        tuple[int, int]: (height, width)
+
+    """
+    ndim = len(shape)
+
+    # Infer channel dimension if not specified
+    if has_channel_dim is None:
+        # Shape has channels if it's not 2D or if it has an odd number of spatial dims
+        expected_ndim = 2 + int(has_batch_dim) + int(has_depth_dim)
+        has_channel_dim = ndim > expected_ndim
+
+    # Calculate position of H and W
+    h_idx = int(has_batch_dim) + int(has_depth_dim)
+    w_idx = h_idx + 1
+
+    if w_idx >= ndim:
+        raise ValueError(f"Invalid shape {shape} for has_batch_dim={has_batch_dim}, has_depth_dim={has_depth_dim}")
+
+    return shape[h_idx], shape[w_idx]
+
+
+def construct_shape_with_spatial_dims(
+    original_shape: tuple[int, ...],
+    new_height: int,
+    new_width: int,
+    has_batch_dim: bool = False,
+    has_depth_dim: bool = False,
+    has_channel_dim: bool | None = None,
+) -> tuple[int, ...]:
+    """Construct shape with new spatial dimensions, preserving other dimensions.
+
+    Args:
+        original_shape: Original shape
+        new_height: New height dimension
+        new_width: New width dimension
+        has_batch_dim: Whether shape includes batch dimension
+        has_depth_dim: Whether shape includes depth dimension
+        has_channel_dim: Whether shape includes channel dimension. If None, inferred from shape.
+
+    Returns:
+        New shape with updated spatial dimensions
+
+    """
+    ndim = len(original_shape)
+
+    # Infer channel dimension if not specified
+    if has_channel_dim is None:
+        expected_ndim = 2 + int(has_batch_dim) + int(has_depth_dim)
+        has_channel_dim = ndim > expected_ndim
+
+    # Build new shape
+    new_shape = []
+
+    # Add batch dimension if present
+    if has_batch_dim:
+        new_shape.append(original_shape[0])
+
+    # Add depth dimension if present
+    if has_depth_dim:
+        depth_idx = int(has_batch_dim)
+        new_shape.append(original_shape[depth_idx])
+
+    # Add spatial dimensions
+    new_shape.extend([new_height, new_width])
+
+    # Add channel dimension if present
+    if has_channel_dim:
+        new_shape.append(original_shape[-1])
+
+    return tuple(new_shape)
+
+
+# For backward compatibility - these use heuristics but should be replaced
+def extract_spatial_dimensions(shape: tuple[int, ...]) -> tuple[int, int]:
+    """Extract height and width from shape using heuristics.
+
+    DEPRECATED: Use get_spatial_dims_from_shape with explicit dimension flags instead.
+    """
+    ndim = len(shape)
+
+    if ndim == MONO_CHANNEL_DIMENSIONS:  # (H, W)
+        return get_spatial_dims_from_shape(shape, has_batch_dim=False, has_depth_dim=False, has_channel_dim=False)
+    if ndim == NUM_MULTI_CHANNEL_DIMENSIONS:  # (H, W, C)
+        return get_spatial_dims_from_shape(shape, has_batch_dim=False, has_depth_dim=False, has_channel_dim=True)
+    if ndim == 4:  # Could be (N, H, W, C) or (D, H, W, C) or (N, H, W) or (D, H, W)
+        # This is ambiguous - we'll assume batch of images for backward compatibility
+        return get_spatial_dims_from_shape(shape, has_batch_dim=True, has_depth_dim=False)
+    if ndim == 5:  # (N, D, H, W, C) or (N, D, H, W)
+        return get_spatial_dims_from_shape(shape, has_batch_dim=True, has_depth_dim=True)
+    raise ValueError(f"Unsupported shape: {shape}")
 
 
 def generate_noise(

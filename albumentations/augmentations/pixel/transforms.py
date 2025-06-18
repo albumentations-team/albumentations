@@ -1742,6 +1742,7 @@ class RandomToneCurve(ImageOnlyTransform):
         img: np.ndarray,
         low_y: float | np.ndarray,
         high_y: float | np.ndarray,
+        num_channels: int,
         **params: Any,
     ) -> np.ndarray:
         """Apply the tone curve to the input image.
@@ -1750,13 +1751,83 @@ class RandomToneCurve(ImageOnlyTransform):
             img (np.ndarray): The input image to apply the tone curve to.
             low_y (float | np.ndarray): The lower control point of the tone curve.
             high_y (float | np.ndarray): The upper control point of the tone curve.
+            num_channels (int): The number of channels in the input image.
             **params (Any): Additional parameters (not used in this transform).
 
         Returns:
             np.ndarray: The image with the applied tone curve.
 
         """
-        return fpixel.move_tone_curve(img, low_y, high_y)
+        return fpixel.move_tone_curve(img, low_y, high_y, num_channels)
+
+    def apply_to_images(
+        self,
+        images: np.ndarray,
+        low_y: float | np.ndarray,
+        high_y: float | np.ndarray,
+        num_channels: int,
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the tone curve to the input volume.
+
+        Args:
+            images (np.ndarray): The input images to apply the tone curve to.
+            low_y (float | np.ndarray): The lower control point of the tone curve.
+            high_y (float | np.ndarray): The upper control point of the tone curve.
+            num_channels (int): The number of channels in the input images.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The images with the applied tone curve.
+
+        """
+        return fpixel.move_tone_curve(images, low_y, high_y, num_channels)
+
+    def apply_to_volume(
+        self,
+        volume: np.ndarray,
+        low_y: float | np.ndarray,
+        high_y: float | np.ndarray,
+        num_channels: int,
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the tone curve to the input volume.
+
+        Args:
+            volume (np.ndarray): The input volume to apply the tone curve to.
+            low_y (float | np.ndarray): The lower control point of the tone curve.
+            high_y (float | np.ndarray): The upper control point of the tone curve.
+            num_channels (int): The number of channels in the input volume.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The volume with the applied tone curve.
+
+        """
+        return fpixel.move_tone_curve(volume, low_y, high_y, num_channels)
+
+    def apply_to_volumes(
+        self,
+        volumes: np.ndarray,
+        low_y: float | np.ndarray,
+        high_y: float | np.ndarray,
+        num_channels: int,
+        **params: Any,
+    ) -> np.ndarray:
+        """Apply the tone curve to the input volumes.
+
+        Args:
+            volumes (np.ndarray): The input volumes to apply the tone curve to.
+            low_y (float | np.ndarray): The lower control point of the tone curve.
+            high_y (float | np.ndarray): The upper control point of the tone curve.
+            num_channels (int): The number of channels in the input volume.
+            **params (Any): Additional parameters (not used in this transform).
+
+        Returns:
+            np.ndarray: The volumes with the applied tone curve.
+
+        """
+        return fpixel.move_tone_curve(volumes, low_y, high_y, num_channels)
 
     def get_params_dependent_on_data(
         self,
@@ -1775,36 +1846,36 @@ class RandomToneCurve(ImageOnlyTransform):
                 - "high_y" (float | np.ndarray): The upper control point of the tone curve.
 
         """
-        image = data["image"] if "image" in data else data["images"][0]
+        num_channels = get_image_data(data)["num_channels"]
+        result = {
+            "num_channels": num_channels,
+        }
 
-        num_channels = get_num_channels(image)
+        if self.per_channel and result["num_channels"] != 1:
+            result["low_y"] = np.clip(
+                self.random_generator.normal(
+                    loc=0.25,
+                    scale=self.scale,
+                    size=(num_channels,),
+                ),
+                0,
+                1,
+            )
+            result["high_y"] = np.clip(
+                self.random_generator.normal(
+                    loc=0.75,
+                    scale=self.scale,
+                    size=(num_channels,),
+                ),
+                0,
+                1,
+            )
+            return result
 
-        if self.per_channel and num_channels != 1:
-            return {
-                "low_y": np.clip(
-                    self.random_generator.normal(
-                        loc=0.25,
-                        scale=self.scale,
-                        size=(num_channels,),
-                    ),
-                    0,
-                    1,
-                ),
-                "high_y": np.clip(
-                    self.random_generator.normal(
-                        loc=0.75,
-                        scale=self.scale,
-                        size=(num_channels,),
-                    ),
-                    0,
-                    1,
-                ),
-            }
-        # Same values for all channels
         low_y = np.clip(self.random_generator.normal(loc=0.25, scale=self.scale), 0, 1)
         high_y = np.clip(self.random_generator.normal(loc=0.75, scale=self.scale), 0, 1)
 
-        return {"low_y": low_y, "high_y": high_y}
+        return {"low_y": low_y, "high_y": high_y, "num_channels": num_channels}
 
 
 class HueSaturationValue(ImageOnlyTransform):
