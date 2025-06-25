@@ -12,9 +12,79 @@
 
 [Docs](https://albumentations.ai/docs/) | [Discord](https://discord.gg/AKPrrDYNAt) | [Twitter](https://twitter.com/albumentations) | [LinkedIn](https://www.linkedin.com/company/100504475/)
 
-## GitAds Sponsored
-[![Sponsored by GitAds](https://gitads.dev/v1/ad-serve?source=albumentations-team/albumentations@github)](https://gitads.dev/v1/ad-track?source=albumentations-team/albumentations@github)
+## ⚠️ Important Notice: Albumentations is No Longer Maintained
 
+**This repository is no longer actively maintained.** The last update was in June 2025, and no further bug fixes, features, or compatibility updates will be provided.
+
+### 🚀 Introducing AlbumentationsX - The Future of Albumentations
+
+All development has moved to **[AlbumentationsX](https://github.com/albumentations-team/AlbumentationsX)**, the next-generation successor to Albumentations.
+
+> **Note:** AlbumentationsX uses dual licensing (AGPL-3.0 / Commercial). The AGPL license has strict copyleft requirements - see details below.
+
+### Your Options Moving Forward
+
+#### 1. **Continue Using Albumentations (MIT License)**
+
+- ✅ **Forever free** for all uses including commercial
+- ✅ **No licensing fees or restrictions**
+- ❌ **No bug fixes** - Even critical bugs won't be addressed
+- ❌ **No new features** - Missing out on performance improvements
+- ❌ **No support** - Issues and questions go unanswered
+- ❌ **No compatibility updates** - May break with new Python/PyTorch versions
+
+**Best for:** Projects that work fine with the current version and don't need updates
+
+#### 2. **Upgrade to AlbumentationsX (Dual Licensed)**
+
+- ✅ **Drop-in replacement** - Same API, just `pip install albumentationsx`
+- ✅ **Active development** - Regular updates and new features
+- ✅ **Bug fixes** - Issues are actively addressed
+- ✅ **Performance improvements** - Faster execution
+- ✅ **Community support** - Active Discord and issue tracking
+- ⚠️ **Dual licensed:**
+  - **AGPL-3.0**: Free ONLY for projects licensed under AGPL-3.0 (not compatible with MIT, Apache, BSD, etc.)
+  - **Commercial License**: Required for proprietary use AND permissive open-source projects
+
+**Best for:** Projects that need ongoing support, updates, and new features
+
+> ⚠️ **AGPL License Warning**: The AGPL-3.0 license is NOT compatible with permissive licenses like MIT, Apache 2.0, or BSD. If your project uses any of these licenses, you CANNOT use the AGPL version of AlbumentationsX - you'll need a commercial license.
+
+### Migration is Simple
+
+```bash
+# Uninstall original
+pip uninstall albumentations
+
+# Install AlbumentationsX
+pip install albumentationsx
+```
+
+That's it! Your existing code continues to work without any changes:
+
+```python
+import albumentations as A  # Same import!
+
+transform = A.Compose([
+    A.RandomCrop(width=256, height=256),
+    A.HorizontalFlip(p=0.5),
+    A.RandomBrightnessContrast(p=0.2),
+])
+```
+
+### Learn More
+
+- 📦 **AlbumentationsX Repository**: <https://github.com/albumentations-team/AlbumentationsX>
+- 💰 **Commercial Licensing**: <https://albumentations.ai/pricing>
+- 💬 **Discord Community**: <https://discord.gg/AKPrrDYNAt>
+
+---
+
+## Original Albumentations README
+
+## GitAds Sponsored
+
+[![Sponsored by GitAds](https://gitads.dev/v1/ad-serve?source=albumentations-team/albumentations@github)](https://gitads.dev/v1/ad-track?source=albumentations-team/albumentations@github)
 
 Albumentations is a Python library for image augmentation. Image augmentation is used in deep learning and computer vision tasks to increase the quality of trained models. The purpose of image augmentation is to create new training samples from the existing data.
 
@@ -25,39 +95,15 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 - **Complete Computer Vision Support**: Works with [all major CV tasks](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation) including classification, segmentation (semantic & instance), object detection, and pose estimation.
 - **Simple, Unified API**: [One consistent interface](#a-simple-example) for all data types - RGB/grayscale/multispectral images, masks, bounding boxes, and keypoints.
-- **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/api_reference/augmentations/transforms/) to enhance your training data.
-- **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarking_results/#performance-comparison) also shown [below section](#performance-comparison), with optimizations for production use.
+- **Rich Augmentation Library**: [70+ high-quality augmentations](https://albumentations.ai/docs/reference/supported-targets-by-transform/) to enhance your training data.
+- **Fast**: Consistently benchmarked as the [fastest augmentation library](https://albumentations.ai/docs/benchmarks/image-benchmarks/), with optimizations for production use.
 - **Deep Learning Integration**: Works with [PyTorch](https://pytorch.org/), [TensorFlow](https://www.tensorflow.org/), and other frameworks. Part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
 - **Created by Experts**: Built by [developers with deep experience in computer vision and machine learning competitions](#authors).
-
-## Community-Driven Project, Supported By
-
-Albumentations thrives on developer contributions. We appreciate our sponsors who help sustain the project's infrastructure.
-
-| 🟠 Exclusive Partner |
-|-------------------|
-| Your company could be here |
-
-| 🟡 Integration Partner |
-|-------------------|
-| Your company could be here |
-
-| 🟢 Community Sponsor |
-|-----------------|
-| <a href="https://datature.io" target="_blank"><img src="https://albumentations.ai/assets/sponsors/datature-full.png" width="100" alt="Datature"/></a> |
-
----
-
-### 💝 Become a Sponsor
-
-Your sponsorship is a way to say "thank you" to the maintainers and contributors who spend their free time building and maintaining Albumentations. Sponsors are featured on our website and README. View sponsorship tiers on [our support page](https://albumentations.ai/support/)
 
 ## Table of contents
 
 - [Albumentations](#albumentations)
   - [Why Albumentations](#why-albumentations)
-  - [Community-Driven Project, Supported By](#community-driven-project-supported-by)
-    - [💝 Become a Sponsor](#-become-a-sponsor)
   - [Table of contents](#table-of-contents)
   - [Authors](#authors)
     - [Current Maintainer](#current-maintainer)
@@ -68,7 +114,6 @@ Your sponsorship is a way to say "thank you" to the maintainers and contributors
   - [Getting started](#getting-started)
     - [I am new to image augmentation](#i-am-new-to-image-augmentation)
     - [I want to use Albumentations for the specific task such as classification or segmentation](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation)
-    - [I want to know how to use Albumentations with deep learning frameworks](#i-want-to-know-how-to-use-albumentations-with-deep-learning-frameworks)
     - [I want to explore augmentations and see Albumentations in action](#i-want-to-explore-augmentations-and-see-albumentations-in-action)
   - [Who is using Albumentations](#who-is-using-albumentations)
     - [See also](#see-also)
@@ -113,7 +158,7 @@ Albumentations requires Python 3.9 or higher. To install the latest version from
 pip install -U albumentations
 ```
 
-Other installation options are described in the [documentation](https://albumentations.ai/docs/getting_started/installation/).
+Other installation options are described in the [documentation](https://albumentations.ai/docs/1-introduction/installation/).
 
 ## Documentation
 
@@ -149,15 +194,11 @@ Please start with the [introduction articles](https://albumentations.ai/docs/#le
 
 ### I want to use Albumentations for the specific task such as classification or segmentation
 
-If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#quick-start-guide) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
-
-### I want to know how to use Albumentations with deep learning frameworks
-
-We have [examples of using Albumentations](https://albumentations.ai/docs/#examples-of-how-to-use-albumentations-with-different-deep-learning-frameworks) along with PyTorch and TensorFlow.
+If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/1-introduction/what-are-image-augmentations/) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
 
 ### I want to explore augmentations and see Albumentations in action
 
-Check the [online demo of the library](https://albumentations-demo.herokuapp.com/). With it, you can apply augmentations to different images and see the result. Also, we have a [list of all available augmentations and their targets](#list-of-augmentations).
+Check the [online demo of the library](https://explore.albumentations.ai/). With it, you can apply augmentations to different images and see the result. Also, we have a [list of all available augmentations and their targets](#list-of-augmentations).
 
 ## Who is using Albumentations
 
