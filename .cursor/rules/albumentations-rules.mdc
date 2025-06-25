@@ -12,3 +12,4 @@ alwaysApply: true
 - We do not have ANY default values in the InitSchema class
 - Use pytest.mark.parametrize for parameterized tests
 - In the code, when need default value use 137, not 42
+- If you want to create tests - create it in the tests folder.
