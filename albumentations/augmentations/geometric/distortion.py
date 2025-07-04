@@ -1177,6 +1177,7 @@ class ThinPlateSpline(BaseDistortion):
         ] = cv2.BORDER_CONSTANT,
         fill: tuple[float, ...] | float = 0,
         fill_mask: tuple[float, ...] | float = 0,
+        downsample_factor: int = 1,
     ):
         super().__init__(
             interpolation=interpolation,
@@ -1189,6 +1190,7 @@ class ThinPlateSpline(BaseDistortion):
         )
         self.scale_range = scale_range
         self.num_control_points = num_control_points
+        self.downsample_factor = downsample_factor
 
     def get_params_dependent_on_data(
         self,
@@ -1208,7 +1210,6 @@ class ThinPlateSpline(BaseDistortion):
         height, width = params["shape"][:2]
         src_points = fgeometric.generate_control_points(self.num_control_points)
 
-        # Add random displacement to destination points
         scale = self.py_random.uniform(*self.scale_range) / 10
         dst_points = src_points + self.random_generator.normal(
             0,
@@ -1216,14 +1217,18 @@ class ThinPlateSpline(BaseDistortion):
             src_points.shape,
         )
 
-        # Compute TPS weights
         weights, affine = fgeometric.compute_tps_weights(src_points, dst_points)
 
-        # Create grid of points
-        x, y = np.meshgrid(np.arange(width), np.arange(height))
+        # Use coarser grid
+        downsample_factor = self.downsample_factor
+        coarse_height = (height + downsample_factor - 1) // downsample_factor
+        coarse_width = (width + downsample_factor - 1) // downsample_factor
+        
+        x_coarse = np.linspace(0, width-1, coarse_width)
+        y_coarse = np.linspace(0, height-1, coarse_height)
+        x, y = np.meshgrid(x_coarse, y_coarse)
         points = np.stack([x.flatten(), y.flatten()], axis=1).astype(np.float32)
 
-        # Transform points
         transformed = fgeometric.tps_transform(
             points / [width, height],
             src_points,
@@ -1232,7 +1237,12 @@ class ThinPlateSpline(BaseDistortion):
         )
         transformed *= [width, height]
 
-        return {
-            "map_x": transformed[:, 0].reshape(height, width).astype(np.float32),
-            "map_y": transformed[:, 1].reshape(height, width).astype(np.float32),
-        }
+        # Reshape to coarse grid
+        map_x_coarse = transformed[:, 0].reshape(coarse_height, coarse_width)
+        map_y_coarse = transformed[:, 1].reshape(coarse_height, coarse_width)
+
+        # Interpolate to full resolution using opencv for consistency
+        map_x = cv2.resize(map_x_coarse, (width, height), interpolation=cv2.INTER_LINEAR).astype(np.float32)
+        map_y = cv2.resize(map_y_coarse, (width, height), interpolation=cv2.INTER_LINEAR).astype(np.float32)
+
+        return {"map_x": map_x, "map_y": map_y}
